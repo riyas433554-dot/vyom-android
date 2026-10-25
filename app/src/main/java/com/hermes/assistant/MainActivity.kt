@@ -858,7 +858,7 @@ class MainActivity : Activity() {
     }
 
     private fun fetchLatestUpdateManifest(): JSONObject {
-        val release = JSONObject(readHttpsText("https://api.github.com/repos/riyas433554-dot/hermes/releases/latest", 128 * 1024))
+        val release = JSONObject(readHttpsText("https://api.github.com/repos/riyas433554-dot/vyom-android/releases/latest", 128 * 1024))
         val assets = release.optJSONArray("assets") ?: throw IllegalStateException("Release assets missing")
         var manifestUrl: String? = null
         for (i in 0 until assets.length()) {
@@ -938,7 +938,7 @@ class MainActivity : Activity() {
     private fun validateReleaseUrl(value: String) {
         val uri = Uri.parse(value)
         if (!uri.scheme.equals("https", true) || !uri.host.equals("github.com", true) ||
-            !uri.path.orEmpty().startsWith("/riyas433554-dot/hermes/releases/download/")) {
+            !uri.path.orEmpty().startsWith("/riyas433554-dot/vyom-android/releases/download/")) {
             throw IllegalStateException("Update URL is not an approved GitHub release asset")
         }
     }
@@ -946,7 +946,7 @@ class MainActivity : Activity() {
     private fun validateReleaseUrlOrApi(value: String) {
         val uri = Uri.parse(value)
         val validReleaseAsset = uri.host.equals("github.com", true) &&
-            uri.path.orEmpty().startsWith("/riyas433554-dot/hermes/releases/download/")
+            uri.path.orEmpty().startsWith("/riyas433554-dot/vyom-android/releases/download/")
         val validApi = uri.host.equals("api.github.com", true) &&
             uri.path == "/repos/riyas433554-dot/hermes/releases/latest"
         if (!uri.scheme.equals("https", true) || (!validReleaseAsset && !validApi)) {
