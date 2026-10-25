@@ -24,6 +24,9 @@ class MainActivity : Activity() {
     private lateinit var sendButton: Button
     private lateinit var api: VyomApiClient
     private val io = Executors.newSingleThreadExecutor()
+    private data class ChatEntry(val id: Int, val message: String, var state: String, var reply: String = "")
+    private val chatEntries = mutableListOf<ChatEntry>()
+    private var nextMessageId = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,6 +79,7 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
         }
         val transcriptScroll = ScrollView(this).apply {
+            isFillViewport = true
             addView(transcript)
         }
         chatInput = EditText(this).apply {
@@ -92,7 +96,7 @@ class MainActivity : Activity() {
 
         panel.addView(pairingInput, LinearLayout.LayoutParams(-1, dp(48)))
         panel.addView(pairButton, LinearLayout.LayoutParams(-1, dp(48)))
-        panel.addView(transcriptScroll, LinearLayout.LayoutParams(-1, dp(100)))
+        panel.addView(transcriptScroll, LinearLayout.LayoutParams(-1, dp(180)))
         panel.addView(chatInput, LinearLayout.LayoutParams(-1, dp(52)))
         panel.addView(sendButton, LinearLayout.LayoutParams(-1, dp(46)))
 
@@ -124,7 +128,11 @@ class MainActivity : Activity() {
                         pairButton.visibility = View.GONE
                     }
                 } catch (error: Exception) {
-                    runOnUiThread { status.text = "VYOM  •  PAIRING REQUIRED" }
+                    runOnUiThread {
+                        status.text = "VYOM  •  PAIRING REQUIRED"
+                        pairingInput.visibility = View.VISIBLE
+                        pairButton.visibility = View.VISIBLE
+                    }
                 }
             }
         }
@@ -162,25 +170,45 @@ class MainActivity : Activity() {
         val message = chatInput.text.toString().trim()
         if (message.isBlank()) return
         chatInput.setText("")
-        sendButton.isEnabled = false
-        status.text = "VYOM  •  THINKING"
-        transcript.text = "You: $message\n\nHermes: thinking..."
+        val entry = ChatEntry(nextMessageId++, message, "queued")
+        chatEntries.add(entry)
+        renderTranscript()
+        status.text = "VYOM  •  QUEUED"
+        // The single-thread executor processes accepted messages sequentially.
         io.execute {
+            runOnUiThread {
+                entry.state = "running"
+                renderTranscript()
+                status.text = "VYOM  •  THINKING"
+            }
             try {
                 val reply = api.chat(message)
                 runOnUiThread {
-                    transcript.text = "You: $message\n\nHermes: $reply"
-                    status.text = "VYOM  •  READY"
-                    sendButton.isEnabled = true
+                    entry.state = "done"
+                    entry.reply = reply
+                    renderTranscript()
+                    status.text = if (chatEntries.any { it.state == "queued" || it.state == "running" }) {
+                        "VYOM  •  QUEUED"
+                    } else {
+                        "VYOM  •  READY"
+                    }
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    transcript.text = "You: $message\n\nError: ${error.message ?: "Request failed"}"
+                    entry.state = "error"
+                    entry.reply = error.message ?: "Request failed"
+                    renderTranscript()
                     status.text = "VYOM  •  OFFLINE"
-                    sendButton.isEnabled = true
                 }
             }
         }
+    }
+
+    private fun renderTranscript() {
+        transcript.text = chatEntries.joinToString("\n\n") { entry ->
+            "#${entry.id}  [${entry.state}]\nYou: ${entry.message}" +
+                if (entry.reply.isNotBlank()) "\nHermes: ${entry.reply}" else ""
+        }.ifBlank { "Hermes chat will appear here." }
     }
 
     private fun dp(value: Int): Int =
