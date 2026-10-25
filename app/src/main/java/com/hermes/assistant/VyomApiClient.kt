@@ -5,8 +5,6 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyStore
@@ -70,9 +68,11 @@ internal class VyomApiClient(context: Context) {
 
     fun hasPairingCode(): Boolean = !store.get("pairing_code").isNullOrBlank()
 
+    // Reuse the saved bearer token on reconnect; do not call a session-validation endpoint.
     fun reconnect(): String {
-        val code = store.get("pairing_code") ?: throw IllegalStateException("Pair Vyom once to connect")
-        return pair(code)
+        return store.get("access_token")
+            ?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("Session missing. Pair Vyom again.")
     }
 
     fun pair(pairingCode: String): String {
