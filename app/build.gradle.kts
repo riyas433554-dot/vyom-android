@@ -7,6 +7,7 @@ plugins {
 val gitCommitShort = System.getenv("GITHUB_SHA")?.take(7) ?: "local"
 val androidVersionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 3
 val androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.3.0"
+val hermesBaseUrl = (System.getenv("HERMES_BASE_URL") ?: "https://hermes-oregon.onrender.com").trimEnd('/')
 
 android {
     namespace = "com.hermes.assistant"
@@ -18,6 +19,7 @@ android {
         targetSdk = 35
         versionCode = androidVersionCode
         versionName = androidVersionName
+        buildConfigField("String", "HERMES_BASE_URL", "\"$hermesBaseUrl\"")
     }
 
     signingConfigs {
@@ -36,7 +38,7 @@ android {
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
-            buildConfigField("String", "GIT_COMMIT_SHORT", "\"release\"")
+            buildConfigField("String", "GIT_COMMIT_SHORT", "\"$gitCommitShort\"")
         }
     }
 
