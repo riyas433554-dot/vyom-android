@@ -7,7 +7,7 @@ plugins {
 val gitCommitShort = System.getenv("GITHUB_SHA")?.take(7) ?: "local"
 val androidVersionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 3
 val androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.3.0"
-val hermesBaseUrl = (System.getenv("HERMES_BASE_URL") ?: "https://hermes-oregon.onrender.com").trimEnd('/')
+val hermesBaseUrl = (System.getenv("HERMES_BASE_URL")?.takeIf { it.isNotBlank() } ?: "https://hermes-oregon.onrender.com").trimEnd('/')
 
 android {
     namespace = "com.hermes.assistant"
