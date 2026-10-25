@@ -56,7 +56,7 @@ internal class VyomSecureStore(context: Context) {
 
 internal class VyomApiClient(context: Context) {
     private val store = VyomSecureStore(context.applicationContext)
-    private val baseUrl = "https://hermes-oregon.onrender.com"
+    private val baseUrl = BuildConfig.HERMES_BASE_URL
 
     class TaskApiException(val statusCode: Int) : Exception("Tasks API error ($statusCode)")
 
