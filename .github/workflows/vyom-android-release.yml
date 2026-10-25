@@ -2,6 +2,17 @@ name: Vyom Android Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Debug artifact version name"
+        required: false
+        default: "0.3.0"
+        type: string
+      version_code:
+        description: "Android versionCode"
+        required: false
+        default: "3"
+        type: string
   push:
     tags:
       - "vyom-v*"
@@ -12,6 +23,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HERMES_BASE_URL: ${{ vars.HERMES_BASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,13 +45,44 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and test debug APK
+      - name: Set build version and artifact name
+        id: meta
+        shell: bash
+        env:
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          INPUT_VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [[ "${GITHUB_REF}" == refs/tags/vyom-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#vyom-v}"
+          else
+            VERSION="${INPUT_VERSION_NAME:-0.3.0}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Invalid version: $VERSION"
+            exit 1
+          fi
+          if [[ "${GITHUB_REF}" == refs/tags/vyom-v* ]]; then
+            VERSION_CODE="$((100000 + $(echo "$VERSION" | tr -cd '0-9' | head -c 6)))"
+          else
+            VERSION_CODE="${INPUT_VERSION_CODE:-3}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "apk=vyom-$VERSION-$SHORT_SHA.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test unsigned debug APK
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ANDROID_VERSION_NAME: ${{ steps.meta.outputs.version }}
+          ANDROID_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
         run: |
           gradle testDebugUnitTest assembleDebug --no-daemon
           mkdir -p output
-          cp app/build/outputs/apk/debug/app-debug.apk output/vyom-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk "output/${{ steps.meta.outputs.apk }}"
 
       - name: Configure release signing
+        if: startsWith(github.ref, 'refs/tags/vyom-v')
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -52,26 +96,40 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/vyom-release.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/vyom-release.jks" >> "$GITHUB_ENV"
 
-      - name: Build signed release APK
+      - name: Build signed release and manifest
+        if: startsWith(github.ref, 'refs/tags/vyom-v')
         env:
+          ANDROID_VERSION_NAME: ${{ steps.meta.outputs.version }}
+          ANDROID_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
         run: |
           gradle assembleRelease --no-daemon
           mkdir -p output
-          cp app/build/outputs/apk/release/app-release.apk output/vyom-release.apk
+          APK="output/${{ steps.meta.outputs.apk }}"
+          cp app/build/outputs/apk/release/app-release.apk "$APK"
+          sha256sum "$APK" > "$APK.sha256"
+          SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
+          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.meta.outputs.apk }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          VERSION_CODE="${{ steps.meta.outputs.version_code }}"
+          VERSION_SHA256="$SHA256" APK_URL="$APK_URL" VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" python3 -c 'import json,os; d={"version":os.environ["VERSION"],"versionName":os.environ["VERSION"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2)+"\\n")'
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vyom-android-apks
-          path: output/*.apk
+          path: output/*
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish tag release
+      - name: Publish signed release and update manifest
         if: startsWith(github.ref, 'refs/tags/vyom-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: output/vyom-release.apk
+          files: |
+            output/${{ steps.meta.outputs.apk }}
+            output/${{ steps.meta.outputs.apk }}.sha256
+            output/vyom-update.json
