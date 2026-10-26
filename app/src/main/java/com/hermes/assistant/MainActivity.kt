@@ -397,7 +397,7 @@ class MainActivity : Activity() {
 
         val orbitView = OrbitHomeView(this)
         orbitHomeView = orbitView
-        root.addView(orbitView, FrameLayout.LayoutParams(-1, -1))
+        root.addView(orbitView, 0, FrameLayout.LayoutParams(-1, -1))
         root.addView(orb, FrameLayout.LayoutParams(1, 1, Gravity.CENTER))
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12)
