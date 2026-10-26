@@ -77,6 +77,13 @@ Last verified: 2026-10-26. Evidence-based status only; a source change is not co
 4. Only after a successful debug build, continue signed release checks. Signing secrets are not currently configured.
 5. Keep PRs draft until their required evidence is green. No Hermes merge/deploy/production DB mutation/migration apply without explicit user approval.
 
+## Latest work session — 2026-10-26
+
+- [ ] Branch `feature/u1-live-orbit-tasks` created from U1 PR #1 head `6bd274234374b2e564923b728cb7e6764692e812`.
+- [x] `OrbitHomeView.kt` changed to accept task snapshots and render task titles/status colors instead of generic decorative cards; commit `6c5703b9656cf9517d5c05b853167f6ad47e8102`.
+- [ ] MainActivity-to-orbit snapshot wiring is NOT committed; update attempt was blocked by the GitHub tool safety check. Do not call U1 live-data complete or open a review-ready PR yet.
+- [ ] Next: safely wire `tasksById` into `OrbitHomeView.setTaskSnapshots`, inspect diff, add/update tests, and verify build through an available runner. CI remains blocked by billing.
+
 ## Resume order
 
 1. Continue Android source/PR work without waiting for GitHub Actions; keep changes isolated from Hermes and preserve pairing/chat.
