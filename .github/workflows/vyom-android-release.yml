@@ -117,6 +117,26 @@ jobs:
           VERSION_CODE="${{ steps.meta.outputs.version_code }}"
           VERSION_SHA256="$SHA256" APK_URL="$APK_URL" VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" python3 -c 'import json,os; d={"version":os.environ["VERSION"],"versionName":os.environ["VERSION"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
 
+      - name: Verify release APK signature and certificate
+        if: startsWith(github.ref, 'refs/tags/vyom-v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="output/${{ steps.meta.outputs.apk }}"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+          test -n "$APKSIGNER" || { echo "ERROR: apksigner not found"; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          ACTUAL="$( "$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/certificate SHA-256 digest:/ {print toupper($2); exit}' | tr -d ':' )"
+          EXPECTED="0D85A74EF42CF6239A20C6EA20D26AAACFA352E259CA0DD9E7A893A7FCAF5ABE"
+          test -n "$ACTUAL" || { echo "ERROR: signer certificate SHA-256 unavailable"; exit 1; }
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "ERROR: signer certificate SHA-256 mismatch"
+            echo "Expected: $EXPECTED"
+            echo "Actual:   $ACTUAL"
+            exit 1
+          fi
+          echo "SIGNATURE_AND_CERTIFICATE_OK"
+
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
