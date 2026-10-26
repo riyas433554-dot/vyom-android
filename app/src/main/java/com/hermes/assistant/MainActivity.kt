@@ -93,6 +93,7 @@ class MainActivity : Activity() {
     private var reduceMotion = false
     private var taskRefreshInFlight = false
     private val tasksById = linkedMapOf<String, JSONObject>()
+    private var orbitHomeView: OrbitHomeView? = null
     private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "")
     private val chatMessages = mutableListOf<ChatMessage>()
     private val chatPrefs by lazy { getSharedPreferences("vyom_chat_history", MODE_PRIVATE) }
@@ -394,7 +395,8 @@ class MainActivity : Activity() {
         controlPanel.addView(auditScroll, LinearLayout.LayoutParams(-1, 0, 1f))
         panel.addView(controlPanel, LinearLayout.LayoutParams(-1, dp(250)))
 
-        root.addView(OrbitHomeView(this), FrameLayout.LayoutParams(-1, -1))
+        orbitHomeView = OrbitHomeView(this)
+        root.addView(orbitHomeView, FrameLayout.LayoutParams(-1, -1))
         root.addView(orb, FrameLayout.LayoutParams(1, 1, Gravity.CENTER))
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12)
@@ -1140,6 +1142,13 @@ class MainActivity : Activity() {
     }
 
     private fun renderTasks() {
+        orbitHomeView?.setTaskSnapshots(
+            tasksById.values.toList().asReversed().take(5).map { task ->
+                val title = task.optString("prompt", "Task ${task.optString("id")}")
+                    .lineSequence().firstOrNull().orEmpty().ifBlank { "Task ${task.optString("id")}" }
+                title to task.optString("status", "queued")
+            }
+        )
         taskList.removeAllViews()
         if (tasksById.isEmpty()) {
             taskList.addView(TextView(this).apply {
