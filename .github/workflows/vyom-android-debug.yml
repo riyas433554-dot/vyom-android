@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fresh-history/android-app-copy
+      - feature/u1-live-orbit-tasks
   pull_request:
     branches:
       - fresh-history/android-app-copy
