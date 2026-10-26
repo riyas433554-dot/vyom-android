@@ -12,8 +12,8 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * Decorative orbit layer for the home screen. Task labels are intentionally generic until
- * the task-store model is wired into the home surface; existing Tasks panel remains canonical.
+ * Orbit cards show compact snapshots from the authenticated Vyom task API.
+ * The Tasks panel remains the canonical detailed task view.
  */
 internal class OrbitHomeView(context: Context) : View(context) {
     private val orbitPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -35,7 +35,7 @@ internal class OrbitHomeView(context: Context) : View(context) {
     private var rotation = 0f
     private var downX = 0f
     private var dragging = false
-    private val labels = arrayOf("CHAT", "APP", "VIDEO", "TASK", "FILE")
+    private var tasks: List<Pair<String, String>> = emptyList()
     private val colors = intArrayOf(
         Color.rgb(56, 189, 248), Color.rgb(167, 139, 250), Color.rgb(251, 191, 36),
         Color.rgb(244, 114, 182), Color.rgb(52, 211, 153)
@@ -51,7 +51,17 @@ internal class OrbitHomeView(context: Context) : View(context) {
         canvas.rotate(-18f, cx, cy)
         canvas.drawOval(RectF(cx - rx, cy - ry, cx + rx, cy + ry), orbitPaint)
         canvas.restore()
-        for (i in labels.indices) {
+        val visibleTasks = tasks.take(5)
+        if (visibleTasks.isEmpty()) {
+            textPaint.color = Color.rgb(207, 232, 255)
+            textPaint.textSize = dp(12f)
+            canvas.drawText("TASKS", cx - dp(20f), cy - dp(6f), textPaint)
+            textPaint.textSize = dp(10f)
+            textPaint.color = Color.LTGRAY
+            canvas.drawText("No saved tasks", cx - dp(35f), cy + dp(14f), textPaint)
+            return
+        }
+        for (i in visibleTasks.indices) {
             val angle = Math.toRadians((i * 72f + rotation - 90f).toDouble())
             val x = cx + cos(angle).toFloat() * rx * 0.82f
             val y = cy + sin(angle).toFloat() * ry * 0.82f
@@ -60,15 +70,23 @@ internal class OrbitHomeView(context: Context) : View(context) {
             val rect = RectF(x - w / 2f, y - h / 2f, x + w / 2f, y + h / 2f)
             cardPaint.alpha = if (sin(angle) > 0.6) 230 else 155
             canvas.drawRoundRect(rect, dp(5f), dp(5f), cardPaint)
-            borderPaint.color = colors[i]
+            val state = visibleTasks[i].second.lowercase()
+            val cardColor = when (state) {
+                "failed", "error" -> Color.rgb(248, 113, 113)
+                "running", "in_progress" -> Color.rgb(56, 189, 248)
+                "success", "completed", "done" -> Color.rgb(52, 211, 153)
+                else -> Color.rgb(251, 191, 36)
+            }
+            borderPaint.color = cardColor
             borderPaint.alpha = if (sin(angle) > 0.6) 235 else 150
             canvas.drawRoundRect(rect, dp(5f), dp(5f), borderPaint)
-            textPaint.color = colors[i]
+            textPaint.color = cardColor
             textPaint.textSize = dp(10f)
-            canvas.drawText("!  " + labels[i], rect.left + dp(8f), rect.top + dp(16f), textPaint)
+            canvas.drawText(state.uppercase().take(12), rect.left + dp(8f), rect.top + dp(16f), textPaint)
             textPaint.color = Color.rgb(207, 232, 255)
-            textPaint.textSize = dp(12f)
-            canvas.drawText(if (i == 0) "Ready" else "Orbit item", rect.left + dp(8f), rect.top + dp(36f), textPaint)
+            textPaint.textSize = dp(10f)
+            val title = visibleTasks[i].first
+            canvas.drawText(if (title.length > 15) title.take(14) + "…" else title, rect.left + dp(8f), rect.top + dp(36f), textPaint)
             canvas.drawRoundRect(RectF(rect.left + dp(8f), rect.bottom - dp(9f), rect.right - dp(8f), rect.bottom - dp(6f)), dp(2f), dp(2f), borderPaint)
         }
     }
@@ -92,6 +110,11 @@ internal class OrbitHomeView(context: Context) : View(context) {
             }
         }
         return true
+    }
+
+    fun setTaskSnapshots(items: List<Pair<String, String>>) {
+        tasks = items
+        invalidate()
     }
 
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
