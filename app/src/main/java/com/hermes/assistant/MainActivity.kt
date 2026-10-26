@@ -395,8 +395,9 @@ class MainActivity : Activity() {
         controlPanel.addView(auditScroll, LinearLayout.LayoutParams(-1, 0, 1f))
         panel.addView(controlPanel, LinearLayout.LayoutParams(-1, dp(250)))
 
-        orbitHomeView = OrbitHomeView(this)
-        root.addView(orbitHomeView, FrameLayout.LayoutParams(-1, -1))
+        val orbitView = OrbitHomeView(this)
+        orbitHomeView = orbitView
+        root.addView(orbitView, FrameLayout.LayoutParams(-1, -1))
         root.addView(orb, FrameLayout.LayoutParams(1, 1, Gravity.CENTER))
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12)
