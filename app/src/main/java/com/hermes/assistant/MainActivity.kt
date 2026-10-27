@@ -105,6 +105,8 @@ class MainActivity : Activity() {
     private var liveLaneEnabled = false
     private lateinit var elevenLabsKeyInput: EditText
     private lateinit var elevenLabsVoiceIdInput: EditText
+    private lateinit var nvidiaApiKeyInput: EditText
+    private var nemotronLiveClient: NemotronLiveClient? = null
     private lateinit var ttsConfigStatus: TextView
     private lateinit var api: VyomApiClient
     private val io = Executors.newSingleThreadExecutor()
@@ -379,11 +381,19 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(elevenLabsKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(elevenLabsVoiceIdInput, LinearLayout.LayoutParams(-1, dp(44)))
+        nvidiaApiKeyInput = EditText(this).apply {
+            hint = "NVIDIA API key (encrypted on device; LIVE lane)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setText(secureVoicePrefs().getString("nvidia_api_key", "") ?: "")
+        }
+        settingsContent.addView(nvidiaApiKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
             text = "SAVE VOICE SETTINGS"
             setOnClickListener {
                 secureVoicePrefs().edit().putString("elevenlabs_api_key", elevenLabsKeyInput.text.toString().trim())
                     .putString("elevenlabs_voice_id", elevenLabsVoiceIdInput.text.toString().trim()).apply()
+                secureVoicePrefs().edit().putString("nvidia_api_key", nvidiaApiKeyInput.text.toString().trim()).apply()
                 ttsConfigStatus.text = voiceProvider().status()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
@@ -1206,6 +1216,14 @@ class MainActivity : Activity() {
             text = "AI will reply with text and voice"; textSize = 12f; gravity = Gravity.CENTER
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, dp(44)))
+        panel.addView(Button(this).apply {
+            text = if (liveLaneEnabled) "LIVE LANE: ON" else "LIVE LANE: OFF"
+            setOnClickListener {
+                liveLaneEnabled = !liveLaneEnabled
+                text = if (liveLaneEnabled) "LIVE LANE: ON — NEMOTRON SUPER" else "LIVE LANE: OFF — CHAT/TASK NORMAL"
+                if (::voiceTranscript.isInitialized) voiceTranscript.text = if (liveLaneEnabled) "LIVE lane enabled. STT commits go directly to Nemotron 3 Super." else "Normal voice mode. CHAT/TASK use existing Hermes endpoints."
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         controls.addView(Button(this).apply {
             text = "MUTE"
@@ -1258,6 +1276,11 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank() && ::voiceTranscript.isInitialized) {
                         voiceTranscript.text = "Hearing: $partial"
+                        if (liveLaneEnabled && voiceTtsProvider != null) {
+                            voiceTtsProvider?.stop()
+                            nemotronLiveClient?.cancel()
+                            if (::micIndicator.isInitialized) micIndicator.text = "LIVE • INTERRUPTED — LISTENING"
+                        }
                     }
                 }
             },
@@ -1266,8 +1289,10 @@ class MainActivity : Activity() {
                     if (voiceLoopEnabled && !voiceMuted && recognized.isNotBlank()) {
                         chatInput.setText(recognized)
                         chatInput.setSelection(chatInput.text.length)
-                        if (::voiceTranscript.isInitialized) voiceTranscript.text = "Recognized text:\\n$recognized"
-                        micIndicator.text = "STT TEXT READY — REVIEW OR SEND"
+                        if (liveLaneEnabled) runLiveLane(recognized) else {
+                            if (::voiceTranscript.isInitialized) voiceTranscript.text = "Recognized text:\\n$recognized"
+                            micIndicator.text = "STT TEXT READY — REVIEW OR SEND"
+                        }
                     }
                 }
             },
@@ -1277,6 +1302,44 @@ class MainActivity : Activity() {
                 }
             }
         ).also { it.start() }
+    }
+
+    private fun runLiveLane(prompt: String) {
+        val key = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+        if (key.isBlank()) {
+            if (::voiceTranscript.isInitialized) voiceTranscript.text = "LIVE lane needs an NVIDIA API key. Save it in Profile > Settings."
+            micIndicator.text = "LIVE KEY MISSING"
+            return
+        }
+        voiceTtsProvider?.stop()
+        nemotronLiveClient?.cancel()
+        val client = NemotronLiveClient(key)
+        nemotronLiveClient = client
+        val accumulated = StringBuilder()
+        micIndicator.text = "LIVE • NEMOTRON 3 SUPER STREAMING"
+        client.stream(prompt, { delta ->
+            runOnUiThread {
+                if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted) {
+                    accumulated.append(delta)
+                    if (::voiceTranscript.isInitialized) voiceTranscript.text = accumulated.toString()
+                }
+            }
+        }, { reply ->
+            runOnUiThread {
+                if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted && reply.isNotBlank()) {
+                    if (::voiceTranscript.isInitialized) voiceTranscript.text = reply
+                    micIndicator.text = "LIVE • SPEAKING"
+                    speakReply(reply) { if (liveLaneEnabled && voiceLoopEnabled && !voiceMuted) micIndicator.text = "LIVE • LISTENING" }
+                }
+            }
+        }, { error ->
+            runOnUiThread {
+                if (nemotronLiveClient === client) {
+                    micIndicator.text = "LIVE ERROR"
+                    if (::voiceTranscript.isInitialized) voiceTranscript.text = error
+                }
+            }
+        })
     }
 
     private fun stopVoiceInput(cancel: Boolean, updateStatus: Boolean = true) {
