@@ -1234,11 +1234,16 @@ class MainActivity : Activity() {
             override fun onEndOfSpeech() { micIndicator.text = "MIC PROCESSING" }
             override fun onError(error: Int) {
                 listening = false
-                micIndicator.text = "MIC OFF — TRY AGAIN"
-                micIndicator.contentDescription = "Microphone status: off"
-                voiceButton.text = "TALK"
                 speechRecognizer?.destroy()
                 speechRecognizer = null
+                if (voiceLoopEnabled && voiceStateMachine.enabled) {
+                    micIndicator.text = if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) "NETWORK / STT TIMEOUT — RETRYING" else "MIC RETRYING"
+                    mainHandler.postDelayed({ if (voiceLoopEnabled && !isFinishing) startVoiceInput() }, 1200)
+                } else {
+                    micIndicator.text = "MIC OFF — TRY AGAIN"
+                    micIndicator.contentDescription = "Microphone status: off"
+                    voiceButton.text = "TALK"
+                }
             }
             override fun onResults(results: Bundle?) {
                 val spoken = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
@@ -1897,6 +1902,14 @@ class MainActivity : Activity() {
     override fun onPause() {
         tasksTabVisible = false
         mainHandler.removeCallbacks(refreshTasksRunnable)
+        if (voiceLoopEnabled) {
+            voiceLoopEnabled = false
+            voiceStateMachine.stop()
+            voiceTtsProvider?.stop()
+            voiceDialog?.dismiss()
+            voiceDialog = null
+            if (::micIndicator.isInitialized) micIndicator.text = "VOICE STOPPED — SCREEN NOT ACTIVE"
+        }
         stopVoiceInput(cancel = true)
         if (::orb.isInitialized) orb.onPause()
         super.onPause()
@@ -1914,6 +1927,8 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         mainHandler.removeCallbacksAndMessages(null)
         stopVoiceInput(cancel = true)
+        voiceTtsProvider?.stop()
+        voiceTtsProvider = null
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
