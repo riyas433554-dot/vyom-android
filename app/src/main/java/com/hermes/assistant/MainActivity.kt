@@ -1348,10 +1348,15 @@ class MainActivity : Activity() {
             onCommitted = { recognized ->
                 runOnUiThread {
                     if (voiceLoopEnabled && !voiceMuted && recognized.isNotBlank()) {
-                        chatInput.setText(recognized)
-                        chatInput.setSelection(chatInput.text.length)
-                        if (liveLaneEnabled) runLiveLane(recognized) else {
-                            if (::voiceTranscript.isInitialized) voiceTranscript.text = "Recognized text:\\n$recognized"
+                        if (liveLaneEnabled) {
+                            val item = ChatMessage(UUID.randomUUID().toString(), recognized, "running")
+                            chatMessages.add(item)
+                            persistChatMessages()
+                            renderChatMessages()
+                            runLiveLane(recognized, item)
+                        } else {
+                            chatInput.setText(recognized)
+                            chatInput.setSelection(chatInput.text.length)
                             micIndicator.text = "STT TEXT READY — REVIEW OR SEND"
                         }
                     }
@@ -1413,16 +1418,16 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun runLiveLane(prompt: String) {
+    private fun runLiveLane(prompt: String, historyItem: ChatMessage? = null) {
         val key = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
         val modelId = secureVoicePrefs().getString("nvidia_live_model_id", "").orEmpty().trim()
         if (key.isBlank()) {
-            if (::voiceTranscript.isInitialized) voiceTranscript.text = "LIVE lane needs an NVIDIA API key. Save it in Profile > Settings."
+            historyItem?.let { it.state = "error"; it.reply = "LIVE lane needs an NVIDIA API key. Save it in Profile > Settings."; persistChatMessages(); renderChatMessages() }
             micIndicator.text = "LIVE KEY MISSING"
             return
         }
         if (modelId.isBlank()) {
-            if (::voiceTranscript.isInitialized) voiceTranscript.text = "LIVE model ID missing. Open Profile > Settings, tap LOAD MODELS, then choose a model."
+            historyItem?.let { it.state = "error"; it.reply = "LIVE model ID missing. Open Profile > Settings, tap LOAD MODELS, then choose a model."; persistChatMessages(); renderChatMessages() }
             micIndicator.text = "LIVE MODEL MISSING"
             return
         }
@@ -1435,12 +1440,11 @@ class MainActivity : Activity() {
         liveSentenceTtsPlaying = false
         liveSentenceQueue.clear()
         val accumulated = StringBuilder()
-        micIndicator.text = "LIVE • NEMOTRON 3 SUPER STREAMING"
+        micIndicator.text = "LIVE • STREAMING"
         client.stream(prompt, { delta ->
             runOnUiThread {
                 if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted) {
                     accumulated.append(delta)
-                    if (::voiceTranscript.isInitialized) voiceTranscript.text = accumulated.toString()
                 }
             }
         }, { sentence ->
@@ -1455,7 +1459,7 @@ class MainActivity : Activity() {
                 liveGenerationActive = false
                 liveStreamFinished = true
                 if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted && reply.isNotBlank()) {
-                    if (::voiceTranscript.isInitialized) voiceTranscript.text = reply
+                    historyItem?.let { it.state = "done"; it.reply = reply; persistChatMessages(); renderChatMessages() }
                     pumpLiveSentenceTts()
                 }
             }
