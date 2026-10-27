@@ -1433,6 +1433,13 @@ class MainActivity : Activity() {
     private fun createTask() {
         val prompt = taskInput.text.toString().trim()
         if (prompt.isBlank()) return
+        val maxTasks = settingsPrefs.getInt("max_tasks", 5).coerceIn(5, 20)
+        val activeStates = setOf("queued", "pending", "running", "in_progress", "processing", "working")
+        val activeCount = tasksById.values.count { it.optString("status", "queued").lowercase() in activeStates }
+        if (activeCount >= maxTasks) {
+            taskNotice.text = "Active task limit reached ($maxTasks). Change QUEUE LIMIT or wait for a task to finish."
+            return
+        }
         if (prompt.length > 4000) {
             taskNotice.text = "Task description must be 4000 characters or fewer."
             return
@@ -1517,55 +1524,135 @@ class MainActivity : Activity() {
     }
 
     private fun renderTasks() {
-        orbitHomeView?.setTaskSnapshots(
-            tasksById.values.toList().asReversed().take(5).map { task ->
-                val title = task.optString("prompt", "Task ${task.optString("id")}")
-                    .lineSequence().firstOrNull().orEmpty().ifBlank { "Task ${task.optString("id")}" }
-                title to task.optString("status", "queued")
-            }
-        )
+        val allTasks = tasksById.values.toList().asReversed()
+        orbitHomeView?.setTaskSnapshots(allTasks.take(5).map { task ->
+            val title = task.optString("prompt", "Task ${task.optString("id")}")
+                .lineSequence().firstOrNull().orEmpty().ifBlank { "Task ${task.optString("id")}" }
+            title to task.optString("status", "queued")
+        })
         taskList.removeAllViews()
-        if (tasksById.isEmpty()) {
+        val activeStates = setOf("queued", "pending", "running", "in_progress", "processing", "working")
+        val active = allTasks.filter { it.optString("status", "queued").lowercase() in activeStates }
+        val maxTasks = settingsPrefs.getInt("max_tasks", 5).coerceIn(5, 20)
+        val dashboard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.rgb(17, 34, 51))
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(1), Color.argb(130, 0, 190, 255))
+            }
+        }
+        dashboard.addView(TextView(this).apply {
+            text = "TASKS / AGENTS"
+            textSize = 10f
+            letterSpacing = 0.12f
+            setTextColor(Color.rgb(0, 210, 255))
+        })
+        dashboard.addView(TextView(this).apply {
+            text = "Active tasks: ${active.size}  •  Queue limit: $maxTasks"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setPadding(0, dp(5), 0, dp(3))
+        })
+        dashboard.addView(Button(this).apply {
+            text = "QUEUE LIMIT: $maxTasks (CHANGE)"
+            contentDescription = "Change local active task submission limit"
+            setOnClickListener {
+                val choices = arrayOf("5 tasks", "10 tasks", "15 tasks", "20 tasks")
+                val values = intArrayOf(5, 10, 15, 20)
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Maximum active tasks")
+                    .setMessage("This is a client-side submission guard only. It does not change server concurrency or GitHub Actions limits.")
+                    .setSingleChoiceItems(choices, values.indexOf(maxTasks).coerceAtLeast(0)) { dialog, which ->
+                        settingsPrefs.edit().putInt("max_tasks", values[which]).apply()
+                        dialog.dismiss()
+                        renderTasks()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        val current = active.firstOrNull { it.optString("status", "").lowercase() in setOf("running", "in_progress", "processing", "working") }
+        dashboard.addView(TextView(this).apply {
+            text = if (current == null) "No task currently marked running" else
+                "CURRENT TASK  •  ${current.optString("prompt", "Working").lineSequence().firstOrNull().orEmpty()}\nStatus: ${current.optString("status", "running")}"
+            textSize = 12f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, dp(7), 0, dp(5))
+        })
+        val agentArray = current?.optJSONArray("agents")
+        dashboard.addView(TextView(this).apply {
+            text = "AGENTS"
+            textSize = 10f
+            setTextColor(Color.rgb(150, 190, 220))
+            setPadding(0, dp(4), 0, dp(3))
+        })
+        if (agentArray != null && agentArray.length() > 0) {
+            for (i in 0 until agentArray.length()) {
+                val agent = agentArray.optJSONObject(i)
+                dashboard.addView(TextView(this).apply {
+                    text = "• ${agent?.optString("name", "Agent ${i + 1}") ?: "Agent ${i + 1}"} — ${agent?.optString("status", "status unavailable") ?: "status unavailable"}"
+                    textSize = 12f
+                    setTextColor(Color.WHITE)
+                    setPadding(dp(4), dp(2), 0, dp(2))
+                })
+            }
+        } else {
+            dashboard.addView(TextView(this).apply {
+                text = "Agent-level details are not present in the current task API response."
+                textSize = 11f
+                setTextColor(Color.LTGRAY)
+            })
+        }
+        taskList.addView(dashboard, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        if (allTasks.isEmpty()) {
             taskList.addView(TextView(this).apply {
-                text = "No tasks yet."
+                text = "No tasks yet. Create one above."
                 setTextColor(Color.LTGRAY)
                 setPadding(0, dp(12), 0, dp(12))
             })
             return
         }
-        tasksById.values.toList().asReversed().forEach { task ->
+        taskList.addView(TextView(this).apply {
+            text = "OTHER TASKS"
+            textSize = 10f
+            letterSpacing = 0.12f
+            setTextColor(Color.rgb(150, 190, 220))
+            setPadding(0, dp(2), 0, dp(6))
+        })
+        allTasks.forEach { task ->
             val id = task.optString("id")
             val state = task.optString("status", "queued").lowercase()
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(10), dp(8), dp(10), dp(8))
                 background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(Color.rgb(22, 29, 40))
-                cornerRadius = dp(10).toFloat()
-                setStroke(dp(1), Color.argb(80, 0, 190, 255))
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.rgb(22, 29, 40))
+                    cornerRadius = dp(10).toFloat()
+                    setStroke(dp(1), Color.argb(80, 0, 190, 255))
+                }
             }
-            }
-            val heading = TextView(this).apply {
-                text = "Task $id\nStatus: $state"
+            card.addView(TextView(this).apply {
+                text = "Task $id  •  ${state.uppercase()}"
                 textSize = 12f
-                setTextColor(if (state == "failed") Color.rgb(255, 120, 120) else Color.rgb(0, 210, 255))
+                setTextColor(if (state in setOf("failed", "error")) Color.rgb(255, 120, 120) else Color.rgb(0, 210, 255))
                 setPadding(0, 0, 0, dp(5))
-            }
-            val prompt = TextView(this).apply {
+            })
+            card.addView(TextView(this).apply {
                 text = task.optString("prompt", "")
                 textSize = 13f
                 setTextColor(Color.WHITE)
                 setTextIsSelectable(true)
-            }
+            })
             val resultValue = task.opt("result")
             val resultText = when (resultValue) {
                 null, JSONObject.NULL -> ""
                 is JSONObject -> resultValue.toString(2)
                 else -> resultValue.toString()
             }
-            card.addView(heading)
-            card.addView(prompt)
             if (resultText.isNotBlank()) {
                 val resultScroll = ScrollView(this).apply {
                     isFillViewport = false
@@ -1585,7 +1672,7 @@ class MainActivity : Activity() {
                     }, LinearLayout.LayoutParams(-1, dp(40)))
                 }
             }
-            if (state == "queued" || state == "running") {
+            if (state in activeStates) {
                 card.addView(Button(this).apply {
                     text = "CANCEL TASK"
                     setOnClickListener { cancelTask(id) }
