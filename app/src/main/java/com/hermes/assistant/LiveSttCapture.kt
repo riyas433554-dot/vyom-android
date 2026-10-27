@@ -29,7 +29,8 @@ internal class LiveSttCapture(
 ) {
     private val sampleRate = 16_000
     private val silenceMs = 700L
-    private val speechThresholdRms = 650.0
+    private val speechThresholdRms = 780.0
+    private var noiseFloorRms = 180.0
     @Volatile private var running = false
     @Volatile private var socketReady = false
     @Volatile private var offlineReady = false
@@ -78,9 +79,10 @@ internal class LiveSttCapture(
                     val event = JSONObject(text)
                     when (event.optString("message_type")) {
                         "session_started" -> onStatus("LIVE STT READY — SPEAK NOW")
-                        "partial_transcript" -> onPartial(event.optString("text"))
+                        "partial_transcript" -> onPartial(cleanTranscript(event.optString("text")))
+                        "audio_event" -> onStatus("AUDIO EVENT IGNORED — WAITING FOR SPEECH")
                         "committed_transcript" -> {
-                            val finalText = event.optString("text").trim()
+                            val finalText = cleanTranscript(event.optString("text"))
                             if (finalText.isNotBlank()) onCommitted(finalText)
                         }
                         "error", "rate_limited" -> onStatus("LIVE STT ERROR: " + (event.optString("error").ifBlank { event.optString("message_type") }))
@@ -138,7 +140,9 @@ internal class LiveSttCapture(
                 for (i in 0 until count) energy += buffer[i].toDouble() * buffer[i].toDouble()
                 val rms = sqrt(energy / count)
                 val now = System.currentTimeMillis()
-                if (rms >= speechThresholdRms) {
+                if (!segmentActive && rms < speechThresholdRms) noiseFloorRms = (noiseFloorRms * 0.94) + (rms * 0.06)
+                val activeThreshold = maxOf(speechThresholdRms, noiseFloorRms * 2.8)
+                if (rms >= activeThreshold) {
                     segmentActive = true
                     lastSpeechAt = now
                 }
@@ -171,6 +175,11 @@ internal class LiveSttCapture(
             if (recorder === audio) recorder = null
         }
     }
+
+    private fun cleanTranscript(raw: String): String = raw
+        .replace(Regex("(?i)\\\\[(?:noise|music|laughter|laughing|sigh|cough|door slam|background noise|audio event)[^]]*]"), " ")
+        .replace(Regex("(?i)\\\\((?:noise|music|laughter|laughing|sigh|cough|door slam|background noise|audio event)[^)]*\\\\)"), " ")
+        .replace(Regex("\\\\s+"), " ").trim()
 
     fun stop() {
         running = false
