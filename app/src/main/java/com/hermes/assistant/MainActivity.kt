@@ -769,6 +769,38 @@ class MainActivity : Activity() {
             chatMessageList.addView(transcript, LinearLayout.LayoutParams(-1, -2))
             return
         }
+        val activeTask = tasksById.values.lastOrNull { task ->
+            task.optString("status", "").lowercase() in setOf("running", "in_progress", "processing", "working")
+        }
+        if (activeTask != null) {
+            val progressCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.rgb(18, 42, 59))
+                    cornerRadius = dp(14).toFloat()
+                    setStroke(dp(1), VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+                }
+            }
+            progressCard.addView(TextView(this).apply {
+                text = "TASK IN PROGRESS"
+                textSize = 10f
+                setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            })
+            progressCard.addView(TextView(this).apply {
+                text = activeTask.optString("prompt", "Working on your task").lineSequence().firstOrNull().orEmpty()
+                textSize = 14f
+                setTextColor(Color.WHITE)
+                setPadding(0, dp(4), 0, dp(2))
+            })
+            progressCard.addView(TextView(this).apply {
+                text = "Status: " + activeTask.optString("status", "running")
+                textSize = 11f
+                setTextColor(Color.LTGRAY)
+            })
+            chatMessageList.addView(progressCard, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        }
         chatMessages.forEach { item ->
             val time = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(item.createdAt))
             val userLabel = TextView(this).apply {
