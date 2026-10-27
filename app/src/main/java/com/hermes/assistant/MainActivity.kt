@@ -29,6 +29,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.media.AudioRecord
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.core.content.FileProvider
@@ -100,6 +101,8 @@ class MainActivity : Activity() {
     private lateinit var voiceTranscript: TextView
     private lateinit var voiceStateMachine: VoiceStateMachine
     private var voiceTtsProvider: TtsProvider? = null
+    private var voiceUiSounds: VoiceUiSounds? = null
+    private var liveLaneEnabled = false
     private lateinit var elevenLabsKeyInput: EditText
     private lateinit var elevenLabsVoiceIdInput: EditText
     private lateinit var ttsConfigStatus: TextView
@@ -1183,6 +1186,7 @@ class MainActivity : Activity() {
     }
 
     private fun showVoiceMode() {
+        if (voiceUiSounds == null) voiceUiSounds = VoiceUiSounds(this)
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -1207,6 +1211,7 @@ class MainActivity : Activity() {
             text = "MUTE"
             setOnClickListener {
                 voiceMuted = !voiceMuted
+                if (voiceMuted) voiceUiSounds?.playMuted() else voiceUiSounds?.playUnmuted()
                 text = if (voiceMuted) "UNMUTE" else "MUTE"
                 if (voiceMuted) {
                     silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
