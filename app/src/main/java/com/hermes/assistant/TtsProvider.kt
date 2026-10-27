@@ -2,6 +2,9 @@ package com.hermes.assistant
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.AudioFocusRequest
+import android.os.Build
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import java.io.File
@@ -44,6 +47,26 @@ class ElevenLabsTtsProvider(
     private val executor = Executors.newSingleThreadExecutor()
     @Volatile private var player: MediaPlayer? = null
     @Volatile private var stopped = false
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var focusRequest: AudioFocusRequest? = null
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change -> if (change <= AudioManager.AUDIOFOCUS_LOSS) stop() }
+    private fun requestAudioFocus(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setOnAudioFocusChangeListener(focusListener).build()
+            focusRequest = request
+            audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        else { @Suppress("DEPRECATION") audioManager.abandonAudioFocus(focusListener) }
+        focusRequest = null
+    }
 
     override fun status(): String = if (apiKey.isBlank() || voiceId.isBlank()) "ElevenLabs not configured — using Android TTS" else "ElevenLabs voice enabled"
 
@@ -80,8 +103,8 @@ class ElevenLabsTtsProvider(
                         player = MediaPlayer().apply {
                             setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                             setDataSource(audioFile.absolutePath)
-                            setOnCompletionListener { release(); player = null; audioFile.delete(); onComplete() }
-                            setOnErrorListener { mp, _, _ -> mp.release(); player = null; audioFile.delete(); onError("ElevenLabs playback failed"); true }
+                            setOnCompletionListener { release(); player = null; audioFile.delete(); abandonAudioFocus(); onComplete() }
+                            setOnErrorListener { mp, _, _ -> mp.release(); player = null; audioFile.delete(); abandonAudioFocus(); onError("ElevenLabs playback failed"); true }
                             prepare()
                             start()
                         }
@@ -101,6 +124,7 @@ class ElevenLabsTtsProvider(
             try { player?.stop() } catch (_: Exception) {}
             try { player?.release() } catch (_: Exception) {}
             player = null
+            abandonAudioFocus()
         }
     }
 }
