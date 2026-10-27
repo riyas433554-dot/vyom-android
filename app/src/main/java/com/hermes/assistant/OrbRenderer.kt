@@ -15,6 +15,7 @@ import javax.microedition.khronos.opengles.GL10
 class OrbRenderer : GLSurfaceView.Renderer {
     @Volatile var mode: Int = 0
     @Volatile var reduceMotion: Boolean = false
+    @Volatile var liteMode: Boolean = false
 
     private val particleCount = 3000
     private val positions = FloatArray(particleCount * 3)
@@ -98,7 +99,7 @@ class OrbRenderer : GLSurfaceView.Renderer {
 
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
-        angle += if (reduceMotion) 0.0015f else if (mode == 1) 0.035f else 0.008f
+        angle += if (reduceMotion || liteMode) 0.0015f else if (mode == 1) 0.035f else 0.008f
 
         Matrix.setLookAtM(view, 0, 0f, 0f, 4f, 0f, 0f, 0f, 0f, 1f, 0f)
         Matrix.rotateM(view, 0, angle * 57.2958f, 0f, 1f, 0f)
@@ -124,12 +125,12 @@ class OrbRenderer : GLSurfaceView.Renderer {
 
         GLES20.glUseProgram(program)
         GLES20.glUniformMatrix4fv(matrixHandle, 1, false, vp, 0)
-        GLES20.glUniform1f(pointSizeHandle, 5.5f)
+        GLES20.glUniform1f(pointSizeHandle, if (liteMode) 3.5f else 5.5f)
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glEnableVertexAttribArray(colorHandle)
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, positionBuffer)
         GLES20.glVertexAttribPointer(colorHandle, 4, GLES20.GL_FLOAT, false, 0, colorBuffer)
-        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, particleCount)
+        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, if (liteMode) particleCount / 3 else particleCount)
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(colorHandle)
     }
