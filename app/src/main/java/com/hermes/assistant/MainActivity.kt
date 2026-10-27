@@ -1328,7 +1328,7 @@ class MainActivity : Activity() {
         }
         voiceDialog?.show()
         voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.72).toInt(), dp(280))
+        voiceDialog?.window?.setLayout(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
     }
 
     private fun startVoiceInput() {
