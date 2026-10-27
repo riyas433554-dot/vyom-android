@@ -32,6 +32,8 @@ import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.core.content.FileProvider
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -88,6 +90,15 @@ class MainActivity : Activity() {
     private var voiceRepliesEnabled = false
     private var hinglishPersona = true
     private var listening = false
+    private var voiceLoopEnabled = false
+    private var voiceMuted = false
+    private var voiceDialog: AlertDialog? = null
+    private lateinit var voiceTranscript: TextView
+    private lateinit var voiceStateMachine: VoiceStateMachine
+    private var voiceTtsProvider: TtsProvider? = null
+    private lateinit var elevenLabsKeyInput: EditText
+    private lateinit var elevenLabsVoiceIdInput: EditText
+    private lateinit var ttsConfigStatus: TextView
     private lateinit var api: VyomApiClient
     private val io = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -117,6 +128,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         api = VyomApiClient(applicationContext)
+        voiceStateMachine = VoiceStateMachine()
         orbMode = settingsPrefs.getInt("orb_mode", 0).coerceIn(0, 3)
         reduceMotion = settingsPrefs.getBoolean("reduce_motion", false)
         liteMode = settingsPrefs.getBoolean("lite_mode", false)
