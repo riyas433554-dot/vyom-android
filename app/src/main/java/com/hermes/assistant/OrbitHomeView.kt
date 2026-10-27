@@ -36,6 +36,8 @@ internal class OrbitHomeView(context: Context) : View(context) {
     private var downX = 0f
     private var dragging = false
     private var tasks: List<Pair<String, String>> = emptyList()
+    private var accentColor: Int = Color.rgb(56, 189, 248)
+    private var liteMode: Boolean = false
     private val colors = intArrayOf(
         Color.rgb(56, 189, 248), Color.rgb(167, 139, 250), Color.rgb(251, 191, 36),
         Color.rgb(244, 114, 182), Color.rgb(52, 211, 153)
@@ -48,6 +50,7 @@ internal class OrbitHomeView(context: Context) : View(context) {
         val rx = min(width * 0.43f, dp(150f))
         val ry = min(height * 0.29f, dp(235f))
         canvas.save()
+        orbitPaint.color = if (liteMode) Color.rgb(Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor)) else Color.rgb(27, 61, 102)
         canvas.rotate(-18f, cx, cy)
         canvas.drawOval(RectF(cx - rx, cy - ry, cx + rx, cy + ry), orbitPaint)
         canvas.restore()
@@ -68,7 +71,7 @@ internal class OrbitHomeView(context: Context) : View(context) {
             val w = dp(112f)
             val h = dp(62f)
             val rect = RectF(x - w / 2f, y - h / 2f, x + w / 2f, y + h / 2f)
-            cardPaint.alpha = if (sin(angle) > 0.6) 230 else 155
+            cardPaint.alpha = if (liteMode) 245 else if (sin(angle) > 0.6) 230 else 155
             canvas.drawRoundRect(rect, dp(5f), dp(5f), cardPaint)
             val state = visibleTasks[i].second.lowercase()
             val cardColor = when (state) {
@@ -110,6 +113,16 @@ internal class OrbitHomeView(context: Context) : View(context) {
             }
         }
         return true
+    }
+
+    fun setAccentColor(color: Int) {
+        accentColor = color
+        invalidate()
+    }
+
+    fun setLiteMode(enabled: Boolean) {
+        liteMode = enabled
+        invalidate()
     }
 
     fun setTaskSnapshots(items: List<Pair<String, String>>) {
