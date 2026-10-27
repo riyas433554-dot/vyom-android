@@ -881,7 +881,7 @@ class MainActivity : Activity() {
                     item.state = "done"
                     item.reply = reply
                     persistChatMessages()
-                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: " + reply; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceStateMachine.State.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
+                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: " + reply; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
                     status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
                     renderChatMessages()
                 }
