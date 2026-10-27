@@ -106,6 +106,7 @@ class MainActivity : Activity() {
     private var silenceSubmitRunnable: Runnable? = null
     private var silenceSubmissionHandled = false
     private var voiceDialog: AlertDialog? = null
+    private var liveStatusDot: TextView? = null
     private lateinit var voiceTranscript: TextView
     private lateinit var voiceStateMachine: VoiceStateMachine
     private var voiceTtsProvider: TtsProvider? = null
@@ -942,7 +943,7 @@ class MainActivity : Activity() {
                     item.state = "done"
                     item.reply = reply
                     persistChatMessages()
-                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: " + reply; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
+                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = ""; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
                     status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
                     renderChatMessages()
                 }
@@ -1073,7 +1074,7 @@ class MainActivity : Activity() {
             chatMessageList.addView(userBubble, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(4) })
             val stateLabel = TextView(this).apply {
                 text = when (item.state) {
-                    "queued" -> "QUEUED · Waiting for previous messages"
+                    "queued" -> "QUEUED"
                     "running" -> "RUNNING · Vyom is thinking…"
                     "done" -> "VYOM · $time"
                     else -> "ERROR · $time"
@@ -1248,7 +1249,7 @@ class MainActivity : Activity() {
         voiceLoopEnabled = true
         voiceStateMachine.start()
         startVoiceForegroundService()
-        if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: Haan, main sun raha hoon. Boliye."
+        if (::voiceTranscript.isInitialized) voiceTranscript.text = ""
         speakReply("Haan, main sun raha hoon. Boliye.") {
             if (voiceLoopEnabled && !voiceMuted) startVoiceInput()
         }
@@ -1276,6 +1277,7 @@ class MainActivity : Activity() {
             setTextColor(Color.rgb(80, 220, 120))
             contentDescription = "Voice status: listening"
         }
+        liveStatusDot = statusDot
         panel.addView(statusDot, LinearLayout.LayoutParams(-1, dp(24)))
         val muteButton = Button(this).apply {
             text = if (voiceMuted) "🔇" else "🔊"
@@ -1296,10 +1298,12 @@ class MainActivity : Activity() {
                     liveStreamFinished = false
                     liveSentenceTtsPlaying = false
                     liveSentenceQueue.clear()
+                    setLiveStatus("muted")
                     statusDot.setTextColor(Color.GRAY)
                     statusDot.contentDescription = "Voice status: muted"
                 } else if (voiceLoopEnabled) {
                     voiceUiSounds?.playUnmuted()
+                    setLiveStatus("listening")
                     statusDot.setTextColor(Color.rgb(80, 220, 120))
                     statusDot.contentDescription = "Voice status: listening"
                     startVoiceInput()
@@ -1465,11 +1469,13 @@ class MainActivity : Activity() {
         val client = NemotronLiveClient(key, modelId)
         nemotronLiveClient = client
         liveGenerationActive = true
+        setLiveStatus("thinking")
         liveStreamFinished = false
         liveSentenceTtsPlaying = false
         liveSentenceQueue.clear()
         val accumulated = StringBuilder()
-        micIndicator.text = "LIVE • STREAMING"
+        setLiveStatus("thinking")
+        if (::micIndicator.isInitialized) micIndicator.text = ""
         client.stream(prompt, { delta ->
             runOnUiThread {
                 if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted) {
@@ -1512,13 +1518,15 @@ class MainActivity : Activity() {
         if (sentence == null) {
             if (liveStreamFinished && !liveGenerationActive) {
                 liveReplySpeaking = false
-                if (::micIndicator.isInitialized) micIndicator.text = "LIVE • LISTENING"
+                setLiveStatus("listening")
+                if (::micIndicator.isInitialized) micIndicator.text = ""
             }
             return
         }
         if (voiceTtsProvider == null) voiceTtsProvider = voiceProvider()
         liveSentenceTtsPlaying = true
         liveReplySpeaking = true
+        setLiveStatus("speaking")
         voiceTtsProvider?.speak(sentence, {
             runOnUiThread {
                 liveSentenceTtsPlaying = false
@@ -1532,6 +1540,17 @@ class MainActivity : Activity() {
                 pumpLiveSentenceTts()
             }
         })
+    }
+
+    private fun setLiveStatus(state: String) {
+        val dot = liveStatusDot ?: return
+        dot.setTextColor(when (state) {
+            "thinking" -> Color.rgb(255, 190, 60)
+            "speaking" -> Color.rgb(80, 150, 255)
+            "muted" -> Color.GRAY
+            else -> Color.rgb(80, 220, 120)
+        })
+        dot.contentDescription = "Voice status: $state"
     }
 
     private fun startVoiceForegroundService() {
