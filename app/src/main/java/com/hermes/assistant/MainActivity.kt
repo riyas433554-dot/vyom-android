@@ -1243,9 +1243,10 @@ class MainActivity : Activity() {
             text = "MUTE"
             setOnClickListener {
                 voiceMuted = !voiceMuted
-                if (voiceMuted) voiceUiSounds?.playMuted() else voiceUiSounds?.playUnmuted()
                 text = if (voiceMuted) "UNMUTE" else "MUTE"
                 if (voiceMuted) {
+                    stopVoiceInput(cancel = true)
+                    voiceUiSounds?.playMuted()
                     silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
                     silenceSubmitRunnable = null
                     voiceTtsProvider?.stop()
@@ -1255,11 +1256,14 @@ class MainActivity : Activity() {
                     liveStreamFinished = false
                     liveSentenceTtsPlaying = false
                     liveSentenceQueue.clear()
-                    stopVoiceInput(cancel = true)
                     micIndicator.text = "MIC MUTED"
                     micIndicator.contentDescription = "Microphone status: muted"
                 } else if (voiceLoopEnabled) {
-                    startVoiceInput()
+                    stopVoiceInput(cancel = true)
+                    voiceUiSounds?.playUnmuted()
+                    mainHandler.postDelayed({ if (voiceLoopEnabled && !voiceMuted) startVoiceInput() }, 160L)
+                } else {
+                    voiceUiSounds?.playUnmuted()
                 }
             }
         }, LinearLayout.LayoutParams(0, dp(48), 1f))
