@@ -111,6 +111,7 @@ class MainActivity : Activity() {
     private lateinit var elevenLabsKeyInput: EditText
     private lateinit var elevenLabsVoiceIdInput: EditText
     private lateinit var nvidiaApiKeyInput: EditText
+    private lateinit var sttLanguageInput: EditText
     private var nemotronLiveClient: NemotronLiveClient? = null
     private lateinit var ttsConfigStatus: TextView
     private lateinit var api: VyomApiClient
@@ -393,12 +394,19 @@ class MainActivity : Activity() {
             setText(secureVoicePrefs().getString("nvidia_api_key", "") ?: "")
         }
         settingsContent.addView(nvidiaApiKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        sttLanguageInput = EditText(this).apply {
+            hint = "STT language code (blank = Auto, e.g. en)"
+            setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setText(secureVoicePrefs().getString("stt_language_code", "") ?: "")
+        }
+        settingsContent.addView(sttLanguageInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
             text = "SAVE VOICE SETTINGS"
             setOnClickListener {
                 secureVoicePrefs().edit().putString("elevenlabs_api_key", elevenLabsKeyInput.text.toString().trim())
                     .putString("elevenlabs_voice_id", elevenLabsVoiceIdInput.text.toString().trim()).apply()
                 secureVoicePrefs().edit().putString("nvidia_api_key", nvidiaApiKeyInput.text.toString().trim()).apply()
+                secureVoicePrefs().edit().putString("stt_language_code", sttLanguageInput.text.toString().trim()).apply()
                 ttsConfigStatus.text = voiceProvider().status()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
@@ -1296,6 +1304,7 @@ class MainActivity : Activity() {
         liveSttCapture = LiveSttCapture(
             context = this,
             apiKey = apiKey,
+            languageCode = secureVoicePrefs().getString("stt_language_code", "").orEmpty(),
             onPartial = { partial ->
                 runOnUiThread {
                     if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank() && ::voiceTranscript.isInitialized) {
