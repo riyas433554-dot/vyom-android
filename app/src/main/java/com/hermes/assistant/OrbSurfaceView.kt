@@ -1,6 +1,7 @@
 package com.hermes.assistant
 
 import android.content.Context
+import android.graphics.PixelFormat
 import android.opengl.GLSurfaceView
 
 class OrbSurfaceView(context: Context) : GLSurfaceView(context) {
@@ -8,6 +9,9 @@ class OrbSurfaceView(context: Context) : GLSurfaceView(context) {
 
     init {
         setEGLContextClientVersion(2)
+        setEGLConfigChooser(8, 8, 8, 8, 16, 0)
+        holder.setFormat(PixelFormat.TRANSLUCENT)
+        setZOrderMediaOverlay(true)
         setRenderer(orbRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
         isClickable = true
