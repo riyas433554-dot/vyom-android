@@ -1264,10 +1264,10 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, dp(44)))
         panel.addView(Button(this).apply {
-            text = if (liveLaneEnabled) "LIVE LANE: ON" else "LIVE LANE: OFF"
+            text = if (liveLaneEnabled) "LIVE LANE: ON — " + secureVoicePrefs().getString("nvidia_live_model_id", "MODEL NOT SET").orEmpty() else "LIVE LANE: OFF"
             setOnClickListener {
                 liveLaneEnabled = !liveLaneEnabled
-                text = if (liveLaneEnabled) "LIVE LANE: ON — NEMOTRON SUPER" else "LIVE LANE: OFF — CHAT/TASK NORMAL"
+                text = if (liveLaneEnabled) "LIVE LANE: ON — " + secureVoicePrefs().getString("nvidia_live_model_id", "MODEL NOT SET").orEmpty() else "LIVE LANE: OFF — CHAT/TASK NORMAL"
                 if (::voiceTranscript.isInitialized) voiceTranscript.text = if (liveLaneEnabled) "LIVE lane enabled. STT commits go directly to Nemotron 3 Super." else "Normal voice mode. CHAT/TASK use existing Hermes endpoints."
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
@@ -1305,7 +1305,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(0, dp(48), 1f))
         panel.addView(controls, LinearLayout.LayoutParams(-1, dp(54)))
         voiceDialog = AlertDialog.Builder(this).setView(panel).setOnCancelListener {
-            if (voiceLoopEnabled) { voiceLoopEnabled = false; voiceStateMachine.stop(); voiceTtsProvider?.stop(); stopVoiceInput(cancel = true) }
+            if (voiceLoopEnabled) { voiceLoopEnabled = false; voiceStateMachine.stop(); voiceTtsProvider?.stop(); stopVoiceInput(cancel = true); stopVoiceForegroundService() }
         }.create()
         voiceDialog?.show()
         voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), -1)
@@ -2138,6 +2138,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::orb.isInitialized) orb.onResume()
+        if (voiceLoopEnabled && voiceDialog?.isShowing != true) showVoiceMode()
         if (tasksTabVisible) {
             mainHandler.removeCallbacks(refreshTasksRunnable)
             mainHandler.post(refreshTasksRunnable)
