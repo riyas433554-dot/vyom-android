@@ -14,11 +14,12 @@ internal class NemotronLiveClient(private val apiKey: String) {
     @Volatile private var connection: HttpURLConnection? = null
     @Volatile private var active = false
 
-    fun stream(prompt: String, onDelta: (String) -> Unit, onComplete: (String) -> Unit, onError: (String) -> Unit) {
+    fun stream(prompt: String, onDelta: (String) -> Unit, onSentence: (String) -> Unit, onComplete: (String) -> Unit, onError: (String) -> Unit) {
         cancel()
         active = true
         executor.execute {
             var full = StringBuilder()
+            var pendingSentence = StringBuilder()
             try {
                 require(apiKey.isNotBlank()) { "Add NVIDIA API key in encrypted Profile voice settings to use LIVE lane." }
                 val conn = (URL("https://integrate.api.nvidia.com/v1/chat/completions").openConnection() as HttpURLConnection).also {
@@ -49,11 +50,22 @@ internal class NemotronLiveClient(private val apiKey: String) {
                         val delta = choices.optJSONObject(0)?.optJSONObject("delta")?.optString("content").orEmpty()
                         if (delta.isNotEmpty()) {
                             full.append(delta)
+                            pendingSentence.append(delta)
                             onDelta(delta)
+                            val ready = Regex("(?<=[.!?。！？])\\\\s+").find(pendingSentence.toString())
+                            if (ready != null) {
+                                val sentence = pendingSentence.substring(0, ready.range.first).trim()
+                                if (sentence.isNotBlank()) onSentence(sentence)
+                                pendingSentence = StringBuilder(pendingSentence.substring(ready.range.last + 1))
+                            }
                         }
                     }
                 }
-                if (active) onComplete(full.toString())
+                if (active) {
+                    val tail = pendingSentence.toString().trim()
+                    if (tail.isNotBlank()) onSentence(tail)
+                    onComplete(full.toString())
+                }
             } catch (e: Exception) {
                 if (active) onError(e.message ?: "LIVE stream failed")
             } finally {
