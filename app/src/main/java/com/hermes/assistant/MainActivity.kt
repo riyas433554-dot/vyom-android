@@ -1185,6 +1185,15 @@ class MainActivity : Activity() {
             voiceLoopEnabled = false
             voiceStateMachine.stop()
             voiceTtsProvider?.stop()
+            nemotronLiveClient?.cancel()
+            nemotronLiveClient = null
+            liveGenerationActive = false
+            liveReplySpeaking = false
+            liveStreamFinished = false
+            liveSentenceTtsPlaying = false
+            liveSentenceQueue.clear()
+            voiceUiSounds?.close()
+            voiceUiSounds = null
             stopVoiceInput(cancel = true)
             voiceDialog?.dismiss()
             voiceDialog = null
@@ -1240,6 +1249,12 @@ class MainActivity : Activity() {
                     silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
                     silenceSubmitRunnable = null
                     voiceTtsProvider?.stop()
+                    nemotronLiveClient?.cancel()
+                    liveGenerationActive = false
+                    liveReplySpeaking = false
+                    liveStreamFinished = false
+                    liveSentenceTtsPlaying = false
+                    liveSentenceQueue.clear()
                     stopVoiceInput(cancel = true)
                     micIndicator.text = "MIC MUTED"
                     micIndicator.contentDescription = "Microphone status: muted"
@@ -2020,6 +2035,15 @@ class MainActivity : Activity() {
             voiceLoopEnabled = false
             voiceStateMachine.stop()
             voiceTtsProvider?.stop()
+            nemotronLiveClient?.cancel()
+            nemotronLiveClient = null
+            liveGenerationActive = false
+            liveReplySpeaking = false
+            liveStreamFinished = false
+            liveSentenceTtsPlaying = false
+            liveSentenceQueue.clear()
+            voiceUiSounds?.close()
+            voiceUiSounds = null
             voiceDialog?.dismiss()
             voiceDialog = null
             if (::micIndicator.isInitialized) micIndicator.text = "VOICE STOPPED — SCREEN NOT ACTIVE"
@@ -2042,6 +2066,10 @@ class MainActivity : Activity() {
         mainHandler.removeCallbacksAndMessages(null)
         stopVoiceInput(cancel = true)
         voiceTtsProvider?.stop()
+        nemotronLiveClient?.cancel()
+        nemotronLiveClient = null
+        voiceUiSounds?.close()
+        voiceUiSounds = null
         voiceTtsProvider = null
         textToSpeech?.stop()
         textToSpeech?.shutdown()
