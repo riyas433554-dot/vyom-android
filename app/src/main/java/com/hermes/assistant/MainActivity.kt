@@ -1247,6 +1247,7 @@ class MainActivity : Activity() {
         voiceButton.text = "STOP LISTENING"
         micIndicator.text = "MIC STARTING — LIVE STT"
         liveSttCapture = LiveSttCapture(
+            context = this,
             apiKey = apiKey,
             onPartial = { partial ->
                 runOnUiThread {
