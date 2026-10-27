@@ -99,6 +99,7 @@ class MainActivity : Activity() {
     private val voiceStopReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == VoiceForegroundService.ACTION_SESSION_STOP && voiceLoopEnabled) toggleVoiceInput()
+            else if (intent?.action == VoiceForegroundService.ACTION_SESSION_MUTE && voiceLoopEnabled) toggleVoiceMuteFromNotification()
         }
     }
     private var voiceMuted = false
@@ -153,7 +154,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val voiceStopFilter = IntentFilter(VoiceForegroundService.ACTION_SESSION_STOP)
+        val voiceStopFilter = IntentFilter().apply { addAction(VoiceForegroundService.ACTION_SESSION_STOP); addAction(VoiceForegroundService.ACTION_SESSION_MUTE) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(voiceStopReceiver, voiceStopFilter, Context.RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(voiceStopReceiver, voiceStopFilter)
         voiceStopReceiverRegistered = true
@@ -1252,6 +1253,24 @@ class MainActivity : Activity() {
         if (::voiceTranscript.isInitialized) voiceTranscript.text = ""
         speakReply("Haan, main sun raha hoon. Boliye.") {
             if (voiceLoopEnabled && !voiceMuted) startVoiceInput()
+        }
+    }
+
+    private fun toggleVoiceMuteFromNotification() {
+        voiceMuted = !voiceMuted
+        if (voiceMuted) {
+            stopVoiceInput(cancel = true)
+            voiceTtsProvider?.stop()
+            nemotronLiveClient?.cancel()
+            liveGenerationActive = false
+            liveReplySpeaking = false
+            liveStreamFinished = false
+            liveSentenceTtsPlaying = false
+            liveSentenceQueue.clear()
+            setLiveStatus("muted")
+        } else if (voiceLoopEnabled) {
+            setLiveStatus("listening")
+            startVoiceInput()
         }
     }
 

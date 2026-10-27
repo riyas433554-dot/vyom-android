@@ -23,6 +23,10 @@ class VoiceForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_MUTE) {
+            sendBroadcast(Intent(ACTION_SESSION_MUTE).setPackage(packageName))
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             sendBroadcast(Intent(ACTION_SESSION_STOP).setPackage(packageName))
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -39,9 +43,14 @@ class VoiceForegroundService : Service() {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
+        val muteIntent = PendingIntent.getService(
+            this, 733, Intent(this, VoiceForegroundService::class.java).setAction(ACTION_MUTE),
+            PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
+        )
         val notification = builder.setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("Vyom voice is active")
             .setContentText("Microphone session active")
+            .addAction(Notification.Action.Builder(null, "Mute", muteIntent).build())
             .addAction(Notification.Action.Builder(null, "Stop", stopIntent).build())
             .setOngoing(true)
             .build()
@@ -53,7 +62,9 @@ class VoiceForegroundService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.hermes.assistant.voice.STOP"
+        const val ACTION_MUTE = "com.hermes.assistant.voice.MUTE"
         const val ACTION_SESSION_STOP = "com.hermes.assistant.voice.SESSION_STOP"
+        const val ACTION_SESSION_MUTE = "com.hermes.assistant.voice.SESSION_MUTE"
         private const val CHANNEL_ID = "vyom_voice_session"
         private const val NOTIFICATION_ID = 731
     }
