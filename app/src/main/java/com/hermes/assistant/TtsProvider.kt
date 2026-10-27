@@ -88,7 +88,16 @@ class ElevenLabsTtsProvider(
                     setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Accept", "audio/mpeg")
                 }
-                val safeText = text.take(4000)
+                // Request and play one sentence at a time. This reduces first-audio latency
+                // and keeps each provider request bounded instead of waiting on a full reply.
+                val fullText = text.trim().take(12000)
+                val sentenceEnd = Regex("(?<=[.!?。！？])\\s+").find(fullText)
+                val safeText = if (sentenceEnd != null && sentenceEnd.range.first in 1..700) {
+                    fullText.substring(0, sentenceEnd.range.first).trim()
+                } else {
+                    fullText.take(700)
+                }
+                val remainingText = fullText.removePrefix(safeText).trim()
                 val payload = org.json.JSONObject().put("text", safeText).put("model_id", "eleven_multilingual_v2")
                     .put("voice_settings", org.json.JSONObject().put("stability", 0.5).put("similarity_boost", 0.75))
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
@@ -99,11 +108,17 @@ class ElevenLabsTtsProvider(
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     if (stopped) { audioFile.delete(); return@post }
                     try {
+                        if (!requestAudioFocus()) throw IllegalStateException("Audio focus unavailable")
                         player?.release()
                         player = MediaPlayer().apply {
                             setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                             setDataSource(audioFile.absolutePath)
-                            setOnCompletionListener { release(); player = null; audioFile.delete(); abandonAudioFocus(); onComplete() }
+                            setOnCompletionListener {
+                                release(); player = null; audioFile.delete(); abandonAudioFocus()
+                                if (!stopped && remainingText.isNotBlank()) {
+                                    speak(remainingText, onComplete, onError)
+                                } else onComplete()
+                            }
                             setOnErrorListener { mp, _, _ -> mp.release(); player = null; audioFile.delete(); abandonAudioFocus(); onError("ElevenLabs playback failed"); true }
                             prepare()
                             start()
