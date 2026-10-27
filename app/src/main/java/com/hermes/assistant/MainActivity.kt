@@ -1230,7 +1230,7 @@ class MainActivity : Activity() {
             }
             override fun onBeginningOfSpeech() {
                 micIndicator.text = "MIC HEARING SPEECH"
-                if (voiceLoopEnabled && voiceStateMachine.state == VoiceStateMachine.State.SPEAKING) {
+                if (voiceLoopEnabled && voiceStateMachine.state == VoiceState.SPEAKING) {
                     voiceTtsProvider?.stop()
                     voiceStateMachine.bargeIn()
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = "Listening — interrupted reply"
