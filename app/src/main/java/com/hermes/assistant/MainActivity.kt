@@ -1159,19 +1159,60 @@ class MainActivity : Activity() {
         })
     }
     private fun toggleVoiceInput() {
-        if (listening) {
+        if (voiceLoopEnabled) {
+            voiceLoopEnabled = false
+            voiceStateMachine.stop()
+            voiceTtsProvider?.stop()
             stopVoiceInput(cancel = true)
+            voiceDialog?.dismiss()
+            voiceDialog = null
             return
         }
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            micIndicator.text = "MIC UNAVAILABLE"
-            return
-        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) { micIndicator.text = "MIC UNAVAILABLE"; return }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
             return
         }
+        showVoiceMode()
+        voiceLoopEnabled = true
+        voiceStateMachine.start()
         startVoiceInput()
+    }
+
+    private fun showVoiceMode() {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            setBackgroundColor(Color.rgb(5, 10, 22))
+        }
+        panel.addView(TextView(this).apply {
+            text = "◉"; textSize = 68f; gravity = Gravity.CENTER
+            setTextColor(Color.rgb(0, 210, 255)); contentDescription = "Listening ring"
+        }, LinearLayout.LayoutParams(-1, dp(110)))
+        voiceTranscript = TextView(this).apply {
+            text = "Listening…"; textSize = 16f; gravity = Gravity.CENTER
+            setTextColor(Color.WHITE); setPadding(dp(8), dp(22), dp(8), dp(22))
+        }
+        panel.addView(voiceTranscript, LinearLayout.LayoutParams(-1, dp(130)))
+        panel.addView(TextView(this).apply {
+            text = "AI will reply with text and voice"; textSize = 12f; gravity = Gravity.CENTER
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        controls.addView(Button(this).apply {
+            text = "MUTE"
+            setOnClickListener { voiceMuted = !voiceMuted; text = if (voiceMuted) "UNMUTE" else "MUTE"; if (voiceMuted) voiceTtsProvider?.stop() }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        controls.addView(Button(this).apply {
+            text = "CLOSE"; setOnClickListener { toggleVoiceInput() }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        panel.addView(controls, LinearLayout.LayoutParams(-1, dp(54)))
+        voiceDialog = AlertDialog.Builder(this).setView(panel).setOnCancelListener {
+            if (voiceLoopEnabled) { voiceLoopEnabled = false; voiceStateMachine.stop(); voiceTtsProvider?.stop(); stopVoiceInput(cancel = true) }
+        }.create()
+        voiceDialog?.show()
+        voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), -1)
     }
 
     private fun startVoiceInput() {
@@ -1201,13 +1242,24 @@ class MainActivity : Activity() {
             }
             override fun onResults(results: Bundle?) {
                 val spoken = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-                if (spoken.isNotBlank()) chatInput.setText(spoken)
                 listening = false
-                micIndicator.text = if (spoken.isBlank()) "MIC OFF — NO SPEECH" else "MIC READY — REVIEW TEXT"
-                micIndicator.contentDescription = "Microphone status: off"
-                voiceButton.text = "TALK"
                 speechRecognizer?.destroy()
                 speechRecognizer = null
+                if (spoken.isNotBlank() && voiceLoopEnabled) {
+                    voiceStateMachine.heardSpeech()
+                    if (::voiceTranscript.isInitialized) voiceTranscript.text = "You: " + spoken + "\\n\\nThinking…"
+                    chatInput.setText(spoken)
+                    sendMessage()
+                } else if (spoken.isNotBlank()) {
+                    chatInput.setText(spoken)
+                    micIndicator.text = "MIC READY — REVIEW TEXT"
+                } else if (voiceLoopEnabled) {
+                    mainHandler.postDelayed({ if (voiceLoopEnabled) startVoiceInput() }, 500)
+                }
+                if (!voiceLoopEnabled) {
+                    micIndicator.contentDescription = "Microphone status: off"
+                    voiceButton.text = "TALK"
+                }
             }
             override fun onPartialResults(partialResults: Bundle?) {
                 if (listening) micIndicator.text = "MIC HEARING…"
