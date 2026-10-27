@@ -3,6 +3,7 @@ package com.hermes.assistant
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
@@ -23,18 +24,25 @@ class VoiceForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            sendBroadcast(Intent(ACTION_SESSION_STOP).setPackage(packageName))
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
-        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val stopIntent = PendingIntent.getService(
+            this, 732, Intent(this, VoiceForegroundService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-        }.setSmallIcon(android.R.drawable.ic_btn_speak_now)
+        }
+        val notification = builder.setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("Vyom voice is active")
-            .setContentText("Listening session running. Open Vyom and press CLOSE to stop.")
+            .setContentText("Microphone session active")
+            .addAction(Notification.Action.Builder(null, "Stop", stopIntent).build())
             .setOngoing(true)
             .build()
         startForeground(NOTIFICATION_ID, notification)
@@ -45,6 +53,7 @@ class VoiceForegroundService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.hermes.assistant.voice.STOP"
+        const val ACTION_SESSION_STOP = "com.hermes.assistant.voice.SESSION_STOP"
         private const val CHANNEL_ID = "vyom_voice_session"
         private const val NOTIFICATION_ID = 731
     }
