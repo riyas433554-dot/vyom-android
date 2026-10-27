@@ -359,6 +359,33 @@ class MainActivity : Activity() {
             setOnClickListener { setVoiceRepliesEnabled(!voiceRepliesEnabled) }
         }
         settingsContent.addView(voiceRepliesButton, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(TextView(this).apply { text = "ELEVENLABS VOICE (OPTIONAL)"; textSize = 11f; setTextColor(Color.LTGRAY) })
+        elevenLabsKeyInput = EditText(this).apply {
+            hint = "ElevenLabs API key"; setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setText(secureVoicePrefs().getString("elevenlabs_api_key", "") ?: "")
+        }
+        elevenLabsVoiceIdInput = EditText(this).apply {
+            hint = "ElevenLabs Voice ID"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setText(secureVoicePrefs().getString("elevenlabs_voice_id", "") ?: "")
+        }
+        settingsContent.addView(elevenLabsKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(elevenLabsVoiceIdInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "SAVE VOICE SETTINGS"
+            setOnClickListener {
+                secureVoicePrefs().edit().putString("elevenlabs_api_key", elevenLabsKeyInput.text.toString().trim())
+                    .putString("elevenlabs_voice_id", elevenLabsVoiceIdInput.text.toString().trim()).apply()
+                ttsConfigStatus.text = voiceProvider().status()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        ttsConfigStatus = TextView(this).apply {
+            text = if ((secureVoicePrefs().getString("elevenlabs_api_key", "") ?: "").isBlank() ||
+                (secureVoicePrefs().getString("elevenlabs_voice_id", "") ?: "").isBlank()) "ElevenLabs not configured — using Android TTS" else "ElevenLabs voice configured"
+            textSize = 11f; setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(ttsConfigStatus, LinearLayout.LayoutParams(-1, -2))
         personaButton = Button(this).apply {
             text = if (hinglishPersona) "PERSONA: HINGLISH" else "PERSONA: ENGLISH"
             contentDescription = "Switch Vyom response persona language"
