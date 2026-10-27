@@ -5,6 +5,8 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -93,6 +95,12 @@ class MainActivity : Activity() {
     private var hinglishPersona = true
     private var listening = false
     private var voiceLoopEnabled = false
+    private var voiceStopReceiverRegistered = false
+    private val voiceStopReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == VoiceForegroundService.ACTION_SESSION_STOP && voiceLoopEnabled) toggleVoiceInput()
+        }
+    }
     private var voiceMuted = false
     private var latestPartialSpeech = ""
     private var silenceSubmitRunnable: Runnable? = null
@@ -144,6 +152,10 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val voiceStopFilter = IntentFilter(VoiceForegroundService.ACTION_SESSION_STOP)
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(voiceStopReceiver, voiceStopFilter, Context.RECEIVER_NOT_EXPORTED)
+        else @Suppress("DEPRECATION") registerReceiver(voiceStopReceiver, voiceStopFilter)
+        voiceStopReceiverRegistered = true
         api = VyomApiClient(applicationContext)
         voiceStateMachine = VoiceStateMachine()
         orbMode = settingsPrefs.getInt("orb_mode", 0).coerceIn(0, 3)
@@ -2171,6 +2183,10 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (voiceStopReceiverRegistered) {
+            try { unregisterReceiver(voiceStopReceiver) } catch (_: Exception) {}
+            voiceStopReceiverRegistered = false
+        }
         mainHandler.removeCallbacksAndMessages(null)
         stopVoiceInput(cancel = true)
         stopVoiceForegroundService()
