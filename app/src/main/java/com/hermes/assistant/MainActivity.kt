@@ -881,7 +881,7 @@ class MainActivity : Activity() {
                     item.state = "done"
                     item.reply = reply
                     persistChatMessages()
-                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: " + reply; speakReply(reply) { if (voiceLoopEnabled) { voiceStateMachine.speechFinished(); startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
+                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: " + reply; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceStateMachine.State.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
                     status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
                     renderChatMessages()
                 }
@@ -1228,7 +1228,14 @@ class MainActivity : Activity() {
                 micIndicator.text = "MIC LISTENING — SPEAK NOW"
                 micIndicator.contentDescription = "Microphone status: listening"
             }
-            override fun onBeginningOfSpeech() { micIndicator.text = "MIC HEARING SPEECH" }
+            override fun onBeginningOfSpeech() {
+                micIndicator.text = "MIC HEARING SPEECH"
+                if (voiceLoopEnabled && voiceStateMachine.state == VoiceStateMachine.State.SPEAKING) {
+                    voiceTtsProvider?.stop()
+                    voiceStateMachine.bargeIn()
+                    if (::voiceTranscript.isInitialized) voiceTranscript.text = "Listening — interrupted reply"
+                }
+            }
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() { micIndicator.text = "MIC PROCESSING" }
@@ -1255,6 +1262,8 @@ class MainActivity : Activity() {
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = "You: " + spoken + "\\n\\nThinking…"
                     chatInput.setText(spoken)
                     sendMessage()
+                    // Keep recognition armed while the reply is generated so the user can interrupt TTS.
+                    mainHandler.postDelayed({ if (voiceLoopEnabled && !listening) startVoiceInput() }, 350)
                 } else if (spoken.isNotBlank()) {
                     chatInput.setText(spoken)
                     micIndicator.text = "MIC READY — REVIEW TEXT"
