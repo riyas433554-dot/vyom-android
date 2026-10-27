@@ -44,11 +44,24 @@ internal class LiveSttCapture(
 
     fun start() {
         if (running) return
+        running = true
         if (apiKey.isBlank()) {
-            onStatus("Add ElevenLabs API key in Profile settings")
+            onStatus("NO LIVE STT KEY — PREPARING OFFLINE ENGLISH STT")
+            thread(name = "vyom-vosk-prepare") {
+                val fallback = VoskOfflineStt(context)
+                if (fallback.prepare(onStatus)) {
+                    offlineStt?.close()
+                    offlineStt = fallback
+                    offlineReady = true
+                    onStatus("OFFLINE ENGLISH STT READY — AUDIO STAYS ON DEVICE")
+                } else {
+                    fallback.close()
+                    onStatus("OFFLINE STT UNAVAILABLE")
+                }
+            }
+            thread(name = "vyom-audio-vad") { captureLoop() }
             return
         }
-        running = true
         val request = Request.Builder()
             .url("wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&audio_format=pcm_16000&commit_strategy=manual&keepalive_interval_ms=1000")
             .header("xi-api-key", apiKey)
