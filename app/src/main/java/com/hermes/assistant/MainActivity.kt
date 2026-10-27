@@ -92,6 +92,9 @@ class MainActivity : Activity() {
     private var listening = false
     private var voiceLoopEnabled = false
     private var voiceMuted = false
+    private var latestPartialSpeech = ""
+    private var silenceSubmitRunnable: Runnable? = null
+    private var silenceSubmissionHandled = false
     private var voiceDialog: AlertDialog? = null
     private lateinit var voiceTranscript: TextView
     private lateinit var voiceStateMachine: VoiceStateMachine
@@ -1202,7 +1205,20 @@ class MainActivity : Activity() {
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         controls.addView(Button(this).apply {
             text = "MUTE"
-            setOnClickListener { voiceMuted = !voiceMuted; text = if (voiceMuted) "UNMUTE" else "MUTE"; if (voiceMuted) voiceTtsProvider?.stop() }
+            setOnClickListener {
+                voiceMuted = !voiceMuted
+                text = if (voiceMuted) "UNMUTE" else "MUTE"
+                if (voiceMuted) {
+                    silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
+                    silenceSubmitRunnable = null
+                    voiceTtsProvider?.stop()
+                    stopVoiceInput(cancel = true)
+                    micIndicator.text = "MIC MUTED"
+                    micIndicator.contentDescription = "Microphone status: muted"
+                } else if (voiceLoopEnabled) {
+                    startVoiceInput()
+                }
+            }
         }, LinearLayout.LayoutParams(0, dp(48), 1f))
         controls.addView(Button(this).apply {
             text = "CLOSE"; setOnClickListener { toggleVoiceInput() }
@@ -1216,6 +1232,7 @@ class MainActivity : Activity() {
     }
 
     private fun startVoiceInput() {
+        if (voiceMuted || !voiceLoopEnabled) return
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             micIndicator.text = "MIC UNAVAILABLE"
             return
@@ -1223,6 +1240,8 @@ class MainActivity : Activity() {
         stopVoiceInput(cancel = true, updateStatus = false)
         val recognizer = SpeechRecognizer.createSpeechRecognizer(this)
         speechRecognizer = recognizer
+        silenceSubmissionHandled = false
+        latestPartialSpeech = ""
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 micIndicator.text = "MIC LISTENING — SPEAK NOW"
@@ -1240,10 +1259,12 @@ class MainActivity : Activity() {
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() { micIndicator.text = "MIC PROCESSING" }
             override fun onError(error: Int) {
+                silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
+                silenceSubmitRunnable = null
                 listening = false
                 speechRecognizer?.destroy()
                 speechRecognizer = null
-                if (voiceLoopEnabled && voiceStateMachine.enabled) {
+                if (voiceLoopEnabled && !voiceMuted && voiceStateMachine.enabled) {
                     micIndicator.text = if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) "NETWORK / STT TIMEOUT — RETRYING" else "MIC RETRYING"
                     mainHandler.postDelayed({ if (voiceLoopEnabled && !isFinishing) startVoiceInput() }, 1200)
                 } else {
@@ -1257,7 +1278,9 @@ class MainActivity : Activity() {
                 listening = false
                 speechRecognizer?.destroy()
                 speechRecognizer = null
-                if (spoken.isNotBlank() && voiceLoopEnabled) {
+                silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
+                silenceSubmitRunnable = null
+                if (spoken.isNotBlank() && voiceLoopEnabled && !voiceMuted && !silenceSubmissionHandled) {
                     voiceStateMachine.heardSpeech()
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = "You: " + spoken + "\\n\\nThinking…"
                     chatInput.setText(spoken)
@@ -1267,8 +1290,8 @@ class MainActivity : Activity() {
                 } else if (spoken.isNotBlank()) {
                     chatInput.setText(spoken)
                     micIndicator.text = "MIC READY — REVIEW TEXT"
-                } else if (voiceLoopEnabled) {
-                    mainHandler.postDelayed({ if (voiceLoopEnabled) startVoiceInput() }, 500)
+                } else if (voiceLoopEnabled && !voiceMuted) {
+                    mainHandler.postDelayed({ if (voiceLoopEnabled && !voiceMuted) startVoiceInput() }, 500)
                 }
                 if (!voiceLoopEnabled) {
                     micIndicator.contentDescription = "Microphone status: off"
@@ -1276,7 +1299,25 @@ class MainActivity : Activity() {
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {
-                if (listening) micIndicator.text = "MIC HEARING…"
+                val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
+                if (!listening || !voiceLoopEnabled || voiceMuted || partial.isBlank() || silenceSubmissionHandled) return
+                latestPartialSpeech = partial
+                micIndicator.text = "MIC HEARING…"
+                silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
+                val submitAfterSilence = Runnable {
+                    if (!voiceLoopEnabled || voiceMuted || !listening || silenceSubmissionHandled) return@Runnable
+                    val finalText = latestPartialSpeech.trim()
+                    if (finalText.isBlank()) return@Runnable
+                    silenceSubmissionHandled = true
+                    stopVoiceInput(cancel = true, updateStatus = false)
+                    voiceStateMachine.heardSpeech()
+                    if (::voiceTranscript.isInitialized) voiceTranscript.text = "You: $finalText\n\nThinking…"
+                    chatInput.setText(finalText)
+                    sendMessage()
+                    mainHandler.postDelayed({ if (voiceLoopEnabled && !voiceMuted && !listening) startVoiceInput() }, 350)
+                }
+                silenceSubmitRunnable = submitAfterSilence
+                mainHandler.postDelayed(submitAfterSilence, 700)
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
@@ -1297,6 +1338,8 @@ class MainActivity : Activity() {
 
     private fun stopVoiceInput(cancel: Boolean, updateStatus: Boolean = true) {
         listening = false
+        silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
+        silenceSubmitRunnable = null
         try {
             if (cancel) speechRecognizer?.cancel() else speechRecognizer?.stopListening()
             speechRecognizer?.destroy()
