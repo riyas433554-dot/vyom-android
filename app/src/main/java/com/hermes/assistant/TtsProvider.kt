@@ -23,7 +23,7 @@ class AndroidTtsProvider(private val engine: TextToSpeech?) : TtsProvider {
     override fun speak(text: String, onComplete: () -> Unit, onError: (String) -> Unit) {
         val tts = engine
         if (tts == null) { onError("Android TTS unavailable"); return }
-        val fullText = text.trim().take(12000)
+        val fullText = text.trim()
         if (fullText.isBlank()) { onComplete(); return }
         val sentenceEnd = Regex("(?<=[.!?。！？])\\s+").find(fullText)
         val chunk = if (sentenceEnd != null && sentenceEnd.range.first in 1..700) fullText.substring(0, sentenceEnd.range.first).trim() else fullText.take(700)
@@ -98,7 +98,7 @@ class ElevenLabsTtsProvider(
                 }
                 // Request and play one sentence at a time. This reduces first-audio latency
                 // and keeps each provider request bounded instead of waiting on a full reply.
-                val fullText = text.trim().take(12000)
+                val fullText = text.trim()
                 val sentenceEnd = Regex("(?<=[.!?。！？])\\s+").find(fullText)
                 val safeText = if (sentenceEnd != null && sentenceEnd.range.first in 1..700) {
                     fullText.substring(0, sentenceEnd.range.first).trim()
