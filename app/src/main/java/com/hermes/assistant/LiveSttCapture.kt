@@ -144,8 +144,6 @@ internal class LiveSttCapture(
         running = false
         socketReady = false
         try { recorder?.stop() } catch (_: Exception) {}
-        recorder?.release()
-        recorder = null
         socket?.close(1000, "Vyom voice stopped")
         socket = null
         client.dispatcher.cancelAll()
