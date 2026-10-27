@@ -1324,7 +1324,7 @@ class MainActivity : Activity() {
         }.create()
         voiceDialog?.setOnShowListener {
             voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
-            voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.72).toInt(), dp(280))
+            voiceDialog?.window?.setLayout(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
         }
         voiceDialog?.show()
         voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
