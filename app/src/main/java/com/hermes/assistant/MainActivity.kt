@@ -105,6 +105,9 @@ class MainActivity : Activity() {
     private var liveLaneEnabled = false
     private var liveGenerationActive = false
     private var liveReplySpeaking = false
+    private val liveSentenceQueue = java.util.ArrayDeque<String>()
+    private var liveSentenceTtsPlaying = false
+    private var liveStreamFinished = false
     private lateinit var elevenLabsKeyInput: EditText
     private lateinit var elevenLabsVoiceIdInput: EditText
     private lateinit var nvidiaApiKeyInput: EditText
@@ -1283,6 +1286,9 @@ class MainActivity : Activity() {
                             liveReplySpeaking = false
                             voiceTtsProvider?.stop()
                             nemotronLiveClient?.cancel()
+                            liveSentenceQueue.clear()
+                            liveSentenceTtsPlaying = false
+                            liveStreamFinished = false
                             if (::micIndicator.isInitialized) micIndicator.text = "LIVE • INTERRUPTED — LISTENING"
                         }
                     }
@@ -1320,6 +1326,9 @@ class MainActivity : Activity() {
         val client = NemotronLiveClient(key)
         nemotronLiveClient = client
         liveGenerationActive = true
+        liveStreamFinished = false
+        liveSentenceTtsPlaying = false
+        liveSentenceQueue.clear()
         val accumulated = StringBuilder()
         micIndicator.text = "LIVE • NEMOTRON 3 SUPER STREAMING"
         client.stream(prompt, { delta ->
@@ -1329,27 +1338,60 @@ class MainActivity : Activity() {
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = accumulated.toString()
                 }
             }
+        }, { sentence ->
+            runOnUiThread {
+                if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted && sentence.isNotBlank()) {
+                    liveSentenceQueue.addLast(sentence)
+                    pumpLiveSentenceTts()
+                }
+            }
         }, { reply ->
             runOnUiThread {
                 liveGenerationActive = false
+                liveStreamFinished = true
                 if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted && reply.isNotBlank()) {
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = reply
-                    micIndicator.text = "LIVE • SPEAKING"
-                    liveReplySpeaking = true
-                    speakReply(reply) {
-                        liveReplySpeaking = false
-                        if (liveLaneEnabled && voiceLoopEnabled && !voiceMuted) micIndicator.text = "LIVE • LISTENING"
-                    }
+                    pumpLiveSentenceTts()
                 }
             }
         }, { error ->
             runOnUiThread {
                 liveGenerationActive = false
                 liveReplySpeaking = false
+                liveStreamFinished = true
+                liveSentenceQueue.clear()
                 if (nemotronLiveClient === client) {
                     micIndicator.text = "LIVE ERROR"
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = error
                 }
+            }
+        })
+    }
+
+    private fun pumpLiveSentenceTts() {
+        if (liveSentenceTtsPlaying || voiceMuted || !voiceLoopEnabled) return
+        val sentence = liveSentenceQueue.pollFirst()
+        if (sentence == null) {
+            if (liveStreamFinished && !liveGenerationActive) {
+                liveReplySpeaking = false
+                if (::micIndicator.isInitialized) micIndicator.text = "LIVE • LISTENING"
+            }
+            return
+        }
+        if (voiceTtsProvider == null) voiceTtsProvider = voiceProvider()
+        liveSentenceTtsPlaying = true
+        liveReplySpeaking = true
+        voiceTtsProvider?.speak(sentence, {
+            runOnUiThread {
+                liveSentenceTtsPlaying = false
+                liveReplySpeaking = false
+                pumpLiveSentenceTts()
+            }
+        }, {
+            runOnUiThread {
+                liveSentenceTtsPlaying = false
+                liveReplySpeaking = false
+                pumpLiveSentenceTts()
             }
         })
     }
