@@ -23,17 +23,25 @@ class AndroidTtsProvider(private val engine: TextToSpeech?) : TtsProvider {
     override fun speak(text: String, onComplete: () -> Unit, onError: (String) -> Unit) {
         val tts = engine
         if (tts == null) { onError("Android TTS unavailable"); return }
+        val fullText = text.trim().take(12000)
+        if (fullText.isBlank()) { onComplete(); return }
+        val sentenceEnd = Regex("(?<=[.!?。！？])\\s+").find(fullText)
+        val chunk = if (sentenceEnd != null && sentenceEnd.range.first in 1..700) fullText.substring(0, sentenceEnd.range.first).trim() else fullText.take(700)
+        val remaining = fullText.removePrefix(chunk).trim()
         tts.language = Locale("en", "IN")
         tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) { onComplete() }
+            override fun onDone(utteranceId: String?) {
+                if (remaining.isNotBlank()) speak(remaining, onComplete, onError) else onComplete()
+            }
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) { onError("Android TTS failed") }
             override fun onError(utteranceId: String?, errorCode: Int) { onError("Android TTS failed ($errorCode)") }
         })
-        val result = tts.speak(text.take(4000), TextToSpeech.QUEUE_FLUSH, null, "vyom-${System.nanoTime()}")
+        val result = tts.speak(chunk, TextToSpeech.QUEUE_FLUSH, null, "vyom-" + System.nanoTime())
         if (result == TextToSpeech.ERROR) onError("Android TTS failed")
     }
+
     override fun stop() { engine?.stop() }
     override fun status() = "Android TTS fallback"
 }
