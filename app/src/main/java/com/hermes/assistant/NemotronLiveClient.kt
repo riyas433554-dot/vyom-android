@@ -9,7 +9,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class NemotronLiveClient(private val apiKey: String) {
+internal class NemotronLiveClient(private val apiKey: String, private val modelId: String) {
     private val executor = Executors.newSingleThreadExecutor()
     @Volatile private var connection: HttpURLConnection? = null
     @Volatile private var active = false
@@ -22,6 +22,7 @@ internal class NemotronLiveClient(private val apiKey: String) {
             var pendingSentence = StringBuilder()
             try {
                 require(apiKey.isNotBlank()) { "Add NVIDIA API key in encrypted Profile voice settings to use LIVE lane." }
+                require(modelId.isNotBlank()) { "LIVE model ID missing. Open Profile > Settings and tap LOAD MODELS to choose an available model." }
                 val conn = (URL("https://integrate.api.nvidia.com/v1/chat/completions").openConnection() as HttpURLConnection).also {
                     connection = it
                     it.requestMethod = "POST"
@@ -33,13 +34,20 @@ internal class NemotronLiveClient(private val apiKey: String) {
                     it.setRequestProperty("Accept", "text/event-stream")
                 }
                 val body = JSONObject()
-                    .put("model", "nvidia/nemotron-3-super-120b-a12b")
+                    .put("model", modelId)
                     .put("stream", true)
                     .put("temperature", 0.6)
                     .put("max_tokens", 2048)
                     .put("messages", org.json.JSONArray().put(JSONObject().put("role", "system").put("content", "You are Vyom, a helpful voice assistant. Reply naturally and concisely.")).put(JSONObject().put("role", "user").put("content", prompt)))
                 conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-                if (conn.responseCode !in 200..299) throw IllegalStateException("NVIDIA LIVE HTTP ${conn.responseCode}: ${conn.errorStream?.bufferedReader()?.use { it.readText() }?.take(300)}")
+                if (conn.responseCode !in 200..299) {
+                    val code = conn.responseCode
+                    val detail = conn.errorStream?.bufferedReader()?.use { it.readText() }?.take(300).orEmpty()
+                    if (code == 404 || code == 400) {
+                        throw IllegalStateException("Selected LIVE model '$modelId' is unavailable or not enabled for this NVIDIA API key (HTTP $code). Profile > Settings > LOAD MODELS, then choose an available model. $detail")
+                    }
+                    throw IllegalStateException("NVIDIA LIVE HTTP $code: $detail")
+                }
                 BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { reader ->
                     while (active) {
                         val line = reader.readLine() ?: break
