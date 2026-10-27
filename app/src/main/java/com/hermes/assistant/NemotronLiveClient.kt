@@ -52,7 +52,7 @@ internal class NemotronLiveClient(private val apiKey: String) {
                             full.append(delta)
                             pendingSentence.append(delta)
                             onDelta(delta)
-                            val ready = Regex("(?<=[.!?。！？])\\\\s+").find(pendingSentence.toString())
+                            val ready = Regex("(?<=[.!?。！？])\\s+").find(pendingSentence.toString())
                             if (ready != null) {
                                 val sentence = pendingSentence.substring(0, ready.range.first).trim()
                                 if (sentence.isNotBlank()) onSentence(sentence)
