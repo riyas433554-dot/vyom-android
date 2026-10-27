@@ -553,7 +553,7 @@ class MainActivity : Activity() {
                     chatInput.setText(prompt)
                     askInput.setText("")
                     showTab(false)
-                    sendChatMessage()
+                    sendMessage()
                 }
             }
         }
