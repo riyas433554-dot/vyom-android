@@ -50,7 +50,7 @@ internal class OrbitHomeView(context: Context) : View(context) {
         val rx = min(width * 0.43f, dp(150f))
         val ry = min(height * 0.29f, dp(235f))
         canvas.save()
-        orbitPaint.color = if (liteMode) Color.rgb(Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor)) else Color.rgb(27, 61, 102)
+        orbitPaint.color = if (liteMode) accentColor else Color.argb(175, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))
         canvas.rotate(-18f, cx, cy)
         canvas.drawOval(RectF(cx - rx, cy - ry, cx + rx, cy + ry), orbitPaint)
         canvas.restore()
