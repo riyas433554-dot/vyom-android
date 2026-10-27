@@ -881,7 +881,7 @@ class MainActivity : Activity() {
                     item.state = "done"
                     item.reply = reply
                     persistChatMessages()
-                    if (voiceRepliesEnabled) speakReply(reply)
+                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: " + reply; speakReply(reply) { if (voiceLoopEnabled) { voiceStateMachine.speechFinished(); startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
                     status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
                     renderChatMessages()
                 }
@@ -1136,12 +1136,28 @@ class MainActivity : Activity() {
         if (!enabled) textToSpeech?.stop()
     }
 
-    private fun speakReply(reply: String) {
-        val engine = textToSpeech ?: return
-        val spoken = reply.trim().take(4000)
-        if (spoken.isNotEmpty()) engine.speak(spoken, TextToSpeech.QUEUE_ADD, null, UUID.randomUUID().toString())
+    private fun secureVoicePrefs(): android.content.SharedPreferences {
+        val masterKey = MasterKey.Builder(this).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+        return EncryptedSharedPreferences.create(this, "vyom_voice_secrets", masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
     }
 
+    private fun voiceProvider(): TtsProvider {
+        val prefs = secureVoicePrefs()
+        return ElevenLabsTtsProvider(this, prefs.getString("elevenlabs_api_key", "").orEmpty(),
+            prefs.getString("elevenlabs_voice_id", "").orEmpty(), AndroidTtsProvider(textToSpeech))
+    }
+
+    private fun speakReply(reply: String, onComplete: (() -> Unit)? = null) {
+        if (voiceMuted) { onComplete?.invoke(); return }
+        voiceTtsProvider?.stop()
+        voiceTtsProvider = voiceProvider()
+        if (::ttsConfigStatus.isInitialized) ttsConfigStatus.text = voiceTtsProvider?.status()
+        voiceTtsProvider?.speak(reply.trim().take(4000), { runOnUiThread { onComplete?.invoke() } }, { error ->
+            runOnUiThread { if (::micIndicator.isInitialized) micIndicator.text = "VOICE ERROR"; onComplete?.invoke() }
+        })
+    }
     private fun toggleVoiceInput() {
         if (listening) {
             stopVoiceInput(cancel = true)
