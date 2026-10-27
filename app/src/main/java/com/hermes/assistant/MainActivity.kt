@@ -865,16 +865,28 @@ class MainActivity : Activity() {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
-        return input.split("\n").joinToString("<br>") { rawLine ->
-            var line = escapeHtml(rawLine)
-            line = line.replace(Regex("^### (.+)$"), "<h3>$1</h3>")
-            line = line.replace(Regex("^## (.+)$"), "<h2>$1</h2>")
-            line = line.replace(Regex("^# (.+)$"), "<h1>$1</h1>")
-            line = line.replace(Regex("\\*\\*(.+?)\\*\\*"), "<b>$1</b>")
-            line = line.replace(Regex("\\*(.+?)\\*"), "<i>$1</i>")
-            line = line.replace(Regex("`(.+?)`"), "<tt>$1</tt>")
-            line
+        val output = StringBuilder()
+        var inCodeBlock = false
+        input.split("\n").forEachIndexed { index, rawLine ->
+            if (rawLine.trimStart().startsWith("```")) {
+                if (inCodeBlock) output.append("</tt></pre>") else output.append("<pre><tt>")
+                inCodeBlock = !inCodeBlock
+            } else if (inCodeBlock) {
+                output.append(escapeHtml(rawLine)).append("\n")
+            } else {
+                var line = escapeHtml(rawLine)
+                line = line.replace(Regex("^### (.+)$"), "<h3>$1</h3>")
+                line = line.replace(Regex("^## (.+)$"), "<h2>$1</h2>")
+                line = line.replace(Regex("^# (.+)$"), "<h1>$1</h1>")
+                line = line.replace(Regex("\\*\\*(.+?)\\*\\*"), "<b>$1</b>")
+                line = line.replace(Regex("(?<!\\*)\\*([^*]+?)\\*(?!\\*)"), "<i>$1</i>")
+                line = line.replace(Regex("`([^`]+?)`"), "<tt>$1</tt>")
+                output.append(line)
+                if (index < input.split("\n").lastIndex) output.append("<br>")
+            }
         }
+        if (inCodeBlock) output.append("</tt></pre>")
+        return output.toString()
     }
 
     private fun setOrbAppearance(mode: Int) {
