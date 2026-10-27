@@ -497,6 +497,7 @@ class MainActivity : Activity() {
     }
 
     private fun showHome() {
+        setChatLayout(fullHeight = false)
         tasksTabVisible = false
         chatPanel.visibility = View.GONE
         tasksPanel.visibility = View.GONE
@@ -508,6 +509,20 @@ class MainActivity : Activity() {
         tasksTab.alpha = 0.65f
         settingsTab.alpha = 0.65f
         mainHandler.removeCallbacks(refreshTasksRunnable)
+    }
+
+    private fun setChatLayout(fullHeight: Boolean) {
+        val panel = mainPanel ?: return
+        val frameParams = panel.layoutParams as? FrameLayout.LayoutParams ?: return
+        frameParams.height = if (fullHeight) FrameLayout.LayoutParams.MATCH_PARENT else dp(440)
+        frameParams.gravity = Gravity.BOTTOM
+        panel.layoutParams = frameParams
+        chatPanel.layoutParams = if (fullHeight) {
+            LinearLayout.LayoutParams(-1, 0, 1f)
+        } else {
+            LinearLayout.LayoutParams(-1, dp(250))
+        }
+        panel.requestLayout()
     }
 
     private fun showProfileMenu() {
@@ -526,9 +541,10 @@ class MainActivity : Activity() {
     }
 
     private fun showTab(showTasks: Boolean, showSettings: Boolean = false, showFiles: Boolean = false, showControl: Boolean = false) {
+        val anyOtherPanel = showTasks || showSettings || showFiles || showControl
+        setChatLayout(fullHeight = !anyOtherPanel)
         tasksTabVisible = showTasks || showFiles
         orbitHomeView?.visibility = View.GONE
-        val anyOtherPanel = showTasks || showSettings || showFiles || showControl
         chatPanel.visibility = if (anyOtherPanel) View.GONE else View.VISIBLE
         tasksPanel.visibility = if (showTasks) View.VISIBLE else View.GONE
         settingsPanel.visibility = if (showSettings) View.VISIBLE else View.GONE
