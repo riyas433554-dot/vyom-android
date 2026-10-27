@@ -20,6 +20,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
 import android.view.Gravity
+import android.view.WindowManager
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -46,6 +47,8 @@ class MainActivity : Activity() {
     private lateinit var pairingInput: EditText
     private lateinit var chatInput: EditText
     private lateinit var transcript: TextView
+    private lateinit var chatMessageList: LinearLayout
+    private lateinit var transcriptScroll: ScrollView
     private lateinit var taskInput: EditText
     private lateinit var taskList: LinearLayout
     private lateinit var taskScroll: ScrollView
@@ -97,7 +100,7 @@ class MainActivity : Activity() {
     private var taskRefreshInFlight = false
     private val tasksById = linkedMapOf<String, JSONObject>()
     private var orbitHomeView: OrbitHomeView? = null
-    private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "")
+    private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "", val createdAt: Long = System.currentTimeMillis())
     private val chatMessages = mutableListOf<ChatMessage>()
     private val chatPrefs by lazy { getSharedPreferences("vyom_chat_history", MODE_PRIVATE) }
     private var chatReady = false
@@ -119,6 +122,7 @@ class MainActivity : Activity() {
         hinglishPersona = settingsPrefs.getBoolean("hinglish_persona", true)
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         val root = FrameLayout(this).apply {
             setBackgroundColor(VyomTheme.BACKGROUND)
@@ -208,19 +212,36 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
             setTextIsSelectable(true)
         }
-        val transcriptScroll = ScrollView(this).apply {
-            isFillViewport = true
-            addView(transcript, FrameLayout.LayoutParams(-1, -2))
+        chatMessageList = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(2), dp(8), dp(2), dp(12))
         }
+        transcriptScroll = ScrollView(this).apply {
+            isFillViewport = true
+            clipToPadding = false
+            addView(chatMessageList, FrameLayout.LayoutParams(-1, -2))
+        }
+        chatMessageList.addView(transcript, LinearLayout.LayoutParams(-1, -2))
         val chatInputLabel = TextView(this).apply { text = "CHAT MESSAGE"; setTextColor(Color.LTGRAY); textSize = 10f }
         chatInput = EditText(this).apply {
             id = View.generateViewId()
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
-            hint = "Type a message for Chat..."
+            hint = "Message Vyom…"
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
-            textSize = 14f
+            textSize = 15f
+            minLines = 1
+            maxLines = 5
+            isSingleLine = false
+            gravity = Gravity.TOP or Gravity.START
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.rgb(20, 29, 45))
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(1), Color.argb(100, 120, 150, 190))
+            }
         }
         sendButton = Button(this).apply {
             text = "SEND"
@@ -228,8 +249,7 @@ class MainActivity : Activity() {
             setOnClickListener { sendMessage() }
         }
         chatPanel.addView(transcriptScroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        chatPanel.addView(chatInputLabel, LinearLayout.LayoutParams(-1, dp(16)))
-        chatPanel.addView(chatInput, LinearLayout.LayoutParams(-1, dp(50)))
+        chatPanel.addView(chatInput, LinearLayout.LayoutParams(-1, -2))
         chatPanel.addView(sendButton, LinearLayout.LayoutParams(-1, dp(44)))
         micIndicator = TextView(this).apply {
             text = "MIC OFF"
@@ -689,7 +709,8 @@ class MainActivity : Activity() {
                     value.optString("id", UUID.randomUUID().toString()),
                     value.optString("text"),
                     if (savedState == "running") "queued" else savedState,
-                    value.optString("reply")
+                    value.optString("reply"),
+                    value.optLong("createdAt", System.currentTimeMillis())
                 ))
             }
             renderChatMessages()
@@ -709,18 +730,77 @@ class MainActivity : Activity() {
                 .put("id", item.id)
                 .put("text", item.text)
                 .put("state", item.state)
-                .put("reply", item.reply))
+                .put("reply", item.reply)
+                .put("createdAt", item.createdAt))
         }
         chatPrefs.edit().putString("messages", saved.toString()).apply()
     }
 
     private fun renderChatMessages() {
-        val content = if (chatMessages.isEmpty()) personaText("Hermes chat will appear here.", "Hermes yahan ready hai. Message bhejo.") else
-            chatMessages.joinToString("\n\n") { item ->
-                "You: ${item.text}\nStatus: ${item.state}" +
-                    if (item.reply.isNotBlank()) "\nHermes: ${item.reply}" else ""
+        if (!::chatMessageList.isInitialized) return
+        chatMessageList.removeAllViews()
+        if (chatMessages.isEmpty()) {
+            transcript.text = personaText("Hermes chat will appear here. Send a message to start.", "Hermes yahan ready hai. Chat shuru karne ke liye message bhejo.")
+            transcript.visibility = View.VISIBLE
+            chatMessageList.addView(transcript, LinearLayout.LayoutParams(-1, -2))
+            return
+        }
+        chatMessages.forEach { item ->
+            val time = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(item.createdAt))
+            val userLabel = TextView(this).apply {
+                text = "YOU  ·  $time"
+                textSize = 10f
+                setTextColor(Color.LTGRAY)
+                setPadding(dp(5), dp(4), dp(5), dp(3))
             }
-        transcript.text = android.text.Html.fromHtml(markdownToHtml(content), android.text.Html.FROM_HTML_MODE_COMPACT)
+            val userBubble = TextView(this).apply {
+                text = android.text.Html.fromHtml(markdownToHtml(item.text), android.text.Html.FROM_HTML_MODE_COMPACT)
+                textSize = 15f
+                setTextColor(Color.WHITE)
+                setTextIsSelectable(true)
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.rgb(31, 55, 82))
+                    cornerRadius = dp(16).toFloat()
+                }
+            }
+            chatMessageList.addView(userLabel, LinearLayout.LayoutParams(-1, -2))
+            chatMessageList.addView(userBubble, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(4) })
+            val stateLabel = TextView(this).apply {
+                text = when (item.state) {
+                    "queued" -> "QUEUED · Waiting for previous messages"
+                    "running" -> "RUNNING · Vyom is thinking…"
+                    "done" -> "VYOM · $time"
+                    else -> "ERROR · $time"
+                }
+                textSize = 10f
+                setTextColor(when (item.state) {
+                    "error" -> Color.rgb(255, 130, 130)
+                    "done" -> VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+                    else -> Color.LTGRAY
+                })
+                setPadding(dp(5), dp(5), dp(5), dp(3))
+            }
+            chatMessageList.addView(stateLabel, LinearLayout.LayoutParams(-1, -2))
+            if (item.reply.isNotBlank()) {
+                val replyBubble = TextView(this).apply {
+                    text = android.text.Html.fromHtml(markdownToHtml(item.reply), android.text.Html.FROM_HTML_MODE_COMPACT)
+                    textSize = 15f
+                    setTextColor(Color.rgb(230, 237, 247))
+                    setTextIsSelectable(true)
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        setColor(Color.rgb(17, 25, 39))
+                        cornerRadius = dp(16).toFloat()
+                        setStroke(dp(1), Color.argb(100, 100, 130, 170))
+                    }
+                }
+                chatMessageList.addView(replyBubble, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+            }
+        }
+        transcriptScroll.post { transcriptScroll.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun markdownToHtml(input: String): String {
