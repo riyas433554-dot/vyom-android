@@ -91,6 +91,9 @@ class MainActivity : Activity() {
     private var tasksTabVisible = false
     private var orbMode = 0
     private var reduceMotion = false
+    private var liteMode = false
+    private var mainPanel: LinearLayout? = null
+    private var dockBar: LinearLayout? = null
     private var taskRefreshInFlight = false
     private val tasksById = linkedMapOf<String, JSONObject>()
     private var orbitHomeView: OrbitHomeView? = null
@@ -111,6 +114,7 @@ class MainActivity : Activity() {
         api = VyomApiClient(applicationContext)
         orbMode = settingsPrefs.getInt("orb_mode", 0).coerceIn(0, 3)
         reduceMotion = settingsPrefs.getBoolean("reduce_motion", false)
+        liteMode = settingsPrefs.getBoolean("lite_mode", false)
         voiceRepliesEnabled = settingsPrefs.getBoolean("voice_replies", false)
         hinglishPersona = settingsPrefs.getBoolean("hinglish_persona", true)
         window.statusBarColor = Color.BLACK
@@ -125,6 +129,7 @@ class MainActivity : Activity() {
             isFocusable = false
             setOrbMode(orbMode)
             setReduceMotion(reduceMotion)
+            setLiteMode(liteMode)
         }
         status = TextView(this).apply {
             text = "VYOM  •  CONNECTING"
@@ -162,6 +167,8 @@ class MainActivity : Activity() {
             }
             setPadding(dp(5), dp(3), dp(5), dp(3))
         }
+        dockBar = tabBar
+        mainPanel = panel
         fun dockItem(label: String, action: () -> Unit): TextView = TextView(this).apply {
             text = label
             gravity = Gravity.CENTER
@@ -175,7 +182,7 @@ class MainActivity : Activity() {
         settingsTab = dockItem("Profile") { showProfileMenu() }
         filesTab = dockItem("Files") { showTab(false, false, true) }
         controlTab = dockItem("Control") { showTab(false, false, false, true) }
-        val homeDock = dockItem("Home") { showTab(false) }
+        val homeDock = dockItem("Home") { showHome() }
         val voiceDock = dockItem("◉") { toggleVoiceInput() }
         listOf(homeDock, chatTab, voiceDock, tasksTab, settingsTab).forEachIndexed { index, item ->
             tabBar.addView(item, LinearLayout.LayoutParams(0, dp(if (index == 2) 48 else 42), 1f))
@@ -299,6 +306,19 @@ class MainActivity : Activity() {
             setOnClickListener { setReduceMotion(!reduceMotion) }
         }
         settingsContent.addView(reduceMotionButton, LinearLayout.LayoutParams(-1, dp(44)))
+        val liteModeButton = Button(this).apply {
+            text = if (liteMode) "LITE MODE: ON" else "LITE MODE: OFF"
+            contentDescription = "Toggle Lite mode to reduce particle and glow effects"
+            setOnClickListener {
+                liteMode = !liteMode
+                settingsPrefs.edit().putBoolean("lite_mode", liteMode).apply()
+                text = if (liteMode) "LITE MODE: ON" else "LITE MODE: OFF"
+                if (::orb.isInitialized) orb.setLiteMode(liteMode)
+                orbitHomeView?.setLiteMode(liteMode)
+                status.text = if (liteMode) "VYOM  •  LITE MODE ON" else "VYOM  •  LITE MODE OFF"
+            }
+        }
+        settingsContent.addView(liteModeButton, LinearLayout.LayoutParams(-1, dp(44)))
         voiceRepliesButton = Button(this).apply {
             text = if (voiceRepliesEnabled) "VOICE REPLIES: ON" else "VOICE REPLIES: OFF"
             contentDescription = "Toggle spoken replies"
@@ -400,6 +420,8 @@ class MainActivity : Activity() {
 
         val orbitView = OrbitHomeView(this)
         orbitHomeView = orbitView
+        orbitView.setAccentColor(VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+        orbitView.setLiteMode(liteMode)
         root.addView(orbitView, 0, FrameLayout.LayoutParams(-1, -1))
         root.addView(orb, FrameLayout.LayoutParams(1, 1, Gravity.CENTER))
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
@@ -422,7 +444,8 @@ class MainActivity : Activity() {
             }
         }
         restoreChatMessages()
-        showTab(false)
+        applyThemeAccent()
+        showHome()
         if (api.hasPairingCode()) {
             status.text = "VYOM  •  RECONNECTING"
             io.execute {
@@ -450,6 +473,20 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showHome() {
+        tasksTabVisible = false
+        chatPanel.visibility = View.GONE
+        tasksPanel.visibility = View.GONE
+        settingsPanel.visibility = View.GONE
+        filesPanel.visibility = View.GONE
+        controlPanel.visibility = View.GONE
+        orbitHomeView?.visibility = View.VISIBLE
+        chatTab.alpha = 0.65f
+        tasksTab.alpha = 0.65f
+        settingsTab.alpha = 0.65f
+        mainHandler.removeCallbacks(refreshTasksRunnable)
+    }
+
     private fun showProfileMenu() {
         AlertDialog.Builder(this)
             .setTitle("Profile")
@@ -467,6 +504,7 @@ class MainActivity : Activity() {
 
     private fun showTab(showTasks: Boolean, showSettings: Boolean = false, showFiles: Boolean = false, showControl: Boolean = false) {
         tasksTabVisible = showTasks || showFiles
+        orbitHomeView?.visibility = View.GONE
         val anyOtherPanel = showTasks || showSettings || showFiles || showControl
         chatPanel.visibility = if (anyOtherPanel) View.GONE else View.VISIBLE
         tasksPanel.visibility = if (showTasks) View.VISIBLE else View.GONE
@@ -713,7 +751,17 @@ class MainActivity : Activity() {
             .putString("theme_accent", accent)
             .apply()
         if (::orb.isInitialized) orb.setOrbMode(orbMode)
+        applyThemeAccent()
         status.text = "VYOM  •  THEME UPDATED"
+    }
+
+    private fun applyThemeAccent() {
+        val accent = VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+        if (::status.isInitialized) status.setTextColor(accent)
+        (mainPanel?.background as? GradientDrawable)?.setStroke(dp(1), Color.argb(180, Color.red(accent), Color.green(accent), Color.blue(accent)))
+        (dockBar?.background as? GradientDrawable)?.setStroke(dp(1), accent)
+        if (::chatTab.isInitialized) listOf(chatTab, tasksTab, settingsTab).forEach { it.setTextColor(accent) }
+        orbitHomeView?.setAccentColor(accent)
     }
 
     private fun setReduceMotion(enabled: Boolean) {
