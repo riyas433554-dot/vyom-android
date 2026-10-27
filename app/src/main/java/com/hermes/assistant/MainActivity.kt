@@ -1184,7 +1184,7 @@ class MainActivity : Activity() {
         voiceTtsProvider?.stop()
         voiceTtsProvider = voiceProvider()
         if (::ttsConfigStatus.isInitialized) ttsConfigStatus.text = voiceTtsProvider?.status()
-        voiceTtsProvider?.speak(reply.trim().take(12000), { runOnUiThread { onComplete?.invoke() } }, { error ->
+        voiceTtsProvider?.speak(reply.trim(), { runOnUiThread { onComplete?.invoke() } }, { error ->
             runOnUiThread { if (::micIndicator.isInitialized) micIndicator.text = "VOICE ERROR"; onComplete?.invoke() }
         })
     }
