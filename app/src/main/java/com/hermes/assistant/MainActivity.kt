@@ -86,6 +86,7 @@ class MainActivity : Activity() {
     private lateinit var voiceButton: Button
     private lateinit var micIndicator: TextView
     private var speechRecognizer: SpeechRecognizer? = null
+    private var liveSttCapture: LiveSttCapture? = null
     private var textToSpeech: TextToSpeech? = null
     private var voiceRepliesEnabled = false
     private var hinglishPersona = true
@@ -1171,7 +1172,6 @@ class MainActivity : Activity() {
             voiceDialog = null
             return
         }
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) { micIndicator.text = "MIC UNAVAILABLE"; return }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
             return
@@ -1233,111 +1233,50 @@ class MainActivity : Activity() {
 
     private fun startVoiceInput() {
         if (voiceMuted || !voiceLoopEnabled) return
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            micIndicator.text = "MIC UNAVAILABLE"
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
             return
         }
         stopVoiceInput(cancel = true, updateStatus = false)
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        speechRecognizer = recognizer
-        silenceSubmissionHandled = false
-        latestPartialSpeech = ""
-        recognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                micIndicator.text = "MIC LISTENING — SPEAK NOW"
-                micIndicator.contentDescription = "Microphone status: listening"
-            }
-            override fun onBeginningOfSpeech() {
-                micIndicator.text = "MIC HEARING SPEECH"
-                if (voiceLoopEnabled && voiceStateMachine.state == VoiceState.SPEAKING) {
-                    voiceTtsProvider?.stop()
-                    voiceStateMachine.bargeIn()
-                    if (::voiceTranscript.isInitialized) voiceTranscript.text = "Listening — interrupted reply"
-                }
-            }
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() { micIndicator.text = "MIC PROCESSING" }
-            override fun onError(error: Int) {
-                silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
-                silenceSubmitRunnable = null
-                listening = false
-                speechRecognizer?.destroy()
-                speechRecognizer = null
-                if (voiceLoopEnabled && !voiceMuted && voiceStateMachine.enabled) {
-                    micIndicator.text = if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) "NETWORK / STT TIMEOUT — RETRYING" else "MIC RETRYING"
-                    mainHandler.postDelayed({ if (voiceLoopEnabled && !isFinishing) startVoiceInput() }, 1200)
-                } else {
-                    micIndicator.text = "MIC OFF — TRY AGAIN"
-                    micIndicator.contentDescription = "Microphone status: off"
-                    voiceButton.text = "TALK"
-                }
-            }
-            override fun onResults(results: Bundle?) {
-                val spoken = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-                listening = false
-                speechRecognizer?.destroy()
-                speechRecognizer = null
-                silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
-                silenceSubmitRunnable = null
-                if (spoken.isNotBlank() && voiceLoopEnabled && !voiceMuted && !silenceSubmissionHandled) {
-                    voiceStateMachine.heardSpeech()
-                    if (::voiceTranscript.isInitialized) voiceTranscript.text = "You: " + spoken + "\\n\\nThinking…"
-                    chatInput.setText(spoken)
-                    sendMessage()
-                    // Keep recognition armed while the reply is generated so the user can interrupt TTS.
-                    mainHandler.postDelayed({ if (voiceLoopEnabled && !listening) startVoiceInput() }, 350)
-                } else if (spoken.isNotBlank()) {
-                    chatInput.setText(spoken)
-                    micIndicator.text = "MIC READY — REVIEW TEXT"
-                } else if (voiceLoopEnabled && !voiceMuted) {
-                    mainHandler.postDelayed({ if (voiceLoopEnabled && !voiceMuted) startVoiceInput() }, 500)
-                }
-                if (!voiceLoopEnabled) {
-                    micIndicator.contentDescription = "Microphone status: off"
-                    voiceButton.text = "TALK"
-                }
-            }
-            override fun onPartialResults(partialResults: Bundle?) {
-                val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
-                if (!listening || !voiceLoopEnabled || voiceMuted || partial.isBlank() || silenceSubmissionHandled) return
-                latestPartialSpeech = partial
-                micIndicator.text = "MIC HEARING…"
-                silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
-                val submitAfterSilence = Runnable {
-                    if (!voiceLoopEnabled || voiceMuted || !listening || silenceSubmissionHandled) return@Runnable
-                    val finalText = latestPartialSpeech.trim()
-                    if (finalText.isBlank()) return@Runnable
-                    silenceSubmissionHandled = true
-                    stopVoiceInput(cancel = true, updateStatus = false)
-                    voiceStateMachine.heardSpeech()
-                    if (::voiceTranscript.isInitialized) voiceTranscript.text = "You: $finalText\n\nThinking…"
-                    chatInput.setText(finalText)
-                    sendMessage()
-                    mainHandler.postDelayed({ if (voiceLoopEnabled && !voiceMuted && !listening) startVoiceInput() }, 350)
-                }
-                silenceSubmitRunnable = submitAfterSilence
-                mainHandler.postDelayed(submitAfterSilence, 700)
-            }
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        listening = true
+        val apiKey = secureVoicePrefs().getString("elevenlabs_api_key", "").orEmpty()
+        if (apiKey.isBlank()) {
+            micIndicator.text = "ADD ELEVENLABS KEY IN PROFILE"
+            if (::voiceTranscript.isInitialized) voiceTranscript.text = "Set your ElevenLabs API key in Profile settings to enable live streaming STT."
+            return
+        }
         voiceButton.text = "STOP LISTENING"
-        micIndicator.text = "MIC STARTING"
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        }
-        try { recognizer.startListening(intent) } catch (_: Exception) {
-            stopVoiceInput(cancel = true)
-            micIndicator.text = "MIC UNAVAILABLE"
-        }
+        micIndicator.text = "MIC STARTING — LIVE STT"
+        liveSttCapture = LiveSttCapture(
+            apiKey = apiKey,
+            onPartial = { partial ->
+                runOnUiThread {
+                    if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank() && ::voiceTranscript.isInitialized) {
+                        voiceTranscript.text = "Hearing: $partial"
+                    }
+                }
+            },
+            onCommitted = { recognized ->
+                runOnUiThread {
+                    if (voiceLoopEnabled && !voiceMuted && recognized.isNotBlank()) {
+                        chatInput.setText(recognized)
+                        chatInput.setSelection(chatInput.text.length)
+                        if (::voiceTranscript.isInitialized) voiceTranscript.text = "Recognized text:\\n$recognized"
+                        micIndicator.text = "STT TEXT READY — REVIEW OR SEND"
+                    }
+                }
+            },
+            onStatus = { message ->
+                runOnUiThread {
+                    if (::micIndicator.isInitialized && voiceLoopEnabled && !voiceMuted) micIndicator.text = message
+                }
+            }
+        ).also { it.start() }
     }
 
     private fun stopVoiceInput(cancel: Boolean, updateStatus: Boolean = true) {
         listening = false
+        liveSttCapture?.stop()
+        liveSttCapture = null
         silenceSubmitRunnable?.let { mainHandler.removeCallbacks(it) }
         silenceSubmitRunnable = null
         try {
@@ -1347,8 +1286,8 @@ class MainActivity : Activity() {
         speechRecognizer = null
         if (::voiceButton.isInitialized) voiceButton.text = "TALK"
         if (updateStatus && ::micIndicator.isInitialized) {
-            micIndicator.text = "MIC OFF"
-            micIndicator.contentDescription = "Microphone status: off"
+            micIndicator.text = if (voiceMuted) "MIC MUTED" else "MIC OFF"
+            micIndicator.contentDescription = if (voiceMuted) "Microphone status: muted" else "Microphone status: off"
         }
     }
 
