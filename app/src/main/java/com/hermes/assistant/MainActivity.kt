@@ -1247,36 +1247,31 @@ class MainActivity : Activity() {
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(24), dp(24), dp(24), dp(24))
-            setBackgroundColor(Color.rgb(5, 10, 22))
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setBackgroundColor(Color.TRANSPARENT)
         }
         panel.addView(TextView(this).apply {
-            text = "◉"; textSize = 68f; gravity = Gravity.CENTER
-            setTextColor(Color.rgb(0, 210, 255)); contentDescription = "Listening ring"
-        }, LinearLayout.LayoutParams(-1, dp(110)))
-        voiceTranscript = TextView(this).apply {
-            text = "Listening…"; textSize = 16f; gravity = Gravity.CENTER
-            setTextColor(Color.WHITE); setPadding(dp(8), dp(22), dp(8), dp(22))
+            text = "◉"
+            textSize = 72f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(0, 210, 255))
+            contentDescription = "Vyom voice orb"
+        }, LinearLayout.LayoutParams(-1, dp(150)))
+        val statusDot = TextView(this).apply {
+            text = "●"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(80, 220, 120))
+            contentDescription = "Voice status: listening"
         }
-        panel.addView(voiceTranscript, LinearLayout.LayoutParams(-1, dp(130)))
-        panel.addView(TextView(this).apply {
-            text = "AI will reply with text and voice"; textSize = 12f; gravity = Gravity.CENTER
-            setTextColor(Color.LTGRAY)
-        }, LinearLayout.LayoutParams(-1, dp(44)))
-        panel.addView(Button(this).apply {
-            text = if (liveLaneEnabled) "LIVE LANE: ON — " + secureVoicePrefs().getString("nvidia_live_model_id", "MODEL NOT SET").orEmpty() else "LIVE LANE: OFF"
-            setOnClickListener {
-                liveLaneEnabled = !liveLaneEnabled
-                text = if (liveLaneEnabled) "LIVE LANE: ON — " + secureVoicePrefs().getString("nvidia_live_model_id", "MODEL NOT SET").orEmpty() else "LIVE LANE: OFF — CHAT/TASK NORMAL"
-                if (::voiceTranscript.isInitialized) voiceTranscript.text = if (liveLaneEnabled) "LIVE lane enabled. STT commits go directly to Nemotron 3 Super." else "Normal voice mode. CHAT/TASK use existing Hermes endpoints."
-            }
-        }, LinearLayout.LayoutParams(-1, dp(44)))
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        controls.addView(Button(this).apply {
-            text = "MUTE"
+        panel.addView(statusDot, LinearLayout.LayoutParams(-1, dp(24)))
+        val muteButton = Button(this).apply {
+            text = if (voiceMuted) "🔇" else "🔊"
+            contentDescription = if (voiceMuted) "Unmute microphone" else "Mute microphone"
             setOnClickListener {
                 voiceMuted = !voiceMuted
-                text = if (voiceMuted) "UNMUTE" else "MUTE"
+                text = if (voiceMuted) "🔇" else "🔊"
+                contentDescription = if (voiceMuted) "Unmute microphone" else "Mute microphone"
                 if (voiceMuted) {
                     stopVoiceInput(cancel = true)
                     voiceUiSounds?.playMuted()
@@ -1289,26 +1284,35 @@ class MainActivity : Activity() {
                     liveStreamFinished = false
                     liveSentenceTtsPlaying = false
                     liveSentenceQueue.clear()
-                    micIndicator.text = "MIC MUTED"
-                    micIndicator.contentDescription = "Microphone status: muted"
+                    statusDot.setTextColor(Color.GRAY)
+                    statusDot.contentDescription = "Voice status: muted"
                 } else if (voiceLoopEnabled) {
-                    stopVoiceInput(cancel = true)
                     voiceUiSounds?.playUnmuted()
-                    mainHandler.postDelayed({ if (voiceLoopEnabled && !voiceMuted) startVoiceInput() }, 160L)
+                    statusDot.setTextColor(Color.rgb(80, 220, 120))
+                    statusDot.contentDescription = "Voice status: listening"
+                    startVoiceInput()
                 } else {
                     voiceUiSounds?.playUnmuted()
                 }
             }
-        }, LinearLayout.LayoutParams(0, dp(48), 1f))
-        controls.addView(Button(this).apply {
-            text = "CLOSE"; setOnClickListener { toggleVoiceInput() }
-        }, LinearLayout.LayoutParams(0, dp(48), 1f))
-        panel.addView(controls, LinearLayout.LayoutParams(-1, dp(54)))
+        }
+        panel.addView(muteButton, LinearLayout.LayoutParams(dp(72), dp(48)))
         voiceDialog = AlertDialog.Builder(this).setView(panel).setOnCancelListener {
-            if (voiceLoopEnabled) { voiceLoopEnabled = false; voiceStateMachine.stop(); voiceTtsProvider?.stop(); stopVoiceInput(cancel = true); stopVoiceForegroundService() }
+            if (voiceLoopEnabled) {
+                voiceLoopEnabled = false
+                voiceStateMachine.stop()
+                voiceTtsProvider?.stop()
+                stopVoiceInput(cancel = true)
+                stopVoiceForegroundService()
+            }
         }.create()
+        voiceDialog?.setOnShowListener {
+            voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
+            voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.72).toInt(), dp(280))
+        }
         voiceDialog?.show()
-        voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.92).toInt(), -1)
+        voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        voiceDialog?.window?.setLayout((resources.displayMetrics.widthPixels * 0.72).toInt(), dp(280))
     }
 
     private fun startVoiceInput() {
