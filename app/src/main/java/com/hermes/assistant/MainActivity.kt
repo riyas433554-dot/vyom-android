@@ -702,9 +702,18 @@ class MainActivity : Activity() {
 
     private fun setOrbAppearance(mode: Int) {
         orbMode = mode.coerceIn(0, 3)
-        settingsPrefs.edit().putInt("orb_mode", orbMode).apply()
+        val accent = when (orbMode) {
+            1 -> "amber"
+            2 -> "violet"
+            3 -> "green"
+            else -> "cyan"
+        }
+        settingsPrefs.edit()
+            .putInt("orb_mode", orbMode)
+            .putString("theme_accent", accent)
+            .apply()
         if (::orb.isInitialized) orb.setOrbMode(orbMode)
-        status.text = "VYOM  •  ORB UPDATED"
+        status.text = "VYOM  •  THEME UPDATED"
     }
 
     private fun setReduceMotion(enabled: Boolean) {
