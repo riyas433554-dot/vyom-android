@@ -95,6 +95,7 @@ class MainActivity : Activity() {
     private var hinglishPersona = true
     private var listening = false
     private var voiceLoopEnabled = false
+    private var controlKillSwitch = false
     private var voiceStopReceiverRegistered = false
     private val voiceStopReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -524,6 +525,26 @@ class MainActivity : Activity() {
             text = "DISPLAY SETTINGS"
             setOnClickListener { confirmControlAction("Open display settings", Settings.ACTION_DISPLAY_SETTINGS) }
         }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        controlPanel.addView(Button(this).apply {
+            text = "STOP CONTROL"
+            contentDescription = "Emergency stop for all Vyom device actions"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(170, 25, 35))
+            setOnClickListener {
+                controlKillSwitch = true
+                controlPrefs.edit().putBoolean("kill_switch", true).apply()
+                logControlAction("STOP CONTROL", "enabled", "app")
+                controlNotice.text = "STOP CONTROL is ON. Device actions are disabled until resumed."
+                AlertDialog.Builder(this@MainActivity).setTitle("Control stopped")
+                    .setMessage("All device actions are disabled. Resume only when safe.")
+                    .setPositiveButton("RESUME CONTROL") { _, _ ->
+                        controlKillSwitch = false
+                        controlPrefs.edit().putBoolean("kill_switch", false).apply()
+                        logControlAction("RESUME CONTROL", "enabled", "app")
+                        controlNotice.text = "Device actions resumed."
+                    }.setNegativeButton("Keep stopped", null).show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         controlPanel.addView(controlNotice, LinearLayout.LayoutParams(-1, -2))
         controlPanel.addView(controlButtons, LinearLayout.LayoutParams(-1, dp(48)))
         controlPanel.addView(Button(this).apply {
@@ -814,6 +835,11 @@ class MainActivity : Activity() {
     }
 
     private fun confirmControlAction(label: String, action: String) {
+        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+            controlNotice.text = "STOP CONTROL is ON. Action blocked."
+            logControlAction(label, "blocked-by-kill-switch", "app")
+            return
+        }
         AlertDialog.Builder(this)
             .setTitle("Confirm device action")
             .setMessage("Allow Vyom to $label? This opens an Android Settings screen; it does not change settings automatically.")
@@ -823,6 +849,10 @@ class MainActivity : Activity() {
     }
 
     private fun performControlAction(label: String, action: String) {
+        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+            logControlAction(label, "blocked-by-kill-switch", "app")
+            return
+        }
         val intent = if (action == "app-details") {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         } else {
@@ -843,10 +873,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun logControlAction(action: String, result: String) {
+    private fun logControlAction(action: String, result: String, source: String = "app", elapsedMs: Long = 0L) {
         val rows = try { JSONArray(controlPrefs.getString("events", "[]")) } catch (_: Exception) { JSONArray() }
         val next = JSONArray()
-        next.put(JSONObject().put("at", java.time.Instant.now().toString()).put("action", action).put("result", result))
+        next.put(JSONObject().put("at", java.time.Instant.now().toString()).put("elapsedMs", elapsedMs).put("source", source).put("action", action).put("result", result))
         for (i in 0 until minOf(rows.length(), 49)) next.put(rows.getJSONObject(i))
         controlPrefs.edit().putString("events", next.toString()).apply()
         renderControlAudit()
@@ -867,7 +897,7 @@ class MainActivity : Activity() {
         for (i in 0 until rows.length()) {
             val row = rows.optJSONObject(i) ?: continue
             controlAuditList.addView(TextView(this).apply {
-                text = "${row.optString("at")} • ${row.optString("action")} — ${row.optString("result")}"
+                text = "${row.optString("at")} • ${row.optString("source", "app")} • ${row.optString("action")} — ${row.optString("result")} (${row.optLong("elapsedMs")} ms)"
                 textSize = 10f
                 setTextColor(Color.LTGRAY)
                 setPadding(0, dp(2), 0, dp(2))
