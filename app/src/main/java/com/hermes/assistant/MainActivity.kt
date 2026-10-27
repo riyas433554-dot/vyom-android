@@ -111,6 +111,8 @@ class MainActivity : Activity() {
     private lateinit var elevenLabsKeyInput: EditText
     private lateinit var elevenLabsVoiceIdInput: EditText
     private lateinit var nvidiaApiKeyInput: EditText
+    private lateinit var liveModelInput: EditText
+    private lateinit var liveModelNotice: TextView
     private lateinit var sttLanguageInput: EditText
     private var nemotronLiveClient: NemotronLiveClient? = null
     private lateinit var ttsConfigStatus: TextView
@@ -394,6 +396,21 @@ class MainActivity : Activity() {
             setText(secureVoicePrefs().getString("nvidia_api_key", "") ?: "")
         }
         settingsContent.addView(nvidiaApiKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        liveModelInput = EditText(this).apply {
+            hint = "LIVE model ID (load and choose below)"
+            setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setText(secureVoicePrefs().getString("nvidia_live_model_id", "") ?: "")
+        }
+        settingsContent.addView(liveModelInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "LOAD MODELS"
+            setOnClickListener { loadNvidiaModels() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        liveModelNotice = TextView(this).apply {
+            text = "Load models using your NVIDIA API key, then tap a model ID to select it."
+            textSize = 11f; setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(liveModelNotice, LinearLayout.LayoutParams(-1, -2))
         sttLanguageInput = EditText(this).apply {
             hint = "STT language code (blank = Auto, e.g. en)"
             setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
@@ -405,8 +422,10 @@ class MainActivity : Activity() {
             setOnClickListener {
                 secureVoicePrefs().edit().putString("elevenlabs_api_key", elevenLabsKeyInput.text.toString().trim())
                     .putString("elevenlabs_voice_id", elevenLabsVoiceIdInput.text.toString().trim()).apply()
-                secureVoicePrefs().edit().putString("nvidia_api_key", nvidiaApiKeyInput.text.toString().trim()).apply()
+                secureVoicePrefs().edit().putString("nvidia_api_key", nvidiaApiKeyInput.text.toString().trim())
+                    .putString("nvidia_live_model_id", liveModelInput.text.toString().trim()).apply()
                 secureVoicePrefs().edit().putString("stt_language_code", sttLanguageInput.text.toString().trim()).apply()
+                liveModelNotice.text = if (liveModelInput.text.toString().trim().isBlank()) "Choose a LIVE model before enabling LIVE lane." else "Selected LIVE model: " + liveModelInput.text.toString().trim()
                 ttsConfigStatus.text = voiceProvider().status()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
@@ -1342,16 +1361,70 @@ class MainActivity : Activity() {
         ).also { it.start() }
     }
 
+    private fun loadNvidiaModels() {
+        val key = nvidiaApiKeyInput.text.toString().trim()
+        if (key.isBlank()) {
+            liveModelNotice.text = "ERROR: NVIDIA API key is empty. Enter it above and save settings first."
+            return
+        }
+        liveModelNotice.text = "Loading models from NVIDIA…"
+        io.execute {
+            try {
+                val conn = (URL("https://integrate.api.nvidia.com/v1/models").openConnection() as HttpURLConnection).also {
+                    it.requestMethod = "GET"
+                    it.connectTimeout = 15000
+                    it.readTimeout = 30000
+                    it.setRequestProperty("Authorization", "Bearer $key")
+                    it.setRequestProperty("Accept", "application/json")
+                }
+                val code = conn.responseCode
+                val responseBody = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                conn.disconnect()
+                if (code !in 200..299) throw IllegalStateException("NVIDIA /v1/models returned HTTP " + code + ": " + responseBody.take(240))
+                val data = JSONObject(responseBody).optJSONArray("data")
+                    ?: throw IllegalStateException("NVIDIA /v1/models response has no 'data' model list.")
+                val ids = (0 until data.length()).mapNotNull { index ->
+                    data.optJSONObject(index)?.optString("id")?.trim()?.takeIf { it.isNotEmpty() }
+                }.distinct().sorted()
+                if (ids.isEmpty()) throw IllegalStateException("NVIDIA returned an empty model list. Check API key/account access.")
+                runOnUiThread {
+                    liveModelNotice.text = "Loaded " + ids.size + " models. Tap one to save it on this device."
+                    AlertDialog.Builder(this)
+                        .setTitle("Choose LIVE model")
+                        .setItems(ids.toTypedArray()) { _, which ->
+                            val chosen = ids[which]
+                            liveModelInput.setText(chosen)
+                            secureVoicePrefs().edit().putString("nvidia_live_model_id", chosen).apply()
+                            liveModelNotice.text = "Selected LIVE model: " + chosen
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    liveModelNotice.text = "ERROR loading NVIDIA models: " + (error.message ?: "Unknown network error")
+                }
+            }
+        }
+    }
+
     private fun runLiveLane(prompt: String) {
         val key = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+        val modelId = secureVoicePrefs().getString("nvidia_live_model_id", "").orEmpty().trim()
         if (key.isBlank()) {
             if (::voiceTranscript.isInitialized) voiceTranscript.text = "LIVE lane needs an NVIDIA API key. Save it in Profile > Settings."
             micIndicator.text = "LIVE KEY MISSING"
             return
         }
+        if (modelId.isBlank()) {
+            if (::voiceTranscript.isInitialized) voiceTranscript.text = "LIVE model ID missing. Open Profile > Settings, tap LOAD MODELS, then choose a model."
+            micIndicator.text = "LIVE MODEL MISSING"
+            return
+        }
         voiceTtsProvider?.stop()
         nemotronLiveClient?.cancel()
-        val client = NemotronLiveClient(key)
+        val client = NemotronLiveClient(key, modelId)
         nemotronLiveClient = client
         liveGenerationActive = true
         liveStreamFinished = false
