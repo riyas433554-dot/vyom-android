@@ -427,6 +427,9 @@ class MainActivity : Activity() {
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(12)
         })
+        root.addView(buildInfo, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+            topMargin = dp(30)
+        })
         root.addView(panel, FrameLayout.LayoutParams(-1, dp(440), Gravity.BOTTOM))
         setContentView(root)
         textToSpeech = TextToSpeech(this) { result ->
