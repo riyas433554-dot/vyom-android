@@ -113,9 +113,28 @@ internal class LiveSttCapture(
             }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 socketReady = false
+                if (running && !offlineReady) prepareOfflineFallback("LIVE STT CONNECTION CLOSED")
             }
         })
         thread(name = "vyom-audio-vad") { captureLoop() }
+    }
+
+    private fun prepareOfflineFallback(message: String) {
+        if (!running || offlineReady) return
+        onStatus("$message — PREPARING OFFLINE ENGLISH STT")
+        thread(name = "vyom-vosk-prepare") {
+            if (!running || offlineReady) return@thread
+            val fallback = VoskOfflineStt(context)
+            if (fallback.prepare(onStatus) && running) {
+                offlineStt?.close()
+                offlineStt = fallback
+                offlineReady = true
+                onStatus("OFFLINE ENGLISH STT READY — AUDIO STAYS ON DEVICE")
+            } else {
+                fallback.close()
+                if (running) onStatus("LIVE AND OFFLINE STT UNAVAILABLE")
+            }
+        }
     }
 
     private fun captureLoop() {
@@ -176,7 +195,6 @@ internal class LiveSttCapture(
                             socket?.send(JSONObject().put("message_type", "commit").toString())
                         } else {
                             onStatus("SHORT/LOW-LEVEL AUDIO IGNORED")
-                            socket?.send(JSONObject().put("message_type", "input_audio_chunk").put("audio_base_64", "").put("sample_rate", sampleRate).put("commit", false).toString())
                         }
                         segmentActive = false
                         segmentStartedAt = 0L
