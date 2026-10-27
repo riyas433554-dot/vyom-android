@@ -1,5 +1,6 @@
 package com.hermes.assistant
 
+import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -19,6 +20,7 @@ import kotlin.math.sqrt
  * API key is supplied by the caller from encrypted device preferences; never persisted here.
  */
 internal class LiveSttCapture(
+    private val context: Context,
     private val apiKey: String,
     private val onPartial: (String) -> Unit,
     private val onCommitted: (String) -> Unit,
@@ -29,6 +31,8 @@ internal class LiveSttCapture(
     private val speechThresholdRms = 650.0
     @Volatile private var running = false
     @Volatile private var socketReady = false
+    @Volatile private var offlineReady = false
+    @Volatile private var offlineStt: VoskOfflineStt? = null
     @Volatile private var socket: WebSocket? = null
     @Volatile private var recorder: AudioRecord? = null
     private val client = OkHttpClient.Builder()
@@ -70,8 +74,19 @@ internal class LiveSttCapture(
             }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 socketReady = false
-                onStatus("LIVE STT CONNECTION FAILED: ${t.message ?: "network error"}")
-                stop()
+                onStatus("LIVE STT FAILED — PREPARING OFFLINE ENGLISH STT")
+                thread(name = "vyom-vosk-prepare") {
+                    val fallback = VoskOfflineStt(context)
+                    if (fallback.prepare(onStatus)) {
+                        offlineStt?.close()
+                        offlineStt = fallback
+                        offlineReady = true
+                        onStatus("OFFLINE ENGLISH STT READY — AUDIO STAYS ON DEVICE")
+                    } else {
+                        fallback.close()
+                        onStatus("LIVE AND OFFLINE STT UNAVAILABLE")
+                    }
+                }
             }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 socketReady = false
@@ -103,7 +118,7 @@ internal class LiveSttCapture(
             val buffer = ShortArray(1600) // 100 ms PCM frames
             while (running && audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                 val count = audio.read(buffer, 0, buffer.size)
-                if (count <= 0 || !socketReady) continue
+                if (count <= 0 || (!socketReady && !offlineReady)) continue
                 var energy = 0.0
                 for (i in 0 until count) energy += buffer[i].toDouble() * buffer[i].toDouble()
                 val rms = sqrt(energy / count)
@@ -112,18 +127,20 @@ internal class LiveSttCapture(
                     segmentActive = true
                     lastSpeechAt = now
                 }
-                if (segmentActive) {
+                if (offlineReady) {
+                    offlineStt?.accept(buffer, count)?.let { result ->
+                        if (result.startsWith("~")) onPartial(result.removePrefix("~")) else onCommitted(result)
+                    }
+                } else if (socketReady && segmentActive) {
                     val bytes = ByteArray(count * 2)
                     for (i in 0 until count) {
                         val sample = buffer[i].toInt()
                         bytes[i * 2] = (sample and 0xff).toByte()
                         bytes[i * 2 + 1] = ((sample shr 8) and 0xff).toByte()
                     }
-                    val payload = JSONObject()
-                        .put("message_type", "input_audio_chunk")
+                    val payload = JSONObject().put("message_type", "input_audio_chunk")
                         .put("audio_base_64", Base64.encodeToString(bytes, Base64.NO_WRAP))
-                        .put("sample_rate", sampleRate)
-                        .put("commit", false)
+                        .put("sample_rate", sampleRate).put("commit", false)
                     socket?.send(payload.toString())
                     if (now - lastSpeechAt >= silenceMs) {
                         socket?.send(JSONObject().put("message_type", "commit").toString())
@@ -143,6 +160,9 @@ internal class LiveSttCapture(
     fun stop() {
         running = false
         socketReady = false
+        offlineReady = false
+        offlineStt?.close()
+        offlineStt = null
         try { recorder?.stop() } catch (_: Exception) {}
         socket?.close(1000, "Vyom voice stopped")
         socket = null
