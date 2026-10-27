@@ -55,6 +55,7 @@ class ElevenLabsTtsProvider(
     private val executor = Executors.newSingleThreadExecutor()
     @Volatile private var player: MediaPlayer? = null
     @Volatile private var stopped = false
+    @Volatile private var activeConnection: HttpURLConnection? = null
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change -> if (change <= AudioManager.AUDIOFOCUS_LOSS) stop() }
@@ -88,6 +89,7 @@ class ElevenLabsTtsProvider(
             var connection: HttpURLConnection? = null
             try {
                 connection = (URL("https://api.elevenlabs.io/v1/text-to-speech/" + java.net.URLEncoder.encode(voiceId, "UTF-8")).openConnection() as HttpURLConnection).apply {
+                    activeConnection = this
                     requestMethod = "POST"
                     connectTimeout = 12000
                     readTimeout = 30000
@@ -137,11 +139,16 @@ class ElevenLabsTtsProvider(
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     if (!stopped) fallback.speak(text, onComplete) { onError("ElevenLabs failed; Android TTS failed: $it") }
                 }
-            } finally { connection?.disconnect() }
+            } finally {
+                connection?.disconnect()
+                if (activeConnection === connection) activeConnection = null
+            }
         }
     }
     override fun stop() {
         stopped = true
+        try { activeConnection?.disconnect() } catch (_: Exception) {}
+        activeConnection = null
         fallback.stop()
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             try { player?.stop() } catch (_: Exception) {}
