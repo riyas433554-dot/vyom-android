@@ -644,7 +644,7 @@ class MainActivity : Activity() {
             } catch (_: Exception) {
                 runOnUiThread {
                     status.text = "VYOM  •  CONNECTION FAILED"
-                    transcript.text = "Could not connect to Hermes. Check the pairing code and try again."
+                    showChatNotice("Could not connect to Hermes. Check the pairing code and try again.")
                     pairButton.isEnabled = true
                 }
             }
@@ -734,6 +734,14 @@ class MainActivity : Activity() {
                 .put("createdAt", item.createdAt))
         }
         chatPrefs.edit().putString("messages", saved.toString()).apply()
+    }
+
+    private fun showChatNotice(message: String) {
+        if (!::chatMessageList.isInitialized) return
+        chatMessageList.removeAllViews()
+        transcript.text = message
+        transcript.visibility = View.VISIBLE
+        chatMessageList.addView(transcript, LinearLayout.LayoutParams(-1, -2))
     }
 
     private fun renderChatMessages() {
