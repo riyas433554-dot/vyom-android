@@ -72,7 +72,7 @@ internal class LiveSttCapture(
         socket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 socketReady = true
-                onStatus("LIVE STT CONNECTED — AUTO LANGUAGE")
+                onStatus(if (languageCode.isBlank()) "LIVE STT CONNECTED — AUTO LANGUAGE" else "LIVE STT CONNECTED — LANGUAGE: $languageCode")
             }
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
@@ -80,7 +80,7 @@ internal class LiveSttCapture(
                     when (event.optString("message_type")) {
                         "session_started" -> onStatus("LIVE STT READY — SPEAK NOW")
                         "partial_transcript" -> onPartial(cleanTranscript(event.optString("text")))
-                        "audio_event" -> onStatus("AUDIO EVENT IGNORED — WAITING FOR SPEECH")
+                        "audio_event" -> onStatus("STT AUDIO EVENT IGNORED")
                         "committed_transcript" -> {
                             val finalText = cleanTranscript(event.optString("text"))
                             if (finalText.isNotBlank()) onCommitted(finalText)
@@ -176,10 +176,7 @@ internal class LiveSttCapture(
         }
     }
 
-    private fun cleanTranscript(raw: String): String = raw
-        .replace(Regex("(?i)\\\\[(?:noise|music|laughter|laughing|sigh|cough|door slam|background noise|audio event)[^]]*]"), " ")
-        .replace(Regex("(?i)\\\\((?:noise|music|laughter|laughing|sigh|cough|door slam|background noise|audio event)[^)]*\\\\)"), " ")
-        .replace(Regex("\\\\s+"), " ").trim()
+    private fun cleanTranscript(raw: String): String = SttTranscriptCleaner.clean(raw)
 
     fun stop() {
         running = false
