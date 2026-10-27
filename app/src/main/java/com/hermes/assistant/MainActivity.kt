@@ -103,6 +103,8 @@ class MainActivity : Activity() {
     private var voiceTtsProvider: TtsProvider? = null
     private var voiceUiSounds: VoiceUiSounds? = null
     private var liveLaneEnabled = false
+    private var liveGenerationActive = false
+    private var liveReplySpeaking = false
     private lateinit var elevenLabsKeyInput: EditText
     private lateinit var elevenLabsVoiceIdInput: EditText
     private lateinit var nvidiaApiKeyInput: EditText
@@ -1276,7 +1278,9 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank() && ::voiceTranscript.isInitialized) {
                         voiceTranscript.text = "Hearing: $partial"
-                        if (liveLaneEnabled && voiceTtsProvider != null) {
+                        if (liveLaneEnabled && (liveGenerationActive || liveReplySpeaking)) {
+                            liveGenerationActive = false
+                            liveReplySpeaking = false
                             voiceTtsProvider?.stop()
                             nemotronLiveClient?.cancel()
                             if (::micIndicator.isInitialized) micIndicator.text = "LIVE • INTERRUPTED — LISTENING"
@@ -1315,6 +1319,7 @@ class MainActivity : Activity() {
         nemotronLiveClient?.cancel()
         val client = NemotronLiveClient(key)
         nemotronLiveClient = client
+        liveGenerationActive = true
         val accumulated = StringBuilder()
         micIndicator.text = "LIVE • NEMOTRON 3 SUPER STREAMING"
         client.stream(prompt, { delta ->
@@ -1326,14 +1331,21 @@ class MainActivity : Activity() {
             }
         }, { reply ->
             runOnUiThread {
+                liveGenerationActive = false
                 if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted && reply.isNotBlank()) {
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = reply
                     micIndicator.text = "LIVE • SPEAKING"
-                    speakReply(reply) { if (liveLaneEnabled && voiceLoopEnabled && !voiceMuted) micIndicator.text = "LIVE • LISTENING" }
+                    liveReplySpeaking = true
+                    speakReply(reply) {
+                        liveReplySpeaking = false
+                        if (liveLaneEnabled && voiceLoopEnabled && !voiceMuted) micIndicator.text = "LIVE • LISTENING"
+                    }
                 }
             }
         }, { error ->
             runOnUiThread {
+                liveGenerationActive = false
+                liveReplySpeaking = false
                 if (nemotronLiveClient === client) {
                     micIndicator.text = "LIVE ERROR"
                     if (::voiceTranscript.isInitialized) voiceTranscript.text = error
