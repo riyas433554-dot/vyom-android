@@ -4,6 +4,8 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import android.util.Base64
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -43,6 +45,10 @@ internal class LiveSttCapture(
         .build()
     private var lastSpeechAt = 0L
     private var segmentActive = false
+    private var segmentStartedAt = 0L
+    private var segmentPeakRms = 0.0
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
 
     fun start() {
         if (running) return
@@ -121,7 +127,7 @@ internal class LiveSttCapture(
         }
         val bufferSize = maxOf(minBuffer, 3200)
         val audio = try {
-            AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate,
+            AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, sampleRate,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize)
         } catch (e: Exception) {
             onStatus("MIC INIT FAILED: ${e.message ?: "unavailable"}")
@@ -130,6 +136,8 @@ internal class LiveSttCapture(
         }
         recorder = audio
         try {
+            if (AcousticEchoCanceler.isAvailable()) echoCanceler = AcousticEchoCanceler.create(audio.audioSessionId)?.apply { enabled = true }
+            if (NoiseSuppressor.isAvailable()) noiseSuppressor = NoiseSuppressor.create(audio.audioSessionId)?.apply { enabled = true }
             audio.startRecording()
             onStatus("MIC LISTENING — VAD ACTIVE")
             val buffer = ShortArray(1600) // 100 ms PCM frames
@@ -143,7 +151,8 @@ internal class LiveSttCapture(
                 if (!segmentActive && rms < speechThresholdRms) noiseFloorRms = (noiseFloorRms * 0.94) + (rms * 0.06)
                 val activeThreshold = maxOf(speechThresholdRms, noiseFloorRms * 2.8)
                 if (rms >= activeThreshold) {
-                    segmentActive = true
+                    if (!segmentActive) { segmentActive = true; segmentStartedAt = now; segmentPeakRms = rms }
+                    else segmentPeakRms = maxOf(segmentPeakRms, rms)
                     lastSpeechAt = now
                 }
                 if (offlineReady) {
@@ -162,8 +171,16 @@ internal class LiveSttCapture(
                         .put("sample_rate", sampleRate).put("commit", false)
                     socket?.send(payload.toString())
                     if (now - lastSpeechAt >= silenceMs) {
-                        socket?.send(JSONObject().put("message_type", "commit").toString())
+                        val durationMs = now - segmentStartedAt
+                        if (durationMs >= 400L && segmentPeakRms >= 900.0) {
+                            socket?.send(JSONObject().put("message_type", "commit").toString())
+                        } else {
+                            onStatus("SHORT/LOW-LEVEL AUDIO IGNORED")
+                            socket?.send(JSONObject().put("message_type", "input_audio_chunk").put("audio_base_64", "").put("sample_rate", sampleRate).put("commit", false).toString())
+                        }
                         segmentActive = false
+                        segmentStartedAt = 0L
+                        segmentPeakRms = 0.0
                     }
                 }
             }
@@ -171,6 +188,9 @@ internal class LiveSttCapture(
             if (running) onStatus("MIC CAPTURE ERROR: ${e.message ?: "unknown"}")
         } finally {
             try { audio.stop() } catch (_: Exception) {}
+            try { noiseSuppressor?.release() } catch (_: Exception) {}
+            try { echoCanceler?.release() } catch (_: Exception) {}
+            noiseSuppressor = null; echoCanceler = null
             audio.release()
             if (recorder === audio) recorder = null
         }
