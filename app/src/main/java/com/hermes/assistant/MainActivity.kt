@@ -53,11 +53,11 @@ class MainActivity : Activity() {
     private lateinit var pairButton: Button
     private lateinit var sendButton: Button
     private lateinit var createTaskButton: Button
-    private lateinit var chatTab: Button
-    private lateinit var tasksTab: Button
-    private lateinit var settingsTab: Button
-    private lateinit var filesTab: Button
-    private lateinit var controlTab: Button
+    private lateinit var chatTab: TextView
+    private lateinit var tasksTab: TextView
+    private lateinit var settingsTab: TextView
+    private lateinit var filesTab: TextView
+    private lateinit var controlTab: TextView
     private lateinit var chatPanel: LinearLayout
     private lateinit var tasksPanel: LinearLayout
     private lateinit var settingsPanel: LinearLayout
@@ -117,7 +117,7 @@ class MainActivity : Activity() {
         window.navigationBarColor = Color.BLACK
 
         val root = FrameLayout(this).apply {
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(VyomTheme.BACKGROUND)
             fitsSystemWindows = true
         }
         orb = OrbSurfaceView(this).apply {
@@ -145,38 +145,41 @@ class MainActivity : Activity() {
             setPadding(dp(14), dp(8), dp(14), dp(12))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.argb(238, 8, 12, 20))
+                setColor(Color.argb(238, 11, 15, 26))
                 cornerRadius = dp(22).toFloat()
                 setStroke(dp(1), Color.argb(150, 0, 190, 255))
             }
             elevation = dp(8).toFloat()
         }
-        val tabBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        chatTab = Button(this).apply {
-            text = "CHAT"
-            setOnClickListener { showTab(false) }
+        val tabBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.argb(224, 16, 25, 43))
+                cornerRadius = dp(28).toFloat()
+                setStroke(dp(1), VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            }
+            setPadding(dp(5), dp(3), dp(5), dp(3))
         }
-        tasksTab = Button(this).apply {
-            text = "TASKS"
-            setOnClickListener { showTab(true) }
+        fun dockItem(label: String, action: () -> Unit): TextView = TextView(this).apply {
+            text = label
+            gravity = Gravity.CENTER
+            textSize = if (label == "◉") 22f else 10f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setOnClickListener { action() }
         }
-        settingsTab = Button(this).apply {
-            text = "SETTINGS"
-            setOnClickListener { showTab(false, true) }
+        chatTab = dockItem("Chat") { showTab(false) }
+        tasksTab = dockItem("Tasks") { showTab(true) }
+        settingsTab = dockItem("Profile") { showProfileMenu() }
+        filesTab = dockItem("Files") { showTab(false, false, true) }
+        controlTab = dockItem("Control") { showTab(false, false, false, true) }
+        val homeDock = dockItem("Home") { showTab(false) }
+        val voiceDock = dockItem("◉") { toggleVoiceInput() }
+        listOf(homeDock, chatTab, voiceDock, tasksTab, settingsTab).forEachIndexed { index, item ->
+            tabBar.addView(item, LinearLayout.LayoutParams(0, dp(if (index == 2) 48 else 42), 1f))
         }
-        filesTab = Button(this).apply {
-            text = "FILES"
-            setOnClickListener { showTab(false, false, true) }
-        }
-        controlTab = Button(this).apply {
-            text = "CONTROL"
-            setOnClickListener { showTab(false, false, false, true) }
-        }
-        tabBar.addView(chatTab, LinearLayout.LayoutParams(0, dp(44), 1f))
-        tabBar.addView(tasksTab, LinearLayout.LayoutParams(0, dp(44), 1f))
-        tabBar.addView(settingsTab, LinearLayout.LayoutParams(0, dp(44), 1f))
-        tabBar.addView(filesTab, LinearLayout.LayoutParams(0, dp(44), 1f))
-        tabBar.addView(controlTab, LinearLayout.LayoutParams(0, dp(44), 1f))
 
         pairingInput = EditText(this).apply {
             hint = "First-time pairing code"
@@ -331,8 +334,8 @@ class MainActivity : Activity() {
         settingsPanel.addView(settingsScroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
 
-        panel.addView(buildInfo, LinearLayout.LayoutParams(-1, dp(22)))
-        panel.addView(tabBar, LinearLayout.LayoutParams(-1, dp(44)))
+        // Build metadata remains available outside the primary navigation.
+        panel.addView(tabBar, LinearLayout.LayoutParams(-1, dp(52)))
         panel.addView(pairingInput, LinearLayout.LayoutParams(-1, dp(46)))
         panel.addView(pairButton, LinearLayout.LayoutParams(-1, dp(44)))
         panel.addView(chatPanel, LinearLayout.LayoutParams(-1, dp(250)))
@@ -447,6 +450,21 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showProfileMenu() {
+        AlertDialog.Builder(this)
+            .setTitle("Profile")
+            .setItems(arrayOf("Settings", "Files", "Control", "Skills")) { _, which ->
+                when (which) {
+                    0 -> showTab(false, true)
+                    1 -> showTab(false, false, true)
+                    2 -> showTab(false, false, false, true)
+                    3 -> AlertDialog.Builder(this).setTitle("Skills").setMessage("Skills registry will be added in Phase 6.").setPositiveButton("OK", null).show()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
     private fun showTab(showTasks: Boolean, showSettings: Boolean = false, showFiles: Boolean = false, showControl: Boolean = false) {
         tasksTabVisible = showTasks || showFiles
         val anyOtherPanel = showTasks || showSettings || showFiles || showControl
@@ -458,8 +476,8 @@ class MainActivity : Activity() {
         chatTab.alpha = if (anyOtherPanel) 0.65f else 1f
         tasksTab.alpha = if (showTasks) 1f else 0.65f
         settingsTab.alpha = if (showSettings) 1f else 0.65f
-        filesTab.alpha = if (showFiles) 1f else 0.65f
-        controlTab.alpha = if (showControl) 1f else 0.65f
+        filesTab.alpha = 0f
+        controlTab.alpha = 0f
         mainHandler.removeCallbacks(refreshTasksRunnable)
         if (tasksTabVisible) {
             refreshTasks()
