@@ -34,7 +34,7 @@ class OrbRenderer : GLSurfaceView.Renderer {
     private lateinit var colorBuffer: FloatBuffer
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        GLES20.glClearColor(0.02f, 0.03f, 0.06f, 1f)
+        GLES20.glClearColor(0f, 0f, 0f, 0f)
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE)
 
