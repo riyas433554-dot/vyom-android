@@ -1211,6 +1211,7 @@ class MainActivity : Activity() {
         if (voiceLoopEnabled) {
             voiceLoopEnabled = false
             voiceStateMachine.stop()
+            stopVoiceForegroundService()
             voiceTtsProvider?.stop()
             nemotronLiveClient?.cancel()
             nemotronLiveClient = null
@@ -1224,6 +1225,7 @@ class MainActivity : Activity() {
             stopVoiceInput(cancel = true)
             voiceDialog?.dismiss()
             voiceDialog = null
+            stopVoiceForegroundService()
             return
         }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -1233,7 +1235,11 @@ class MainActivity : Activity() {
         showVoiceMode()
         voiceLoopEnabled = true
         voiceStateMachine.start()
-        startVoiceInput()
+        startVoiceForegroundService()
+        if (::voiceTranscript.isInitialized) voiceTranscript.text = "Vyom: Haan, main sun raha hoon. Boliye."
+        speakReply("Haan, main sun raha hoon. Boliye.") {
+            if (voiceLoopEnabled && !voiceMuted) startVoiceInput()
+        }
     }
 
     private fun showVoiceMode() {
@@ -1313,11 +1319,6 @@ class MainActivity : Activity() {
         }
         stopVoiceInput(cancel = true, updateStatus = false)
         val apiKey = secureVoicePrefs().getString("elevenlabs_api_key", "").orEmpty()
-        if (apiKey.isBlank()) {
-            micIndicator.text = "ADD ELEVENLABS KEY IN PROFILE"
-            if (::voiceTranscript.isInitialized) voiceTranscript.text = "Set your ElevenLabs API key in Profile settings to enable live streaming STT."
-            return
-        }
         voiceButton.text = "STOP LISTENING"
         micIndicator.text = "MIC STARTING — LIVE STT"
         liveSttCapture = LiveSttCapture(
@@ -1326,8 +1327,7 @@ class MainActivity : Activity() {
             languageCode = secureVoicePrefs().getString("stt_language_code", "").orEmpty(),
             onPartial = { partial ->
                 runOnUiThread {
-                    if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank() && ::voiceTranscript.isInitialized) {
-                        voiceTranscript.text = "Hearing: $partial"
+                    if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank()) {
                         if (liveLaneEnabled && (liveGenerationActive || liveReplySpeaking)) {
                             liveGenerationActive = false
                             liveReplySpeaking = false
@@ -1495,6 +1495,19 @@ class MainActivity : Activity() {
                 pumpLiveSentenceTts()
             }
         })
+    }
+
+    private fun startVoiceForegroundService() {
+        val intent = Intent(this, VoiceForegroundService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+        } catch (error: Exception) {
+            if (::micIndicator.isInitialized) micIndicator.text = "FOREGROUND SERVICE ERROR: " + (error.message ?: "start failed")
+        }
+    }
+
+    private fun stopVoiceForegroundService() {
+        try { stopService(Intent(this, VoiceForegroundService::class.java)) } catch (_: Exception) {}
     }
 
     private fun stopVoiceInput(cancel: Boolean, updateStatus: Boolean = true) {
@@ -2117,24 +2130,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         tasksTabVisible = false
         mainHandler.removeCallbacks(refreshTasksRunnable)
-        if (voiceLoopEnabled) {
-            voiceLoopEnabled = false
-            voiceStateMachine.stop()
-            voiceTtsProvider?.stop()
-            nemotronLiveClient?.cancel()
-            nemotronLiveClient = null
-            liveGenerationActive = false
-            liveReplySpeaking = false
-            liveStreamFinished = false
-            liveSentenceTtsPlaying = false
-            liveSentenceQueue.clear()
-            voiceUiSounds?.close()
-            voiceUiSounds = null
-            voiceDialog?.dismiss()
-            voiceDialog = null
-            if (::micIndicator.isInitialized) micIndicator.text = "VOICE STOPPED — SCREEN NOT ACTIVE"
-        }
-        stopVoiceInput(cancel = true)
+        if (!voiceLoopEnabled) stopVoiceInput(cancel = true)
         if (::orb.isInitialized) orb.onPause()
         super.onPause()
     }
@@ -2151,6 +2147,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         mainHandler.removeCallbacksAndMessages(null)
         stopVoiceInput(cancel = true)
+        stopVoiceForegroundService()
         voiceTtsProvider?.stop()
         nemotronLiveClient?.cancel()
         nemotronLiveClient = null
