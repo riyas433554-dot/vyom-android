@@ -22,6 +22,7 @@ import kotlin.math.sqrt
 internal class LiveSttCapture(
     private val context: Context,
     private val apiKey: String,
+    private val languageCode: String = "",
     private val onPartial: (String) -> Unit,
     private val onCommitted: (String) -> Unit,
     private val onStatus: (String) -> Unit
@@ -63,7 +64,8 @@ internal class LiveSttCapture(
             return
         }
         val request = Request.Builder()
-            .url("wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&audio_format=pcm_16000&commit_strategy=manual&keepalive_interval_ms=1000")
+            .url("wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&audio_format=pcm_16000&commit_strategy=manual&keepalive_interval_ms=1000" +
+                if (languageCode.isBlank()) "" else "&language_code=" + java.net.URLEncoder.encode(languageCode, "UTF-8"))
             .header("xi-api-key", apiKey)
             .build()
         socket = client.newWebSocket(request, object : WebSocketListener() {
