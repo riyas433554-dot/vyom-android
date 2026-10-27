@@ -21,6 +21,10 @@ class OrbSurfaceView(context: Context) : GLSurfaceView(context) {
         orbRenderer.reduceMotion = enabled
     }
 
+    fun setLiteMode(enabled: Boolean) {
+        orbRenderer.liteMode = enabled
+    }
+
     override fun onPause() {
         super.onPause()
     }
