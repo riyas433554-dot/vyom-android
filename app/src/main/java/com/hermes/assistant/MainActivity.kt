@@ -1353,7 +1353,24 @@ class MainActivity : Activity() {
                             chatMessages.add(item)
                             persistChatMessages()
                             renderChatMessages()
-                            runLiveLane(recognized, item)
+                            val normalized = recognized.trim().lowercase().replace(Regex("[.!?]+$"), "").trim()
+                            val instantReply = when (normalized) {
+                                "hi", "hello", "hey vyom", "hi vyom", "hello vyom", "hey" -> "Haan, bolo. Main sun raha hoon."
+                                else -> null
+                            }
+                            if (instantReply != null) {
+                                item.state = "done"
+                                item.reply = instantReply
+                                persistChatMessages()
+                                renderChatMessages()
+                                liveStreamFinished = true
+                                liveGenerationActive = false
+                                liveSentenceQueue.clear()
+                                liveSentenceQueue.addLast(instantReply)
+                                pumpLiveSentenceTts()
+                            } else {
+                                runLiveLane(recognized, item)
+                            }
                         } else {
                             chatInput.setText(recognized)
                             chatInput.setSelection(chatInput.text.length)
@@ -1471,7 +1488,7 @@ class MainActivity : Activity() {
                 liveSentenceQueue.clear()
                 if (nemotronLiveClient === client) {
                     micIndicator.text = "LIVE ERROR"
-                    if (::voiceTranscript.isInitialized) voiceTranscript.text = error
+                    historyItem?.let { it.state = "error"; it.reply = error; persistChatMessages(); renderChatMessages() }
                 }
             }
         })
