@@ -53,6 +53,7 @@ class MainActivity : Activity() {
     private lateinit var taskList: LinearLayout
     private lateinit var taskScroll: ScrollView
     private lateinit var taskNotice: TextView
+    private lateinit var homePanel: LinearLayout
     private lateinit var pairButton: Button
     private lateinit var sendButton: Button
     private lateinit var createTaskButton: Button
@@ -378,6 +379,8 @@ class MainActivity : Activity() {
         panel.addView(tabBar, LinearLayout.LayoutParams(-1, dp(52)))
         panel.addView(pairingInput, LinearLayout.LayoutParams(-1, dp(46)))
         panel.addView(pairButton, LinearLayout.LayoutParams(-1, dp(44)))
+        homePanel = buildHomePanel()
+        panel.addView(homePanel, LinearLayout.LayoutParams(-1, dp(250)))
         panel.addView(chatPanel, LinearLayout.LayoutParams(-1, dp(250)))
         panel.addView(tasksPanel, LinearLayout.LayoutParams(-1, dp(250)))
         panel.addView(settingsPanel, LinearLayout.LayoutParams(-1, dp(250)))
@@ -496,9 +499,152 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun buildHomePanel(): LinearLayout {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(2), dp(4), dp(2), dp(8))
+        }
+        content.addView(TextView(this).apply {
+            text = "Good to see you"
+            textSize = 21f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(Color.WHITE)
+        }, LinearLayout.LayoutParams(-1, -2))
+        content.addView(TextView(this).apply {
+            text = "What should we work on?"
+            textSize = 12f
+            setTextColor(Color.rgb(160, 181, 207))
+            setPadding(0, dp(2), 0, dp(8))
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        val askRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.rgb(18, 29, 47))
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), Color.argb(150, 56, 189, 248))
+            }
+            setPadding(dp(10), dp(2), dp(4), dp(2))
+        }
+        val askInput = EditText(this).apply {
+            hint = "Ask Vyom anything…"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.rgb(130, 150, 176))
+            textSize = 13f
+            maxLines = 2
+            minLines = 1
+            isSingleLine = false
+            background = null
+            setPadding(0, dp(4), dp(4), dp(4))
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEND
+        }
+        val askButton = TextView(this).apply {
+            text = "➤"
+            textSize = 19f
+            gravity = Gravity.CENTER
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            contentDescription = "Send prompt to Vyom chat"
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setOnClickListener {
+                val prompt = askInput.text.toString().trim()
+                if (prompt.isNotEmpty()) {
+                    chatInput.setText(prompt)
+                    askInput.setText("")
+                    showTab(false)
+                    sendChatMessage()
+                }
+            }
+        }
+        askRow.addView(askInput, LinearLayout.LayoutParams(0, -2, 1f))
+        askRow.addView(askButton, LinearLayout.LayoutParams(-2, -2))
+        content.addView(askRow, LinearLayout.LayoutParams(-1, -2))
+
+        val chipRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, dp(8))
+        }
+        listOf("Build something", "Explain this", "Plan a task").forEach { label ->
+            val chip = TextView(this).apply {
+                text = label
+                textSize = 10f
+                gravity = Gravity.CENTER
+                setTextColor(Color.rgb(194, 218, 243))
+                setPadding(dp(9), dp(8), dp(9), dp(8))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.rgb(19, 34, 54))
+                    cornerRadius = dp(18).toFloat()
+                    setStroke(dp(1), Color.rgb(42, 66, 94))
+                }
+                setOnClickListener {
+                    askInput.setText(when (label) {
+                        "Build something" -> "Help me build an Android feature"
+                        "Explain this" -> "Explain this step by step"
+                        else -> "Plan a task and break it into steps"
+                    })
+                    askInput.setSelection(askInput.text.length)
+                    askInput.requestFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                    imm.showSoftInput(askInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+            chipRow.addView(chip, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                marginEnd = dp(4)
+            })
+        }
+        content.addView(chipRow, LinearLayout.LayoutParams(-1, -2))
+
+        content.addView(TextView(this).apply {
+            text = "QUICK ACCESS"
+            textSize = 9f
+            letterSpacing = 0.14f
+            setTextColor(Color.rgb(122, 148, 180))
+            setPadding(0, dp(3), 0, dp(5))
+        }, LinearLayout.LayoutParams(-1, -2))
+        val quickRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fun quickCard(title: String, subtitle: String, action: () -> Unit): TextView =
+            TextView(this).apply {
+                text = "$title\n$subtitle"
+                textSize = 11f
+                gravity = Gravity.CENTER_VERTICAL
+                setTextColor(Color.WHITE)
+                setPadding(dp(10), dp(8), dp(8), dp(8))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.rgb(15, 25, 42))
+                    cornerRadius = dp(12).toFloat()
+                    setStroke(dp(1), Color.rgb(35, 54, 78))
+                }
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { action() }
+            }
+        quickRow.addView(quickCard("Tasks", "View progress") { showTab(true) },
+            LinearLayout.LayoutParams(0, dp(54), 1f).apply { marginEnd = dp(5) })
+        quickRow.addView(quickCard("Chat history", "Continue a reply") { showTab(false) },
+            LinearLayout.LayoutParams(0, dp(54), 1f).apply { marginEnd = dp(5) })
+        quickRow.addView(quickCard("Profile", "Themes & settings") { showProfileMenu() },
+            LinearLayout.LayoutParams(0, dp(54), 1f))
+        content.addView(quickRow, LinearLayout.LayoutParams(-1, -2))
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            clipToPadding = false
+            addView(content, FrameLayout.LayoutParams(-1, -2))
+        }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, 0, 0)
+            addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        }
+    }
+
     private fun showHome() {
         setChatLayout(fullHeight = false)
         tasksTabVisible = false
+        homePanel.visibility = View.VISIBLE
         chatPanel.visibility = View.GONE
         tasksPanel.visibility = View.GONE
         settingsPanel.visibility = View.GONE
@@ -544,6 +690,7 @@ class MainActivity : Activity() {
         val anyOtherPanel = showTasks || showSettings || showFiles || showControl
         setChatLayout(fullHeight = !anyOtherPanel)
         tasksTabVisible = showTasks || showFiles
+        homePanel.visibility = View.GONE
         orbitHomeView?.visibility = View.GONE
         chatPanel.visibility = if (anyOtherPanel) View.GONE else View.VISIBLE
         tasksPanel.visibility = if (showTasks) View.VISIBLE else View.GONE
