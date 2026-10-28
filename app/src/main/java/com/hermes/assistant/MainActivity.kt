@@ -414,7 +414,7 @@ class MainActivity : Activity() {
         liveModelInput = EditText(this).apply {
             hint = "LIVE model ID (load and choose below)"
             setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
-            setText(secureVoicePrefs().getString("nvidia_live_model_id", "") ?: "")
+            setText(LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", "")))
         }
         settingsContent.addView(liveModelInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
@@ -1504,7 +1504,7 @@ class MainActivity : Activity() {
 
     private fun runLiveLane(prompt: String, historyItem: ChatMessage? = null) {
         val key = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
-        val modelId = secureVoicePrefs().getString("nvidia_live_model_id", "").orEmpty().trim()
+        val modelId = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
         if (key.isBlank()) {
             historyItem?.let { it.state = "error"; it.reply = "LIVE lane needs an NVIDIA API key. Save it in Profile > Settings."; persistChatMessages(); renderChatMessages() }
             micIndicator.text = "LIVE KEY MISSING"
