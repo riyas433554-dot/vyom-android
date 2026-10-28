@@ -494,7 +494,7 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, dp(24)))
         val githubProposalTokenInput = EditText(this).apply {
-            hint = "GitHub fine-grained token (device-only, encrypted)"
+            hint = "GitHub token: Contents + Pull requests write (encrypted on device)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
             setTextColor(Color.WHITE)
