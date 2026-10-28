@@ -584,13 +584,32 @@ class MainActivity : Activity() {
                         .setTitle("Rollback to previous Vyom APK?")
                         .setMessage("The previous APK is retained in Downloads/VyomRollback. Android may reject a downgrade over the newer version. If it does, save any data, uninstall Vyom manually, then open the retained APK from Downloads and install it. Vyom will not uninstall itself.")
                         .setNegativeButton("CANCEL", null)
-                        .setPositiveButton("OPEN INSTALLER") { _, _ ->
-                            try {
-                                startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(savedUri, "application/vnd.android.package-archive")
-                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
-                                logControlAction("Rollback to previous APK", "Android installer opened; user must confirm", "app")
-                            } catch (error: Exception) {
-                                updateNotice.text = "Could not open rollback APK: ${error.message ?: "installer error"}"
+                        .setPositiveButton("VERIFY & OPEN INSTALLER") { _, _ ->
+                            updateNotice.text = "Verifying previous APK checksum…"
+                            io.execute {
+                                try {
+                                    val expected = settingsPrefs.getString("previous_apk_sha256", "").orEmpty()
+                                    if (!expected.matches(Regex("^[a-f0-9]{64}$"))) throw IllegalStateException("Saved rollback checksum is missing")
+                                    val actual = sha256Uri(savedUri)
+                                    if (!MessageDigest.isEqual(expected.toByteArray(), actual.toByteArray())) {
+                                        throw IllegalStateException("Rollback APK checksum mismatch; do not install it")
+                                    }
+                                    runOnUiThread {
+                                        try {
+                                            startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(savedUri, "application/vnd.android.package-archive")
+                                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+                                            logControlAction("Rollback to previous APK", "SHA-256 verified; Android installer opened; user must confirm", "app")
+                                            updateNotice.text = "Previous APK checksum verified. Android installer opened; approve manually."
+                                        } catch (error: Exception) {
+                                            updateNotice.text = "Could not open rollback APK: ${error.message ?: "installer error"}"
+                                        }
+                                    }
+                                } catch (error: Exception) {
+                                    runOnUiThread {
+                                        logControlAction("Rollback to previous APK", "rejected: ${error.message ?: "verification failed"}", "app")
+                                        updateNotice.text = "Rollback rejected: ${error.message ?: "verification failed"}"
+                                    }
+                                }
                             }
                         }.show()
                 }
