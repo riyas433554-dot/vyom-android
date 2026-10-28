@@ -14,10 +14,11 @@ Last updated: 2026-10-28
 - Final report must include a Code / CI / Phone test table. Clearly label anything not performed as pending/unverified.
 
 ## Latest reported baseline
-- Latest verified branch head: `c3625015300f7a2be4474f43168cfcb9981744bc`.
-- Phase 6 CI run `40677905303` is green: secret scan, `testDebugUnitTest assembleDebug`, packaging and artifact upload passed.
-- Debug APK run `40677904789` is green; artifact `vyom-0.3.0-c3625015300f7a2be4474f43168cfcb9981744bc`; versionName `0.3.0`, versionCode `3`; APK SHA-256 `fa8d10ee524dbde2d0ca915edfcebd20a8393af4c6a1d9a0fb209f4832906646`.
-- Phase 6 CI artifact `vyom-phase6-c3625015300f7a2be4474f43168cfcb9981744bc`; artifact ZIP SHA-256 `7fc7f2e955a4c2ddffe0b548f30eb74fd47d2038ef8d69a62399d8facce50213`.
+- Latest verified implementation commit: `cb600d687ef0325706ffe34d24c5e78a8d26100f`.
+- Phase 6 CI run `40678795668` is green: secret scan, `testDebugUnitTest assembleDebug`, packaging and artifact upload passed.
+- Debug APK run `40678795686` is green; artifact `vyom-0.3.0-cb600d687ef0325706ffe34d24c5e78a8d26100f`; versionName `0.3.0`, versionCode `3`; APK SHA-256 `1d61c63478aa05b205a09fc3f2565ce21e4c15b1fa765f054f7b77e41681a0fa`.
+- Phase 6 CI artifact `vyom-phase6-cb600d687ef0325706ffe34d24c5e78a8d26100f`; artifact ZIP SHA-256 `b4f40dcc6c0710754d52c24846492cca843f3e83e52045c3ecd18c265bdd2b1c`.
+- Proposal guard smoke run `40678366127` passed on a temporary allowed-path PR; PR #6 was closed without merging.
 - Phone testing remains pending; green CI does not prove device behavior.
 - Phone tests remain pending: live listening, mute/unmute sounds, notification Stop, barge-in, and queued chat messages.
 
@@ -87,7 +88,7 @@ Implement one Action Engine with voice, chat, and task entry points.
 
 ## Current status
 - Working branch: `feature/u1-live-orbit-tasks`; `main`, Hermes/Render backend and production DB remain out of scope.
-- Phase 5 implementation is committed on this branch. Close Phase 5 only after the latest commit has green `testDebugUnitTest` + `assembleDebug` and its APK artifact is present.
-- Phase 6 implementation is committed on this branch and final CI verification is green (run `40677905303`, commit `c3625015300f7a2be4474f43168cfcb9981744bc`). Phone and real release-update/rollback tests remain separate gates.
+- Phase 5 implementation and CI gate are verified on implementation commit `cb600d687ef0325706ffe34d24c5e78a8d26100f`; `testDebugUnitTest`, `assembleDebug`, secret scan and APK artifact upload passed. Phone tests remain pending.
+- Phase 6 implementation and final CI verification are green on implementation commit `cb600d687ef0325706ffe34d24c5e78a8d26100f` (run `40678795668`). Phone and real release-update/rollback tests remain separate gates.
 - Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. No phone validation has been performed; do not claim the app is ready until the owner completes the checklist.
 - Secrets: never include live credentials, tokens or secret values in this file.
