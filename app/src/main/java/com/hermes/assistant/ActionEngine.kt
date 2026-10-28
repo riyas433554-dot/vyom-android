@@ -17,6 +17,7 @@ object ActionEngine {
     fun classify(text: String): Intent? {
         val s = text.trim()
         if (s.isEmpty()) return null
+        if (Regex("""^(how|what|why|when|where|who|explain|can you explain|tell me about)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return null
         val securityRequest = blockedSecurity.containsMatchIn(s) &&
             (Regex("""\b(open|launch|disable|turn off|change|access)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s) || Regex("""\buninstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
         val financeRequest = financeTargets.containsMatchIn(s) &&
@@ -58,7 +59,7 @@ object ActionEngine {
         if (sendTarget.containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)
         val app = Regex("""\b(?:open|launch|start)\s+(?:the\s+)?(.+?)\s+(?:app|application)\s*$""", RegexOption.IGNORE_CASE).find(s) ?: Regex("""\b(?:open|launch|start)\s+(?:the\s+)?([a-z][a-z0-9 ._-]{1,40})\s*$""", RegexOption.IGNORE_CASE).find(s)
         if (app != null) { val n=app.groupValues[1].trim().removeSuffix(" app").removeSuffix(" application").trim(); if(n.isNotBlank()) return Intent("Open $n", Risk.SAFE, Operation.OPEN_APP, target=n) }
-        if (Regex("""\b(call|dial|sms|text|send|delete|remove|install|uninstall)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Unsupported consequential action", Risk.BLOCKED, Operation.BLOCK)
+        if (Regex("""\b(call|dial|sms|text|delete|remove|install|uninstall)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Unsupported consequential action", Risk.BLOCKED, Operation.BLOCK)
         return null
     }
 }

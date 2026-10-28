@@ -99,6 +99,7 @@ class MainActivity : Activity() {
     private var listening = false
     private var voiceLoopEnabled = false
     private var controlKillSwitch = false
+    private var voiceActionAckInFlight = false
     private var voiceStopReceiverRegistered = false
     private val voiceStopReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -166,7 +167,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val voiceStopFilter = IntentFilter().apply { addAction(VoiceForegroundService.ACTION_SESSION_STOP); addAction(VoiceForegroundService.ACTION_SESSION_MUTE) }
+        val voiceStopFilter = IntentFilter().apply { addAction(VoiceForegroundService.ACTION_SESSION_STOP); addAction(VoiceForegroundService.ACTION_SESSION_MUTE); addAction(VoiceForegroundService.ACTION_SESSION_CONTROL_STOP) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(voiceStopReceiver, voiceStopFilter, Context.RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(voiceStopReceiver, voiceStopFilter)
         voiceStopReceiverRegistered = true
@@ -1450,7 +1451,7 @@ class MainActivity : Activity() {
                             if (dispatchDeviceAction(recognized, "voice") { reply ->
                                     item.state = "done"; item.reply = reply
                                     persistChatMessages(); renderChatMessages()
-                                    if (voiceLoopEnabled && !voiceMuted) speakReply(reply) {
+                                    if (voiceLoopEnabled && !voiceMuted && !voiceActionAckInFlight) speakReply(reply) {
                                         if (voiceLoopEnabled && !voiceMuted) {
                                             if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished()
                                             startVoiceInput()
@@ -2429,6 +2430,13 @@ class MainActivity : Activity() {
                     }
                 }.show()
             return
+        }
+        if (source == "voice" && action.operation in setOf(ActionEngine.Operation.VOLUME_DELTA, ActionEngine.Operation.VOLUME_SET, ActionEngine.Operation.BRIGHTNESS_SET, ActionEngine.Operation.TORCH)) {
+            voiceActionAckInFlight = true
+            speakReply("Okay, " + action.name) {
+                voiceActionAckInFlight = false
+                if (voiceLoopEnabled && !voiceMuted) startVoiceInput()
+            }
         }
         val reply = DeviceActionExecutor.execute(this, action)
         logControlAction(action.name, if (reply.startsWith("Could not") || reply.startsWith("No Android") || reply.startsWith("Couldn't")) "failed" else "executed", source)

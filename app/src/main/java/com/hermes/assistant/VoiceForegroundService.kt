@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** Keeps the active voice session visible to Android while the user backgrounds Vyom. */
 class VoiceForegroundService : Service() {
@@ -28,7 +30,7 @@ class VoiceForegroundService : Service() {
             return START_NOT_STICKY
         }
         if (intent?.action == ACTION_CONTROL_STOP) {
-            getSharedPreferences("vyom_control_audit", MODE_PRIVATE).edit().putBoolean("kill_switch", true).apply()
+            recordControlStop()
             sendBroadcast(Intent(ACTION_SESSION_CONTROL_STOP).setPackage(packageName))
             return START_NOT_STICKY
         }
@@ -61,6 +63,16 @@ class VoiceForegroundService : Service() {
             .setOngoing(true).build()
         startForeground(NOTIFICATION_ID, notification)
         return START_NOT_STICKY
+    }
+
+    private fun recordControlStop() {
+        val prefs = getSharedPreferences("vyom_control_audit", MODE_PRIVATE)
+        val rows = try { JSONArray(prefs.getString("events", "[]")) } catch (_: Exception) { JSONArray() }
+        val next = JSONArray()
+        next.put(JSONObject().put("at", java.time.Instant.now().toString()).put("elapsedMs", 0)
+            .put("source", "notification").put("action", "STOP CONTROL").put("result", "enabled"))
+        for (i in 0 until minOf(rows.length(), 49)) next.put(rows.getJSONObject(i))
+        prefs.edit().putBoolean("kill_switch", true).putString("events", next.toString()).apply()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

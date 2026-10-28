@@ -27,13 +27,12 @@ Last updated: 2026-10-28
 - Do not change voice behavior or design while doing documentation or Phase 5/6 work unless a specific requirement below demands it.
 
 ## Roadmap / gates
-1. Complete physical-device voice tests before advancing.
-2. Phase 5 — Android Control.
-3. Phase 6 — Self-update and constrained self-modification.
-4. Phone test after Phase 6.
-5. Phase 7, then phone test.
-6. Voice latency polish.
-7. Design polish last.
+1. Phase 5 — Android Control implementation.
+2. Phase 6 — Self-update and constrained self-modification.
+3. Phone tests only after Phase 5 and Phase 6 are implemented; the owner explicitly deferred device testing until then.
+4. Phase 7, then phone test.
+5. Voice latency polish.
+6. Design polish last.
 
 ## Phase 5 — Android Control
 Implement one Action Engine with voice, chat, and task entry points.
@@ -80,8 +79,9 @@ Implement one Action Engine with voice, chat, and task entry points.
   - [ ] No auto-merge, auto-install, or main writes.
   - [ ] Policy-critical files protected; changes logged and rollback available.
 
-## Current status (as reported; verify before relying)
-- Code: reported baseline `fabaeea1`; handoff documentation is the first requested step.
-- CI: reported run `#96` green with APK artifact; verify the new documentation commit also gets a green run.
-- Phone tests: pending; not ready for release.
-- Secrets: do not record names if avoidable and never record values; never include live credentials in this file.
+## Current status
+- Working branch: `feature/u1-live-orbit-tasks`; `main`, Hermes/Render backend and production DB remain out of scope.
+- Phase 5 code is being implemented and CI-verified on this branch. Do not call Phase 5 complete until the current commit has green `testDebugUnitTest` + `assembleDebug` and its APK artifact is present.
+- Phase 6 has not started in this handoff revision.
+- Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. Do not request or claim phone validation during those phases.
+- Secrets: never include live credentials, tokens or secret values in this file.

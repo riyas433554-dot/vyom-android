@@ -3,7 +3,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 class ActionEngineTest {
- @Test fun normalConversationBypassesEngine(){ assertNull(ActionEngine.classify("Explain why the sky is blue")); assertNull(ActionEngine.classify("Tell me a joke")) }
+ @Test fun normalConversationBypassesEngine(){ assertNull(ActionEngine.classify("Explain why the sky is blue")); assertNull(ActionEngine.classify("Tell me a joke")); assertNull(ActionEngine.classify("How do I delete a file?")); assertNull(ActionEngine.classify("Send me a recipe")) }
  @Test fun settingsAndAppsAreSafe(){ assertEquals(ActionEngine.Risk.SAFE,ActionEngine.classify("open Wi-Fi settings")?.risk); assertEquals(ActionEngine.Operation.OPEN_SETTINGS,ActionEngine.classify("open Wi-Fi settings")?.operation); assertEquals("WhatsApp",ActionEngine.classify("open WhatsApp")?.target) }
  @Test fun mediaControlsAreSafe(){ assertEquals(1,ActionEngine.classify("volume up")?.value); assertEquals(-1,ActionEngine.classify("volume down")?.value); assertEquals(70,ActionEngine.classify("set volume to 70%")?.value); assertEquals(25,ActionEngine.classify("set brightness to 25%")?.value); assertEquals(ActionEngine.Operation.TORCH,ActionEngine.classify("turn on flashlight")?.operation) }
  @Test fun alarmTimerParse(){ assertEquals("07:30",ActionEngine.classify("set alarm for 7:30")?.target); assertEquals(300,ActionEngine.classify("set timer for 5 minutes")?.value) }
