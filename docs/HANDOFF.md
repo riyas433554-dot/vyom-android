@@ -14,9 +14,11 @@ Last updated: 2026-10-28
 - Final report must include a Code / CI / Phone test table. Clearly label anything not performed as pending/unverified.
 
 ## Latest reported baseline
-- Reported commit: `fabaeea1`.
-- Reported CI run: `#96`, green; APK artifact produced.
-- These baseline details were supplied by the project owner and must be re-verified against GitHub before relying on them as current.
+- Latest verified branch head: `c3625015300f7a2be4474f43168cfcb9981744bc`.
+- Phase 6 CI run `40677905303` is green: secret scan, `testDebugUnitTest assembleDebug`, packaging and artifact upload passed.
+- Debug APK run `40677904789` is green; artifact `vyom-0.3.0-c3625015300f7a2be4474f43168cfcb9981744bc`; versionName `0.3.0`, versionCode `3`; APK SHA-256 `fa8d10ee524dbde2d0ca915edfcebd20a8393af4c6a1d9a0fb209f4832906646`.
+- Phase 6 CI artifact `vyom-phase6-c3625015300f7a2be4474f43168cfcb9981744bc`; artifact ZIP SHA-256 `7fc7f2e955a4c2ddffe0b548f30eb74fd47d2038ef8d69a62399d8facce50213`.
+- Phone testing remains pending; green CI does not prove device behavior.
 - Phone tests remain pending: live listening, mute/unmute sounds, notification Stop, barge-in, and queued chat messages.
 
 ## Three model lanes
@@ -86,6 +88,6 @@ Implement one Action Engine with voice, chat, and task entry points.
 ## Current status
 - Working branch: `feature/u1-live-orbit-tasks`; `main`, Hermes/Render backend and production DB remain out of scope.
 - Phase 5 implementation is committed on this branch. Close Phase 5 only after the latest commit has green `testDebugUnitTest` + `assembleDebug` and its APK artifact is present.
-- Phase 6 implementation is committed on this branch; final CI verification and phone tests remain separate gates.
+- Phase 6 implementation is committed on this branch and final CI verification is green (run `40677905303`, commit `c3625015300f7a2be4474f43168cfcb9981744bc`). Phone and real release-update/rollback tests remain separate gates.
 - Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. No phone validation has been performed; do not claim the app is ready until the owner completes the checklist.
 - Secrets: never include live credentials, tokens or secret values in this file.
