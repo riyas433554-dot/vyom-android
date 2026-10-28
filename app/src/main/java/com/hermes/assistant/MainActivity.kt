@@ -5,14 +5,17 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.Context
+import android.content.ContentValues
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.provider.MediaStore
 import android.provider.DocumentsContract
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -483,6 +486,116 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
         }
         settingsContent.addView(updateNotice, LinearLayout.LayoutParams(-1, -2))
+
+        settingsContent.addView(TextView(this).apply {
+            text = "CONTROLLED SELF-MODIFICATION"
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, dp(24)))
+        val githubProposalTokenInput = EditText(this).apply {
+            hint = "GitHub fine-grained token (device-only, encrypted)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(secureVoicePrefs().getString("github_proposal_token", "").orEmpty())
+        }
+        settingsContent.addView(githubProposalTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "SAVE GITHUB TOKEN"
+            setOnClickListener {
+                secureVoicePrefs().edit().putString("github_proposal_token", githubProposalTokenInput.text.toString().trim()).apply()
+                selfChangeNotice.text = "GitHub token saved encrypted on this device. It is never written to the repository."
+            }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        val selfChangeNotice = TextView(this).apply {
+            text = "Self-change is proposal-only: allowed Kotlin file → separate branch → PR. No auto-merge or auto-install."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(selfChangeNotice, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "PROPOSE SELF-CHANGE"
+            setOnClickListener {
+                val form = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(18), dp(8), dp(18), dp(4))
+                }
+                val proposalTitle = EditText(this@MainActivity).apply {
+                    hint = "Change title (8–120 characters)"
+                    setSingleLine(true)
+                }
+                val proposalPath = EditText(this@MainActivity).apply {
+                    hint = "Kotlin source path"
+                    setSingleLine(true)
+                    setText("app/src/main/java/com/hermes/assistant/NemotronLiveClient.kt")
+                }
+                val proposalContent = EditText(this@MainActivity).apply {
+                    hint = "Complete proposed Kotlin file content"
+                    minLines = 6
+                    maxLines = 12
+                    gravity = Gravity.TOP or Gravity.START
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                }
+                form.addView(proposalTitle, LinearLayout.LayoutParams(-1, dp(48)))
+                form.addView(proposalPath, LinearLayout.LayoutParams(-1, dp(48)))
+                form.addView(proposalContent, LinearLayout.LayoutParams(-1, dp(180)))
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Create review-only proposal")
+                    .setMessage("Only non-policy Kotlin source files are accepted. GitHub will run CI on the PR; you must review and install manually.")
+                    .setView(form)
+                    .setNegativeButton("CANCEL", null)
+                    .setPositiveButton("CREATE PR") { _, _ ->
+                        val title = proposalTitle.text.toString().trim()
+                        val path = proposalPath.text.toString().trim()
+                        val source = proposalContent.text.toString()
+                        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+                        selfChangeNotice.text = "Validating proposal and opening a separate review branch…"
+                        io.execute {
+                            try {
+                                val proposal = SelfModificationClient().createProposal(token, title, path, source)
+                                runOnUiThread {
+                                    logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
+                                    selfChangeNotice.text = "PR created; waiting for CI and your manual review: ${proposal.pullRequestUrl}"
+                                    try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
+                                }
+                            } catch (error: Exception) {
+                                runOnUiThread {
+                                    logControlAction("Self-change proposal: $path", "rejected/failed: ${error.message ?: "unknown error"}", "app")
+                                    selfChangeNotice.text = "Proposal failed: ${error.message ?: "GitHub error"}"
+                                }
+                            }
+                        }
+                    }
+                    .show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        val rollbackButton = Button(this).apply {
+            text = "OPEN PREVIOUS APK (ROLLBACK)"
+            visibility = if (settingsPrefs.getString("previous_apk_uri", null).isNullOrBlank()) View.GONE else View.VISIBLE
+            setOnClickListener {
+                val savedUri = settingsPrefs.getString("previous_apk_uri", null)?.let { Uri.parse(it) }
+                if (savedUri == null) {
+                    updateNotice.text = "No previous APK backup is available."
+                } else {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Rollback to previous Vyom APK?")
+                        .setMessage("The previous APK is retained in Downloads/VyomRollback. Android may reject a downgrade over the newer version. If it does, save any data, uninstall Vyom manually, then open the retained APK from Downloads and install it. Vyom will not uninstall itself.")
+                        .setNegativeButton("CANCEL", null)
+                        .setPositiveButton("OPEN INSTALLER") { _, _ ->
+                            try {
+                                startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(savedUri, "application/vnd.android.package-archive")
+                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+                                logControlAction("Rollback to previous APK", "Android installer opened; user must confirm", "app")
+                            } catch (error: Exception) {
+                                updateNotice.text = "Could not open rollback APK: ${error.message ?: "installer error"}"
+                            }
+                        }.show()
+                }
+            }
+        }
+        settingsContent.addView(rollbackButton, LinearLayout.LayoutParams(-1, dp(44)))
         val settingsScroll = ScrollView(this).apply {
             isFillViewport = true
             addView(settingsContent, FrameLayout.LayoutParams(-1, -2))
@@ -1755,7 +1868,10 @@ class MainActivity : Activity() {
                 if (archive.packageName != packageName) throw IllegalStateException("APK package does not match Vyom")
                 if (packageVersionCode(archive) != versionCode.toLong()) throw IllegalStateException("APK version does not match manifest")
                 if (!sameSigningCertificate(archive)) throw IllegalStateException("APK signing certificate does not match installed Vyom")
+                val rollbackUri = backupCurrentApkForRollback()
                 runOnUiThread {
+                    settingsPrefs.edit().putString("previous_apk_uri", rollbackUri.toString()).apply()
+                    logControlAction("Self-update rollback backup", "saved Downloads/VyomRollback", "app")
                     pendingUpdateApk = file
                     updateButton.isEnabled = true
                     updateButton.text = "INSTALL VERIFIED UPDATE"
@@ -1770,6 +1886,45 @@ class MainActivity : Activity() {
                     updateNotice.text = "Update rejected: ${error.message ?: "verification failed"}"
                 }
             }
+        }
+    }
+
+    private fun backupCurrentApkForRollback(): Uri {
+        if (Build.VERSION.SDK_INT < 29) {
+            throw IllegalStateException("Safe persistent rollback backup requires Android 10 or newer; update was not staged")
+        }
+        val source = File(applicationInfo.sourceDir)
+        if (!source.isFile || source.length() <= 0L) throw IllegalStateException("Installed APK source is unavailable")
+        val displayName = "Vyom-rollback-v${BuildConfig.VERSION_NAME}-${BuildConfig.VERSION_CODE}.apk"
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.android.package-archive")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/VyomRollback")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw IllegalStateException("Could not create rollback APK in Downloads")
+        try {
+            contentResolver.openOutputStream(uri, "w")?.use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+            } ?: throw IllegalStateException("Could not write rollback APK")
+            val backupLength = contentResolver.openInputStream(uri)?.use { input ->
+                val buffer = ByteArray(16384)
+                var total = 0L
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                }
+                total
+            } ?: throw IllegalStateException("Could not verify rollback APK")
+            if (backupLength != source.length()) throw IllegalStateException("Rollback APK size verification failed")
+            val ready = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            contentResolver.update(uri, ready, null, null)
+            return uri
+        } catch (error: Exception) {
+            try { contentResolver.delete(uri, null, null) } catch (_: Exception) {}
+            throw error
         }
     }
 
