@@ -59,7 +59,7 @@ jobs:
             exit 1
           fi
           changed="$(git diff --name-only "$base...HEAD")"
-          printf '%s\\n' "$changed"
+          printf '%s\n' "$changed"
           forbidden='^(MainActivity\.kt|ActionEngine\.kt|DeviceActionExecutor\.kt|VoiceForegroundService\.kt|VyomAccessibilityService\.kt|SelfModificationPolicy\.kt|SelfModificationClient\.kt)$'
           while IFS= read -r path; do
             [[ -z "$path" ]] && continue
