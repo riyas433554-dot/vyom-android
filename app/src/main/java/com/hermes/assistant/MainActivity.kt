@@ -1254,6 +1254,7 @@ class MainActivity : Activity() {
     private fun toggleVoiceInput() {
         if (voiceLoopEnabled) {
             voiceLoopEnabled = false
+            liveLaneEnabled = false
             voiceStateMachine.stop()
             stopVoiceForegroundService()
             voiceTtsProvider?.stop()
@@ -1278,6 +1279,7 @@ class MainActivity : Activity() {
         }
         showVoiceMode()
         voiceLoopEnabled = true
+        liveLaneEnabled = true
         voiceStateMachine.start()
         startVoiceForegroundService()
         if (::voiceTranscript.isInitialized) voiceTranscript.text = ""
