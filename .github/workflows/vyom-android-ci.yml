@@ -39,7 +39,7 @@ jobs:
         if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')
         shell: bash
         run: |
-          git fetch origin "${GITHUB_BASE_REF}"
+          git fetch origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
           changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")"
           printf '%s\n' "$changed"
           forbidden='^(MainActivity\.kt|ActionEngine\.kt|DeviceActionExecutor\.kt|VoiceForegroundService\.kt|VyomAccessibilityService\.kt|SelfModificationPolicy\.kt|SelfModificationClient\.kt)
