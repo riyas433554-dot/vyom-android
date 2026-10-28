@@ -1921,6 +1921,16 @@ class MainActivity : Activity() {
                 total
             } ?: throw IllegalStateException("Could not verify rollback APK")
             if (backupLength != source.length()) throw IllegalStateException("Rollback APK size verification failed")
+            val sourceHash = sha256(source)
+            val backupHash = sha256Uri(uri)
+            if (!MessageDigest.isEqual(sourceHash.toByteArray(), backupHash.toByteArray())) {
+                throw IllegalStateException("Rollback APK SHA-256 verification failed")
+            }
+            settingsPrefs.edit()
+                .putString("previous_apk_sha256", backupHash)
+                .putString("previous_apk_version_name", BuildConfig.VERSION_NAME)
+                .putInt("previous_apk_version_code", BuildConfig.VERSION_CODE)
+                .apply()
             val ready = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
             contentResolver.update(uri, ready, null, null)
             return uri
@@ -1947,8 +1957,10 @@ class MainActivity : Activity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
+            logControlAction("Self-update", "installer opened after SHA-256 and signing-certificate verification", "app")
             updateNotice.text = "Android installer opened. Existing Vyom remains installed unless you confirm replacement."
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            logControlAction("Self-update", "installer failed: ${error.message ?: "unknown error"}", "app")
             updateNotice.text = "Could not open Android installer. Existing Vyom was not replaced."
         }
     }
@@ -2026,6 +2038,19 @@ class MainActivity : Activity() {
             }
             if (target.length() == 0L) throw IllegalStateException("Empty APK download")
         } finally { connection.disconnect() }
+    }
+
+    private fun sha256Uri(uri: Uri): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        contentResolver.openInputStream(uri)?.use { input ->
+            val buffer = ByteArray(16384)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        } ?: throw IllegalStateException("Could not read APK backup for SHA-256 verification")
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun sha256(file: File): String {
