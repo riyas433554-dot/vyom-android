@@ -115,3 +115,5 @@ internal class NemotronLiveClient(private val apiKey: String, private val modelI
 
     private class ModelHttpException(val statusCode: Int, message: String) : IllegalStateException(message)
 }
+
+// Phase 6 proposal CI smoke test; do not merge.
