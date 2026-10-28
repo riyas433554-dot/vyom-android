@@ -13,7 +13,7 @@ import android.provider.AlarmClock
 import android.provider.Settings
 
 internal object DeviceActionExecutor {
-    fun execute(activity: Activity, action: ActionEngine.Intent): String = when (action.operation) {
+    fun execute(activity: Activity, action: ActionEngine.Intent): String { return when (action.operation) {
         ActionEngine.Operation.BLOCK -> "Blocked by Vyom safety policy."
         ActionEngine.Operation.OPEN_SETTINGS -> openIntent(activity, Intent(action.settingsAction ?: Settings.ACTION_SETTINGS), action.name)
         ActionEngine.Operation.OPEN_APP -> openApp(activity, action.target)
@@ -40,6 +40,7 @@ internal object DeviceActionExecutor {
         ActionEngine.Operation.SHARE -> { val t=action.target.replaceFirst(Regex("""^.*?\b(send|share)\s+""",RegexOption.IGNORE_CASE),"").trim(); openIntent(activity,Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,t),"Choose where to share"),"Share sheet") }
         ActionEngine.Operation.DELETE -> "Delete is not performed automatically. Use the relevant Android app or file manager."
         ActionEngine.Operation.INSTALL -> "Only a SHA-256 and signing-certificate verified Vyom update can be installed from Profile > Settings."
+    }
     }
     private fun openApp(a:Activity,n:String):String {
         val apps=a.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0)
