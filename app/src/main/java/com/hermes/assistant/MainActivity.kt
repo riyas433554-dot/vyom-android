@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.provider.DocumentsContract
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.speech.RecognitionListener
@@ -85,6 +86,8 @@ class MainActivity : Activity() {
     private lateinit var settingsContent: LinearLayout
     private var updateManifest: JSONObject? = null
     private var pendingUpdateApk: File? = null
+    private var pendingDocumentSource = "app"
+    private var pendingDocumentCallback: ((String) -> Unit)? = null
     private var updateCheckInFlight = false
     private lateinit var voiceButton: Button
     private lateinit var micIndicator: TextView
@@ -2270,6 +2273,111 @@ class MainActivity : Activity() {
         else -> "Tasks API error ($code). Chat available hai."
     }
 
+    private fun openDeletePicker(source: String, callback: (String) -> Unit) {
+        pendingDocumentSource = source
+        pendingDocumentCallback = callback
+        val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        try { startActivityForResult(picker, REQUEST_DELETE_DOCUMENT) }
+        catch (_: Exception) { pendingDocumentCallback = null; callback("Android file picker is unavailable.") }
+    }
+
+    private fun openInstallPicker(source: String, callback: (String) -> Unit) {
+        pendingDocumentSource = source
+        pendingDocumentCallback = callback
+        val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try { startActivityForResult(picker, REQUEST_INSTALL_DOCUMENT) }
+        catch (_: Exception) { pendingDocumentCallback = null; callback("Android APK picker is unavailable.") }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_DELETE_DOCUMENT && requestCode != REQUEST_INSTALL_DOCUMENT) return
+        val callback = pendingDocumentCallback
+        val source = pendingDocumentSource
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) {
+            pendingDocumentCallback = null
+            logControlAction(if (requestCode == REQUEST_DELETE_DOCUMENT) "Delete document" else "Install APK", "picker-cancelled", source)
+            callback?.invoke("Cancelled. No file was changed or installed.")
+            return
+        }
+        if (requestCode == REQUEST_DELETE_DOCUMENT) {
+            AlertDialog.Builder(this).setTitle("Permanently delete selected file?")
+                .setMessage("This deletes the selected document using its Android document provider. This cannot be undone.")
+                .setNegativeButton("CANCEL") { _, _ ->
+                    pendingDocumentCallback = null
+                    logControlAction("Delete selected document", "cancelled", source)
+                    callback?.invoke("Delete cancelled. The file was not changed.")
+                }
+                .setPositiveButton("DELETE FILE") { _, _ ->
+                    val result = try {
+                        if (DocumentsContract.deleteDocument(contentResolver, uri)) "Selected document deleted."
+                        else "The document provider refused deletion."
+                    } catch (error: Exception) { "Could not delete selected document: " + (error.message ?: "provider error") }
+                    logControlAction("Delete selected document", if (result.startsWith("Selected")) "deleted" else "failed", source)
+                    pendingDocumentCallback = null
+                    callback?.invoke(result)
+                }.show()
+            return
+        }
+        try {
+            val folder = File(cacheDir, "updates").apply { mkdirs() }
+            val apk = File(folder, "user-selected-install.apk")
+            val input = contentResolver.openInputStream(uri) ?: throw IllegalStateException("Could not read selected APK")
+            input.use { stream ->
+                FileOutputStream(apk).use { output ->
+                    val buffer = ByteArray(16384)
+                    var total = 0L
+                    while (true) {
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 100L * 1024L * 1024L) throw IllegalStateException("APK exceeds 100 MiB limit")
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+            val archive = packageManager.getPackageArchiveInfo(apk.absolutePath, packageInfoFlags())
+                ?: throw IllegalStateException("Selected file is not a valid APK")
+            if (archive.packageName == packageName) {
+                apk.delete()
+                throw IllegalStateException("Vyom itself can only be updated through the signed SHA-256-verified update flow")
+            }
+            AlertDialog.Builder(this).setTitle("Install selected app?")
+                .setMessage("Package: " + archive.packageName + ". Android will show its own final installation prompt. Only continue if you trust this APK.")
+                .setNegativeButton("CANCEL") { _, _ ->
+                    apk.delete()
+                    pendingDocumentCallback = null
+                    logControlAction("Install APK " + archive.packageName, "cancelled", source)
+                    callback?.invoke("Installation cancelled.")
+                }
+                .setPositiveButton("OPEN ANDROID INSTALLER") { _, _ ->
+                    try {
+                        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+                            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + packageName)))
+                            logControlAction("Install APK " + archive.packageName, "awaiting-unknown-sources-permission", source)
+                            callback?.invoke("Allow Vyom to install apps in Android Settings, then repeat the install command.")
+                        } else {
+                            val apkUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
+                            startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+                            logControlAction("Install APK " + archive.packageName, "android-installer-opened", source)
+                            callback?.invoke("Android installer opened. Approve installation there if you trust this APK.")
+                        }
+                    } catch (error: Exception) {
+                        logControlAction("Install APK " + archive.packageName, "failed", source)
+                        callback?.invoke("Could not open Android installer: " + (error.message ?: "installer error"))
+                    } finally { pendingDocumentCallback = null }
+                }.show()
+        } catch (error: Exception) {
+            pendingDocumentCallback = null
+            logControlAction("Install APK", "rejected", source)
+            callback?.invoke("APK rejected: " + (error.message ?: "validation failed"))
+        }
+    }
+
     private fun dispatchDeviceAction(text: String, source: String, onResult: (String) -> Unit): Boolean {
         val action = ActionEngine.classify(text)
         if (action != null) { executeClassifiedDeviceAction(action, source, onResult); return true }
@@ -2310,6 +2418,10 @@ class MainActivity : Activity() {
                     } else if (action.operation == ActionEngine.Operation.INSTALL && Regex("""\b(update|vyom)\b""", RegexOption.IGNORE_CASE).containsMatchIn(action.target)) {
                         logControlAction(action.name, "verified-update-flow-opened", source)
                         onResult("Checking for a signed Vyom update. Download and Android installation still require separate taps."); checkForUpdate()
+                    } else if (action.operation == ActionEngine.Operation.DELETE) {
+                        openDeletePicker(source, onResult)
+                    } else if (action.operation == ActionEngine.Operation.INSTALL) {
+                        openInstallPicker(source, onResult)
                     } else {
                         val reply = DeviceActionExecutor.execute(this, action)
                         logControlAction(action.name, if (reply.startsWith("Could not") || reply.startsWith("Blocked")) "failed" else "confirmed", source)
@@ -2390,6 +2502,8 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 701
+        private const val REQUEST_DELETE_DOCUMENT = 705
+        private const val REQUEST_INSTALL_DOCUMENT = 706
         private const val TASK_POLL_MS = 4_000L
         private const val SESSION_EXPIRED_MESSAGE = "Session expired, dobara pair karo."
     }
