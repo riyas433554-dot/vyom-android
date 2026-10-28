@@ -99,8 +99,16 @@ class MainActivity : Activity() {
     private var voiceStopReceiverRegistered = false
     private val voiceStopReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == VoiceForegroundService.ACTION_SESSION_STOP && voiceLoopEnabled) toggleVoiceInput()
-            else if (intent?.action == VoiceForegroundService.ACTION_SESSION_MUTE && voiceLoopEnabled) toggleVoiceMuteFromNotification()
+            when (intent?.action) {
+                VoiceForegroundService.ACTION_SESSION_STOP -> if (voiceLoopEnabled) toggleVoiceInput()
+                VoiceForegroundService.ACTION_SESSION_MUTE -> if (voiceLoopEnabled) toggleVoiceMuteFromNotification()
+                VoiceForegroundService.ACTION_SESSION_CONTROL_STOP -> {
+                    controlKillSwitch = true
+                    controlPrefs.edit().putBoolean("kill_switch", true).apply()
+                    logControlAction("STOP CONTROL", "enabled", "notification")
+                    if (::controlNotice.isInitialized) controlNotice.text = "STOP CONTROL is ON. Device actions are disabled."
+                }
+            }
         }
     }
     private var voiceMuted = false
@@ -160,6 +168,7 @@ class MainActivity : Activity() {
         else @Suppress("DEPRECATION") registerReceiver(voiceStopReceiver, voiceStopFilter)
         voiceStopReceiverRegistered = true
         api = VyomApiClient(applicationContext)
+        controlKillSwitch = controlPrefs.getBoolean("kill_switch", false)
         voiceStateMachine = VoiceStateMachine()
         orbMode = settingsPrefs.getInt("orb_mode", 0).coerceIn(0, 3)
         reduceMotion = settingsPrefs.getBoolean("reduce_motion", false)
@@ -551,6 +560,16 @@ class MainActivity : Activity() {
             text = "VYOM APP SETTINGS"
             setOnClickListener { confirmControlAction("Open Vyom app settings", "app-details") }
         }, LinearLayout.LayoutParams(-1, dp(42)))
+        controlPanel.addView(Button(this).apply {
+            text = "ACCESSIBILITY SETTINGS"
+            contentDescription = "Open Android accessibility settings; enabling Vyom is optional and manual"
+            setOnClickListener { performControlAction("Open Android accessibility settings", Settings.ACTION_ACCESSIBILITY_SETTINGS) }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        controlPanel.addView(TextView(this).apply {
+            text = "Accessibility is optional and must be enabled by you in Android Settings. Vyom's service does not read screen text or tap controls."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, -2))
         controlPanel.addView(TextView(this).apply {
             text = "LOCAL AUDIT LOG"
             textSize = 10f
@@ -955,8 +974,13 @@ class MainActivity : Activity() {
         chatMessages.add(item)
         persistChatMessages()
         renderChatMessages()
+        if (dispatchDeviceAction(message, "chat") { reply ->
+                item.state = "done"; item.reply = reply
+                persistChatMessages(); renderChatMessages()
+                status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
+                if (voiceRepliesEnabled) speakReply(reply)
+            }) return
         status.text = "VYOM  •  QUEUED"
-        // Single-thread IO executor preserves FIFO order; SEND stays enabled for queueing.
         scheduleChatMessage(item)
     }
 
@@ -1420,6 +1444,16 @@ class MainActivity : Activity() {
                             chatMessages.add(item)
                             persistChatMessages()
                             renderChatMessages()
+                            if (dispatchDeviceAction(recognized, "voice") { reply ->
+                                    item.state = "done"; item.reply = reply
+                                    persistChatMessages(); renderChatMessages()
+                                    if (voiceLoopEnabled && !voiceMuted) speakReply(reply) {
+                                        if (voiceLoopEnabled && !voiceMuted) {
+                                            if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished()
+                                            startVoiceInput()
+                                        }
+                                    }
+                                }) return@runOnUiThread
                             val normalized = recognized.trim().lowercase().replace(Regex("[.!?]+$"), "").trim()
                             val instantReply = when (normalized) {
                                 "hi", "hello", "hey vyom", "hi vyom", "hello vyom", "hey" -> "Haan, bolo. Main sun raha hoon."
@@ -1880,6 +1914,11 @@ class MainActivity : Activity() {
     private fun createTask() {
         val prompt = taskInput.text.toString().trim()
         if (prompt.isBlank()) return
+        createTaskButton.isEnabled = false
+        if (dispatchDeviceAction(prompt, "task") { reply ->
+                taskNotice.text = reply; taskInput.setText(""); createTaskButton.isEnabled = true
+            }) return
+        createTaskButton.isEnabled = true
         val maxTasks = settingsPrefs.getInt("max_tasks", 5).coerceIn(5, 20)
         val activeStates = setOf("queued", "pending", "running", "in_progress", "processing", "working")
         val activeCount = tasksById.values.count { it.optString("status", "queued").lowercase() in activeStates }
@@ -2229,6 +2268,82 @@ class MainActivity : Activity() {
         401 -> "Tasks session expired (401). Dobara pair karo. Chat fallback alag se available hai."
         503 -> "Tasks service temporarily unavailable (503). Thodi der baad retry karo; Chat available hai."
         else -> "Tasks API error ($code). Chat available hai."
+    }
+
+    private fun dispatchDeviceAction(text: String, source: String, onResult: (String) -> Unit): Boolean {
+        val action = ActionEngine.classify(text)
+        if (action != null) { executeClassifiedDeviceAction(action, source, onResult); return true }
+        if (!ActionEngine.looksLikeDeviceAction(text)) return false
+        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+            logControlAction(text, "blocked-by-kill-switch", source); onResult("STOP CONTROL is ON. Device action blocked."); return true
+        }
+        logControlAction(text, "llm-fallback-requested", source)
+        io.execute {
+            val normalized = try { normalizeDeviceActionWithModel(text) } catch (_: Exception) { null }
+            runOnUiThread {
+                val fallback = normalized?.let { ActionEngine.classify(it) }
+                if (fallback == null) {
+                    logControlAction(text, "blocked-unrecognized-action", source)
+                    onResult("I couldn't safely map that device command. Try 'open Wi-Fi settings' or 'set volume to 50%'.")
+                } else executeClassifiedDeviceAction(fallback, source, onResult)
+            }
+        }
+        return true
+    }
+
+    private fun executeClassifiedDeviceAction(action: ActionEngine.Intent, source: String, onResult: (String) -> Unit) {
+        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+            logControlAction(action.name, "blocked-by-kill-switch", source); onResult("STOP CONTROL is ON. Device action blocked."); return
+        }
+        if (action.risk == ActionEngine.Risk.BLOCKED) {
+            logControlAction(action.name, "blocked-by-policy", source)
+            onResult("Blocked by Vyom safety policy. Banking/payment apps, passwords/OTPs, uninstall and security settings are never controlled."); return
+        }
+        if (action.risk == ActionEngine.Risk.CONFIRM) {
+            logControlAction(action.name, "awaiting-explicit-screen-confirmation", source)
+            AlertDialog.Builder(this).setTitle("Confirm device action")
+                .setMessage("Vyom wants to: " + action.name + ". This requires your explicit screen tap. Voice alone cannot approve it.")
+                .setNegativeButton("CANCEL") { _, _ -> logControlAction(action.name, "cancelled", source); onResult("Cancelled. Nothing was sent or changed.") }
+                .setPositiveButton("CONFIRM & CONTINUE") { _, _ ->
+                    if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+                        logControlAction(action.name, "blocked-by-kill-switch", source); onResult("STOP CONTROL is ON. Device action blocked.")
+                    } else if (action.operation == ActionEngine.Operation.INSTALL && Regex("""\b(update|vyom)\b""", RegexOption.IGNORE_CASE).containsMatchIn(action.target)) {
+                        logControlAction(action.name, "verified-update-flow-opened", source)
+                        onResult("Checking for a signed Vyom update. Download and Android installation still require separate taps."); checkForUpdate()
+                    } else {
+                        val reply = DeviceActionExecutor.execute(this, action)
+                        logControlAction(action.name, if (reply.startsWith("Could not") || reply.startsWith("Blocked")) "failed" else "confirmed", source)
+                        onResult(reply)
+                    }
+                }.show()
+            return
+        }
+        val reply = DeviceActionExecutor.execute(this, action)
+        logControlAction(action.name, if (reply.startsWith("Could not") || reply.startsWith("No Android") || reply.startsWith("Couldn't")) "failed" else "executed", source)
+        onResult(reply)
+    }
+
+    private fun normalizeDeviceActionWithModel(original: String): String? {
+        val key = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+        if (key.isBlank()) return null
+        val model = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
+        val c = (URL("https://integrate.api.nvidia.com/v1/chat/completions").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 12000; readTimeout = 20000; doOutput = true
+            setRequestProperty("Authorization", "Bearer " + key); setRequestProperty("Content-Type", "application/json"); setRequestProperty("Accept", "application/json")
+        }
+        try {
+            val body = JSONObject().put("model", model).put("stream", false).put("temperature", 0).put("max_tokens", 120)
+                .put("messages", JSONArray()
+                    .put(JSONObject().put("role", "system").put("content", "Normalize a direct Android device command into one short plain command without adding targets, numbers, recipients, or intent. Output JSON only with key normalized_command as a string or null. This is classification only, never authorization. If unclear, return null."))
+                    .put(JSONObject().put("role", "user").put("content", original)))
+            c.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+            if (c.responseCode !in 200..299) return null
+            val content = JSONObject(c.inputStream.bufferedReader().use { it.readText() }).optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content").orEmpty()
+            val start = content.indexOf('{'); val end = content.lastIndexOf('}')
+            if (start < 0 || end <= start) return null
+            val normalized = JSONObject(content.substring(start, end + 1)).optString("normalized_command", "").trim()
+            return normalized.takeIf { it.isNotBlank() && it.length <= 200 }
+        } finally { c.disconnect() }
     }
 
     private fun dp(value: Int): Int =
