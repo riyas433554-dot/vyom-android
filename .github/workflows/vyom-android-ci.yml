@@ -35,6 +35,44 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Block policy-critical files in self-change proposals
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')
+        shell: bash
+        run: |
+          git fetch origin "${GITHUB_BASE_REF}"
+          changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")"
+          printf '%s\n' "$changed"
+          forbidden='^(MainActivity\.kt|ActionEngine\.kt|DeviceActionExecutor\.kt|VoiceForegroundService\.kt|VyomAccessibilityService\.kt|SelfModificationPolicy\.kt|SelfModificationClient\.kt)
+        run: gradle testDebugUnitTest assembleDebug --no-daemon
+      - name: Package versioned APK and checksum
+        shell: bash
+        run: |
+          mkdir -p output
+          cp app/build/outputs/apk/debug/app-debug.apk "output/vyom-phase6-${GITHUB_SHA}.apk"
+          sha256sum "output/vyom-phase6-${GITHUB_SHA}.apk" > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyom-phase6-${{ github.sha }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 30
+
+          while IFS= read -r path; do
+            case "$path" in
+              app/src/main/java/com/hermes/assistant/*)
+                name="${path##*/}"
+                if [[ "$name" =~ $forbidden ]] || [[ "$path" == .github/* ]] || [[ "$path" == CODEOWNERS ]]; then
+                  echo "Blocked policy-critical change in self-proposal: $path"
+                  exit 1
+                fi
+                ;;
+              *)
+                echo "Blocked non-Kotlin-source path in self-proposal: $path"
+                exit 1
+                ;;
+            esac
+          done <<< "$changed"
       - name: Unit tests and debug APK
         run: gradle testDebugUnitTest assembleDebug --no-daemon
       - name: Package versioned APK and checksum
