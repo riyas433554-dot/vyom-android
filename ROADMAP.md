@@ -30,7 +30,8 @@ Last updated: 2026-10-28
 ## Remaining roadmap
 - 6A Hermes execution/recurring tasks: keep PR #37 draft until CI runner, disposable DB/RPC, crash recovery, recurring-task duplicate/retry behavior, and generated-file result on phone are all evidenced green. Do not merge/deploy or apply production migrations without explicit approval.
 - 6B Android multi-panel UI: preserve pairing/chat; complete task notifications and panels only after build/test gates.
-- 7 Settings/themes/orb: verify settings persist across app restart on a phone.
+- 7 Skills registry: command phrases, app aliases and patterns are bundled as on-device JSON; Teach Vyom saves phrase mappings locally. SAFE/CONFIRM/BLOCKED, STOP CONTROL and audit policy remain compiled into the app and cannot be changed by this config. Verify on a phone.
+- Settings/themes/orb: verify settings persist across app restart on a phone.
 - 8 Voice: TTS/mute/mic/listening code exists in MainActivity; actual phone tests for TTS, speech recognition, lifecycle and mute remain pending.
 - 9 Files/links/screenshots: implement and test artifact viewing/open-related-panel flow.
 - 10 Android control: permission/confirmation and local audit-log code exists; phone-test allowed actions, denied permissions, confirmation and audit trail.

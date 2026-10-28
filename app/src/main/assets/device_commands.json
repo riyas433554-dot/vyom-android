@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "apps": [
+    {"name":"YouTube","package":"com.google.android.youtube","aliases":["youtube","you tube","yt"]},
+    {"name":"Chrome","package":"com.android.chrome","aliases":["chrome","google chrome","browser"]},
+    {"name":"WhatsApp","package":"com.whatsapp","aliases":["whatsapp","whats app"]},
+    {"name":"Maps","package":"com.google.android.apps.maps","aliases":["maps","google maps"]},
+    {"name":"Instagram","package":"com.instagram.android","aliases":["instagram","insta"]},
+    {"name":"Spotify","package":"com.spotify.music","aliases":["spotify"]},
+    {"name":"Gmail","package":"com.google.android.gm","aliases":["gmail","google mail"]},
+    {"name":"Telegram","package":"org.telegram.messenger","aliases":["telegram"]},
+    {"name":"Camera","package":"","aliases":["camera"]},
+    {"name":"Settings","package":"","aliases":["settings","setting"]}
+  ],
+  "openVerbs": ["open","launch","start","khol","kholo","kholna","chalao","chala","kholo app"],
+  "commandPhrases": {
+    "torch_on": ["turn on torch","torch on","flashlight on","turn on flashlight","torch chalu","torch chalu karo","torch chalu kar do","flashlight chalu","flashlight chalu karo","torch on karo","torch on kar do","torch jalao","torch jalado"],
+    "torch_off": ["turn off torch","torch off","flashlight off","turn off flashlight","torch band","torch band karo","torch band kar do","flashlight band","flashlight band karo","torch bujhao","torch bujha do"],
+    "volume_up": ["volume up","increase volume","raise volume","turn volume up","volume badhao","awaaz badhao","sound badhao","volume up karo","volume increase","increase sound","volume tez karo"],
+    "volume_down": ["volume down","decrease volume","lower volume","turn volume down","volume kam karo","awaaz kam karo","sound kam karo","volume ghatao","volume down karo","decrease sound"],
+    "volume_mute": ["mute","mute volume","volume mute","sound mute","awaaz band","sound band","mute karo","volume mute karo"],
+    "volume_unmute": ["unmute","unmute volume","volume unmute","sound unmute","awaaz chalu","sound chalu","unmute karo","volume unmute karo"]
+  },
+  "commandPatterns": {
+    "volume_set": "\\b(?:set\\s+(?:the\\s+)?volume\\s+to\\s+|volume\\s+)(\\d{1,3})\\s*%?\\b",
+    "brightness_set": "\\b(?:set|change)\\s+(?:the\\s+)?brightness\\s+(?:to\\s+)?(\\d{1,3})\\s*%?\\b"
+  },
+  "safety": "SAFE_CONFIRM_BLOCKED policy, STOP CONTROL, confirmation requirements and audit logging are compiled into the app and cannot be changed by this file or Teach Vyom."
+}

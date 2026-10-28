@@ -4,7 +4,7 @@ import android.provider.Settings
 
 object ActionEngine {
     enum class Risk { SAFE, CONFIRM, BLOCKED }
-    enum class Operation { OPEN_SETTINGS, OPEN_APP, VOLUME_DELTA, VOLUME_SET, BRIGHTNESS_SET, TORCH, SET_ALARM, SET_TIMER, DIAL, SMS, SHARE, DELETE, INSTALL, BLOCK }
+    enum class Operation { OPEN_SETTINGS, OPEN_APP, VOLUME_DELTA, VOLUME_SET, VOLUME_MUTE, VOLUME_UNMUTE, BRIGHTNESS_SET, TORCH, SET_ALARM, SET_TIMER, DIAL, SMS, SHARE, DELETE, INSTALL, BLOCK }
     data class Intent(val name: String, val risk: Risk, val operation: Operation, val target: String = "", val value: Int = 0, val settingsAction: String? = null)
     private val financeTargets = Regex("""\b(bank|banking|payment|pay|upi)\b""", RegexOption.IGNORE_CASE)
     private val credentialTargets = Regex("""\b(otp|password|passcode|pin code)\b""", RegexOption.IGNORE_CASE)
@@ -58,12 +58,16 @@ object ActionEngine {
             Regex("""\b(open|show)\s+settings\b""", RegexOption.IGNORE_CASE) to Intent("Open Android settings", Risk.SAFE, Operation.OPEN_SETTINGS, settingsAction = Settings.ACTION_SETTINGS)
         )
         settings.firstOrNull { it.first.containsMatchIn(s) }?.let { return it.second }
-        Regex("""\bset\s+(?:the\s+)?volume\s+to\s+(\d{1,3})\s*%?\b""", RegexOption.IGNORE_CASE).find(s)?.let { return Intent("Set media volume", Risk.SAFE, Operation.VOLUME_SET, value = it.groupValues[1].toInt().coerceIn(0,100)) }
-        if (Regex("""\b(volume up|increase (?:the )?volume|raise (?:the )?volume|turn (?:the )?volume up)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Increase media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = 1)
-        if (Regex("""\b(volume down|decrease (?:the )?volume|lower (?:the )?volume|turn (?:the )?volume down)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Decrease media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = -1)
-        Regex("""\b(?:set|change)\s+(?:the\s+)?brightness\s+(?:to\s+)?(\d{1,3})\s*%?\b""", RegexOption.IGNORE_CASE).find(s)?.let { return Intent("Set screen brightness", Risk.SAFE, Operation.BRIGHTNESS_SET, value = it.groupValues[1].toInt().coerceIn(0,100)) }
-        if (Regex("""\b(turn on|switch on|enable)\s+(?:the\s+)?(torch|flashlight)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Turn torch on", Risk.SAFE, Operation.TORCH, value = 1)
-        if (Regex("""\b(turn off|switch off|disable)\s+(?:the\s+)?(torch|flashlight)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Turn torch off", Risk.SAFE, Operation.TORCH, value = 0)
+        DeviceCommandConfig.percentValue(s, "volume_set")?.let { return Intent("Set media volume", Risk.SAFE, Operation.VOLUME_SET, value = it) }
+        DeviceCommandConfig.percentValue(s, "brightness_set")?.let { return Intent("Set screen brightness", Risk.SAFE, Operation.BRIGHTNESS_SET, value = it) }
+        when (DeviceCommandConfig.matchCommand(s)) {
+            "volume_up" -> return Intent("Increase media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = 1)
+            "volume_down" -> return Intent("Decrease media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = -1)
+            "volume_mute" -> return Intent("Mute media volume", Risk.SAFE, Operation.VOLUME_MUTE)
+            "volume_unmute" -> return Intent("Unmute media volume", Risk.SAFE, Operation.VOLUME_UNMUTE)
+            "torch_on" -> return Intent("Turn torch on", Risk.SAFE, Operation.TORCH, value = 1)
+            "torch_off" -> return Intent("Turn torch off", Risk.SAFE, Operation.TORCH, value = 0)
+        }
         Regex("""\b(?:set|create)\s+(?:an?\s+)?alarm\s+(?:for\s+)?(\d{1,2})(?::(\d{2}))?\b""", RegexOption.IGNORE_CASE).find(s)?.let {
             val h = it.groupValues[1].toIntOrNull() ?: -1
             val m = it.groupValues[2].ifBlank { "0" }.toIntOrNull() ?: -1
@@ -86,8 +90,8 @@ object ActionEngine {
         if (Regex("""\b(delete|remove)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Delete request", Risk.CONFIRM, Operation.DELETE, target=s)
         if (Regex("""\binstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Install request", Risk.CONFIRM, Operation.INSTALL, target=s)
         if (sendTarget.containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)
-        val app = Regex("""\b(?:open|launch|start)\s+(?:the\s+)?(.+?)\s+(?:app|application)\s*$""", RegexOption.IGNORE_CASE).find(s) ?: Regex("""\b(?:open|launch|start)\s+(?:the\s+)?([a-z][a-z0-9 ._-]{1,40})\s*$""", RegexOption.IGNORE_CASE).find(s)
-        if (app != null) { val n=app.groupValues[1].trim().removeSuffix(" app").removeSuffix(" application").trim(); if(n.isNotBlank()) return Intent("Open $n", Risk.SAFE, Operation.OPEN_APP, target=n) }
+        val appTarget = DeviceCommandConfig.extractAppTarget(s)
+        if (!appTarget.isNullOrBlank()) return Intent("Open $appTarget", Risk.SAFE, Operation.OPEN_APP, target = appTarget)
         if (Regex("""\b(call|dial|sms|text|delete|remove|install|uninstall)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Unsupported consequential action", Risk.BLOCKED, Operation.BLOCK)
         return null
     }
