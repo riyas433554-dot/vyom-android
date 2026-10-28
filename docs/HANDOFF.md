@@ -14,13 +14,15 @@ Last updated: 2026-10-28
 - Final report must include a Code / CI / Phone test table. Clearly label anything not performed as pending/unverified.
 
 ## Latest reported baseline
-- Latest verified implementation commit: `cb600d687ef0325706ffe34d24c5e78a8d26100f`.
-- Phase 6 CI run `40678795668` is green: secret scan, `testDebugUnitTest assembleDebug`, packaging and artifact upload passed.
-- Debug APK run `40678795686` is green; artifact `vyom-0.3.0-cb600d687ef0325706ffe34d24c5e78a8d26100f`; versionName `0.3.0`, versionCode `3`; APK SHA-256 `1d61c63478aa05b205a09fc3f2565ce21e4c15b1fa765f054f7b77e41681a0fa`.
-- Phase 6 CI artifact `vyom-phase6-cb600d687ef0325706ffe34d24c5e78a8d26100f`; artifact ZIP SHA-256 `b4f40dcc6c0710754d52c24846492cca843f3e83e52045c3ecd18c265bdd2b1c`.
-- Proposal guard smoke run `40678366127` passed on a temporary allowed-path PR; PR #6 was closed without merging.
-- Phone testing remains pending; green CI does not prove device behavior.
-- Phone tests remain pending: live listening, mute/unmute sounds, notification Stop, barge-in, and queued chat messages.
+- Latest verified branch head: `4ee5c9669a6be06666f1d958e2f898b52a616bee`.
+- Final CI run `40679364514` and debug APK run `40679364326` both completed successfully on that exact SHA.
+- CI tasks: `testDebugUnitTest assembleDebug`; secret scan, packaging and artifact upload passed.
+- Debug APK artifact: `vyom-0.3.0-4ee5c9669a6be06666f1d958e2f898b52a616bee`; versionName `0.3.0`, versionCode `3`; APK SHA-256 `c201c98359b44070cd6b35cd50cd56770dfb72392c9f84b8fcaf2fee3ec474db`.
+- Phase 6 CI artifact: `vyom-phase6-4ee5c9669a6be06666f1d958e2f898b52a616bee`; artifact ZIP SHA-256 `ecd0573f543d0b64ab7d60c30a6c828ae2e7823dbabd7f1ab829451577255114`.
+- Proposal guard smoke run `40678366127` passed on a temporary allowed-path PR; temporary PR #6 was closed without merging.
+- Phone testing and published-release update/rollback tests remain pending; green CI does not prove device behavior.
+- Do not change `main`, backend/Render, or production DB for this Android-only task.
+
 
 ## Three model lanes
 - LIVE: default `nvidia/nemotron-3.5-lightning-30b-a3b`; if the provider returns HTTP 404, fall back to `nemotron-3.5-bolt-e4b`. LIVE is streaming and must not use the task queue.
