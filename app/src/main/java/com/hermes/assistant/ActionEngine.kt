@@ -13,8 +13,10 @@ object ActionEngine {
     fun looksLikeDeviceAction(text: String): Boolean {
         val s = text.trim()
         if (Regex("""^(how|what|why|when|where|who|explain|can you explain|tell me about)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return false
-        val direct = Regex("""\b(open|launch|start|set|turn on|turn off|switch on|switch off|enable|disable|increase|decrease|raise|lower|volume|brightness|torch|flashlight|alarm|timer|call|dial|sms|text|delete|remove|install|uninstall|wifi|wi-fi|bluetooth|settings)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
-        return direct || sendTarget.containsMatchIn(s)
+        val direct = Regex("""\b(open|launch|start|set|turn on|turn off|switch on|switch off|enable|disable|increase|decrease|raise|lower|volume|brightness|torch|flashlight|alarm|timer|call|dial|sms|text|delete|remove|install|uninstall|wifi|wi-fi|bluetooth|settings|khol|kholo|chalao)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
+        return direct || sendTarget.containsMatchIn(s) || DeviceCommandConfig.matchCommand(s) != null ||
+            DeviceCommandConfig.percentValue(s, "volume_set") != null ||
+            DeviceCommandConfig.extractAppTarget(s) != null
     }
     fun fallbackMatchesIntent(original: String, normalized: String): Boolean {
         val o = original.lowercase()
