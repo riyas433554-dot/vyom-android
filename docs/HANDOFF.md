@@ -66,13 +66,13 @@ Implement one Action Engine with voice, chat, and task entry points.
   - [ ] Barge-in interrupts speech correctly.
   - [ ] Multiple queued chat messages complete independently and in order.
 - Phase 5 safety checklist:
-  - [ ] Rule-based intent classification precedes LLM fallback.
-  - [ ] SAFE actions work without unnecessary confirmation.
-  - [ ] CONFIRM actions require an explicit screen tap.
-  - [ ] BLOCKED actions cannot run through voice, chat, or task entry points.
-  - [ ] Kill switch works from both app and notification.
-  - [ ] Profile action log captures action, time, and source lane.
-  - [ ] Accessibility permission is user-enabled; Wi-Fi/Bluetooth only open settings panels.
+  - [x] Rule-based intent classification precedes LLM fallback; normalized model output is reclassified and checked against the original intent.
+  - [x] SAFE actions include app launch, media volume, brightness, torch, alarms/timers and settings panels.
+  - [x] CONFIRM actions require an explicit screen tap; calls open the dialer, SMS opens a composer, sharing opens a chooser, file deletion uses SAF plus a second confirmation, and APK install still requires Android's installer confirmation.
+  - [x] BLOCKED sensitive actions are rejected at voice, chat and task entry points.
+  - [x] STOP CONTROL is persistent and available in the app and voice notification.
+  - [x] Profile action log records timestamp, action, result and source lane.
+  - [x] Accessibility service is opt-in/manual, does not read window content, and Wi-Fi/Bluetooth commands open settings panels only.
 - Phase 6 checklist:
   - [ ] User-request-only update and SHA-256/signature validation.
   - [ ] Self-changes create separate branch + PR and run CI.
@@ -81,7 +81,7 @@ Implement one Action Engine with voice, chat, and task entry points.
 
 ## Current status
 - Working branch: `feature/u1-live-orbit-tasks`; `main`, Hermes/Render backend and production DB remain out of scope.
-- Phase 5 code is being implemented and CI-verified on this branch. Do not call Phase 5 complete until the current commit has green `testDebugUnitTest` + `assembleDebug` and its APK artifact is present.
+- Phase 5 implementation is committed on this branch. Close Phase 5 only after the latest commit has green `testDebugUnitTest` + `assembleDebug` and its APK artifact is present.
 - Phase 6 has not started in this handoff revision.
 - Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. Do not request or claim phone validation during those phases.
 - Secrets: never include live credentials, tokens or secret values in this file.

@@ -11,9 +11,31 @@ object ActionEngine {
     private val blockedSecurity = Regex("""\b(uninstall|disable security|security settings|lock screen security)\b""", RegexOption.IGNORE_CASE)
     private val sendTarget = Regex("""\b(send|share)\b.*\b(to|via|with)\b|\bshare\s+(this|it|file|photo|link)\b""", RegexOption.IGNORE_CASE)
     fun looksLikeDeviceAction(text: String): Boolean {
-        val direct = Regex("""\b(open|launch|start|set|turn on|turn off|switch on|switch off|enable|disable|increase|decrease|raise|lower|volume|brightness|torch|flashlight|alarm|timer|call|dial|sms|text|delete|remove|install|uninstall|wifi|wi-fi|bluetooth|settings)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
-        return direct || sendTarget.containsMatchIn(text)
+        val s = text.trim()
+        if (Regex("""^(how|what|why|when|where|who|explain|can you explain|tell me about)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return false
+        val direct = Regex("""\b(open|launch|start|set|turn on|turn off|switch on|switch off|enable|disable|increase|decrease|raise|lower|volume|brightness|torch|flashlight|alarm|timer|call|dial|sms|text|delete|remove|install|uninstall|wifi|wi-fi|bluetooth|settings)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
+        return direct || sendTarget.containsMatchIn(s)
     }
+    fun fallbackMatchesIntent(original: String, normalized: String): Boolean {
+        val o = original.lowercase()
+        val n = normalized.lowercase()
+        val switchVerb = Regex("""\b(enable|disable|turn on|turn off|switch on|switch off)\b""", RegexOption.IGNORE_CASE)
+        val originalSwitch = switchVerb.containsMatchIn(o)
+        val normalizedSwitch = switchVerb.containsMatchIn(n)
+        val radioTarget = Regex("""\b(wi-?fi|wifi|bluetooth|wireless)\b""", RegexOption.IGNORE_CASE).containsMatchIn(o)
+        val normalizedOpensPanel = Regex("""\b(open|show)\b""", RegexOption.IGNORE_CASE).containsMatchIn(n) &&
+            Regex("""\b(wi-?fi|wifi|bluetooth|wireless)\b""", RegexOption.IGNORE_CASE).containsMatchIn(n)
+        if (originalSwitch && !normalizedSwitch && !(radioTarget && normalizedOpensPanel)) return false
+        val originalOpens = Regex("""\b(open|launch|start)\b""", RegexOption.IGNORE_CASE).containsMatchIn(o)
+        if (originalOpens && normalizedSwitch) return false
+        val ignored = setOf("please","the","a","an","my","your","me","to","for","and","on","off","is","it","this","that","do","can","you","could","would","set","open","launch","start","turn","switch","enable","disable","increase","decrease","raise","lower","up","down","mode","settings","setting","app","application")
+        val originalWords = Regex("[a-z0-9]+").findAll(o).map { it.value }.filterNot { it in ignored }.toSet()
+        val normalizedWords = Regex("[a-z0-9]+").findAll(n).map { it.value }.filterNot { it in ignored }.toSet()
+        if (originalWords.intersect(normalizedWords).isNotEmpty()) return true
+        val aliases = listOf(setOf("volume","sound","audio"), setOf("brightness","bright","screen","display"), setOf("torch","flashlight"), setOf("wifi","wireless"), setOf("bluetooth","bt"))
+        return aliases.any { group -> originalWords.any { it in group } && normalizedWords.any { it in group } }
+    }
+
     fun classify(text: String): Intent? {
         val s = text.trim()
         if (s.isEmpty()) return null
@@ -23,7 +45,7 @@ object ActionEngine {
         val financeRequest = financeTargets.containsMatchIn(s) &&
             Regex("""\b(open|launch|start|use|access|pay|transfer|send)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
         val credentialRequest = credentialTargets.containsMatchIn(s) &&
-            Regex("""\b(read|show|reveal|tell|fetch|get|access|copy|display|enter)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
+            Regex("""\b(read|show|reveal|tell|fetch|get|access|copy|display|enter|send|text|share)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
         if (securityRequest || financeRequest || credentialRequest) return Intent("Blocked sensitive action", Risk.BLOCKED, Operation.BLOCK)
         val settings = listOf(
             Regex("""\b(open|show)\s+(wi-?fi|wifi)\s+settings\b""", RegexOption.IGNORE_CASE) to Intent("Open Wi-Fi settings", Risk.SAFE, Operation.OPEN_SETTINGS, settingsAction = Settings.ACTION_WIFI_SETTINGS),
@@ -53,7 +75,12 @@ object ActionEngine {
             return Intent("Set timer", Risk.SAFE, Operation.SET_TIMER, value = sec.coerceAtMost(86400))
         }
         Regex("""\b(?:call|dial)\s+(\+?[0-9][0-9 .()-]{4,}[0-9])\b""", RegexOption.IGNORE_CASE).find(s)?.let { return Intent("Call " + it.groupValues[1].trim(), Risk.CONFIRM, Operation.DIAL, target = it.groupValues[1].filter { c -> c.isDigit() || c=='+' }) }
+        if (Regex("""\b(call|dial)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Open dialer for contact", Risk.CONFIRM, Operation.DIAL)
         Regex("""\b(?:sms|text|send (?:a )?message to)\s+(\+?[0-9][0-9 .()-]{4,}[0-9])(?:\s+(?:saying|that|message)\s+(.+))?$""", RegexOption.IGNORE_CASE).find(s)?.let { return Intent("Compose SMS", Risk.CONFIRM, Operation.SMS, target = it.groupValues[1].filter { c -> c.isDigit() || c=='+' } + "\u0000" + it.groupValues[2].trim()) }
+        if (Regex("""\b(sms|text)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) {
+            val body = Regex("""\b(saying|that|message)\s+(.+)$""", RegexOption.IGNORE_CASE).find(s)?.groupValues?.get(2).orEmpty()
+            return Intent("Compose SMS", Risk.CONFIRM, Operation.SMS, target = "\u0000" + body)
+        }
         if (Regex("""\b(delete|remove)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Delete request", Risk.CONFIRM, Operation.DELETE, target=s)
         if (Regex("""\binstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Install request", Risk.CONFIRM, Operation.INSTALL, target=s)
         if (sendTarget.containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)

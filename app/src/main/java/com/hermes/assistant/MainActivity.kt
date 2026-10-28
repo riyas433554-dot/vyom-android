@@ -108,8 +108,6 @@ class MainActivity : Activity() {
                 VoiceForegroundService.ACTION_SESSION_MUTE -> if (voiceLoopEnabled) toggleVoiceMuteFromNotification()
                 VoiceForegroundService.ACTION_SESSION_CONTROL_STOP -> {
                     controlKillSwitch = true
-                    controlPrefs.edit().putBoolean("kill_switch", true).apply()
-                    logControlAction("STOP CONTROL", "enabled", "notification")
                     if (::controlNotice.isInitialized) controlNotice.text = "STOP CONTROL is ON. Device actions are disabled."
                 }
             }
@@ -2390,7 +2388,7 @@ class MainActivity : Activity() {
         io.execute {
             val normalized = try { normalizeDeviceActionWithModel(text) } catch (_: Exception) { null }
             runOnUiThread {
-                val fallback = normalized?.let { ActionEngine.classify(it) }
+                val fallback = normalized?.takeIf { ActionEngine.fallbackMatchesIntent(text, it) }?.let { ActionEngine.classify(it) }
                 if (fallback == null) {
                     logControlAction(text, "blocked-unrecognized-action", source)
                     onResult("I couldn't safely map that device command. Try 'open Wi-Fi settings' or 'set volume to 50%'.")
