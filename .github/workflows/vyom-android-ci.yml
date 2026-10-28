@@ -39,9 +39,11 @@ jobs:
       - name: Block policy-critical files in self-change proposals
         if: (github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')) || (github.event_name == 'push' && startsWith(github.ref_name, 'vyom-proposal-'))
         shell: bash
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            base="$GITHUB_EVENT_BEFORE"
+            base="$EVENT_BEFORE"
           else
             git fetch origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
             base="origin/${GITHUB_BASE_REF}"
