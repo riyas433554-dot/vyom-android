@@ -115,3 +115,5 @@ internal class NemotronLiveClient(private val apiKey: String, private val modelI
 
     private class ModelHttpException(val statusCode: Int, message: String) : IllegalStateException(message)
 }
+
+// Temporary Phase 6 policy-guard smoke check; harmless comment only.
