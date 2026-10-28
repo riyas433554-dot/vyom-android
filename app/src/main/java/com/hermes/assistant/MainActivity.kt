@@ -85,6 +85,7 @@ class MainActivity : Activity() {
     private lateinit var voiceRepliesButton: Button
     private lateinit var updateButton: Button
     private lateinit var updateNotice: TextView
+    private lateinit var rollbackButton: Button
     private lateinit var personaButton: Button
     private lateinit var settingsContent: LinearLayout
     private var updateManifest: JSONObject? = null
@@ -502,6 +503,11 @@ class MainActivity : Activity() {
             setText(secureVoicePrefs().getString("github_proposal_token", "").orEmpty())
         }
         settingsContent.addView(githubProposalTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val selfChangeNotice = TextView(this).apply {
+            text = "Self-change is proposal-only: allowed Kotlin file → separate branch → PR. No auto-merge or auto-install."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }
         settingsContent.addView(Button(this).apply {
             text = "SAVE GITHUB TOKEN"
             setOnClickListener {
@@ -509,11 +515,6 @@ class MainActivity : Activity() {
                 selfChangeNotice.text = "GitHub token saved encrypted on this device. It is never written to the repository."
             }
         }, LinearLayout.LayoutParams(-1, dp(42)))
-        val selfChangeNotice = TextView(this).apply {
-            text = "Self-change is proposal-only: allowed Kotlin file → separate branch → PR. No auto-merge or auto-install."
-            textSize = 10f
-            setTextColor(Color.LTGRAY)
-        }
         settingsContent.addView(selfChangeNotice, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(Button(this).apply {
             text = "PROPOSE SELF-CHANGE"
@@ -571,7 +572,7 @@ class MainActivity : Activity() {
                     .show()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
-        val rollbackButton = Button(this).apply {
+        rollbackButton = Button(this).apply {
             text = "OPEN PREVIOUS APK (ROLLBACK)"
             visibility = if (settingsPrefs.getString("previous_apk_uri", null).isNullOrBlank()) View.GONE else View.VISIBLE
             setOnClickListener {
@@ -1871,6 +1872,7 @@ class MainActivity : Activity() {
                 val rollbackUri = backupCurrentApkForRollback()
                 runOnUiThread {
                     settingsPrefs.edit().putString("previous_apk_uri", rollbackUri.toString()).apply()
+                    rollbackButton.visibility = View.VISIBLE
                     logControlAction("Self-update rollback backup", "saved Downloads/VyomRollback", "app")
                     pendingUpdateApk = file
                     updateButton.isEnabled = true
