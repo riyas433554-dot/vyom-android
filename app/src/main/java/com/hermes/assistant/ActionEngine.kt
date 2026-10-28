@@ -6,12 +6,24 @@ object ActionEngine {
     enum class Risk { SAFE, CONFIRM, BLOCKED }
     enum class Operation { OPEN_SETTINGS, OPEN_APP, VOLUME_DELTA, VOLUME_SET, BRIGHTNESS_SET, TORCH, SET_ALARM, SET_TIMER, DIAL, SMS, SHARE, DELETE, INSTALL, BLOCK }
     data class Intent(val name: String, val risk: Risk, val operation: Operation, val target: String = "", val value: Int = 0, val settingsAction: String? = null)
-    private val blocked = Regex("""\b(bank|banking|payment|pay|upi|otp|password|passcode|pin code|uninstall|disable security|security settings|lock screen security)\b""", RegexOption.IGNORE_CASE)
-    fun looksLikeDeviceAction(text: String) = Regex("""\b(open|launch|start|show|set|turn on|turn off|switch on|switch off|increase|decrease|raise|lower|volume|brightness|torch|flashlight|alarm|timer|call|dial|sms|text|send|share|delete|install|uninstall|wifi|wi-fi|bluetooth|settings)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+    private val financeTargets = Regex("""\b(bank|banking|payment|pay|upi)\b""", RegexOption.IGNORE_CASE)
+    private val credentialTargets = Regex("""\b(otp|password|passcode|pin code)\b""", RegexOption.IGNORE_CASE)
+    private val blockedSecurity = Regex("""\b(uninstall|disable security|security settings|lock screen security)\b""", RegexOption.IGNORE_CASE)
+    private val sendTarget = Regex("""\b(send|share)\b.*\b(to|via|with)\b|\bshare\s+(this|it|file|photo|link)\b""", RegexOption.IGNORE_CASE)
+    fun looksLikeDeviceAction(text: String): Boolean {
+        val direct = Regex("""\b(open|launch|start|set|turn on|turn off|switch on|switch off|enable|disable|increase|decrease|raise|lower|volume|brightness|torch|flashlight|alarm|timer|call|dial|sms|text|delete|remove|install|uninstall|wifi|wi-fi|bluetooth|settings)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        return direct || sendTarget.containsMatchIn(text)
+    }
     fun classify(text: String): Intent? {
         val s = text.trim()
         if (s.isEmpty()) return null
-        if (blocked.containsMatchIn(s)) return Intent("Blocked sensitive action", Risk.BLOCKED, Operation.BLOCK)
+        val securityRequest = blockedSecurity.containsMatchIn(s) &&
+            (Regex("""\b(open|launch|disable|turn off|change|access)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s) || Regex("""\buninstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+        val financeRequest = financeTargets.containsMatchIn(s) &&
+            Regex("""\b(open|launch|start|use|access|pay|transfer|send)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
+        val credentialRequest = credentialTargets.containsMatchIn(s) &&
+            Regex("""\b(read|show|reveal|tell|fetch|get|access|copy|display|enter)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
+        if (securityRequest || financeRequest || credentialRequest) return Intent("Blocked sensitive action", Risk.BLOCKED, Operation.BLOCK)
         val settings = listOf(
             Regex("""\b(open|show)\s+(wi-?fi|wifi)\s+settings\b""", RegexOption.IGNORE_CASE) to Intent("Open Wi-Fi settings", Risk.SAFE, Operation.OPEN_SETTINGS, settingsAction = Settings.ACTION_WIFI_SETTINGS),
             Regex("""\b(open|show)\s+bluetooth\s+settings\b""", RegexOption.IGNORE_CASE) to Intent("Open Bluetooth settings", Risk.SAFE, Operation.OPEN_SETTINGS, settingsAction = Settings.ACTION_BLUETOOTH_SETTINGS),
@@ -43,7 +55,7 @@ object ActionEngine {
         Regex("""\b(?:sms|text|send (?:a )?message to)\s+(\+?[0-9][0-9 .()-]{4,}[0-9])(?:\s+(?:saying|that|message)\s+(.+))?$""", RegexOption.IGNORE_CASE).find(s)?.let { return Intent("Compose SMS", Risk.CONFIRM, Operation.SMS, target = it.groupValues[1].filter { c -> c.isDigit() || c=='+' } + "\u0000" + it.groupValues[2].trim()) }
         if (Regex("""\b(delete|remove)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Delete request", Risk.CONFIRM, Operation.DELETE, target=s)
         if (Regex("""\binstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Install request", Risk.CONFIRM, Operation.INSTALL, target=s)
-        if (Regex("""\b(send|share)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)
+        if (sendTarget.containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)
         val app = Regex("""\b(?:open|launch|start)\s+(?:the\s+)?(.+?)\s+(?:app|application)\s*$""", RegexOption.IGNORE_CASE).find(s) ?: Regex("""\b(?:open|launch|start)\s+(?:the\s+)?([a-z][a-z0-9 ._-]{1,40})\s*$""", RegexOption.IGNORE_CASE).find(s)
         if (app != null) { val n=app.groupValues[1].trim().removeSuffix(" app").removeSuffix(" application").trim(); if(n.isNotBlank()) return Intent("Open $n", Risk.SAFE, Operation.OPEN_APP, target=n) }
         if (Regex("""\b(call|dial|sms|text|send|delete|remove|install|uninstall)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Unsupported consequential action", Risk.BLOCKED, Operation.BLOCK)
