@@ -60,6 +60,15 @@ object ActionEngine {
         settings.firstOrNull { it.first.containsMatchIn(s) }?.let { return it.second }
         DeviceCommandConfig.percentValue(s, "volume_set")?.let { return Intent("Set media volume", Risk.SAFE, Operation.VOLUME_SET, value = it) }
         DeviceCommandConfig.percentValue(s, "brightness_set")?.let { return Intent("Set screen brightness", Risk.SAFE, Operation.BRIGHTNESS_SET, value = it) }
+        // Compatibility guard for legacy controls; JSON phrase rules remain primary.
+        if (Regex("""\b(volume up|increase (?:the )?volume|raise (?:the )?volume|turn (?:the )?volume up|volume badhao|awaaz badhao|sound badhao)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+            return Intent("Increase media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = 1)
+        if (Regex("""\b(volume down|decrease (?:the )?volume|lower (?:the )?volume|turn (?:the )?volume down|volume kam karo|awaaz kam karo|sound kam karo|volume ghatao)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+            return Intent("Decrease media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = -1)
+        if (Regex("""\b(turn on|switch on|enable)\s+(?:the\s+)?(torch|flashlight)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+            return Intent("Turn torch on", Risk.SAFE, Operation.TORCH, value = 1)
+        if (Regex("""\b(turn off|switch off|disable)\s+(?:the\s+)?(torch|flashlight)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+            return Intent("Turn torch off", Risk.SAFE, Operation.TORCH, value = 0)
         when (DeviceCommandConfig.matchCommand(s)) {
             "volume_up" -> return Intent("Increase media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = 1)
             "volume_down" -> return Intent("Decrease media volume", Risk.SAFE, Operation.VOLUME_DELTA, value = -1)
