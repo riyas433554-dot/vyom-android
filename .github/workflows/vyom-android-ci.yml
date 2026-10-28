@@ -1,0 +1,52 @@
+name: Vyom Android CI
+
+on:
+  push:
+    branches:
+      - feature/u1-live-orbit-tasks
+  pull_request:
+    branches:
+      - feature/u1-live-orbit-tasks
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vyom-android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Unit tests and debug APK
+        run: gradle testDebugUnitTest assembleDebug --no-daemon
+      - name: Package versioned APK and checksum
+        shell: bash
+        run: |
+          mkdir -p output
+          cp app/build/outputs/apk/debug/app-debug.apk "output/vyom-phase6-${GITHUB_SHA}.apk"
+          sha256sum "output/vyom-phase6-${GITHUB_SHA}.apk" > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyom-phase6-${{ github.sha }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 30
