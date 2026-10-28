@@ -74,14 +74,18 @@ Implement one Action Engine with voice, chat, and task entry points.
   - [x] Profile action log records timestamp, action, result and source lane.
   - [x] Accessibility service is opt-in/manual, does not read window content, and Wi-Fi/Bluetooth commands open settings panels only.
 - Phase 6 checklist:
-  - [ ] User-request-only update and SHA-256/signature validation.
-  - [ ] Self-changes create separate branch + PR and run CI.
-  - [ ] No auto-merge, auto-install, or main writes.
-  - [ ] Policy-critical files protected; changes logged and rollback available.
+  - [x] Self-update is user-triggered only; latest-release manifest URL is allowlisted to this repository.
+  - [x] Update APK must be newer, within size limits, SHA-256 match, correct package/version, and match the installed signing certificate before Android's installer opens.
+  - [x] Previous installed APK is copied to Downloads/VyomRollback on Android 10+, size- and SHA-256-verified, with a user-triggered rollback installer path. Android may require manual uninstall to downgrade; Vyom never uninstalls itself.
+  - [x] Self-change requires an encrypted on-device GitHub token, validates a bounded title/path/content, creates a separate proposal branch, updates only an allowed Kotlin source file, and opens a PR against this working branch.
+  - [x] No auto-merge, auto-install, release publication, or writes to main.
+  - [x] Self-change success/failure and update/rollback installer events are written to the local action audit log.
+  - [x] CODEOWNERS identifies the repository owner for review; CI rejects policy-critical or non-Kotlin paths in `vyom-proposal-*` PRs.
+  - [x] CI workflow runs unit tests, assembles a debug APK, performs secret scanning, and uploads APK + SHA-256 artifact on branch pushes and proposal PRs.
 
 ## Current status
 - Working branch: `feature/u1-live-orbit-tasks`; `main`, Hermes/Render backend and production DB remain out of scope.
 - Phase 5 implementation is committed on this branch. Close Phase 5 only after the latest commit has green `testDebugUnitTest` + `assembleDebug` and its APK artifact is present.
-- Phase 6 has not started in this handoff revision.
-- Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. Do not request or claim phone validation during those phases.
+- Phase 6 implementation is committed on this branch; final CI verification and phone tests remain separate gates.
+- Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. No phone validation has been performed; do not claim the app is ready until the owner completes the checklist.
 - Secrets: never include live credentials, tokens or secret values in this file.
