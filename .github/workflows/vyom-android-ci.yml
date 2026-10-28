@@ -65,7 +65,16 @@ jobs:
                 ;;
             esac
             name="${path##*/}"
-            if [[ "$name" =~ $forbidden ]]; then
+            lower_name="${name,,}"
+            if [[ "$name" =~ $forbidden ]] ||
+               [[ "$lower_name" == *policy* ]] ||
+               [[ "$lower_name" == *audit* ]] ||
+               [[ "$lower_name" == *kill* ]] ||
+               [[ "$lower_name" == *control* ]] ||
+               [[ "$lower_name" == *accessibilityservice* ]] ||
+               [[ "$lower_name" == *deviceactionexecutor* ]] ||
+               [[ "$lower_name" == *voiceforegroundservice* ]] ||
+               [[ "$lower_name" == *selfmodification* ]]; then
               echo "Blocked policy-critical change in self-proposal: $path"
               exit 1
             fi
