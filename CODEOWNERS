@@ -1,0 +1,10 @@
+# Safety-critical policy and audit paths require the repository owner to review changes.
+# Enforcement of required reviews depends on repository branch-protection settings.
+* @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/MainActivity.kt @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/ActionEngine.kt @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/DeviceActionExecutor.kt @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/VoiceForegroundService.kt @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/VyomAccessibilityService.kt @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/SelfModificationPolicy.kt @riyas433554-dot
+/.github/workflows/** @riyas433554-dot
