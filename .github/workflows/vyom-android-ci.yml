@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/u1-live-orbit-tasks
+      - vyom-proposal-*
   pull_request:
     branches:
       - feature/u1-live-orbit-tasks
@@ -36,11 +37,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Block policy-critical files in self-change proposals
-        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')
+        if: (github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')) || (github.event_name == 'push' && startsWith(github.ref_name, 'vyom-proposal-'))
         shell: bash
         run: |
-          git fetch origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
-          changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            base="$GITHUB_EVENT_BEFORE"
+          else
+            git fetch origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
+            base="origin/${GITHUB_BASE_REF}"
+          fi
+          if [[ "$base" =~ ^0+$ ]]; then
+            echo "Cannot validate proposal diff against an empty base"
+            exit 1
+          fi
+          changed="$(git diff --name-only "$base...HEAD")"
           printf '%s\\n' "$changed"
           forbidden='^(MainActivity\\.kt|ActionEngine\\.kt|DeviceActionExecutor\\.kt|VoiceForegroundService\\.kt|VyomAccessibilityService\\.kt|SelfModificationPolicy\\.kt|SelfModificationClient\\.kt)$'
           while IFS= read -r path; do
