@@ -1809,7 +1809,7 @@ class MainActivity : Activity() {
         val validReleaseAsset = uri.host.equals("github.com", true) &&
             uri.path.orEmpty().startsWith("/riyas433554-dot/vyom-android/releases/download/")
         val validApi = uri.host.equals("api.github.com", true) &&
-            uri.path == "/repos/riyas433554-dot/hermes/releases/latest"
+            uri.path == "/repos/riyas433554-dot/vyom-android/releases/latest"
         if (!uri.scheme.equals("https", true) || (!validReleaseAsset && !validApi)) {
             throw IllegalStateException("Unapproved update endpoint")
         }
