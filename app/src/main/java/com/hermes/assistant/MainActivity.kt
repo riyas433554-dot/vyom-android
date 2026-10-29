@@ -1549,8 +1549,12 @@ class MainActivity : Activity() {
     private fun applyThemeAccent() {
         val accent = VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
         if (::status.isInitialized) status.setTextColor(accent)
-        if (::mainPanel.isInitialized) applyDesignSystem(mainPanel)
-        (mainPanel?.background as? GradientDrawable)?.setStroke(dp(1), Color.argb(180, Color.red(accent), Color.green(accent), Color.blue(accent)))
+        mainPanel?.let { panel ->
+            applyDesignSystem(panel)
+            (panel.background as? GradientDrawable)?.setStroke(
+                dp(1), Color.argb(180, Color.red(accent), Color.green(accent), Color.blue(accent))
+            )
+        }
         (dockBar?.background as? GradientDrawable)?.setStroke(dp(1), accent)
         if (::chatTab.isInitialized) listOf(chatTab, tasksTab, settingsTab, filesTab, controlTab).forEach { it.setTextColor(accent) }
         orbitHomeView?.setAccentColor(accent)
