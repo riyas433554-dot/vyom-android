@@ -484,7 +484,10 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(sttLanguageInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(TextView(this).apply { text = "MIC INPUT LEVEL"; textSize = 11f; setTextColor(Color.LTGRAY) })
-        micLevelMeter = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100; progress = 0; contentDescription = "Microphone input level" }
+        micLevelMeter = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100; progress = 0; contentDescription = "Microphone input level"
+            progressTintList = android.content.res.ColorStateList.valueOf(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+        }
         settingsContent.addView(micLevelMeter, LinearLayout.LayoutParams(-1, dp(20)))
         settingsContent.addView(Button(this).apply {
             text = "SAVE VOICE SETTINGS"
@@ -1017,7 +1020,7 @@ class MainActivity : Activity() {
             "TTS: " + if (ttsConfigured) "ElevenLabs sentence chunks, Android TTS fallback" else "Android TTS fallback",
             "Stage timing samples: not yet verified on a device",
             "Target total latency under 1.5 s is not verified."
-        ).joinToString("\\n\\n")
+        ).joinToString("\n\n")
         AlertDialog.Builder(this).setTitle("Profile • Voice diagnostics").setMessage(details)
             .setPositiveButton("OK", null).show()
     }
@@ -1652,6 +1655,7 @@ class MainActivity : Activity() {
         }
         val topBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL }
         topBar.addView(Button(this).apply {
+            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
             text = if (liveCaptionsEnabled) "CAPTIONS ON" else "CAPTIONS OFF"
             contentDescription = "Toggle live captions"
             setOnClickListener {
@@ -1662,6 +1666,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(dp(128), dp(42)))
         topBar.addView(Button(this).apply {
+            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
             text = "⋮"
             contentDescription = "Live voice menu"
             setOnClickListener {
@@ -1707,6 +1712,7 @@ class MainActivity : Activity() {
         panel.addView(liveCaptionView, LinearLayout.LayoutParams(-1, dp(76)))
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         controls.addView(Button(this).apply {
+            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
             text = if (voiceMuted) "UNMUTE" else "MUTE"
             contentDescription = if (voiceMuted) "Unmute microphone" else "Mute microphone"
             setOnClickListener {
@@ -1734,6 +1740,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(0, dp(54), 1f))
         controls.addView(Button(this).apply {
+            VyomTheme.stylePill(this, this@MainActivity, "amber")
             text = "END"
             contentDescription = "End live voice session"
             setOnClickListener { endLiveVoiceSession() }

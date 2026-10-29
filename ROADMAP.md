@@ -76,6 +76,6 @@ Current implementation candidate: `597a146964fed5affc39575c91c5e4bdb4a03f9d` (br
 - Phone test: not performed. Debug APK remains unsigned; no update-over-existing signed install is verified.
 
 ### Keyword scan handling
-- Source UI/code: the saved-task reconnect label/method is no longer named as a placeholder. Any remaining unsupported diagnostics or control path must stay clearly marked as unverified rather than advertised as complete.
+- Source UI/code: the saved-task reconnect label/method is no longer named as a placeholder. Final-head source scan found no matching TODO/placeholder/stub/not-implemented/will-be-added/Phase terms in app source. Diagnostics and autonomous control gaps are explicitly listed as incomplete below.
 - Documentation: historical "Phase 5/6" references remain because they describe the repository's prior implementation history; they are not user-facing UI.
 - Required final evidence: latest commit SHA, both green workflow runs, test/build task results, artifact name/size/SHA-256, and the explicit phone-test status. Never report "ready" before phone tests pass.

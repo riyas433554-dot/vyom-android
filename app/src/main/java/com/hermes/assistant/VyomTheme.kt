@@ -2,6 +2,8 @@ package com.hermes.assistant
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.widget.Button
 
 /** Shared visual tokens for the Vyom native UI. */
 internal object VyomTheme {
@@ -25,6 +27,17 @@ internal object VyomTheme {
     const val TYPE_HERO_SP = 32
     const val GLASS_BLUR_MIN_DP = 20
     const val GLASS_BLUR_MAX_DP = 40
+
+    fun stylePill(button: Button, context: Context, theme: String = "cyan") {
+        val end = accent(context, theme)
+        val start = Color.rgb((Color.red(end) * 0.55f).toInt(), (Color.green(end) * 0.55f).toInt(), (Color.blue(end) * 0.55f).toInt())
+        button.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(start, end)).apply {
+            cornerRadius = 28f * context.resources.displayMetrics.density
+            setStroke((1f * context.resources.displayMetrics.density).toInt().coerceAtLeast(1), end)
+        }
+        button.setTextColor(Color.WHITE)
+        button.isAllCaps = false
+    }
 
     fun accent(context: Context, theme: String = "cyan"): Int = when (theme.lowercase()) {
         "amber" -> Color.rgb(255, 183, 77)
