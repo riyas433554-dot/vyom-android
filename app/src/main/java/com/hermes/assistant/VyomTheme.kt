@@ -8,6 +8,17 @@ internal object VyomTheme {
     const val BACKGROUND: Int = 0xFF0B0F1A.toInt()
     const val RADIUS_SMALL_DP = 14
     const val RADIUS_LARGE_DP = 20
+    const val RADIUS_CHAT_DP = 16
+    const val SPACE_XS_DP = 4
+    const val SPACE_SM_DP = 8
+    const val SPACE_MD_DP = 12
+    const val SPACE_LG_DP = 16
+    const val SURFACE_USER_BUBBLE: Int = 0xFF1F3752.toInt()
+    const val SURFACE_ASSISTANT_BUBBLE: Int = 0xFF111927.toInt()
+    const val SURFACE_TASK_CARD: Int = 0xFF161D28.toInt()
+    const val TEXT_PRIMARY: Int = 0xFFFFFFFF.toInt()
+    const val TEXT_SECONDARY: Int = 0xFFBFC8D8.toInt()
+    const val BORDER_SUBTLE: Int = 0x506482AA
     const val TYPE_SMALL_SP = 12
     const val TYPE_BODY_SP = 16
     const val TYPE_TITLE_SP = 24

@@ -260,7 +260,7 @@ class MainActivity : Activity() {
         filesTab = dockItem("Files") { showTab(false, false, true) }
         controlTab = dockItem("Control") { showTab(false, false, false, true) }
         val homeDock = dockItem("Home") { showHome() }
-        val voiceDock = dockItem("◉") { toggleVoiceInput() }
+        val voiceDock = dockItem("LIVE") { toggleVoiceInput() }
         listOf(homeDock, chatTab, voiceDock, tasksTab, settingsTab).forEachIndexed { index, item ->
             tabBar.addView(item, LinearLayout.LayoutParams(0, dp(if (index == 2) 48 else 42), 1f))
         }
@@ -357,7 +357,7 @@ class MainActivity : Activity() {
         chatPanel.addView(micIndicator, LinearLayout.LayoutParams(-1, dp(18)))
         chatPanel.addView(voiceButton, LinearLayout.LayoutParams(-1, dp(40)))
 
-        tasksPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        tasksPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE; clipChildren = false; clipToPadding = false }
         taskNotice = TextView(this).apply {
             text = "Tasks run one at a time. Queued is normal."
             textSize = 12f
@@ -381,9 +381,11 @@ class MainActivity : Activity() {
             isEnabled = false
             setOnClickListener { createTask() }
         }
-        taskList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        taskList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; clipToPadding = false }
         taskScroll = ScrollView(this).apply {
-            isFillViewport = true
+            isFillViewport = false
+            clipChildren = false
+            clipToPadding = false
             addView(taskList, FrameLayout.LayoutParams(-1, -2))
         }
         tasksPanel.addView(taskNotice, LinearLayout.LayoutParams(-1, -2))
@@ -793,7 +795,7 @@ class MainActivity : Activity() {
                         createTaskButton.isEnabled = true
                         pairingInput.visibility = View.GONE
                         pairButton.visibility = View.GONE
-                        renderSavedTaskPlaceholders()
+                        renderSavedTasksPendingRefresh()
                         resumeQueuedChatMessages()
                     }
                 } catch (_: Exception) {
@@ -1388,7 +1390,7 @@ class MainActivity : Activity() {
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(Color.rgb(31, 55, 82))
+                    setColor(VyomTheme.SURFACE_USER_BUBBLE)
                     cornerRadius = dp(16).toFloat()
                 }
             }
@@ -1419,7 +1421,7 @@ class MainActivity : Activity() {
                     setPadding(dp(12), dp(10), dp(12), dp(10))
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
-                        setColor(Color.rgb(17, 25, 39))
+                        setColor(VyomTheme.SURFACE_ASSISTANT_BUBBLE)
                         cornerRadius = dp(16).toFloat()
                         setStroke(dp(1), Color.argb(100, 100, 130, 170))
                     }
@@ -2416,10 +2418,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun renderSavedTaskPlaceholders() {
+    private fun renderSavedTasksPendingRefresh() {
         for (id in api.savedTaskIds()) {
             if (!tasksById.containsKey(id)) {
-                tasksById[id] = JSONObject().put("id", id).put("prompt", "Loading saved task…").put("status", "queued")
+                tasksById[id] = JSONObject().put("id", id).put("prompt", "Reconnecting to saved task…").put("status", "queued")
             }
         }
         renderTasks()
@@ -2532,7 +2534,7 @@ class MainActivity : Activity() {
                 setPadding(dp(10), dp(8), dp(10), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(Color.rgb(22, 29, 40))
+                    setColor(VyomTheme.SURFACE_TASK_CARD)
                     cornerRadius = dp(10).toFloat()
                     setStroke(dp(1), Color.argb(80, 0, 190, 255))
                 }

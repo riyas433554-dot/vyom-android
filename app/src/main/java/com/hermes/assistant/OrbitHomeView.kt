@@ -22,7 +22,7 @@ internal class OrbitHomeView(context: Context) : View(context) {
         strokeWidth = dp(1f)
         pathEffect = android.graphics.DashPathEffect(floatArrayOf(dp(4f), dp(5f)), 0f)
     }
-    private val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(224, 9, 16, 30) }
+    private val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = VyomTheme.SURFACE_ASSISTANT_BUBBLE }
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = dp(1f)
