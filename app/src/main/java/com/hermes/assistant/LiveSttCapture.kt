@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.util.Base64
 import okhttp3.OkHttpClient
@@ -31,8 +32,10 @@ internal class LiveSttCapture(
 ) {
     private val sampleRate = 16_000
     private val silenceMs = 700L
-    private val speechThresholdRms = 780.0
     private var noiseFloorRms = 180.0
+    private val preRollFrames = java.util.ArrayDeque<ByteArray>()
+    private var calibrationUntilMs = 0L
+    private var lastMeterUpdateMs = 0L
     @Volatile private var running = false
     @Volatile private var socketReady = false
     @Volatile private var offlineReady = false
@@ -49,6 +52,7 @@ internal class LiveSttCapture(
     private var segmentPeakRms = 0.0
     private var echoCanceler: AcousticEchoCanceler? = null
     private var noiseSuppressor: NoiseSuppressor? = null
+    private var automaticGainControl: AutomaticGainControl? = null
 
     fun start() {
         if (running) return
@@ -157,8 +161,10 @@ internal class LiveSttCapture(
         try {
             if (AcousticEchoCanceler.isAvailable()) echoCanceler = AcousticEchoCanceler.create(audio.audioSessionId)?.apply { enabled = true }
             if (NoiseSuppressor.isAvailable()) noiseSuppressor = NoiseSuppressor.create(audio.audioSessionId)?.apply { enabled = true }
+            if (AutomaticGainControl.isAvailable()) automaticGainControl = AutomaticGainControl.create(audio.audioSessionId)?.apply { enabled = true }
             audio.startRecording()
-            onStatus("MIC LISTENING — VAD ACTIVE")
+            calibrationUntilMs = System.currentTimeMillis() + 600L
+            onStatus("MIC CALIBRATING NOISE — KEEP QUIET")
             val buffer = ShortArray(1600) // 100 ms PCM frames
             while (running && audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                 val count = audio.read(buffer, 0, buffer.size)
@@ -167,24 +173,49 @@ internal class LiveSttCapture(
                 for (i in 0 until count) energy += buffer[i].toDouble() * buffer[i].toDouble()
                 val rms = sqrt(energy / count)
                 val now = System.currentTimeMillis()
-                if (!segmentActive && rms < speechThresholdRms) noiseFloorRms = (noiseFloorRms * 0.94) + (rms * 0.06)
-                val activeThreshold = maxOf(speechThresholdRms, noiseFloorRms * 2.8)
-                if (rms >= activeThreshold) {
-                    if (!segmentActive) { segmentActive = true; segmentStartedAt = now; segmentPeakRms = rms }
-                    else segmentPeakRms = maxOf(segmentPeakRms, rms)
+                val bytes = ByteArray(count * 2)
+                for (i in 0 until count) {
+                    val sample = buffer[i].toInt()
+                    bytes[i * 2] = (sample and 0xff).toByte()
+                    bytes[i * 2 + 1] = ((sample shr 8) and 0xff).toByte()
+                }
+                if (now < calibrationUntilMs && !segmentActive) {
+                    noiseFloorRms = (noiseFloorRms * 0.82) + (rms * 0.18)
+                }
+                val calibrating = now < calibrationUntilMs
+                val activeThreshold = (noiseFloorRms * 2.4).coerceIn(280.0, 1450.0)
+                if (!segmentActive) {
+                    preRollFrames.addLast(bytes)
+                    while (preRollFrames.size > 3) preRollFrames.removeFirst()
+                }
+                var segmentStartedThisFrame = false
+                if (!calibrating && rms >= activeThreshold) {
+                    if (!segmentActive) {
+                        segmentActive = true
+                        segmentStartedAt = now
+                        segmentPeakRms = rms
+                        segmentStartedThisFrame = true
+                        if (socketReady) {
+                            preRollFrames.forEach { frame ->
+                                socket?.send(JSONObject().put("message_type", "input_audio_chunk")
+                                    .put("audio_base_64", Base64.encodeToString(frame, Base64.NO_WRAP))
+                                    .put("sample_rate", sampleRate).put("commit", false).toString())
+                            }
+                        }
+                        preRollFrames.clear()
+                        onStatus("MIC LISTENING — ADAPTIVE VAD ACTIVE")
+                    } else segmentPeakRms = maxOf(segmentPeakRms, rms)
                     lastSpeechAt = now
+                }
+                if (now - lastMeterUpdateMs >= 300L) {
+                    lastMeterUpdateMs = now
+                    onStatus("MIC LEVEL ${(rms / 2400.0 * 100.0).toInt().coerceIn(0, 100)}%")
                 }
                 if (offlineReady) {
                     offlineStt?.accept(buffer, count)?.let { result ->
                         if (result.startsWith("~")) onPartial(result.removePrefix("~")) else onCommitted(result)
                     }
-                } else if (socketReady && segmentActive) {
-                    val bytes = ByteArray(count * 2)
-                    for (i in 0 until count) {
-                        val sample = buffer[i].toInt()
-                        bytes[i * 2] = (sample and 0xff).toByte()
-                        bytes[i * 2 + 1] = ((sample shr 8) and 0xff).toByte()
-                    }
+                } else if (socketReady && segmentActive && !segmentStartedThisFrame) {
                     val payload = JSONObject().put("message_type", "input_audio_chunk")
                         .put("audio_base_64", Base64.encodeToString(bytes, Base64.NO_WRAP))
                         .put("sample_rate", sampleRate).put("commit", false)

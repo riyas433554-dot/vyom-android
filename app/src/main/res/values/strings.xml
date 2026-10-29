@@ -1,1 +1,1 @@
-<resources><string name="vyom_accessibility_description">Optional Vyom integration. Does not read screen text or perform clicks.</string></resources>
+<resources><string name="vyom_accessibility_description">Vyom can inspect visible screen elements and perform requested taps, gestures, scrolling, and text entry. Password fields are redacted and secure-window screenshots are blocked. Screen data stays on-device unless a separate, explicit sharing step is approved.</string></resources>
