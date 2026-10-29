@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
+import java.io.File
 
 /** Command vocabulary comes from bundled JSON; authorization and safety remain compiled into ActionEngine. */
 object DeviceCommandConfig {
@@ -11,9 +12,20 @@ object DeviceCommandConfig {
     data class Snapshot(val apps: List<AppEntry>, val openVerbs: List<String>, val commandPhrases: Map<String,List<String>>, val commandPatterns: Map<String,Regex>)
     @Volatile private var current: Snapshot = fallbackSnapshot()
 
+    private fun localConfigFile(context: Context): File = File(context.filesDir, "device_commands.json")
+
+    private fun readConfig(context: Context): JSONObject {
+        val file = localConfigFile(context)
+        if (!file.exists()) {
+            val bundled = context.assets.open("device_commands.json").bufferedReader().use { it.readText() }
+            file.writeText(bundled)
+        }
+        return JSONObject(file.readText())
+    }
+
     fun initialize(context: Context) {
         current = try {
-            val root=JSONObject(context.assets.open("device_commands.json").bufferedReader().use { it.readText() })
+            val root=readConfig(context)
             val appArray=root.optJSONArray("apps") ?: JSONArray()
             val apps=(0 until appArray.length()).mapNotNull { i ->
                 val o=appArray.optJSONObject(i) ?: return@mapNotNull null
@@ -51,8 +63,10 @@ object DeviceCommandConfig {
     private fun bestAliasScore(input:String,app:AppEntry):Int=(app.aliases+app.name).maxOfOrNull { similarity(normalize(input),normalize(it)) } ?: 0
 
     fun resolveLearnedCommand(context:Context,phrase:String):String? {
-        val raw=context.getSharedPreferences("vyom_taught_commands",Context.MODE_PRIVATE).getString("aliases_json",null) ?: return null
-        val json=try { JSONObject(raw) } catch(_:Exception) { return null }
+        val json=try { readConfig(context).optJSONObject("learnedCommands") ?: JSONObject() } catch(_:Exception) {
+            val raw=context.getSharedPreferences("vyom_taught_commands",Context.MODE_PRIVATE).getString("aliases_json",null) ?: return null
+            try { JSONObject(raw) } catch(_:Exception) { return null }
+        }
         val key=normalize(phrase)
         val best=json.keys().asSequence().map { it to json.optString(it) }.maxByOrNull { (learned,_)->similarity(key,learned) } ?: return null
         return best.second.takeIf { similarity(key,best.first)>=if(key.length<=5)80 else 68 }
@@ -60,9 +74,14 @@ object DeviceCommandConfig {
     fun saveTeaching(context:Context,phrase:String,canonicalCommand:String) {
         val key=normalize(phrase).take(100); val canonical=canonicalCommand.trim().take(120)
         require(key.isNotBlank()&&canonical.isNotBlank())
-        val prefs=context.getSharedPreferences("vyom_taught_commands",Context.MODE_PRIVATE)
-        val json=try { JSONObject(prefs.getString("aliases_json","{}") ?: "{}") } catch(_:Exception) { JSONObject() }
-        json.put(key,canonical); prefs.edit().putString("aliases_json",json.toString()).apply()
+        val file=localConfigFile(context)
+        val root=try { if(file.exists()) JSONObject(file.readText()) else readConfig(context) } catch(_:Exception) { JSONObject() }
+        val learned=root.optJSONObject("learnedCommands") ?: JSONObject().also { root.put("learnedCommands",it) }
+        learned.put(key,canonical)
+        val temp=File(context.filesDir,"device_commands.json.tmp")
+        temp.writeText(root.toString(2))
+        if(file.exists() && !file.delete()) { temp.delete(); throw IllegalStateException("Could not replace local command config") }
+        if(!temp.renameTo(file)) { temp.delete(); throw IllegalStateException("Could not save local command config") }
     }
     private fun phraseMatches(input:String,phrase:String):Boolean {
         if(input==phrase||input.contains(" $phrase ")||input.startsWith("$phrase ")||input.endsWith(" $phrase"))return true
