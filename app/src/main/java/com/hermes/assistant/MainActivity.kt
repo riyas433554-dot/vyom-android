@@ -33,6 +33,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.media.AudioRecord
@@ -149,6 +150,8 @@ class MainActivity : Activity() {
     private lateinit var liveModelInput: EditText
     private lateinit var liveModelNotice: TextView
     private lateinit var sttLanguageInput: EditText
+    private lateinit var micLevelMeter: ProgressBar
+    private var lastTtsFinishedAt = 0L
     private var nemotronLiveClient: NemotronLiveClient? = null
     private lateinit var ttsConfigStatus: TextView
     private lateinit var api: VyomApiClient
@@ -480,6 +483,9 @@ class MainActivity : Activity() {
             setText(secureVoicePrefs().getString("stt_language_code", "") ?: "")
         }
         settingsContent.addView(sttLanguageInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(TextView(this).apply { text = "MIC INPUT LEVEL"; textSize = 11f; setTextColor(Color.LTGRAY) })
+        micLevelMeter = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100; progress = 0; contentDescription = "Microphone input level" }
+        settingsContent.addView(micLevelMeter, LinearLayout.LayoutParams(-1, dp(20)))
         settingsContent.addView(Button(this).apply {
             text = "SAVE VOICE SETTINGS"
             setOnClickListener {
@@ -1554,7 +1560,7 @@ class MainActivity : Activity() {
         voiceTtsProvider?.stop()
         voiceTtsProvider = voiceProvider()
         if (::ttsConfigStatus.isInitialized) ttsConfigStatus.text = voiceTtsProvider?.status()
-        voiceTtsProvider?.speak(reply.trim(), { runOnUiThread { onComplete?.invoke() } }, { error ->
+        voiceTtsProvider?.speak(reply.trim(), { runOnUiThread { lastTtsFinishedAt = System.currentTimeMillis(); onComplete?.invoke() } }, { error ->
             runOnUiThread { if (::micIndicator.isInitialized) micIndicator.text = "VOICE ERROR"; onComplete?.invoke() }
         })
     }
@@ -1745,6 +1751,8 @@ class MainActivity : Activity() {
 
     private fun startVoiceInput() {
         if (voiceMuted || !voiceLoopEnabled) return
+        val holdoff = 300L - (System.currentTimeMillis() - lastTtsFinishedAt)
+        if (holdoff > 0L) { mainHandler.postDelayed({ startVoiceInput() }, holdoff); return }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
             return
@@ -1823,7 +1831,10 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     if (::micIndicator.isInitialized && voiceLoopEnabled && !voiceMuted) micIndicator.text = message
                     val level = Regex("MIC LEVEL (\\d+)%").find(message)?.groupValues?.getOrNull(1)?.toFloatOrNull()
-                    if (level != null) liveVoiceOrb?.setAudioLevel(level / 100f)
+                    if (level != null) {
+                        liveVoiceOrb?.setAudioLevel(level / 100f)
+                        if (::micLevelMeter.isInitialized) micLevelMeter.progress = level.toInt().coerceIn(0, 100)
+                    }
                 }
             }
         ).also { it.start() }
@@ -1957,6 +1968,7 @@ class MainActivity : Activity() {
         setLiveStatus("speaking")
         voiceTtsProvider?.speak(sentence, {
             runOnUiThread {
+                lastTtsFinishedAt = System.currentTimeMillis()
                 liveSentenceTtsPlaying = false
                 liveReplySpeaking = false
                 pumpLiveSentenceTts()
