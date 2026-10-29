@@ -29,6 +29,10 @@ class OrbSurfaceView(context: Context) : GLSurfaceView(context) {
         orbRenderer.liteMode = enabled
     }
 
+    fun setAudioLevel(level: Float) {
+        orbRenderer.audioLevel = level.coerceIn(0f, 1f)
+    }
+
     override fun onPause() {
         super.onPause()
     }

@@ -16,6 +16,7 @@ class OrbRenderer : GLSurfaceView.Renderer {
     @Volatile var mode: Int = 0
     @Volatile var reduceMotion: Boolean = false
     @Volatile var liteMode: Boolean = false
+    @Volatile var audioLevel: Float = 0f
 
     private val particleCount = 3000
     private val positions = FloatArray(particleCount * 3)
@@ -125,7 +126,7 @@ class OrbRenderer : GLSurfaceView.Renderer {
 
         GLES20.glUseProgram(program)
         GLES20.glUniformMatrix4fv(matrixHandle, 1, false, vp, 0)
-        GLES20.glUniform1f(pointSizeHandle, if (liteMode) 3.5f else 5.5f)
+        GLES20.glUniform1f(pointSizeHandle, (if (liteMode) 3.5f else 5.5f) + audioLevel.coerceIn(0f, 1f) * 5f)
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glEnableVertexAttribArray(colorHandle)
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, positionBuffer)

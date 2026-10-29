@@ -129,7 +129,10 @@ class MainActivity : Activity() {
     private var silenceSubmitRunnable: Runnable? = null
     private var silenceSubmissionHandled = false
     private var voiceDialog: AlertDialog? = null
-    private var liveStatusDot: TextView? = null
+    private var liveVoiceOrb: OrbSurfaceView? = null
+    private var liveStateLabel: TextView? = null
+    private var liveCaptionView: TextView? = null
+    private var liveCaptionsEnabled = false
     private lateinit var voiceTranscript: TextView
     private lateinit var voiceStateMachine: VoiceStateMachine
     private var voiceTtsProvider: TtsProvider? = null
@@ -1240,7 +1243,7 @@ class MainActivity : Activity() {
                 item.state = "done"; item.reply = reply
                 persistChatMessages(); renderChatMessages()
                 status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
-                if (voiceRepliesEnabled) speakReply(reply)
+                if (voiceRepliesEnabled && !voiceLoopEnabled) speakReply(reply)
             }) return
         status.text = "VYOM  •  QUEUED"
         scheduleChatMessage(item)
@@ -1260,7 +1263,7 @@ class MainActivity : Activity() {
                     item.state = "done"
                     item.reply = reply
                     persistChatMessages()
-                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = ""; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled) speakReply(reply)
+                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = ""; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled && !voiceLoopEnabled) speakReply(reply)
                     status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
                     renderChatMessages()
                 }
@@ -1610,34 +1613,77 @@ class MainActivity : Activity() {
 
     private fun showVoiceMode() {
         if (voiceUiSounds == null) voiceUiSounds = VoiceUiSounds(this)
+        liveCaptionsEnabled = settingsPrefs.getBoolean("live_captions", false)
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setPadding(dp(16), dp(12), dp(16), dp(18))
             setBackgroundColor(Color.TRANSPARENT)
         }
-        panel.addView(TextView(this).apply {
-            text = "◉"
-            textSize = 72f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(0, 210, 255))
-            contentDescription = "Vyom voice orb"
-        }, LinearLayout.LayoutParams(-1, dp(150)))
-        val statusDot = TextView(this).apply {
-            text = "●"
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(80, 220, 120))
-            contentDescription = "Voice status: listening"
+        val topBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL }
+        topBar.addView(Button(this).apply {
+            text = if (liveCaptionsEnabled) "CAPTIONS ON" else "CAPTIONS OFF"
+            contentDescription = "Toggle live captions"
+            setOnClickListener {
+                liveCaptionsEnabled = !liveCaptionsEnabled
+                settingsPrefs.edit().putBoolean("live_captions", liveCaptionsEnabled).apply()
+                text = if (liveCaptionsEnabled) "CAPTIONS ON" else "CAPTIONS OFF"
+                liveCaptionView?.visibility = if (liveCaptionsEnabled) View.VISIBLE else View.GONE
+            }
+        }, LinearLayout.LayoutParams(dp(128), dp(42)))
+        topBar.addView(Button(this).apply {
+            text = "⋮"
+            contentDescription = "Live voice menu"
+            setOnClickListener {
+                AlertDialog.Builder(this@MainActivity).setTitle("Live voice")
+                    .setItems(arrayOf("Voice settings", "Diagnostics", "End live session")) { _, which ->
+                        when (which) {
+                            0 -> showTab(false, true)
+                            1 -> AlertDialog.Builder(this@MainActivity).setTitle("Voice diagnostics")
+                                .setMessage("Stage timing collection is not wired yet. See the final implementation report for blocked diagnostics.")
+                                .setPositiveButton("OK", null).show()
+                            2 -> endLiveVoiceSession()
+                        }
+                    }.setNegativeButton("Close", null).show()
+            }
+        }, LinearLayout.LayoutParams(dp(48), dp(42)))
+        panel.addView(topBar, LinearLayout.LayoutParams(-1, dp(48)))
+
+        val voiceOrb = OrbSurfaceView(this).apply {
+            setZOrderMediaOverlay(false)
+            setBackgroundColor(Color.TRANSPARENT)
+            setOrbMode(orbMode)
+            setLiteMode(liteMode)
+            setReduceMotion(reduceMotion)
+            contentDescription = "Live voice orb reacts to microphone level"
         }
-        liveStatusDot = statusDot
-        panel.addView(statusDot, LinearLayout.LayoutParams(-1, dp(24)))
-        val muteButton = Button(this).apply {
-            text = if (voiceMuted) "🔇" else "🔊"
+        liveVoiceOrb = voiceOrb
+        panel.addView(voiceOrb, LinearLayout.LayoutParams(-1, dp(250)))
+        liveStateLabel = TextView(this).apply {
+            text = if (voiceMuted) "MUTED" else if (liveGenerationActive) "THINKING" else "LISTENING"
+            textSize = 18f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            gravity = Gravity.CENTER
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            contentDescription = "Live voice state"
+        }
+        panel.addView(liveStateLabel, LinearLayout.LayoutParams(-1, dp(38)))
+        liveCaptionView = TextView(this).apply {
+            text = ""
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            visibility = if (liveCaptionsEnabled) View.VISIBLE else View.GONE
+        }
+        panel.addView(liveCaptionView, LinearLayout.LayoutParams(-1, dp(76)))
+        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        controls.addView(Button(this).apply {
+            text = if (voiceMuted) "UNMUTE" else "MUTE"
             contentDescription = if (voiceMuted) "Unmute microphone" else "Mute microphone"
             setOnClickListener {
                 voiceMuted = !voiceMuted
-                text = if (voiceMuted) "🔇" else "🔊"
+                text = if (voiceMuted) "UNMUTE" else "MUTE"
                 contentDescription = if (voiceMuted) "Unmute microphone" else "Mute microphone"
                 if (voiceMuted) {
                     stopVoiceInput(cancel = true)
@@ -1652,36 +1698,47 @@ class MainActivity : Activity() {
                     liveSentenceTtsPlaying = false
                     liveSentenceQueue.clear()
                     setLiveStatus("muted")
-                    statusDot.setTextColor(Color.GRAY)
-                    statusDot.contentDescription = "Voice status: muted"
                 } else if (voiceLoopEnabled) {
                     voiceUiSounds?.playUnmuted()
                     setLiveStatus("listening")
-                    statusDot.setTextColor(Color.rgb(80, 220, 120))
-                    statusDot.contentDescription = "Voice status: listening"
                     startVoiceInput()
-                } else {
-                    voiceUiSounds?.playUnmuted()
-                }
+                } else voiceUiSounds?.playUnmuted()
             }
-        }
-        panel.addView(muteButton, LinearLayout.LayoutParams(dp(72), dp(48)))
+        }, LinearLayout.LayoutParams(0, dp(54), 1f))
+        controls.addView(Button(this).apply {
+            text = "END"
+            contentDescription = "End live voice session"
+            setOnClickListener { endLiveVoiceSession() }
+        }, LinearLayout.LayoutParams(0, dp(54), 1f))
+        panel.addView(controls, LinearLayout.LayoutParams(-1, dp(62)))
         voiceDialog = AlertDialog.Builder(this).setView(panel).setOnCancelListener {
-            if (voiceLoopEnabled) {
-                voiceLoopEnabled = false
-                voiceStateMachine.stop()
-                voiceTtsProvider?.stop()
-                stopVoiceInput(cancel = true)
-                stopVoiceForegroundService()
-            }
+            endLiveVoiceSession(dismiss = false)
         }.create()
         voiceDialog?.setOnShowListener {
             voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
             voiceDialog?.window?.setLayout(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
+            voiceOrb.onResume()
+        }
+        voiceDialog?.setOnDismissListener {
+            voiceOrb.onPause()
+            liveVoiceOrb = null
+            liveStateLabel = null
+            liveCaptionView = null
         }
         voiceDialog?.show()
         voiceDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
         voiceDialog?.window?.setLayout(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
+    }
+
+    private fun endLiveVoiceSession(dismiss: Boolean = true) {
+        voiceLoopEnabled = false
+        voiceStateMachine.stop()
+        voiceTtsProvider?.stop()
+        nemotronLiveClient?.cancel()
+        stopVoiceInput(cancel = true)
+        stopVoiceForegroundService()
+        if (dismiss) voiceDialog?.dismiss()
+        setLiveStatus("idle")
     }
 
     private fun startVoiceInput() {
@@ -1700,6 +1757,7 @@ class MainActivity : Activity() {
             languageCode = secureVoicePrefs().getString("stt_language_code", "").orEmpty(),
             onPartial = { partial ->
                 runOnUiThread {
+                    if (liveCaptionsEnabled) liveCaptionView?.text = partial
                     if (voiceLoopEnabled && !voiceMuted && partial.isNotBlank()) {
                         if (liveLaneEnabled && (liveGenerationActive || liveReplySpeaking)) {
                             liveGenerationActive = false
@@ -1716,6 +1774,7 @@ class MainActivity : Activity() {
             },
             onCommitted = { recognized ->
                 runOnUiThread {
+                    if (liveCaptionsEnabled) liveCaptionView?.text = recognized
                     if (voiceLoopEnabled && !voiceMuted && recognized.isNotBlank()) {
                         if (liveLaneEnabled) {
                             val item = ChatMessage(UUID.randomUUID().toString(), recognized, "running")
@@ -1761,6 +1820,8 @@ class MainActivity : Activity() {
             onStatus = { message ->
                 runOnUiThread {
                     if (::micIndicator.isInitialized && voiceLoopEnabled && !voiceMuted) micIndicator.text = message
+                    val level = Regex("MIC LEVEL (\\d+)%").find(message)?.groupValues?.getOrNull(1)?.toFloatOrNull()
+                    if (level != null) liveVoiceOrb?.setAudioLevel(level / 100f)
                 }
             }
         ).also { it.start() }
@@ -1908,14 +1969,21 @@ class MainActivity : Activity() {
     }
 
     private fun setLiveStatus(state: String) {
-        val dot = liveStatusDot ?: return
-        dot.setTextColor(when (state) {
+        val color = when (state) {
             "thinking" -> Color.rgb(255, 190, 60)
             "speaking" -> Color.rgb(80, 150, 255)
             "muted" -> Color.GRAY
-            else -> Color.rgb(80, 220, 120)
+            else -> VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+        }
+        liveStateLabel?.text = state.uppercase()
+        liveStateLabel?.setTextColor(color)
+        liveStateLabel?.contentDescription = "Live voice state: $state"
+        liveVoiceOrb?.setOrbMode(when (state) {
+            "thinking" -> 1
+            "speaking" -> 2
+            "muted" -> 3
+            else -> orbMode
         })
-        dot.contentDescription = "Voice status: $state"
     }
 
     private fun startVoiceForegroundService() {
