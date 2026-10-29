@@ -196,13 +196,18 @@ class MainActivity : Activity() {
         liteMode = settingsPrefs.getBoolean("lite_mode", false)
         voiceRepliesEnabled = settingsPrefs.getBoolean("voice_replies", false)
         hinglishPersona = settingsPrefs.getBoolean("hinglish_persona", true)
-        window.statusBarColor = Color.BLACK
-        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = VyomTheme.BACKGROUND
+        window.navigationBarColor = VyomTheme.BACKGROUND
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         val root = FrameLayout(this).apply {
             setBackgroundColor(VyomTheme.BACKGROUND)
             fitsSystemWindows = true
+            foreground = android.graphics.drawable.GradientDrawable().apply {
+                gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
+                gradientRadius = dp(520).toFloat()
+                colors = intArrayOf(0x2222D3EE, VyomTheme.BACKGROUND, VyomTheme.BACKGROUND)
+            }
         }
         orb = OrbSurfaceView(this).apply {
             isClickable = false
@@ -215,14 +220,14 @@ class MainActivity : Activity() {
             text = "VYOM  •  CONNECTING"
             textSize = 9f
             letterSpacing = 0.20f
-            setTextColor(Color.rgb(0, 190, 255))
+            setTextColor(VyomTheme.ACCENT_CYAN)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
         }
         buildInfo = TextView(this).apply {
             text = "Vyom v${BuildConfig.VERSION_NAME} • ${BuildConfig.GIT_COMMIT_SHORT}"
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             gravity = Gravity.CENTER
         }
         val panel = LinearLayout(this).apply {
@@ -230,9 +235,9 @@ class MainActivity : Activity() {
             setPadding(dp(14), dp(8), dp(14), dp(12))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.argb(238, 11, 15, 26))
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(1), Color.argb(150, 0, 190, 255))
+                setColor(0xE6101A2E.toInt())
+                cornerRadius = dp(VyomTheme.RADIUS_LARGE_DP).toFloat()
+                setStroke(dp(1), Color.argb(125, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
             }
             elevation = dp(8).toFloat()
         }
@@ -241,9 +246,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.argb(224, 16, 25, 43))
-                cornerRadius = dp(28).toFloat()
-                setStroke(dp(1), VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+                setColor(0xD90F1A2E.toInt())
+                cornerRadius = dp(34).toFloat()
+                setStroke(dp(1), Color.argb(115, Color.red(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")), Color.green(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")), Color.blue(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))))
             }
             setPadding(dp(5), dp(3), dp(5), dp(3))
         }
@@ -775,6 +780,7 @@ class MainActivity : Activity() {
         })
         root.addView(panel, FrameLayout.LayoutParams(-1, dp(440), Gravity.BOTTOM))
         setContentView(root)
+        applyDesignSystem(root)
         textToSpeech = TextToSpeech(this) { result ->
             if (result == TextToSpeech.SUCCESS) {
                 textToSpeech?.language = Locale("en", "IN")
@@ -842,9 +848,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.rgb(18, 29, 47))
-                cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), Color.argb(150, 56, 189, 248))
+                setColor(0xC7101A2E.toInt())
+                cornerRadius = dp(VyomTheme.RADIUS_CHAT_DP).toFloat()
+                setStroke(dp(1), Color.argb(140, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
             }
             setPadding(dp(10), dp(2), dp(4), dp(2))
         }
@@ -895,9 +901,9 @@ class MainActivity : Activity() {
                 setPadding(dp(9), dp(8), dp(9), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(Color.rgb(19, 34, 54))
-                    cornerRadius = dp(18).toFloat()
-                    setStroke(dp(1), Color.rgb(42, 66, 94))
+                    setColor(0xB80F1A2E.toInt())
+                    cornerRadius = dp(999).toFloat()
+                    setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
                 }
                 setOnClickListener {
                     askInput.setText(when (label) {
@@ -934,9 +940,9 @@ class MainActivity : Activity() {
                 setPadding(dp(10), dp(8), dp(8), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(Color.rgb(15, 25, 42))
-                    cornerRadius = dp(12).toFloat()
-                    setStroke(dp(1), Color.rgb(35, 54, 78))
+                    setColor(0xC7182846.toInt())
+                    cornerRadius = dp(VyomTheme.RADIUS_SMALL_DP).toFloat()
+                    setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
                 }
                 isClickable = true
                 isFocusable = true
@@ -1516,12 +1522,36 @@ class MainActivity : Activity() {
         status.text = "VYOM  •  THEME UPDATED"
     }
 
+    private fun applyDesignSystem(view: View) {
+        if (view is Button) {
+            val label = view.text?.toString()?.trim()?.uppercase().orEmpty()
+            val theme = settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"
+            val variant = when {
+                label.contains("STOP CONTROL") || label == "END" || label.contains("DELETE") -> "danger"
+                label.contains("CONNECT VYOM") || label == "SEND" || label.contains("CREATE TASK") || label.contains("START LIVE") -> "primary"
+                else -> "secondary"
+            }
+            VyomTheme.stylePill(view, this, theme, variant)
+        }
+        if (view is EditText) {
+            view.setTextColor(VyomTheme.TEXT_PRIMARY)
+            view.setHintTextColor(VyomTheme.TEXT_SECONDARY)
+            view.background = VyomTheme.glass(this, VyomTheme.RADIUS_SMALL_DP,
+                VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            view.setPadding(dp(12), view.paddingTop.coerceAtLeast(dp(8)), dp(12), view.paddingBottom.coerceAtLeast(dp(8)))
+        }
+        if (view is android.view.ViewGroup) {
+            for (index in 0 until view.childCount) applyDesignSystem(view.getChildAt(index))
+        }
+    }
+
     private fun applyThemeAccent() {
         val accent = VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
         if (::status.isInitialized) status.setTextColor(accent)
+        if (::mainPanel.isInitialized) applyDesignSystem(mainPanel)
         (mainPanel?.background as? GradientDrawable)?.setStroke(dp(1), Color.argb(180, Color.red(accent), Color.green(accent), Color.blue(accent)))
         (dockBar?.background as? GradientDrawable)?.setStroke(dp(1), accent)
-        if (::chatTab.isInitialized) listOf(chatTab, tasksTab, settingsTab).forEach { it.setTextColor(accent) }
+        if (::chatTab.isInitialized) listOf(chatTab, tasksTab, settingsTab, filesTab, controlTab).forEach { it.setTextColor(accent) }
         orbitHomeView?.setAccentColor(accent)
     }
 

@@ -128,3 +128,11 @@ This section supersedes older "current status" notes above where they conflict. 
 - Code/CI: only the exact latest green commit and its artifact count. Check the final GitHub Actions run for both `testDebugUnitTest` and `assembleDebug`, secret scan, packaging, and artifact upload.
 - Phone test: NOT RUN. The owner must test installation, pairing/chat, scroll/history, memory, captions/mute/end, mic behavior, Accessibility opt-in, safety denials, and update/rollback. Do not call this app ready before phone tests pass.
 - Debug artifact: unsigned. It is not evidence of signing-certificate continuity and may not install as an update over an existing signed app.
+
+
+## 2026-10-29 — Supplied Design System v2 integration
+- Source reference: user-provided `Vyom — Design System v2 + screens.html`. Its design-system page specifies #070B14 background, #0F1A2E glass panels, #E6F1FF primary text, #8FA3BF secondary text, cyan/violet/amber/green/danger semantic accents, 18px glass panels, pill controls, and an accent-following orbit.
+- Implemented in `VyomTheme.kt`: shared v2 palette, glass/panel backgrounds, radii/spacing/type tokens, gradient primary pills, outlined secondary pills and danger pills.
+- Updated home background/panel/dock, prompt field, suggestion chips, quick-access cards, app status/navigation accents, native buttons and text fields to follow the shared tokens.
+- Updated `OrbRenderer.kt` to use the reference's exact semantic listening/executing/reasoning/done colors. Orb surface remains transparent.
+- This is source-level design integration only. CI for the resulting commit and phone rendering are separate required checks; do not claim pixel-perfect parity or phone validation without evidence.

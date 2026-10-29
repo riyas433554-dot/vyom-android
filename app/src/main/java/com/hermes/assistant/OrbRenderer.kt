@@ -85,9 +85,9 @@ class OrbRenderer : GLSurfaceView.Renderer {
             positions[index + 2] = z
 
             val ci = i * 4
-            colors[ci] = 0.25f
-            colors[ci + 1] = 0.72f
-            colors[ci + 2] = 1f
+            colors[ci] = 0.13f
+            colors[ci + 1] = 0.83f
+            colors[ci + 2] = 0.93f
             colors[ci + 3] = 0.85f
         }
     }
@@ -107,10 +107,10 @@ class OrbRenderer : GLSurfaceView.Renderer {
         Matrix.multiplyMM(vp, 0, projection, 0, view, 0)
 
         val rgb = when (mode) {
-            1 -> floatArrayOf(1f, 0.58f, 0.16f)
-            2 -> floatArrayOf(0.55f, 0.35f, 1f)
-            3 -> floatArrayOf(0.28f, 1f, 0.58f)
-            else -> floatArrayOf(0.25f, 0.72f, 1f)
+            1 -> floatArrayOf(0.984f, 0.749f, 0.141f) // executing: #FBBF24
+            2 -> floatArrayOf(0.545f, 0.361f, 0.965f) // reasoning: #8B5CF6
+            3 -> floatArrayOf(0.204f, 0.827f, 0.6f) // done: #34D399
+            else -> floatArrayOf(0.133f, 0.827f, 0.933f) // listening: #22D3EE
         }
         for (i in 0 until particleCount) {
             val ci = i * 4
