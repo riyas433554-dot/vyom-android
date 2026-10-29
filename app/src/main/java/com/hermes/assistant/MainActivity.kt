@@ -953,16 +953,66 @@ class MainActivity : Activity() {
     private fun showProfileMenu() {
         AlertDialog.Builder(this)
             .setTitle("Profile")
-            .setItems(arrayOf("Settings", "Files", "Control", "Skills")) { _, which ->
+            .setItems(arrayOf("Settings", "Files", "Control", "Skills", "Fix suggestions")) { _, which ->
                 when (which) {
                     0 -> showTab(false, true)
                     1 -> showTab(false, false, true)
                     2 -> showTab(false, false, false, true)
-                    3 -> AlertDialog.Builder(this).setTitle("Skills").setMessage("Skills registry is planned for Phase 7.").setPositiveButton("OK", null).show()
+                    3 -> showSkillsRegistry()
+                    4 -> showFixSuggestions()
                 }
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    private fun showSkillsRegistry() {
+        val ids = arrayOf("open_app", "volume", "torch", "settings")
+        val labels = arrayOf("Open apps", "Media volume", "Torch", "System settings panels")
+        val prefs = getSharedPreferences("vyom_skill_registry", MODE_PRIVATE)
+        val checked = BooleanArray(ids.size) { i -> prefs.getBoolean(ids[i], true) }
+        AlertDialog.Builder(this)
+            .setTitle("Skills • On this device")
+            .setMultiChoiceItems(labels, checked) { _, which, enabled ->
+                prefs.edit().putBoolean(ids[which], enabled).apply()
+                logControlAction("Skill: " + labels[which], if (enabled) "enabled" else "disabled", "profile")
+            }
+            .setPositiveButton("Done", null)
+            .setNeutralButton("Teach Vyom") { _, _ -> showTeachCommandDialog("new taught command", "profile") { message ->
+                AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show()
+            } }
+            .show()
+    }
+
+    private fun showFixSuggestions() {
+        val rows = try { JSONArray(controlPrefs.getString("events", "[]")) } catch (_: Exception) { JSONArray() }
+        val suggestions = ArrayList<String>()
+        for (i in 0 until rows.length()) {
+            val row = rows.optJSONObject(i) ?: continue
+            val result = row.optString("result")
+            if (result.contains("unrecognized", true) || result.contains("couldn't map", true) ||
+                result.contains("no matching", true) || result.contains("could not", true) ||
+                result.contains("error", true) || result.contains("failed", true)) {
+                suggestions.add("• " + row.optString("action") + " — " + result)
+            }
+        }
+        val message = if (suggestions.isEmpty()) "No failed command mappings recorded yet. Unknown commands will appear here when logged." else suggestions.take(12).joinToString("\n")
+        AlertDialog.Builder(this).setTitle("Fix suggestions • proposals only")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun isSkillEnabled(action: ActionEngine.Intent): Boolean {
+        val id = when (action.operation) {
+            ActionEngine.Operation.OPEN_APP -> "open_app"
+            ActionEngine.Operation.VOLUME_DELTA, ActionEngine.Operation.VOLUME_SET,
+            ActionEngine.Operation.VOLUME_MUTE, ActionEngine.Operation.VOLUME_UNMUTE -> "volume"
+            ActionEngine.Operation.TORCH -> "torch"
+            ActionEngine.Operation.OPEN_SETTINGS -> "settings"
+            else -> return true
+        }
+        return getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean(id, true)
     }
 
     private fun showTab(showTasks: Boolean, showSettings: Boolean = false, showFiles: Boolean = false, showControl: Boolean = false) {
@@ -2646,6 +2696,11 @@ class MainActivity : Activity() {
     }
 
     private fun executeClassifiedDeviceAction(action: ActionEngine.Intent, source: String, onResult: (String) -> Unit) {
+        if (!isSkillEnabled(action)) {
+            logControlAction(action.name, "blocked-skill-disabled", source)
+            onResult("Ye skill Profile > Skills mein disabled hai. Pehle enable karo.")
+            return
+        }
         if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
             logControlAction(action.name, "blocked-by-kill-switch", source); onResult("STOP CONTROL is ON. Device action blocked."); return
         }
