@@ -991,7 +991,7 @@ class MainActivity : Activity() {
     private fun showProfileMenu() {
         AlertDialog.Builder(this)
             .setTitle("Profile")
-            .setItems(arrayOf("Settings", "Files", "Control", "Skills", "Fix suggestions", "Memory")) { _, which ->
+            .setItems(arrayOf("Settings", "Files", "Control", "Skills", "Fix suggestions", "Memory", "Diagnostics")) { _, which ->
                 when (which) {
                     0 -> showTab(false, true)
                     1 -> showTab(false, false, true)
@@ -999,10 +999,27 @@ class MainActivity : Activity() {
                     3 -> showSkillsRegistry()
                     4 -> showFixSuggestions()
                     5 -> showMemoryManager()
+                    6 -> showVoiceDiagnostics()
                 }
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    private fun showVoiceDiagnostics() {
+        val sttConfigured = secureVoicePrefs().getString("elevenlabs_api_key", "").orEmpty().isNotBlank()
+        val ttsConfigured = secureVoicePrefs().getString("elevenlabs_api_key", "").orEmpty().isNotBlank() &&
+            secureVoicePrefs().getString("elevenlabs_voice_id", "").orEmpty().isNotBlank()
+        val details = listOf(
+            "Mic: 16 kHz mono; 300 ms pre-roll; 600 ms startup noise calibration",
+            "Adaptive VAD; AEC, noise suppression, and AGC enabled when supported by Android",
+            "STT: " + if (sttConfigured) "ElevenLabs realtime, with Vosk offline fallback" else "Vosk offline (no ElevenLabs STT key saved)",
+            "TTS: " + if (ttsConfigured) "ElevenLabs sentence chunks, Android TTS fallback" else "Android TTS fallback",
+            "Stage timing samples: not yet verified on a device",
+            "Target total latency under 1.5 s is not verified."
+        ).joinToString("\\n\\n")
+        AlertDialog.Builder(this).setTitle("Profile • Voice diagnostics").setMessage(details)
+            .setPositiveButton("OK", null).show()
     }
 
     private fun showMemoryManager() {
@@ -1108,6 +1125,11 @@ class MainActivity : Activity() {
         homePanel.visibility = View.GONE
         orbitHomeView?.visibility = View.GONE
         chatPanel.visibility = if (anyOtherPanel) View.GONE else View.VISIBLE
+        if (!anyOtherPanel) transcriptScroll.post {
+            transcriptScroll.fullScroll(View.FOCUS_DOWN)
+            chatWasAtBottom = true
+            jumpToLatestButton.visibility = View.GONE
+        }
         tasksPanel.visibility = if (showTasks) View.VISIBLE else View.GONE
         settingsPanel.visibility = if (showSettings) View.VISIBLE else View.GONE
         filesPanel.visibility = if (showFiles) View.VISIBLE else View.GONE
@@ -1647,9 +1669,7 @@ class MainActivity : Activity() {
                     .setItems(arrayOf("Voice settings", "Diagnostics", "End live session")) { _, which ->
                         when (which) {
                             0 -> showTab(false, true)
-                            1 -> AlertDialog.Builder(this@MainActivity).setTitle("Voice diagnostics")
-                                .setMessage("Stage timing collection is not wired yet. See the final implementation report for blocked diagnostics.")
-                                .setPositiveButton("OK", null).show()
+                            1 -> showVoiceDiagnostics()
                             2 -> endLiveVoiceSession()
                         }
                     }.setNegativeButton("Close", null).show()
