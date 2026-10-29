@@ -201,13 +201,12 @@ class MainActivity : Activity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         val root = FrameLayout(this).apply {
-            setBackgroundColor(VyomTheme.BACKGROUND)
-            fitsSystemWindows = true
-            foreground = android.graphics.drawable.GradientDrawable().apply {
-                gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
-                gradientRadius = dp(520).toFloat()
-                colors = intArrayOf(0x2222D3EE, VyomTheme.BACKGROUND, VyomTheme.BACKGROUND)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setGradientType(android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT)
+                setGradientRadius(dp(520).toFloat())
+                setColors(intArrayOf(0x2222D3EE, VyomTheme.BACKGROUND, VyomTheme.BACKGROUND))
             }
+            fitsSystemWindows = true
         }
         orb = OrbSurfaceView(this).apply {
             isClickable = false
@@ -1536,9 +1535,11 @@ class MainActivity : Activity() {
         if (view is EditText) {
             view.setTextColor(VyomTheme.TEXT_PRIMARY)
             view.setHintTextColor(VyomTheme.TEXT_SECONDARY)
-            view.background = VyomTheme.glass(this, VyomTheme.RADIUS_SMALL_DP,
-                VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
-            view.setPadding(dp(12), view.paddingTop.coerceAtLeast(dp(8)), dp(12), view.paddingBottom.coerceAtLeast(dp(8)))
+            if (view.background != null) {
+                view.background = VyomTheme.glass(this, VyomTheme.RADIUS_SMALL_DP,
+                    VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+                view.setPadding(dp(12), view.paddingTop.coerceAtLeast(dp(8)), dp(12), view.paddingBottom.coerceAtLeast(dp(8)))
+            }
         }
         if (view is android.view.ViewGroup) {
             for (index in 0 until view.childCount) applyDesignSystem(view.getChildAt(index))
