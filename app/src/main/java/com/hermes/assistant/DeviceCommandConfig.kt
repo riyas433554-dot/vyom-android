@@ -5,6 +5,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /** Command vocabulary comes from bundled JSON; authorization and safety remain compiled into ActionEngine. */
 object DeviceCommandConfig {
@@ -80,8 +82,12 @@ object DeviceCommandConfig {
         learned.put(key,canonical)
         val temp=File(context.filesDir,"device_commands.json.tmp")
         temp.writeText(root.toString(2))
-        if(file.exists() && !file.delete()) { temp.delete(); throw IllegalStateException("Could not replace local command config") }
-        if(!temp.renameTo(file)) { temp.delete(); throw IllegalStateException("Could not save local command config") }
+        try {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } catch (_: Exception) {
+            temp.delete()
+            throw IllegalStateException("Could not safely save local command config")
+        }
     }
     private fun phraseMatches(input:String,phrase:String):Boolean {
         if(input==phrase||input.contains(" $phrase ")||input.startsWith("$phrase ")||input.endsWith(" $phrase"))return true
