@@ -1505,7 +1505,7 @@ class MainActivity : Activity() {
         } else {
             "Reply in clear English. Keep code and technical identifiers unchanged."
         }
-        val history = chatMessages.asSequence()
+        val history = chatMessages
             .filterNot { it.text == message && it.createdAt >= System.currentTimeMillis() - 15_000L }
             .takeLast(20)
             .joinToString("\n") { item ->

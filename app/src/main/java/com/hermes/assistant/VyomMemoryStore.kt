@@ -48,7 +48,7 @@ internal class VyomMemoryStore(context: Context) {
     fun replaceFacts(text: String) {
         val safe = text.lineSequence().map(String::trim).filter(String::isNotBlank)
             .filterNot(::isSensitive).map { it.take(140) }.distinctBy { it.lowercase() }
-            .takeLast(MAX_FACTS).toList()
+            .toList().takeLast(MAX_FACTS)
         write(safe)
     }
 
