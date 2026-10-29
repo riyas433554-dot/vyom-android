@@ -168,7 +168,7 @@ internal class LiveSttCapture(
             val buffer = ShortArray(1600) // 100 ms PCM frames
             while (running && audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                 val count = audio.read(buffer, 0, buffer.size)
-                if (count <= 0 || (!socketReady && !offlineReady)) continue
+                if (count <= 0) continue
                 var energy = 0.0
                 for (i in 0 until count) energy += buffer[i].toDouble() * buffer[i].toDouble()
                 val rms = sqrt(energy / count)
