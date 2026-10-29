@@ -59,6 +59,13 @@ class MainActivity : Activity() {
     private lateinit var transcript: TextView
     private lateinit var chatMessageList: LinearLayout
     private lateinit var transcriptScroll: ScrollView
+    private lateinit var loadOlderMessagesButton: Button
+    private lateinit var jumpToLatestButton: Button
+    private var renderedMessageCount = 50
+    private var loadingOlderMessages = false
+    private var preserveOlderScroll = false
+    private var chatWasAtBottom = true
+    private lateinit var memoryStore: VyomMemoryStore
     private lateinit var taskInput: EditText
     private lateinit var taskList: LinearLayout
     private lateinit var taskScroll: ScrollView
@@ -175,6 +182,7 @@ class MainActivity : Activity() {
         else @Suppress("DEPRECATION") registerReceiver(voiceStopReceiver, voiceStopFilter)
         voiceStopReceiverRegistered = true
         api = VyomApiClient(applicationContext)
+        memoryStore = VyomMemoryStore(applicationContext)
         controlKillSwitch = controlPrefs.getBoolean("kill_switch", false)
         voiceStateMachine = VoiceStateMachine()
         orbMode = settingsPrefs.getInt("orb_mode", 0).coerceIn(0, 3)
@@ -310,6 +318,25 @@ class MainActivity : Activity() {
             isEnabled = false
             setOnClickListener { sendMessage() }
         }
+        loadOlderMessagesButton = Button(this).apply {
+            text = "LOAD OLDER MESSAGES"
+            visibility = View.GONE
+            setOnClickListener { loadOlderChatMessages() }
+        }
+        jumpToLatestButton = Button(this).apply {
+            text = "↓ JUMP TO LATEST"
+            visibility = View.GONE
+            setOnClickListener { transcriptScroll.post { transcriptScroll.fullScroll(View.FOCUS_DOWN) } }
+        }
+        transcriptScroll.setOnScrollChangeListener { _, scrollY, _, _, _ ->
+            val child = transcriptScroll.getChildAt(0)
+            val atBottom = child == null || scrollY + transcriptScroll.height >= child.height - dp(32)
+            chatWasAtBottom = atBottom
+            jumpToLatestButton.visibility = if (atBottom) View.GONE else View.VISIBLE
+            if (scrollY <= dp(24) && !loadingOlderMessages && chatMessages.size > renderedMessageCount) loadOlderChatMessages()
+        }
+        chatPanel.addView(loadOlderMessagesButton, LinearLayout.LayoutParams(-1, dp(38)))
+        chatPanel.addView(jumpToLatestButton, LinearLayout.LayoutParams(-1, dp(38)))
         chatPanel.addView(transcriptScroll, LinearLayout.LayoutParams(-1, 0, 1f))
         chatPanel.addView(chatInput, LinearLayout.LayoutParams(-1, -2))
         chatPanel.addView(sendButton, LinearLayout.LayoutParams(-1, dp(44)))
@@ -953,17 +980,65 @@ class MainActivity : Activity() {
     private fun showProfileMenu() {
         AlertDialog.Builder(this)
             .setTitle("Profile")
-            .setItems(arrayOf("Settings", "Files", "Control", "Skills", "Fix suggestions")) { _, which ->
+            .setItems(arrayOf("Settings", "Files", "Control", "Skills", "Fix suggestions", "Memory")) { _, which ->
                 when (which) {
                     0 -> showTab(false, true)
                     1 -> showTab(false, false, true)
                     2 -> showTab(false, false, false, true)
                     3 -> showSkillsRegistry()
                     4 -> showFixSuggestions()
+                    5 -> showMemoryManager()
                 }
             }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    private fun showMemoryManager() {
+        val enabled = memoryStore.isEnabled()
+        val editor = EditText(this).apply {
+            setText(memoryStore.facts().joinToString("\n"))
+            hint = "One safe fact per line (name, preferences)"
+            minLines = 5; maxLines = 12
+            gravity = Gravity.TOP or Gravity.START
+            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+            addView(TextView(this@MainActivity).apply {
+                text = "Encrypted on this device. Passwords, OTPs, payment-card data, API keys, and tokens are never saved."
+                textSize = 12f; setTextColor(Color.LTGRAY)
+            })
+            addView(editor, LinearLayout.LayoutParams(-1, dp(180)))
+        }
+        AlertDialog.Builder(this).setTitle("Profile • Memory").setView(wrap)
+            .setNeutralButton(if (enabled) "Turn OFF" else "Turn ON") { _, _ ->
+                memoryStore.setEnabled(!enabled); showMemoryManager()
+            }
+            .setPositiveButton("Save") { _, _ ->
+                memoryStore.replaceFacts(editor.text.toString())
+                logControlAction("Memory facts", "updated", "profile")
+            }
+            .setNegativeButton("Delete all") { _, _ ->
+                memoryStore.clearFacts()
+                logControlAction("Memory facts", "deleted", "profile")
+            }.show()
+    }
+
+    private fun loadOlderChatMessages() {
+        if (loadingOlderMessages || renderedMessageCount >= chatMessages.size) return
+        loadingOlderMessages = true
+        val oldHeight = chatMessageList.height
+        renderedMessageCount = minOf(chatMessages.size, renderedMessageCount + 50)
+        preserveOlderScroll = true
+        renderChatMessages()
+        transcriptScroll.post {
+            transcriptScroll.scrollTo(0, (chatMessageList.height - oldHeight).coerceAtLeast(0))
+            loadingOlderMessages = false
+            preserveOlderScroll = false
+        }
     }
 
     private fun showSkillsRegistry() {
@@ -1155,6 +1230,7 @@ class MainActivity : Activity() {
     private fun sendMessage() {
         val message = chatInput.text.toString().trim()
         if (message.isBlank() || !chatReady) return
+        memoryStore.learnFrom(message)
         chatInput.setText("")
         val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
         chatMessages.add(item)
@@ -1291,7 +1367,9 @@ class MainActivity : Activity() {
             })
             chatMessageList.addView(progressCard, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         }
-        chatMessages.forEach { item ->
+        val visibleMessages = chatMessages.takeLast(renderedMessageCount)
+        loadOlderMessagesButton.visibility = if (chatMessages.size > visibleMessages.size) View.VISIBLE else View.GONE
+        visibleMessages.forEach { item ->
             val time = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(item.createdAt))
             val userLabel = TextView(this).apply {
                 text = "YOU  ·  $time"
@@ -1346,7 +1424,13 @@ class MainActivity : Activity() {
                 chatMessageList.addView(replyBubble, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
             }
         }
-        transcriptScroll.post { transcriptScroll.fullScroll(View.FOCUS_DOWN) }
+        if (!preserveOlderScroll) {
+            val stickToBottom = chatWasAtBottom
+            transcriptScroll.post {
+                if (stickToBottom) transcriptScroll.fullScroll(View.FOCUS_DOWN)
+                else jumpToLatestButton.visibility = View.VISIBLE
+            }
+        }
     }
 
     private fun markdownToHtml(input: String): String {
@@ -1418,8 +1502,16 @@ class MainActivity : Activity() {
         } else {
             "Reply in clear English. Keep code and technical identifiers unchanged."
         }
-        val prompt = "$instruction\n\nUser message:\n$message"
-        return if (prompt.length <= 4000) prompt else message
+        val history = chatMessages.asSequence()
+            .filterNot { it.text == message && it.createdAt >= System.currentTimeMillis() - 15_000L }
+            .takeLast(20)
+            .joinToString("\n") { item ->
+                "User: ${item.text.take(900)}" + if (item.reply.isBlank()) "" else "\nVyom: ${item.reply.take(900)}"
+            }.takeLast(9000)
+        val facts = memoryStore.facts().take(30).joinToString("\n")
+        val memoryBlock = if (facts.isBlank()) "" else "\n\nOn-device memory facts (user-controlled):\n$facts"
+        val historyBlock = if (history.isBlank()) "" else "\n\nRecent conversation context (up to 20 messages):\n$history"
+        return "$instruction$memoryBlock$historyBlock\n\nCurrent user message:\n$message".take(14000)
     }
 
     private fun setHinglishPersona(enabled: Boolean) {
@@ -1735,6 +1827,8 @@ class MainActivity : Activity() {
             micIndicator.text = "LIVE MODEL MISSING"
             return
         }
+        memoryStore.learnFrom(prompt)
+        val livePrompt = personaPrompt(prompt)
         voiceTtsProvider?.stop()
         nemotronLiveClient?.cancel()
         val client = NemotronLiveClient(key, modelId)
@@ -1747,7 +1841,7 @@ class MainActivity : Activity() {
         val accumulated = StringBuilder()
         setLiveStatus("thinking")
         if (::micIndicator.isInitialized) micIndicator.text = ""
-        client.stream(prompt, { delta ->
+        client.stream(livePrompt, { delta ->
             runOnUiThread {
                 if (liveLaneEnabled && voiceLoopEnabled && nemotronLiveClient === client && !voiceMuted) {
                     accumulated.append(delta)
