@@ -101,3 +101,30 @@ Implement one Action Engine with voice, chat, and task entry points.
 - The current Skills implementation is local preferences-backed and the vocabulary source still includes an asset snapshot. Do not describe editable on-device vocabulary JSON as complete until it is implemented and tested.
 - Release signing workflow expects GitHub Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Secret presence and certificate continuity are not verified by source inspection alone. Never add the keystore or values to git.
 - Phone tests, installed-app update/rollback tests, signature continuity, and runtime checks remain pending until recorded against a build with green CI.
+
+## 2026-10-29 — Batch A–E implementation update
+
+This section supersedes older "current status" notes above where they conflict. Working branch only: `feature/u1-live-orbit-tasks`. No changes to `main`, Render/Hermes backend, or production DB were made. No keys or signing material were committed.
+
+### Implemented in source (CI and phone gates remain separate)
+- A1: Chat renders the latest 50 messages by default, jumps to the newest message on opening Chat, exposes a Jump to Latest control, and loads older messages when scrolling to the top.
+- A2: Recent conversation context (up to 20 messages) and safe extracted facts are embedded in chat and LIVE prompts. Profile > Memory supports view/edit/delete and enable/disable. Facts use AndroidX encrypted preferences; password, OTP, card, API-key, token, and private-key patterns are rejected from fact storage.
+- A3: Legacy live ring/dot/speaker controls were replaced by a large transparent orb, listening/thinking/speaking/muted state label, captions toggle (off by default), menu, Mute, and End. Orb particle size responds to measured microphone level. Task scroll containers allow content to expand without clipping. Shared theme tokens cover primary surfaces, text, spacing, and radii; this is a partial tokenization, not a full app-wide token migration.
+- A4 / Files: Saved task links and screenshot links are listed in Files and open through the existing HTTPS viewer flow. The saved-task loading method was renamed to reflect reconnecting to real saved tasks. The source scan should be repeated on the final head; historical roadmap references to Phase headings remain documentation, not UI placeholders.
+- B1: 16 kHz mono capture now buffers about 300 ms of pre-roll, performs about 600 ms startup noise calibration, uses an adaptive RMS threshold, and enables Android AEC, NoiseSuppressor, and AGC when supported. Profile shows a microphone level meter; a 300 ms post-TTS start hold-off is in place. Device-level audio behavior remains unverified.
+- B2 / B4: Live orb and caption controls are implemented. Chat voice replies are suppressed while the live voice loop owns audio; the live loop still speaks its own replies/acknowledgements.
+- C1: The opt-in Accessibility Service can describe the visible node tree with password fields redacted, click visible non-editable text targets, long-press, swipe, scroll, type only into a focused non-password field, perform Back/Home/Recents/Notifications global actions, and save a local screenshot on API 30+. Android secure-window screenshot refusal is respected. These methods are not yet connected to an autonomous task planner.
+- Model lane configuration: LIVE default remains `nvidia/nemotron-3.5-lightning-30b-a3b` with the existing 404 fallback `nemotron-3.5-bolt-e4b`; task planning is intended to use `nvidia/nemotron-3-ultra-550b-a55b`; chat remains Gemma via Hermes. No backend/model configuration was changed.
+
+### Explicitly blocked / incomplete
+- B3: Profile diagnostics currently reports capture configuration and honestly labels stage samples unverified. Persistent WebSocket reuse, a verified STT latency comparison, true first-audio streaming metrics, and a measured sub-1.5-second end-to-end result are not complete.
+- C2–C4: The observe-plan-act-verify loop, bounded planner integration, full action audit for every accessibility step, floating overlay orb/drag/snap/caption bubble, foreground control session, per-app deny list, cloud screenshot redaction/notice, and complete SAFE/CONFIRM/BLOCKED session-grant enforcement are not complete. Do not use autonomous screen control until these gates exist.
+- D1–D3: Existing Skills toggles and Teach Vyom local phrase mapping remain available. Saving successful multi-step actions as parameterized macros, automatic 2–3 strategy attempts, and an Ultra-generated Kotlin fix draft/PR flow are not complete.
+- D4: Stable signing and update-over-existing-app continuity are BLOCKED until the existing signing secrets/certificate can be verified without exposing them. Never generate a replacement key or commit signing material.
+- D5: Always ask / Risky asks / Session grants selector is not complete.
+- E1: Shared theme tokens are partial; all colors/glows/radii/spacing and gradient-pill styling have not been migrated across the whole app.
+
+### Verification gates
+- Code/CI: only the exact latest green commit and its artifact count. Check the final GitHub Actions run for both `testDebugUnitTest` and `assembleDebug`, secret scan, packaging, and artifact upload.
+- Phone test: NOT RUN. The owner must test installation, pairing/chat, scroll/history, memory, captions/mute/end, mic behavior, Accessibility opt-in, safety denials, and update/rollback. Do not call this app ready before phone tests pass.
+- Debug artifact: unsigned. It is not evidence of signing-certificate continuity and may not install as an update over an existing signed app.

@@ -51,3 +51,31 @@ Last updated: 2026-10-28
 - Hinglish mute/unmute compatibility and additional YouTube typo aliases were added in `000a3fad786ffb293f09e8d1a09e1d8726561ab6`. The preceding CI run failed at `ActionEngineTest.kt:20`; the fix is not considered validated until CI passes on the final SHA.
 - Remaining requested work: on-device editable JSON vocabulary/aliases (with safety policy kept compiled), comprehensive rule-first Hinglish/typo tests and user-facing unsupported-command examples, stable-signature install/rollback verification, and a final artifact from a green latest-commit CI run.
 - Release signing remains conditional on repository Actions secrets being present and matching the existing install certificate. Do not commit signing material. Phone tests remain pending; do not label the app ready.
+
+## 2026-10-29 — Batch A–E status
+
+Current implementation candidate: `597a146964fed5affc39575c91c5e4bdb4a03f9d` (branch-only; docs update follows). This status supersedes older "latest head" references above.
+
+### Source implemented
+- A1 chat latest-scroll, jump-to-latest, latest 50 messages, load older on upward scroll.
+- A2 encrypted on-device Memory with safe fact extraction and Profile view/edit/delete/enable-off; up to 20 recent chat messages plus facts are included in chat/LIVE prompts.
+- A3 Live UI now uses a large transparent orb, state text, captions off by default, menu, Mute and End. Orb reacts to mic level. Task scroll containers and core theme tokens were adjusted.
+- A4 Files already lists HTTPS artifact/screenshot links from saved task results and opens them. Saved-task reconnect UI is real; the method name no longer describes the entries as placeholders.
+- B1 pre-roll, startup noise calibration, adaptive VAD, AEC/NS/AGC when available, Profile mic meter, and post-TTS hold-off.
+- B2 live orb/captions/mute/end controls. Chat auto-voice is disabled while live owns the audio lane.
+- C1 opt-in accessibility service exposes visible-tree inspection with password redaction, non-editable visible-text click, long-press, swipe, scroll, focused non-password text entry, Back/Home/Recents/Notifications, and local screenshot capture on API 30+.
+- Shared theme tokens now include primary surfaces, text, spacing and radii.
+
+### Blocked / incomplete
+- B3: stage diagnostics do not yet have verified device samples; persistent WebSocket reuse, measured STT provider comparison, TTS first-audio streaming metrics, and sub-1.5s end-to-end latency are unverified.
+- C2–C4: autonomous observe/plan/act/verify loop, floating overlay orb and caption bubble, complete stop control across app/notification/overlay, cloud screen redaction/notice/per-app deny-list, and full session-grant/risk engine are incomplete.
+- D1–D3: parameterized macro saving, automatic multi-strategy teaching, and Ultra-generated fix draft/PR are incomplete. Existing skill toggles, Teach mappings, and proposal-only Fix suggestions remain.
+- D4: signing secrets/certificate continuity are not verified; no signing key was generated or committed.
+- D5: risk-mode selector/session grants incomplete.
+- E1: token migration and gradient-pill styling are partial, not global.
+- Phone test: not performed. Debug APK remains unsigned; no update-over-existing signed install is verified.
+
+### Keyword scan handling
+- Source UI/code: the saved-task reconnect label/method is no longer named as a placeholder. Any remaining unsupported diagnostics or control path must stay clearly marked as unverified rather than advertised as complete.
+- Documentation: historical "Phase 5/6" references remain because they describe the repository's prior implementation history; they are not user-facing UI.
+- Required final evidence: latest commit SHA, both green workflow runs, test/build task results, artifact name/size/SHA-256, and the explicit phone-test status. Never report "ready" before phone tests pass.
