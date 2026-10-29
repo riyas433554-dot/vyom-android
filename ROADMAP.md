@@ -43,3 +43,11 @@ Last updated: 2026-10-28
 - Do not merge PRs, deploy Render, apply migrations, or alter production DB without explicit user approval.
 - Do not touch the user's Termux `~/hermes` working tree.
 - Do not claim tests/build/phone tests passed unless actual output or artifact is available.
+
+
+## Android control follow-up — 2026-10-29
+- Profile skills registry UI and per-skill enable/disable preferences were added in `332dee7d6486ddd12466cbb199585f4507bd0f7b`. Execution checks the toggle before running supported actions. Verify all four skill groups on device.
+- Profile Fix suggestions now reads recent local audit entries and presents matching failures as proposals only; it does not auto-edit rules or submit code changes.
+- Hinglish mute/unmute compatibility and additional YouTube typo aliases were added in `000a3fad786ffb293f09e8d1a09e1d8726561ab6`. The preceding CI run failed at `ActionEngineTest.kt:20`; the fix is not considered validated until CI passes on the final SHA.
+- Remaining requested work: on-device editable JSON vocabulary/aliases (with safety policy kept compiled), comprehensive rule-first Hinglish/typo tests and user-facing unsupported-command examples, stable-signature install/rollback verification, and a final artifact from a green latest-commit CI run.
+- Release signing remains conditional on repository Actions secrets being present and matching the existing install certificate. Do not commit signing material. Phone tests remain pending; do not label the app ready.
