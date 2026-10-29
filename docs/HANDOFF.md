@@ -94,3 +94,10 @@ Implement one Action Engine with voice, chat, and task entry points.
 - Phase 6 implementation and final CI verification are green on implementation commit `cb600d687ef0325706ffe34d24c5e78a8d26100f` (run `40678795668`). Phone and real release-update/rollback tests remain separate gates.
 - Phone tests are intentionally deferred until after Phase 5 and Phase 6, per the owner's latest instruction. No phone validation has been performed; do not claim the app is ready until the owner completes the checklist.
 - Secrets: never include live credentials, tokens or secret values in this file.
+
+## 2026-10-29 follow-up implementation notes
+- Branch-only commit `332dee7d6486ddd12466cbb199585f4507bd0f7b` added Profile > Skills toggles for Open apps, Media volume, Torch, and System settings, plus a proposal-only Fix suggestions view based on local audit events.
+- CI run [40810090398](https://github.com/riyas433554-dot/vyom-android/actions/runs/40810090398) failed: `ActionEngineTest.hinglishAndTypoTolerantControls`, line 20 (Hinglish mute classification). This was followed by a source fix commit `000a3fad786ffb293f09e8d1a09e1d8726561ab6`; a green CI run on that SHA must be verified before distributing an APK.
+- The current Skills implementation is local preferences-backed and the vocabulary source still includes an asset snapshot. Do not describe editable on-device vocabulary JSON as complete until it is implemented and tested.
+- Release signing workflow expects GitHub Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Secret presence and certificate continuity are not verified by source inspection alone. Never add the keystore or values to git.
+- Phone tests, installed-app update/rollback tests, signature continuity, and runtime checks remain pending until recorded against a build with green CI.
