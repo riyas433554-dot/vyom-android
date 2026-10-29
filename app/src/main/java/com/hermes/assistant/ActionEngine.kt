@@ -61,9 +61,9 @@ object ActionEngine {
         DeviceCommandConfig.percentValue(s, "volume_set")?.let { return Intent("Set media volume", Risk.SAFE, Operation.VOLUME_SET, value = it) }
         DeviceCommandConfig.percentValue(s, "brightness_set")?.let { return Intent("Set screen brightness", Risk.SAFE, Operation.BRIGHTNESS_SET, value = it) }
         // Compatibility aliases keep common Hinglish commands deterministic even if an older on-device vocabulary is loaded.
-        if (Regex("""\\b(awaaz|sound|volume)\\s+(band|mute)\\b|^mute$""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+        if (Regex("""\b(awaaz|sound|volume)\s+(band|mute)\b|^mute$""", RegexOption.IGNORE_CASE).containsMatchIn(s))
             return Intent("Mute media volume", Risk.SAFE, Operation.VOLUME_MUTE)
-        if (Regex("""\\b(awaaz|sound|volume)\\s+(chalu|unmute)\\b|^unmute$""", RegexOption.IGNORE_CASE).containsMatchIn(s))
+        if (Regex("""\b(awaaz|sound|volume)\s+(chalu|unmute)\b|^unmute$""", RegexOption.IGNORE_CASE).containsMatchIn(s))
             return Intent("Unmute media volume", Risk.SAFE, Operation.VOLUME_UNMUTE)
         // Compatibility guard for legacy controls; JSON phrase rules remain primary.
         if (Regex("""\b(volume up|increase (?:the )?volume|raise (?:the )?volume|turn (?:the )?volume up|volume badhao|awaaz badhao|sound badhao)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s))
