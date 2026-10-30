@@ -32,6 +32,8 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.PopupWindow
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -87,6 +89,10 @@ class MainActivity : Activity() {
     private lateinit var filesList: LinearLayout
     private lateinit var filesNotice: TextView
     private lateinit var controlPanel: LinearLayout
+    private lateinit var workspacePanel: LinearLayout
+    private lateinit var workspaceCards: LinearLayout
+    private lateinit var mediaPanel: LinearLayout
+    private lateinit var mediaNotice: TextView
     private lateinit var controlNotice: TextView
     private lateinit var controlAuditList: LinearLayout
     private lateinit var reduceMotionButton: Button
@@ -766,6 +772,78 @@ class MainActivity : Activity() {
         controlPanel.addView(auditScroll, LinearLayout.LayoutParams(-1, 0, 1f))
         panel.addView(controlPanel, LinearLayout.LayoutParams(-1, dp(250)))
 
+        workspacePanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(2), dp(4), dp(2), dp(4))
+        }
+        workspacePanel.addView(TextView(this).apply {
+            text = "WORKSPACE  •  MULTI-PANEL"
+            textSize = 10f
+            letterSpacing = 0.14f
+            setTextColor(VyomTheme.ACCENT_CYAN)
+            setPadding(dp(4), dp(2), 0, dp(6))
+        }, LinearLayout.LayoutParams(-1, dp(24)))
+        workspaceCards = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(2), dp(2), dp(10), dp(8))
+        }
+        val workspaceScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(workspaceCards, FrameLayout.LayoutParams(-2, -2))
+        }
+        workspacePanel.addView(workspaceScroll, LinearLayout.LayoutParams(-1, dp(184)))
+        workspacePanel.addView(TextView(this).apply {
+            text = "Swipe panels sideways. Task execution stays on the existing serial server queue."
+            textSize = 10f
+            setTextColor(VyomTheme.TEXT_SECONDARY)
+            setPadding(dp(4), dp(4), dp(4), 0)
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        mediaPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(4), dp(6), dp(4), dp(4))
+        }
+        mediaPanel.addView(TextView(this).apply {
+            text = "MEDIA HUB"
+            textSize = 11f
+            letterSpacing = 0.14f
+            setTextColor(VyomTheme.ACCENT_CYAN)
+        }, LinearLayout.LayoutParams(-1, dp(24)))
+        mediaNotice = TextView(this).apply {
+            text = "Choose an installed media app or a system picker. Vyom does not read private media-library contents."
+            textSize = 10f
+            setTextColor(VyomTheme.TEXT_SECONDARY)
+        }
+        mediaPanel.addView(mediaNotice, LinearLayout.LayoutParams(-1, -2))
+        val mediaGrid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val mediaRowOne = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val mediaRowTwo = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fun mediaButton(label: String, action: () -> Unit): Button = Button(this).apply {
+            text = label
+            contentDescription = label
+            setOnClickListener { action() }
+        }
+        mediaRowOne.addView(mediaButton("YOUTUBE") { launchMediaApp("com.google.android.youtube", "YouTube") }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        mediaRowOne.addView(mediaButton("SPOTIFY") { launchMediaApp("com.spotify.music", "Spotify") }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        mediaRowOne.addView(mediaButton("BROWSER") { openMediaBrowser() }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        mediaRowTwo.addView(mediaButton("GALLERY") { openMediaPicker("image/*", "Gallery") }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        mediaRowTwo.addView(mediaButton("FILES") { openMediaPicker("*/*", "Files") }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        mediaRowTwo.addView(mediaButton("VOLUME +") { dispatchDeviceAction("volume up", "media") { mediaNotice.text = it } }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        mediaGrid.addView(mediaRowOne, LinearLayout.LayoutParams(-1, dp(48)))
+        mediaGrid.addView(mediaRowTwo, LinearLayout.LayoutParams(-1, dp(48)))
+        mediaPanel.addView(mediaGrid, LinearLayout.LayoutParams(-1, -2))
+        mediaPanel.addView(mediaButton("VOLUME −") { dispatchDeviceAction("volume down", "media") { mediaNotice.text = it } }, LinearLayout.LayoutParams(-1, dp(40)))
+        mediaPanel.addView(TextView(this).apply {
+            text = "Now-playing metadata and remote transport controls are not claimed until Android media-session access is implemented and tested."
+            textSize = 10f
+            setTextColor(VyomTheme.TEXT_SECONDARY)
+            setPadding(0, dp(5), 0, 0)
+        }, LinearLayout.LayoutParams(-1, -2))
+        panel.addView(workspacePanel, LinearLayout.LayoutParams(-1, dp(250)))
+        panel.addView(mediaPanel, LinearLayout.LayoutParams(-1, dp(250)))
+
         val orbitView = OrbitHomeView(this)
         orbitHomeView = orbitView
         orbitView.setAccentColor(VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
@@ -777,6 +855,18 @@ class MainActivity : Activity() {
         })
         root.addView(buildInfo, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
             topMargin = dp(30)
+        })
+        val drawerButton = TextView(this).apply {
+            text = "☰"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            contentDescription = "Open Vyom navigation drawer"
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            background = VyomTheme.glass(this@MainActivity, 18, VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setOnClickListener { showNavigationDrawer() }
+        }
+        root.addView(drawerButton, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.START).apply {
+            topMargin = dp(48); leftMargin = dp(10)
         })
         root.addView(panel, FrameLayout.LayoutParams(-1, dp(440), Gravity.BOTTOM))
         setContentView(root)
@@ -955,6 +1045,15 @@ class MainActivity : Activity() {
         quickRow.addView(quickCard("Profile", "Themes & settings") { showProfileMenu() },
             LinearLayout.LayoutParams(0, dp(54), 1f))
         content.addView(quickRow, LinearLayout.LayoutParams(-1, -2))
+        val destinationRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(6), 0, dp(2))
+        }
+        destinationRow.addView(quickCard("Workspace", "Multi-panel overview") { showWorkspace() },
+            LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(5) })
+        destinationRow.addView(quickCard("Media Hub", "Apps & volume") { showMediaHub() },
+            LinearLayout.LayoutParams(0, dp(52), 1f))
+        content.addView(destinationRow, LinearLayout.LayoutParams(-1, -2))
         content.addView(Button(this).apply {
             text = "KYA BOL SAKTA HU?  •  HELP"
             contentDescription = "Show Vyom onboarding and example commands"
@@ -970,6 +1069,173 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 0)
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         }
+    }
+
+    private fun workspaceCard(title: String, detail: String, actionLabel: String, action: () -> Unit): LinearLayout {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = VyomTheme.glass(this@MainActivity, VyomTheme.RADIUS_LARGE_DP,
+                VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+        }
+        card.addView(TextView(this).apply {
+            text = title
+            textSize = 13f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(Color.WHITE)
+        }, LinearLayout.LayoutParams(-1, -2))
+        card.addView(TextView(this).apply {
+            text = detail
+            textSize = 11f
+            setTextColor(VyomTheme.TEXT_SECONDARY)
+            setPadding(0, dp(8), 0, dp(8))
+        }, LinearLayout.LayoutParams(-1, 0, 1f))
+        card.addView(Button(this).apply {
+            text = actionLabel
+            setOnClickListener { action() }
+        }, LinearLayout.LayoutParams(-1, dp(38)))
+        return card
+    }
+
+    private fun renderWorkspacePanels() {
+        if (!::workspaceCards.isInitialized) return
+        workspaceCards.removeAllViews()
+        val summary = WorkspacePanelSummary.fromStatuses(tasksById.values.map { it.optString("status", "queued") })
+        val latest = tasksById.values.toList().asReversed().take(3).joinToString("\n") {
+            "• " + it.optString("status", "queued").uppercase() + " — " +
+                it.optString("prompt", "Task").lineSequence().firstOrNull().orEmpty().take(46)
+        }.ifBlank { "No tasks yet. Create a task to see progress here." }
+        val artifactCount = tasksById.values.sumOf { task ->
+            extractHttpsLinks(task.opt("result")?.toString().orEmpty()).size
+        }
+        val cards = listOf(
+            Triple("AUTOMATION", latest + "\n\nActive " + summary.active + " • Done " + summary.completed + " • Errors " + summary.errors, "OPEN TASKS" to { showTab(true) }),
+            Triple("ARTIFACTS", tasksById.size.toString() + " saved task record(s). " + artifactCount + " artifact link(s) discovered.", "OPEN FILES" to { showTab(false, false, true) }),
+            Triple("CONTROL CENTER", if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) "STOP CONTROL is ON. Device actions remain blocked." else "Device actions use explicit confirmation where required. STOP CONTROL is available.", "OPEN CONTROL" to { showTab(false, false, false, true) }),
+            Triple("CHAT QUEUE", chatMessages.count { it.state == "queued" }.toString() + " queued • " + chatMessages.count { it.state == "running" } + " running • " + chatMessages.count { it.state == "done" } + " done • " + chatMessages.count { it.state == "error" } + " error", "OPEN CHAT" to { showTab(false) })
+        )
+        cards.forEach { (title, detail, action) ->
+            workspaceCards.addView(workspaceCard(title, detail, action.first, action.second),
+                LinearLayout.LayoutParams(dp(252), dp(174)).apply { marginEnd = dp(10) })
+        }
+    }
+
+    private fun showWorkspace() {
+        setChatLayout(fullHeight = false)
+        tasksTabVisible = true
+        homePanel.visibility = View.GONE
+        orbitHomeView?.visibility = View.GONE
+        chatPanel.visibility = View.GONE
+        tasksPanel.visibility = View.GONE
+        settingsPanel.visibility = View.GONE
+        filesPanel.visibility = View.GONE
+        controlPanel.visibility = View.GONE
+        mediaPanel.visibility = View.GONE
+        workspacePanel.visibility = View.VISIBLE
+        renderWorkspacePanels()
+        mainHandler.removeCallbacks(refreshTasksRunnable)
+        refreshTasks()
+        mainHandler.postDelayed(refreshTasksRunnable, TASK_POLL_MS)
+    }
+
+    private fun showMediaHub() {
+        setChatLayout(fullHeight = false)
+        tasksTabVisible = false
+        homePanel.visibility = View.GONE
+        orbitHomeView?.visibility = View.GONE
+        chatPanel.visibility = View.GONE
+        tasksPanel.visibility = View.GONE
+        settingsPanel.visibility = View.GONE
+        filesPanel.visibility = View.GONE
+        controlPanel.visibility = View.GONE
+        workspacePanel.visibility = View.GONE
+        mediaPanel.visibility = View.VISIBLE
+        mainHandler.removeCallbacks(refreshTasksRunnable)
+    }
+
+    private fun launchMediaApp(packageName: String, label: String) {
+        try {
+            val intent = packageManager.getLaunchIntentForPackage(packageName)
+                ?: throw IllegalStateException(label + " is not installed or has no launch activity")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            mediaNotice.text = label + " launch intent sent to Android. Foreground playback is not verified here."
+            logControlAction("Media app: " + label, "launch-intent-sent", "media")
+        } catch (error: Exception) {
+            mediaNotice.text = "Could not open " + label + ": " + (error.message ?: "app unavailable")
+            logControlAction("Media app: " + label, "launch-failed", "media")
+        }
+    }
+
+    private fun openMediaBrowser() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com")))
+            mediaNotice.text = "Browser launch requested. Check the selected browser on the phone."
+            logControlAction("Media browser", "view-intent-sent", "media")
+        } catch (error: Exception) {
+            mediaNotice.text = "No browser available: " + (error.message ?: "launch failed")
+        }
+    }
+
+    private fun openMediaPicker(mimeType: String, label: String) {
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mimeType
+            }
+            startActivity(intent)
+            mediaNotice.text = label + " system picker opened. Vyom does not read any item unless you explicitly select it in a supported flow."
+        } catch (error: Exception) {
+            mediaNotice.text = "Could not open " + label + " picker: " + (error.message ?: "picker unavailable")
+        }
+    }
+
+    private fun showNavigationDrawer() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(22), dp(12), dp(12))
+            background = GradientDrawable().apply {
+                setColor(0xF0101A2E.toInt())
+                cornerRadius = dp(20).toFloat()
+                setStroke(dp(1), VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            }
+        }
+        content.addView(TextView(this).apply {
+            text = "VYOM  •  NAVIGATION"
+            textSize = 12f
+            letterSpacing = 0.12f
+            setTextColor(VyomTheme.ACCENT_CYAN)
+            setPadding(dp(4), dp(8), 0, dp(14))
+        })
+        val popup = PopupWindow(content, dp(292), WindowManager.LayoutParams.MATCH_PARENT, true).apply {
+            elevation = dp(18).toFloat()
+            isOutsideTouchable = true
+            setBackgroundDrawable(GradientDrawable().apply { setColor(0xF0101A2E.toInt()); cornerRadius = dp(20).toFloat() })
+        }
+        val entries: List<Pair<String, () -> Unit>> = listOf(
+            "Home" to { showHome() },
+            "Chat" to { showTab(false) },
+            "Workspace" to { showWorkspace() },
+            "Media Hub" to { showMediaHub() },
+            "Tasks" to { showTab(true) },
+            "Control Center" to { showTab(false, false, false, true) },
+            "Teach Vyom" to { showSkillsRegistry() },
+            "Onboarding / Help" to { showOnboardingHelp() },
+            "Profile & Settings" to { showProfileMenu() },
+            "Diagnostics • Copy logs" to { showVoiceDiagnostics() }
+        )
+        entries.forEach { (label, action) ->
+            content.addView(Button(this).apply {
+                text = label
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                setOnClickListener { popup.dismiss(); action() }
+            }, LinearLayout.LayoutParams(-1, dp(46)))
+        }
+        content.addView(Button(this).apply {
+            text = "CLOSE"
+            setOnClickListener { popup.dismiss() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        popup.showAtLocation(window.decorView, Gravity.TOP or Gravity.START, 0, 0)
     }
 
     private fun showOnboardingHelp() {
@@ -1008,6 +1274,8 @@ class MainActivity : Activity() {
         settingsPanel.visibility = View.GONE
         filesPanel.visibility = View.GONE
         controlPanel.visibility = View.GONE
+        workspacePanel.visibility = View.GONE
+        mediaPanel.visibility = View.GONE
         orbitHomeView?.visibility = View.VISIBLE
         chatTab.alpha = 0.65f
         tasksTab.alpha = 0.65f
@@ -1187,6 +1455,8 @@ class MainActivity : Activity() {
         settingsPanel.visibility = if (showSettings) View.VISIBLE else View.GONE
         filesPanel.visibility = if (showFiles) View.VISIBLE else View.GONE
         controlPanel.visibility = if (showControl) View.VISIBLE else View.GONE
+        workspacePanel.visibility = View.GONE
+        mediaPanel.visibility = View.GONE
         chatTab.alpha = if (anyOtherPanel) 0.65f else 1f
         tasksTab.alpha = if (showTasks) 1f else 0.65f
         settingsTab.alpha = if (showSettings) 1f else 0.65f
