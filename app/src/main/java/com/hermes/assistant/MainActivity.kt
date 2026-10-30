@@ -1362,8 +1362,9 @@ class MainActivity : Activity() {
                         recovered = next
                         polls++
                     }
-                    if (recovered?.status == "done" && !recovered.reply.isNullOrBlank()) {
-                        val reply = recovered.reply!!
+                    val terminalReply = recovered?.reply
+                    if (recovered?.status == "done" && !terminalReply.isNullOrBlank()) {
+                        val reply = terminalReply
                         runOnUiThread {
                             item.state = "done"
                             item.reply = reply
@@ -1373,9 +1374,10 @@ class MainActivity : Activity() {
                             renderChatMessages()
                         }
                     } else if (recovered?.status == "error") {
+                        val recoveryError = recovered.error ?: "Server could not recover this reply."
                         runOnUiThread {
                             item.state = "error"
-                            item.reply = recovered.error ?: "Server could not recover this reply."
+                            item.reply = recoveryError
                             persistChatMessages()
                             status.text = "VYOM  •  ERROR"
                             renderChatMessages()
