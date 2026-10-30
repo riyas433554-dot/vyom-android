@@ -68,4 +68,22 @@ class AutomationEngineTest {
             AutomationEngine.Step(type = "swipe", x1 = -0.1f, y1 = 0.2f, x2 = 0.8f, y2 = 0.9f, durationMs = 300)
         )).valid)
     }
+
+    @Test fun gesturesAndScreenshotsRequireApproval() {
+        val workflow = macro(
+            AutomationEngine.Step(type = "swipe", x1 = 0.2f, y1 = 0.2f, x2 = 0.8f, y2 = 0.8f, durationMs = 300),
+            AutomationEngine.Step(type = "screenshot")
+        )
+        assertEquals(AutomationEngine.Risk.CONFIRM, AutomationEngine.classify(workflow))
+        assertEquals(AutomationEngine.Decision.APPROVAL_REQUIRED, AutomationEngine.decision(workflow, ownerApproved = false))
+    }
+
+    @Test fun taskRequestsCanDiscussSensitiveIndustriesButCannotContainCredentialValues() {
+        val buildBankingApp = macro(AutomationEngine.Step(type = "create_task", text = "Build a banking app prototype"))
+        assertEquals(AutomationEngine.Risk.CONFIRM, AutomationEngine.classify(buildBankingApp))
+        assertFalse(AutomationEngine.validate(macro(
+            AutomationEngine.Step(type = "create_task", text = "Use password=supersecret123 in the app")
+        )).valid)
+    }
+
 }
