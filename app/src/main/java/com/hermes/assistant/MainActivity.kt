@@ -1850,6 +1850,7 @@ class MainActivity : Activity() {
                 else jumpToLatestButton.visibility = View.VISIBLE
             }
         }
+        renderWorkspacePanels()
     }
 
     private fun markdownToHtml(input: String): String {
@@ -1880,7 +1881,6 @@ class MainActivity : Activity() {
         }
         if (inCodeBlock) output.append("</tt></pre>")
         return output.toString()
-        renderWorkspacePanels()
     }
 
     private fun setOrbAppearance(mode: Int) {
