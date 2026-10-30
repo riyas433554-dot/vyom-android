@@ -170,6 +170,7 @@ class MainActivity : Activity() {
     private var orbitHomeView: OrbitHomeView? = null
     private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "", val createdAt: Long = System.currentTimeMillis())
     private val chatMessages = mutableListOf<ChatMessage>()
+    private val chatRequestGuard = ChatRequestGuard()
     private val chatPrefs by lazy { getSharedPreferences("vyom_chat_history", MODE_PRIVATE) }
     private var chatReady = false
     private val refreshTasksRunnable = object : Runnable {
@@ -954,6 +955,11 @@ class MainActivity : Activity() {
         quickRow.addView(quickCard("Profile", "Themes & settings") { showProfileMenu() },
             LinearLayout.LayoutParams(0, dp(54), 1f))
         content.addView(quickRow, LinearLayout.LayoutParams(-1, -2))
+        content.addView(Button(this).apply {
+            text = "KYA BOL SAKTA HU?  •  HELP"
+            contentDescription = "Show Vyom onboarding and example commands"
+            setOnClickListener { showOnboardingHelp() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             clipToPadding = false
@@ -964,6 +970,33 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 0)
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         }
+    }
+
+    private fun showOnboardingHelp() {
+        val help = """
+            CHAT
+            • Sawal poochho, explain/build/plan karne ko bolo.
+            • Har message ka QUEUED / RUNNING / DONE / ERROR status dikhega.
+
+            PHONE COMMAND EXAMPLES
+            • "Open YouTube"
+            • "Volume badhao" / "volume 40%"
+            • "Torch chalu" / "torch band"
+            • "Set alarm for 7:30"
+            • "Set timer for 5 minutes"
+
+            SAFETY
+            • Call, SMS, share, delete aur install ke liye screen confirmation zaroori hai.
+            • Banking, payment, OTP/password aur security actions BLOCKED hain.
+            • STOP CONTROL device actions ko rokta hai.
+
+            VOICE
+            • Mic permission aur visible foreground notification required hai.
+            • Notification se Mute ya Stop kar sakte ho.
+            • Background reply recovery PARTIAL hai; reconnect par local queued messages retry hote hain.
+        """.trimIndent()
+        AlertDialog.Builder(this).setTitle("Vyom • Getting started")
+            .setMessage(help).setPositiveButton("GOT IT", null).show()
     }
 
     private fun showHome() {
@@ -1026,7 +1059,19 @@ class MainActivity : Activity() {
             "Stage timing samples: not yet verified on a device",
             "Target total latency under 1.5 s is not verified."
         ).joinToString("\n\n")
-        AlertDialog.Builder(this).setTitle("Profile • Voice diagnostics").setMessage(details)
+        val events = try { JSONArray(controlPrefs.getString("events", "[]")).toString(2) } catch (_: Exception) { "[]" }
+        val chatSummary = chatMessages.takeLast(100).joinToString("\n") {
+            "${it.createdAt} | ${it.id} | ${it.state} | ${it.text.take(240)} | ${it.reply.take(400)}"
+        }
+        val fullLog = "VYOM DIAGNOSTICS\n$details\n\nBUILD: ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_COMMIT_SHORT})\n\nCONTROL EVENTS\n$events\n\nCHAT QUEUE (last 100)\n$chatSummary"
+        AlertDialog.Builder(this).setTitle("Profile • Diagnostics")
+            .setMessage(details + "\n\nLocal control events: " + JSONArray(events).length() +
+                "\nChat records: " + chatMessages.size + "\nBackground recovery: PARTIAL")
+            .setNeutralButton("COPY LOGS") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Vyom diagnostics", fullLog))
+                android.widget.Toast.makeText(this, "Diagnostics copied", android.widget.Toast.LENGTH_SHORT).show()
+            }
             .setPositiveButton("OK", null).show()
     }
 
@@ -1288,6 +1333,7 @@ class MainActivity : Activity() {
     }
 
     private fun scheduleChatMessage(item: ChatMessage) {
+        if (!chatRequestGuard.tryStart(item.id)) return
         io.execute {
             runOnUiThread {
                 item.state = "running"
@@ -1296,7 +1342,7 @@ class MainActivity : Activity() {
                 renderChatMessages()
             }
             try {
-                val reply = api.chat(personaPrompt(item.text))
+                val reply = api.chat(personaPrompt(item.text), item.id)
                 runOnUiThread {
                     item.state = "done"
                     item.reply = reply
@@ -1317,6 +1363,8 @@ class MainActivity : Activity() {
                     }
                     renderChatMessages()
                 }
+            } finally {
+                mainHandler.post { chatRequestGuard.finish(item.id) }
             }
         }
     }
@@ -1325,11 +1373,14 @@ class MainActivity : Activity() {
         val raw = chatPrefs.getString("messages", null) ?: return
         try {
             val saved = JSONArray(raw)
+            val seenIds = mutableSetOf<String>()
             for (index in 0 until saved.length()) {
                 val value = saved.optJSONObject(index) ?: continue
+                val restoredId = value.optString("id").ifBlank { UUID.randomUUID().toString() }
+                if (!seenIds.add(restoredId)) continue
                 val savedState = value.optString("state", "queued")
                 chatMessages.add(ChatMessage(
-                    value.optString("id", UUID.randomUUID().toString()),
+                    restoredId,
                     value.optString("text"),
                     if (savedState == "running") "queued" else savedState,
                     value.optString("reply"),
@@ -2650,6 +2701,11 @@ class MainActivity : Activity() {
                     }, LinearLayout.LayoutParams(-1, dp(40)))
                 }
             }
+            card.addView(Button(this).apply {
+                text = "DETAILS / CODE PREVIEW"
+                contentDescription = "Open task detail and code/result preview"
+                setOnClickListener { showTaskDetails(task) }
+            }, LinearLayout.LayoutParams(-1, dp(40)))
             if (state in activeStates) {
                 card.addView(Button(this).apply {
                     text = "CANCEL TASK"
@@ -2666,6 +2722,55 @@ class MainActivity : Activity() {
             }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
+    }
+
+    private fun showTaskDetails(task: JSONObject) {
+        val result = task.opt("result")
+        val resultText = when (result) {
+            null, JSONObject.NULL -> "No result/code returned yet."
+            is JSONObject -> result.toString(2)
+            else -> result.toString()
+        }
+        val codeKeys = listOf("code", "content", "patch", "diff", "stdout", "output")
+        val codePreview = buildString {
+            if (result is JSONObject) {
+                codeKeys.forEach { key ->
+                    val value = result.opt(key)
+                    if (value != null && value != JSONObject.NULL && value.toString().isNotBlank()) {
+                        append("### ").append(key.uppercase()).append("\n")
+                        append(value.toString()).append("\n\n")
+                    }
+                }
+                val files = result.optJSONArray("files")
+                if (files != null) for (i in 0 until minOf(files.length(), 20)) {
+                    val file = files.optJSONObject(i) ?: continue
+                    append("### ").append(file.optString("path", "file")).append("\n")
+                    append(file.optString("content", file.optString("patch", "[No preview content]"))).append("\n\n")
+                }
+            }
+        }.ifBlank { resultText }
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            addView(TextView(this@MainActivity).apply {
+                text = "TASK ${task.optString("id")} • ${task.optString("status", "unknown").uppercase()}\n\n${task.optString("prompt", "")}"
+                setTextColor(Color.WHITE); textSize = 13f
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = "RESULT / CODE PREVIEW"
+                setTextColor(VyomTheme.ACCENT_CYAN); textSize = 11f
+                setPadding(0, dp(12), 0, dp(6))
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = codePreview
+                setTextColor(Color.LTGRAY); textSize = 12f
+                typeface = Typeface.MONOSPACE
+                setTextIsSelectable(true)
+            })
+        }
+        val scroll = ScrollView(this).apply { addView(body) }
+        AlertDialog.Builder(this).setTitle("Task details").setView(scroll)
+            .setPositiveButton("CLOSE", null).show()
     }
 
     private fun renderFiles() {
@@ -2900,7 +3005,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(8), dp(20), 0)
             addView(TextView(this@MainActivity).apply {
-                text = "Ye kya karna chahiye? Ek supported command likho. Vyom ise sirf isi phone par save karega."
+                text = "Examples: open YouTube • volume badhao • torch chalu • torch band. TEST preview sirf match dikhata hai; SAVE & RUN execute karega. Mapping isi phone par save hogi."
                 setTextColor(Color.WHITE)
                 textSize = 14f
             })
@@ -2908,8 +3013,17 @@ class MainActivity : Activity() {
         }
         val dialog = AlertDialog.Builder(this).setTitle("Teach Vyom").setView(body)
             .setNegativeButton("CANCEL") { _, _ -> onResult("Okay, command save nahi kiya.") }
+            .setNeutralButton("TEST", null)
             .setPositiveButton("SAVE & RUN", null).create()
         dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+                val candidate = answer.text.toString().trim()
+                val preview = ActionEngine.classify(candidate)
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Teach • Test preview")
+                    .setMessage(if (preview == null) "No supported command matched. Try: open YouTube, volume up, torch chalu." else "Matched: ${preview.name}\nOperation: ${preview.operation}\nRisk: ${preview.risk}\n\nPreview only — nothing executed or saved.")
+                    .setPositiveButton("OK", null).show()
+            }
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val canonical = answer.text.toString().trim()
                 if (canonical.isBlank() || canonical.length > 120) {

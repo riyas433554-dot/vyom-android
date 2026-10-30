@@ -79,13 +79,14 @@ internal class VyomApiClient(context: Context) {
         return token
     }
 
-    fun chat(message: String): String {
+    fun chat(message: String, clientMessageId: String? = null): String {
         val token = store.get("access_token")
             ?.takeIf { it.isNotBlank() }
             ?: throw SessionExpiredException()
         return try {
-            request("/api/android/chat", JSONObject().put("message", message), token)
-                .optString("reply", "No reply received")
+            val body = JSONObject().put("message", message)
+            if (!clientMessageId.isNullOrBlank()) body.put("client_message_id", clientMessageId)
+            request("/api/android/chat", body, token).optString("reply", "No reply received")
         } catch (_: UnauthorizedSessionException) {
             throw SessionExpiredException()
         }

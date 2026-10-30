@@ -20,13 +20,18 @@ internal object DeviceActionExecutor {
         ActionEngine.Operation.VOLUME_DELTA -> {
             val a=activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val cur=a.getStreamVolume(AudioManager.STREAM_MUSIC); val max=a.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            a.setStreamVolume(AudioManager.STREAM_MUSIC,(cur+action.value*maxOf(1,max/10)).coerceIn(0,max),0)
-            if(action.value>0) "Media volume increased." else "Media volume decreased."
+            val target=(cur+action.value*maxOf(1,max/10)).coerceIn(0,max)
+            a.setStreamVolume(AudioManager.STREAM_MUSIC,target,0)
+            val actual=a.getStreamVolume(AudioManager.STREAM_MUSIC)
+            "Media volume ${if(action.value>0) "increased" else "decreased"}: $cur → $actual (max $max)."
         }
         ActionEngine.Operation.VOLUME_SET -> {
             val a=activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager; val max=a.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            a.setStreamVolume(AudioManager.STREAM_MUSIC,(max*action.value/100f).toInt().coerceIn(0,max),0)
-            "Media volume set to " + action.value + "%."
+            val before=a.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val target=(max*action.value/100f).toInt().coerceIn(0,max)
+            a.setStreamVolume(AudioManager.STREAM_MUSIC,target,0)
+            val actual=a.getStreamVolume(AudioManager.STREAM_MUSIC)
+            "Media volume: $before → $actual (requested ${action.value}%, max $max)."
         }
         ActionEngine.Operation.VOLUME_MUTE -> {
             val a=activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -34,14 +39,17 @@ internal object DeviceActionExecutor {
             val current=a.getStreamVolume(AudioManager.STREAM_MUSIC)
             if(current>0) prefs.edit().putInt("last_nonzero_media_volume",current).apply()
             a.setStreamVolume(AudioManager.STREAM_MUSIC,0,0)
-            "Media volume muted."
+            val actual=a.getStreamVolume(AudioManager.STREAM_MUSIC)
+            "Media volume muted: $current → $actual."
         }
         ActionEngine.Operation.VOLUME_UNMUTE -> {
             val a=activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max=a.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             val restore=activity.getSharedPreferences("vyom_device_audio",Context.MODE_PRIVATE).getInt("last_nonzero_media_volume",maxOf(1,max/3)).coerceIn(1,max)
+            val before=a.getStreamVolume(AudioManager.STREAM_MUSIC)
             a.setStreamVolume(AudioManager.STREAM_MUSIC,restore,0)
-            "Media volume unmuted."
+            val actual=a.getStreamVolume(AudioManager.STREAM_MUSIC)
+            "Media volume unmuted: $before → $actual (max $max)."
         }
         ActionEngine.Operation.BRIGHTNESS_SET -> setBrightness(activity,action.value)
         ActionEngine.Operation.TORCH -> setTorch(activity,action.value==1)
