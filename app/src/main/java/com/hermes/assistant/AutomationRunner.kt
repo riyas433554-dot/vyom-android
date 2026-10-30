@@ -88,13 +88,17 @@ internal class AutomationRunner(
         if (stopped) return finish(false, "Automation stopped by owner.")
         if (index >= macro.steps.size) return finish(true, "Automation completed.")
         val step = macro.steps[index]
-        executeStep(step) { success, message, artifact ->
-            if (stopped) return@executeStep finish(false, "Automation stopped by owner.")
-            val result = StepResult(index + 1, success, message, artifact)
-            onProgress(result)
-            if (!success) return@executeStep finish(false, "Stopped at step ${index + 1}: ${message}")
-            completed += 1
-            runStep(macro, index + 1, onProgress)
+        try {
+            executeStep(step) { success, message, artifact ->
+                if (stopped) return@executeStep finish(false, "Automation stopped by owner.")
+                val result = StepResult(index + 1, success, message, artifact)
+                onProgress(result)
+                if (!success) return@executeStep finish(false, "Stopped at step ${index + 1}: ${message}")
+                completed += 1
+                runStep(macro, index + 1, onProgress)
+            }
+        } catch (_: Exception) {
+            finish(false, "Step ${index + 1} failed unexpectedly.")
         }
     }
 
