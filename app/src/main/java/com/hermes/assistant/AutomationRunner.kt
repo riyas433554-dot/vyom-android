@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.DisplayMetrics
 import java.io.File
 import java.util.concurrent.Executor
@@ -22,6 +23,7 @@ internal class AutomationRunner(
     @Volatile private var stopped = false
     private var completion: ((RunSummary) -> Unit)? = null
     private var completed = 0
+    private var totalSteps = 0
 
     fun run(
         macro: AutomationEngine.Macro,
@@ -64,6 +66,7 @@ internal class AutomationRunner(
         running = true
         stopped = false
         completed = 0
+        totalSteps = macro.steps.size
         completion = onComplete
         runStep(macro, 0, onProgress)
     }
@@ -161,9 +164,15 @@ internal class AutomationRunner(
                     "sound" -> "open sound settings"
                     "apps" -> "open app settings"
                     "notifications" -> "open settings"
+                    "location" -> null
+                    "accessibility" -> null
                     else -> "open settings"
                 }
-                val intent = ActionEngine.classify(phrase)
+                val intent = when (step.target.lowercase()) {
+                    "location" -> ActionEngine.Intent("Open location settings", ActionEngine.Risk.SAFE, ActionEngine.Operation.OPEN_SETTINGS, settingsAction = Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    "accessibility" -> ActionEngine.Intent("Open accessibility settings", ActionEngine.Risk.SAFE, ActionEngine.Operation.OPEN_SETTINGS, settingsAction = Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    else -> phrase?.let(ActionEngine::classify)
+                }
                 if (intent == null || intent.operation != ActionEngine.Operation.OPEN_SETTINGS) {
                     callback(false, "Settings panel is not supported.", null)
                 } else {
@@ -192,6 +201,6 @@ internal class AutomationRunner(
         stopped = false
         val callback = completion
         completion = null
-        callback?.invoke(RunSummary(success, completed, 0, message))
+        callback?.invoke(RunSummary(success, completed, totalSteps, message))
     }
 }
