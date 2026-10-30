@@ -1305,16 +1305,6 @@ class MainActivity : Activity() {
         }
     }
 
-    @Deprecated("Deprecated in Android; retained for RoleManager result compatibility")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_ASSISTANT_ROLE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val held = getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)
-            logControlAction("Default assistant role", if (held) "granted" else "not-granted", "app")
-            android.widget.Toast.makeText(this, if (held) "Vyom selected as Android assistant" else "Assistant role not changed", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun showOnboardingHelp() {
         val help = """
             CHAT
@@ -3295,6 +3285,12 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_ASSISTANT_ROLE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val held = getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)
+            logControlAction("Default assistant role", if (held) "granted" else "not-granted", "app")
+            android.widget.Toast.makeText(this, if (held) "Vyom selected as Android assistant" else "Assistant role not changed", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         if (requestCode != REQUEST_DELETE_DOCUMENT && requestCode != REQUEST_INSTALL_DOCUMENT) return
         val callback = pendingDocumentCallback
         val source = pendingDocumentSource
