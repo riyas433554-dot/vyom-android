@@ -7,6 +7,7 @@ on:
       - feature/r1a-android-reliability
       - feature/r1-reliable-core
       - feature/r2-workspace-media
+      - feature/r3-floating-bubble-assistant
       - vyom-proposal-*
   pull_request:
     branches:
