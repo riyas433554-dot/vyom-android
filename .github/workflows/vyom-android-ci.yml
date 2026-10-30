@@ -8,6 +8,7 @@ on:
       - feature/r1-reliable-core
       - feature/r2-workspace-media
       - feature/r3-floating-bubble-assistant
+      - feature/r4-experimental-gestures-vfx
       - vyom-proposal-*
   pull_request:
     branches:
