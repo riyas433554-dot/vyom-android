@@ -21,6 +21,8 @@ android {
         versionName = androidVersionName
         buildConfigField("String", "HERMES_BASE_URL", "\"$hermesBaseUrl\"")
         buildConfigField("boolean", "ENABLE_REPLY_RECOVERY", "true")
+        buildConfigField("boolean", "ENABLE_FLOATING_BUBBLE", "true")
+        buildConfigField("boolean", "ENABLE_ASSISTANT_ROLE", "true")
     }
 
     signingConfigs {
