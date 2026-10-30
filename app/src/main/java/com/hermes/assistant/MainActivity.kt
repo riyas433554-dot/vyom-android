@@ -1217,6 +1217,7 @@ class MainActivity : Activity() {
             "Chat" to { showTab(false) },
             "Workspace" to { showWorkspace() },
             "Media Hub" to { showMediaHub() },
+            "Live Voice • Orb & Mute" to { toggleVoiceInput() },
             "Tasks" to { showTab(true) },
             "Control Center" to { showTab(false, false, false, true) },
             "Teach Vyom" to { showSkillsRegistry() },
