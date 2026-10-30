@@ -15,6 +15,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.app.role.RoleManager
 import android.provider.MediaStore
 import android.provider.DocumentsContract
 import android.content.pm.PackageInfo
@@ -1218,6 +1219,8 @@ class MainActivity : Activity() {
             "Workspace" to { showWorkspace() },
             "Media Hub" to { showMediaHub() },
             "Live Voice • Orb & Mute" to { toggleVoiceInput() },
+            "Floating Bubble • ON/OFF" to { toggleFloatingBubble() },
+            "Set as Default Assistant" to { requestDefaultAssistantRole() },
             "Tasks" to { showTab(true) },
             "Control Center" to { showTab(false, false, false, true) },
             "Teach Vyom" to { showSkillsRegistry() },
@@ -1237,6 +1240,79 @@ class MainActivity : Activity() {
             setOnClickListener { popup.dismiss() }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         popup.showAtLocation(window.decorView, Gravity.TOP or Gravity.START, 0, 0)
+    }
+
+    private fun startFloatingBubbleService() {
+        if (!BuildConfig.ENABLE_FLOATING_BUBBLE) return
+        try {
+            val intent = Intent(this, FloatingBubbleService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+        } catch (error: Exception) {
+            logControlAction("Floating bubble", "start-failed: " + (error.message ?: "unknown"), "app")
+        }
+    }
+
+    private fun toggleFloatingBubble() {
+        if (!BuildConfig.ENABLE_FLOATING_BUBBLE) {
+            AlertDialog.Builder(this).setMessage("Floating bubble is disabled in this build.").setPositiveButton("OK", null).show()
+            return
+        }
+        val enabled = settingsPrefs.getBoolean("floating_bubble_enabled", false)
+        if (enabled) {
+            settingsPrefs.edit().putBoolean("floating_bubble_enabled", false).apply()
+            stopService(Intent(this, FloatingBubbleService::class.java))
+            logControlAction("Floating bubble", "disabled-by-user", "app")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            AlertDialog.Builder(this).setTitle("Allow floating bubble")
+                .setMessage("Android requires the special 'Display over other apps' permission. Vyom will not enable it silently. Allow it in Android Settings, return here, then tap Floating Bubble again.")
+                .setNegativeButton("CANCEL", null)
+                .setPositiveButton("OPEN SETTINGS") { _, _ ->
+                    try { startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))) }
+                    catch (_: Exception) { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+                }.show()
+            return
+        }
+        settingsPrefs.edit().putBoolean("floating_bubble_enabled", true).apply()
+        startFloatingBubbleService()
+        logControlAction("Floating bubble", "enabled-by-user", "app")
+    }
+
+    private fun requestDefaultAssistantRole() {
+        if (!BuildConfig.ENABLE_ASSISTANT_ROLE) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roles = getSystemService(RoleManager::class.java)
+            if (!roles.isRoleAvailable(RoleManager.ROLE_ASSISTANT)) {
+                AlertDialog.Builder(this).setTitle("Default assistant unavailable")
+                    .setMessage("Android on this device does not expose the Assistant role to Vyom. No setting was changed.")
+                    .setPositiveButton("OK", null).show()
+                return
+            }
+            if (roles.isRoleHeld(RoleManager.ROLE_ASSISTANT)) {
+                AlertDialog.Builder(this).setMessage("Vyom is already the selected Android assistant.").setPositiveButton("OK", null).show()
+                return
+            }
+            try { startActivityForResult(roles.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT), REQUEST_ASSISTANT_ROLE) }
+            catch (error: Exception) {
+                AlertDialog.Builder(this).setMessage("Could not open the Android assistant role prompt: " + (error.message ?: "unsupported")).setPositiveButton("OK", null).show()
+            }
+        } else {
+            AlertDialog.Builder(this).setTitle("Choose default assistant")
+                .setMessage("Open Android Settings > Apps > Default apps > Digital assistant app, then select Vyom if it is listed.")
+                .setPositiveButton("OPEN SETTINGS") { _, _ -> startActivity(Intent(Settings.ACTION_SETTINGS)) }
+                .setNegativeButton("CANCEL", null).show()
+        }
+    }
+
+    @Deprecated("Deprecated in Android; retained for RoleManager result compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_ASSISTANT_ROLE && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val held = getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)
+            logControlAction("Default assistant role", if (held) "granted" else "not-granted", "app")
+            android.widget.Toast.makeText(this, if (held) "Vyom selected as Android assistant" else "Assistant role not changed", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showOnboardingHelp() {
@@ -1260,6 +1336,8 @@ class MainActivity : Activity() {
             VOICE
             • Mic permission aur visible foreground notification required hai.
             • Notification se Mute ya Stop kar sakte ho.
+            • Floating bubble optional hai; Android overlay permission required hai.
+            • Default assistant Android role prompt se user select karta hai; hotword listening auto-start nahi hoti.
             • Background reply recovery PARTIAL hai; reconnect par local queued messages retry hote hain.
         """.trimIndent()
         AlertDialog.Builder(this).setTitle("Vyom • Getting started")
@@ -3463,6 +3541,10 @@ class MainActivity : Activity() {
         super.onResume()
         if (::orb.isInitialized) orb.onResume()
         if (voiceLoopEnabled && voiceDialog?.isShowing != true) showVoiceMode()
+        if (BuildConfig.ENABLE_FLOATING_BUBBLE && FloatingBubblePolicy.shouldStart(
+                settingsPrefs.getBoolean("floating_bubble_enabled", false),
+                Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
+            )) startFloatingBubbleService()
         if (tasksTabVisible) {
             mainHandler.removeCallbacks(refreshTasksRunnable)
             mainHandler.post(refreshTasksRunnable)
@@ -3494,6 +3576,7 @@ class MainActivity : Activity() {
         private const val REQUEST_RECORD_AUDIO = 701
         private const val REQUEST_DELETE_DOCUMENT = 705
         private const val REQUEST_INSTALL_DOCUMENT = 706
+        private const val REQUEST_ASSISTANT_ROLE = 807
         private const val TASK_POLL_MS = 4_000L
         private const val SESSION_EXPIRED_MESSAGE = "Session expired, dobara pair karo."
     }
