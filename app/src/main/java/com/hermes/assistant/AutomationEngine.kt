@@ -33,7 +33,7 @@ object AutomationEngine {
     )
     private val settingsPanels = setOf("wifi", "bluetooth", "display", "sound", "apps", "notifications", "location", "accessibility")
     private val sensitiveTerms = Regex(
-        "(?i)\\b(bank|banking|payment|pay|upi|otp|password|passcode|pin|biometric|wallet|paypal|finance|trading|crypto|security)\\b"
+        "(?i)\\b(bank|banking|बैंक|payment|भुगतान|pay|upi|otp|ओटीपी|password|पासवर्ड|passcode|pin|पिन|biometric|wallet|paypal|finance|trading|crypto|security)\\b"
     )
     private val consequentialTerms = Regex(
         "(?i)\\b(send|submit|delete|remove|install|purchase|buy|confirm|transfer|share|post|publish)\\b"
@@ -93,9 +93,9 @@ object AutomationEngine {
 
     fun classifyStep(step: Step): Risk {
         val combined = "${step.target} ${step.text}"
-        if (sensitiveTerms.containsMatchIn(combined)) return Risk.BLOCKED
+        if (step.type != "create_task" && sensitiveTerms.containsMatchIn(combined)) return Risk.BLOCKED
         return when (step.type) {
-            "type_text", "create_task" -> Risk.CONFIRM
+            "type_text", "create_task", "swipe", "screenshot" -> Risk.CONFIRM
             "tap_text" -> if (consequentialTerms.containsMatchIn(step.target)) Risk.CONFIRM else Risk.SAFE
             "open_url" -> if (sensitiveTerms.containsMatchIn(step.target)) Risk.BLOCKED else Risk.SAFE
             "open_settings" -> if (step.target.lowercase() !in settingsPanels) Risk.BLOCKED else Risk.SAFE
