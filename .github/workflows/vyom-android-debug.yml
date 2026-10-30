@@ -5,6 +5,7 @@ on:
     branches:
       - fresh-history/android-app-copy
       - feature/u1-live-orbit-tasks
+      - feature/r1a-android-reliability
   pull_request:
     branches:
       - fresh-history/android-app-copy
