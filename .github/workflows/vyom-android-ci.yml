@@ -8,6 +8,7 @@ on:
       - feature/r1-reliable-core
       - feature/r2-workspace-media
       - feature/r3-floating-bubble-assistant
+      - feature/stable-apk-signing-r1-r3
       - vyom-proposal-*
   pull_request:
     branches:
@@ -150,14 +151,14 @@ jobs:
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print -quit)"
           for APK in output/*.apk; do
             sha256sum "$APK" > "$APK.sha256"
-            apksigner verify --print-certs "$APK" > "$APK.signing.txt"
+            "$APKSIGNER" verify --print-certs "$APK" > "$APK.signing.txt"
             grep -E 'Signer #1 certificate SHA-256 digest:' "$APK.signing.txt" || { echo "Signing certificate fingerprint missing for $APK"; exit 1; }
           done
           if [[ "$STABLE_SIGNING" == "true" ]]; then
             RELEASE_APK="app/build/outputs/apk/release/app-release.apk"
             cp "$RELEASE_APK" "output/vyom-0.3.0-${SHORT_SHA}-release.apk"
             sha256sum "output/vyom-0.3.0-${SHORT_SHA}-release.apk" > "output/vyom-0.3.0-${SHORT_SHA}-release.apk.sha256"
-            apksigner verify --print-certs "output/vyom-0.3.0-${SHORT_SHA}-release.apk" > "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt"
+            "$APKSIGNER" verify --print-certs "output/vyom-0.3.0-${SHORT_SHA}-release.apk" > "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt"
             grep -E 'Signer #1 certificate SHA-256 digest:' "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt"
             DEBUG_CERT="$(grep 'Signer #1 certificate SHA-256 digest:' "output/vyom-0.3.0-${SHORT_SHA}-debug.apk.signing.txt" | awk '{print $NF}')"
             RELEASE_CERT="$(grep 'Signer #1 certificate SHA-256 digest:' "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt" | awk '{print $NF}')"
