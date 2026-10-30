@@ -198,7 +198,6 @@ internal class AutomationRunner(
     private fun finish(success: Boolean, message: String) {
         if (!running) return
         running = false
-        stopped = false
         val callback = completion
         completion = null
         callback?.invoke(RunSummary(success, completed, totalSteps, message))
