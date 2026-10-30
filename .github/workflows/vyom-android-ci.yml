@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/u1-live-orbit-tasks
+      - feature/r1a-android-reliability
       - vyom-proposal-*
   pull_request:
     branches:
