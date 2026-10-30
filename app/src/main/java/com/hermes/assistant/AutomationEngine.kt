@@ -33,7 +33,7 @@ object AutomationEngine {
     )
     private val settingsPanels = setOf("wifi", "bluetooth", "display", "sound", "apps", "notifications", "location", "accessibility")
     private val sensitiveTerms = Regex(
-        "(?i)\\b(bank|banking|payment|pay|upi|otp|password|passcode|pin|biometric|wallet|crypto|security)\\b"
+        "(?i)\\b(bank|banking|payment|pay|upi|otp|password|passcode|pin|biometric|wallet|paypal|finance|trading|crypto|security)\\b"
     )
     private val consequentialTerms = Regex(
         "(?i)\\b(send|submit|delete|remove|install|purchase|buy|confirm|transfer|share|post|publish)\\b"
@@ -44,6 +44,7 @@ object AutomationEngine {
 
     fun validate(macro: Macro): Validation {
         val errors = mutableListOf<String>()
+        if (runCatching { UUID.fromString(macro.id) }.isFailure) errors += "invalid_id"
         if (macro.name.trim().length !in 2..60) errors += "invalid_name"
         if (macro.steps.isEmpty() || macro.steps.size > 30) errors += "invalid_step_count"
         macro.steps.forEachIndexed { index, step ->
