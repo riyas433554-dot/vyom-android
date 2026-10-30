@@ -1341,15 +1341,65 @@ class MainActivity : Activity() {
                 status.text = "VYOM  •  THINKING"
                 renderChatMessages()
             }
+            var recoveryPending = false
             try {
-                val reply = api.chat(personaPrompt(item.text), item.id)
-                runOnUiThread {
-                    item.state = "done"
-                    item.reply = reply
-                    persistChatMessages()
-                    if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = ""; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled && !voiceLoopEnabled) speakReply(reply)
-                    status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
-                    renderChatMessages()
+                var recovered = api.recoverReply(item.id)
+                if (recovered != null) {
+                    var polls = 0
+                    while (recovered != null && !recovered.isTerminal && polls < 8) {
+                        val snapshot = recovered
+                        runOnUiThread {
+                            item.state = snapshot.status
+                            persistChatMessages()
+                            renderChatMessages()
+                        }
+                        Thread.sleep(1_500)
+                        val next = api.recoverReply(item.id)
+                        if (next == null) {
+                            recoveryPending = true
+                            break
+                        }
+                        recovered = next
+                        polls++
+                    }
+                    if (recovered?.status == "done" && !recovered.reply.isNullOrBlank()) {
+                        val reply = recovered.reply!!
+                        runOnUiThread {
+                            item.state = "done"
+                            item.reply = reply
+                            persistChatMessages()
+                            if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = ""; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled && !voiceLoopEnabled) speakReply(reply)
+                            status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
+                            renderChatMessages()
+                        }
+                    } else if (recovered?.status == "error") {
+                        runOnUiThread {
+                            item.state = "error"
+                            item.reply = recovered.error ?: "Server could not recover this reply."
+                            persistChatMessages()
+                            status.text = "VYOM  •  ERROR"
+                            renderChatMessages()
+                        }
+                    } else {
+                        recoveryPending = true
+                        runOnUiThread {
+                            item.state = recovered?.status ?: "running"
+                            status.text = "VYOM  •  SERVER RECOVERING"
+                            persistChatMessages()
+                            renderChatMessages()
+                        }
+                    }
+                } else {
+                    // Endpoint absent/disabled: retain the documented partial local retry path.
+                    val reply = api.chat(personaPrompt(item.text), item.id)
+                    runOnUiThread {
+                        item.state = "done"
+                        item.reply = reply
+                        persistChatMessages()
+                        if (voiceLoopEnabled) { voiceStateMachine.replyReady(); if (::voiceTranscript.isInitialized) voiceTranscript.text = ""; speakReply(reply) { if (voiceLoopEnabled) { if (voiceStateMachine.state == VoiceState.SPEAKING) voiceStateMachine.speechFinished(); if (!listening) startVoiceInput() } } } else if (voiceRepliesEnabled && !voiceLoopEnabled) speakReply(reply)
+                        status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) "VYOM  •  THINKING" else "VYOM  •  READY"
+                        renderChatMessages()
+                    }
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -1364,7 +1414,12 @@ class MainActivity : Activity() {
                     renderChatMessages()
                 }
             } finally {
-                mainHandler.post { chatRequestGuard.finish(item.id) }
+                mainHandler.post {
+                    chatRequestGuard.finish(item.id)
+                    if (recoveryPending && item.state in setOf("queued", "running")) {
+                        mainHandler.postDelayed({ if (item.state in setOf("queued", "running")) scheduleChatMessage(item) }, 2_500)
+                    }
+                }
             }
         }
     }
