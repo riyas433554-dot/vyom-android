@@ -32,7 +32,7 @@ object AutomationEngine {
         "swipe", "wait", "back", "home", "screenshot", "open_settings", "create_task"
     )
     private val settingsPanels = setOf("wifi", "bluetooth", "display", "sound", "apps", "notifications", "location", "accessibility")
-    private val sensitiveTerms = Regex(
+    private val sensitiveTerms = Regex("(?i)\\b(bank|banking|payment|pay|upi|otp|password|passcode|pin|biometric|wallet|paypal|finance|trading|crypto|security)\\b|बैंक|भुगतान|ओटीपी|पासवर्ड|पिन")
         "(?i)\\b(bank|banking|बैंक|payment|भुगतान|pay|upi|otp|ओटीपी|password|पासवर्ड|passcode|pin|पिन|biometric|wallet|paypal|finance|trading|crypto|security)\\b"
     )
     private val consequentialTerms = Regex(
