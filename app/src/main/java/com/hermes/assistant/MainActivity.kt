@@ -1880,6 +1880,7 @@ class MainActivity : Activity() {
         }
         if (inCodeBlock) output.append("</tt></pre>")
         return output.toString()
+        renderWorkspacePanels()
     }
 
     private fun setOrbAppearance(mode: Int) {
@@ -3049,6 +3050,7 @@ class MainActivity : Activity() {
             }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
+        renderWorkspacePanels()
     }
 
     private fun showTaskDetails(task: JSONObject) {
