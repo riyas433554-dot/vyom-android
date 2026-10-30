@@ -71,7 +71,10 @@ object AutomationEngine {
                 }
                 "wait" -> if (step.durationMs !in 100..30000) errors += "step_${index}_invalid_wait"
                 "open_settings" -> if (step.target.lowercase() !in settingsPanels) errors += "step_${index}_settings_panel_blocked"
-                "create_task" -> if (step.text.isBlank() || step.text.length > 4000) errors += "step_${index}_invalid_task"
+                "create_task" -> {
+                    if (step.text.isBlank() || step.text.length > 4000) errors += "step_${index}_invalid_task"
+                    if (secretText.containsMatchIn(step.text)) errors += "step_${index}_credential_task_blocked"
+                }
             }
         }
         return Validation(errors.isEmpty(), errors)
