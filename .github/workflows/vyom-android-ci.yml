@@ -89,14 +89,81 @@ jobs:
               exit 1
             fi
           done <<< "$changed"
-      - name: Unit tests and debug APK
-        run: gradle testDebugUnitTest assembleDebug --no-daemon
-      - name: Package versioned APK and checksum
+      - name: Configure stable signing (optional for fork PRs)
+        id: signing
         shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          values=( "$ANDROID_KEYSTORE_BASE64" "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD" )
+          present=0
+          for value in "${values[@]}"; do [[ -n "$value" ]] && present=$((present+1)); done
+          if [[ "$present" -eq 0 ]]; then
+            echo "stable_signing=false" >> "$GITHUB_OUTPUT"
+            echo "Stable signing secrets unavailable; using runner debug key for this build."
+            exit 0
+          fi
+          if [[ "$present" -ne 4 ]]; then
+            echo "Stable signing secrets are incomplete; refusing a partially configured signing build."
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/vyom-stable-signing.jks"
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          if ! keytool -list -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null 2>&1; then
+            rm -f "$KEYSTORE"
+            echo "Keystore validation failed (file/password/alias). Secret values were not printed."
+            exit 1
+          fi
+          {
+            echo "ANDROID_KEYSTORE_PATH=$KEYSTORE"
+            echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+            echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+            echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "stable_signing=true" >> "$GITHUB_OUTPUT"
+      - name: Unit tests and Android APK variants
+        env:
+          STABLE_SIGNING: ${{ steps.signing.outputs.stable_signing }}
+        run: |
+          if [[ "$STABLE_SIGNING" == "true" ]]; then
+            gradle testDebugUnitTest assembleDebug assembleRelease --no-daemon
+          else
+            gradle testDebugUnitTest assembleDebug --no-daemon
+          fi
+      - name: Package APKs and signing certificate fingerprints
+        shell: bash
+        env:
+          STABLE_SIGNING: ${{ steps.signing.outputs.stable_signing }}
+        run: |
+          set -euo pipefail
           mkdir -p output
-          cp app/build/outputs/apk/debug/app-debug.apk "output/vyom-phase6-${GITHUB_SHA}.apk"
-          sha256sum "output/vyom-phase6-${GITHUB_SHA}.apk" > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          cp "$DEBUG_APK" "output/vyom-0.3.0-${SHORT_SHA}-debug.apk"
+          find "$ANDROID_HOME/build-tools" -type f -name apksigner -print -quit | grep -q .
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print -quit)"
+          for APK in output/*.apk; do
+            sha256sum "$APK" > "$APK.sha256"
+            apksigner verify --print-certs "$APK" > "$APK.signing.txt"
+            grep -E 'Signer #1 certificate SHA-256 digest:' "$APK.signing.txt" || { echo "Signing certificate fingerprint missing for $APK"; exit 1; }
+          done
+          if [[ "$STABLE_SIGNING" == "true" ]]; then
+            RELEASE_APK="app/build/outputs/apk/release/app-release.apk"
+            cp "$RELEASE_APK" "output/vyom-0.3.0-${SHORT_SHA}-release.apk"
+            sha256sum "output/vyom-0.3.0-${SHORT_SHA}-release.apk" > "output/vyom-0.3.0-${SHORT_SHA}-release.apk.sha256"
+            apksigner verify --print-certs "output/vyom-0.3.0-${SHORT_SHA}-release.apk" > "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt"
+            grep -E 'Signer #1 certificate SHA-256 digest:' "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt"
+            DEBUG_CERT="$(grep 'Signer #1 certificate SHA-256 digest:' "output/vyom-0.3.0-${SHORT_SHA}-debug.apk.signing.txt" | awk '{print $NF}')"
+            RELEASE_CERT="$(grep 'Signer #1 certificate SHA-256 digest:' "output/vyom-0.3.0-${SHORT_SHA}-release.apk.signing.txt" | awk '{print $NF}')"
+            [[ "$DEBUG_CERT" == "$RELEASE_CERT" ]] || { echo "Debug/release signing certificates differ"; exit 1; }
+          fi
+          printf 'versionName=0.3.0\nversionCode=3\ncommit=%s\nstableSigning=%s\n' "$SHORT_SHA" "$STABLE_SIGNING" > output/build-info.txt
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
