@@ -158,13 +158,13 @@ internal class VyomApiClient(context: Context) {
 
     fun updateMemory(id: String, patch: JSONObject): JSONObject {
         require(UUID_RE.matches(id)) { "Invalid memory id" }
-        return request("/api/v1/memory/$id", JSONObject().put("ownerConfirmed", true).put("patch", patch),
-            taskToken(), "PATCH").optJSONObject("memory") ?: throw IllegalStateException("Invalid memory update response")
+        return request("/api/v1/memory/$id", JSONObject().put("ownerConfirmed", true).put("action", "update").put("patch", patch),
+            taskToken(), "POST").optJSONObject("memory") ?: throw IllegalStateException("Invalid memory update response")
     }
 
     fun deleteMemory(id: String): Boolean {
         require(UUID_RE.matches(id)) { "Invalid memory id" }
-        return request("/api/v1/memory/$id", JSONObject().put("ownerConfirmed", true), taskToken(), "DELETE")
+        return request("/api/v1/memory/$id", JSONObject().put("ownerConfirmed", true).put("action", "delete"), taskToken(), "POST")
             .optBoolean("deleted", false)
     }
 
