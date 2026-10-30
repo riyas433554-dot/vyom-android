@@ -92,6 +92,44 @@ internal class VyomApiClient(context: Context) {
         }
     }
 
+    @Volatile private var replyRecoveryAvailable: Boolean? = null
+
+    /**
+     * Returns null when the optional backend endpoint is absent/disabled.
+     * A 404/405 permanently disables probing for this process; normal POST fallback remains.
+     */
+    fun recoverReply(clientMessageId: String): ReplyRecoverySnapshot? {
+        if (!BuildConfig.ENABLE_REPLY_RECOVERY || replyRecoveryAvailable == false) return null
+        if (!CLIENT_MESSAGE_ID_RE.matches(clientMessageId)) return null
+        val token = store.get("access_token")?.takeIf { it.isNotBlank() } ?: throw SessionExpiredException()
+        val connection = (URL("$baseUrl/api/android/reply/$clientMessageId").openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 8_000
+            readTimeout = 12_000
+            doInput = true
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $token")
+        }
+        try {
+            val code = connection.responseCode
+            if (code == HttpURLConnection.HTTP_NOT_FOUND || code == HttpURLConnection.HTTP_BAD_METHOD) {
+                replyRecoveryAvailable = false
+                return null
+            }
+            if (code == HttpURLConnection.HTTP_UNAUTHORIZED) throw SessionExpiredException()
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) throw IllegalStateException("Reply recovery API error ($code)")
+            val snapshot = try { ReplyRecoverySnapshot.fromJson(JSONObject(text)) } catch (_: Exception) { null }
+                ?: throw IllegalStateException("Invalid reply recovery response")
+            if (snapshot.messageId != clientMessageId) throw IllegalStateException("Reply recovery message ID mismatch")
+            replyRecoveryAvailable = true
+            return snapshot
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     class SessionExpiredException : Exception("Session expired. Pair Vyom again.")
 
     fun createTask(prompt: String): JSONObject {
@@ -165,6 +203,7 @@ internal class VyomApiClient(context: Context) {
     private class UnauthorizedSessionException : Exception()
 
     companion object {
+        private val CLIENT_MESSAGE_ID_RE = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
         private const val TASK_IDS_KEY = "vyom_task_ids"
         private val TASK_ID_RE = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
     }
