@@ -8,6 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -117,6 +118,89 @@ internal class VyomApiClient(context: Context) {
             ?: throw IllegalStateException("Invalid task cancellation response")
     }
 
+
+    // Owner-only Vyom OS APIs. The server verifies that this paired session is owner-bound.
+    fun ownerDashboard(): JSONObject =
+        request("/api/v1/owner/dashboard", JSONObject(), taskToken(), "GET")
+
+    fun listAgents(): JSONArray =
+        request("/api/v1/agents", JSONObject(), taskToken(), "GET").optJSONArray("agents") ?: JSONArray()
+
+    fun createAgent(definition: JSONObject): JSONObject =
+        request("/api/v1/agents", JSONObject().put("definition", definition), taskToken(), "POST")
+            .optJSONObject("agent") ?: throw IllegalStateException("Invalid agent response")
+
+    fun runAgent(agentId: String, task: String, context: JSONObject = JSONObject(), approvedTools: List<String> = emptyList()): JSONObject {
+        require(agentId.matches(Regex("^[A-Za-z0-9_-]{1,128}$"))) { "Invalid agent id" }
+        val tools = JSONArray()
+        approvedTools.forEach { tools.put(it) }
+        return request("/api/v1/agents/$agentId/run",
+            JSONObject().put("task", task).put("context", context).put("approvedTools", tools),
+            taskToken(), "POST").optJSONObject("result") ?: throw IllegalStateException("Invalid agent run response")
+    }
+
+    fun delegateAgents(assignments: JSONArray): JSONObject =
+        request("/api/v1/agents/delegate", JSONObject().put("assignments", assignments), taskToken(), "POST")
+            .optJSONObject("result") ?: throw IllegalStateException("Invalid delegation response")
+
+    fun listMemory(query: String? = null, category: String? = null): JSONArray {
+        val params = mutableListOf<String>()
+        if (!query.isNullOrBlank()) params += "q=" + URLEncoder.encode(query, "UTF-8")
+        if (!category.isNullOrBlank()) params += "category=" + URLEncoder.encode(category, "UTF-8")
+        val suffix = if (params.isEmpty()) "" else "?" + params.joinToString("&")
+        return request("/api/v1/memory$suffix", JSONObject(), taskToken(), "GET").optJSONArray("memories") ?: JSONArray()
+    }
+
+    fun saveMemory(category: String, title: String, content: String, tags: JSONArray = JSONArray()): JSONObject =
+        request("/api/v1/memory", JSONObject().put("ownerConfirmed", true).put("category", category)
+            .put("title", title).put("content", content).put("tags", tags), taskToken(), "POST")
+            .optJSONObject("memory") ?: throw IllegalStateException("Invalid memory response")
+
+    fun updateMemory(id: String, patch: JSONObject): JSONObject {
+        require(UUID_RE.matches(id)) { "Invalid memory id" }
+        return request("/api/v1/memory/$id", JSONObject().put("ownerConfirmed", true).put("patch", patch),
+            taskToken(), "PATCH").optJSONObject("memory") ?: throw IllegalStateException("Invalid memory update response")
+    }
+
+    fun deleteMemory(id: String): Boolean {
+        require(UUID_RE.matches(id)) { "Invalid memory id" }
+        return request("/api/v1/memory/$id", JSONObject().put("ownerConfirmed", true), taskToken(), "DELETE")
+            .optBoolean("deleted", false)
+    }
+
+    fun listSecrets(): JSONArray =
+        request("/api/v1/secrets", JSONObject(), taskToken(), "GET").optJSONArray("secrets") ?: JSONArray()
+
+    fun createSecret(metadata: JSONObject, value: String): JSONObject =
+        request("/api/v1/secrets", JSONObject().put("metadata", metadata).put("value", value), taskToken(), "POST")
+            .optJSONObject("secret") ?: throw IllegalStateException("Invalid secret metadata response")
+
+    fun rotateSecret(id: String, value: String, metadata: JSONObject? = null): JSONObject {
+        require(UUID_RE.matches(id)) { "Invalid secret id" }
+        val body = JSONObject().put("value", value)
+        if (metadata != null) body.put("metadata", metadata)
+        return request("/api/v1/secrets/$id/rotate", body, taskToken(), "POST")
+            .optJSONObject("secret") ?: throw IllegalStateException("Invalid secret rotation response")
+    }
+
+    fun revokeSecret(id: String): JSONObject {
+        require(UUID_RE.matches(id)) { "Invalid secret id" }
+        return request("/api/v1/secrets/$id/revoke", JSONObject(), taskToken(), "POST")
+            .optJSONObject("secret") ?: throw IllegalStateException("Invalid secret revocation response")
+    }
+
+    fun exportVault(passphrase: String): JSONObject =
+        request("/api/v1/secrets/export", JSONObject().put("passphrase", passphrase), taskToken(), "POST")
+            .optJSONObject("backup") ?: throw IllegalStateException("Invalid encrypted backup response")
+
+    fun importVault(passphrase: String, backup: JSONObject): JSONObject =
+        request("/api/v1/secrets/import", JSONObject().put("passphrase", passphrase).put("backup", backup), taskToken(), "POST")
+
+    fun proposeSelfImprovement(goal: String, targetFiles: JSONArray): JSONObject =
+        request("/api/v1/self-improvement/proposals",
+            JSONObject().put("ownerConfirmed", true).put("goal", goal).put("targetFiles", targetFiles),
+            taskToken(), "POST").optJSONObject("proposal") ?: throw IllegalStateException("Invalid proposal response")
+
     fun savedTaskIds(): List<String> {
         val raw = store.get(TASK_IDS_KEY) ?: return emptyList()
         return try {
@@ -166,5 +250,6 @@ internal class VyomApiClient(context: Context) {
     companion object {
         private const val TASK_IDS_KEY = "vyom_task_ids"
         private val TASK_ID_RE = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+        private val UUID_RE = TASK_ID_RE
     }
 }
