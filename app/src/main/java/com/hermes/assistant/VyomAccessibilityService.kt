@@ -405,7 +405,8 @@ class VyomAccessibilityService : AccessibilityService() {
     private fun performNodeAction(index: Int, expectedFingerprint: String, action: Int, requireClickable: Boolean = false, requireLongClickable: Boolean = false): Boolean {
         if (index !in 0 until 180 || expectedFingerprint.isBlank()) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root)) return false
+        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
+            root.packageName?.toString() != lastObservedPackage) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint || safeGestureBounds(node) == null) return false
         if (requireClickable && !node.isClickable) {
