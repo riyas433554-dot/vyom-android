@@ -268,3 +268,15 @@ Implementation SHA: `11a5abcb405f6720ace38078288347a0ac328759`
 - APK is an unsigned CI debug variant with a CI-generated debug signing key. Certificate continuity with the previously installed Vyom APK is not established; do not uninstall the existing app or install over it until certificate fingerprints are compared or the correct release keystore is configured.
 - Device behavior remains unverified until user phone testing. No production deployment or merge to Android `main`.
 
+
+
+## 2026-11-01 — Android memory relevance and identity refinement
+
+Implementation commit: 26a45fcf69b471221c925d1e3e81299cea341c7f.
+
+- Local memory retrieval now ranks facts against the current request and limits identity/context prompt size; unrelated facts are not injected when relevant matches exist.
+- LIVE voice preserves the selected language and uses the same capability-grounded identity contract; simple requests can stay brief while detailed requests can receive detail.
+- Android CI run 41293535616 and Debug run 41293535594 both passed on this exact SHA.
+- Debug artifact ID 13078422171, name vyom-0.3.0-26a45fcf69b471221c925d1e3e81299cea341c7f. ZIP SHA-256 7e42f1ac38dc928a10170091b58346202ed74bc750e568eb26fb1be10e4d0f07; extracted APK SHA-256 d2aacec55feebf454f3e62eecb95d249775d6c96aad3a676c1d8a354ad4eb00d.
+- This remains an unsigned CI debug variant with a runner-generated debug certificate. Do not install over the current app or uninstall it until certificate continuity is checked or a release is built with the original keystore.
+- Android main remains unchanged. No Hermes deployment, Render deployment or production database migration was performed by the Android branch.
