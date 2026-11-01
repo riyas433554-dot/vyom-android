@@ -97,7 +97,7 @@ internal class VyomMemoryDialog(
 
         search = EditText(activity).apply {
             hint = "Search memory…"
-            singleLine = true
+            isSingleLine = true
             textSize = 13f
             setTextColor(VyomDesignSpec.TEXT_PRIMARY)
             setHintTextColor(VyomDesignSpec.TEXT_SECONDARY)
@@ -111,7 +111,7 @@ internal class VyomMemoryDialog(
 
         val scroll = ScrollView(activity).apply { clipToPadding = false }
         list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-        scroll.addView(list, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(list, android.widget.FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val actions = LinearLayout(activity).apply {
