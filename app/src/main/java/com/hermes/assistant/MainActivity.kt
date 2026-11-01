@@ -672,14 +672,13 @@ class MainActivity : Activity() {
 
 
         // Build metadata remains available outside the primary navigation.
-        panel.addView(tabBar, LinearLayout.LayoutParams(-1, dp(52)))
         panel.addView(pairingInput, LinearLayout.LayoutParams(-1, dp(46)))
         panel.addView(pairButton, LinearLayout.LayoutParams(-1, dp(44)))
         homePanel = buildHomePanel()
-        panel.addView(homePanel, LinearLayout.LayoutParams(-1, dp(250)))
-        panel.addView(chatPanel, LinearLayout.LayoutParams(-1, dp(250)))
-        panel.addView(tasksPanel, LinearLayout.LayoutParams(-1, dp(250)))
-        panel.addView(settingsPanel, LinearLayout.LayoutParams(-1, dp(250)))
+        panel.addView(homePanel, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(chatPanel, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(tasksPanel, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(settingsPanel, LinearLayout.LayoutParams(-1, 0, 1f))
         filesPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
@@ -697,7 +696,7 @@ class MainActivity : Activity() {
         }
         filesPanel.addView(filesNotice, LinearLayout.LayoutParams(-1, -2))
         filesPanel.addView(filesScroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        panel.addView(filesPanel, LinearLayout.LayoutParams(-1, dp(250)))
+        panel.addView(filesPanel, LinearLayout.LayoutParams(-1, 0, 1f))
         controlPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
@@ -765,7 +764,8 @@ class MainActivity : Activity() {
             addView(controlAuditList, FrameLayout.LayoutParams(-1, -2))
         }
         controlPanel.addView(auditScroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        panel.addView(controlPanel, LinearLayout.LayoutParams(-1, dp(250)))
+        panel.addView(controlPanel, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(tabBar, LinearLayout.LayoutParams(-1, dp(52)))
 
         val orbitView = OrbitHomeView(this)
         orbitHomeView = orbitView
@@ -773,11 +773,27 @@ class MainActivity : Activity() {
         orbitView.setLiteMode(liteMode)
         root.addView(orbitView, 0, FrameLayout.LayoutParams(-1, -1))
         root.addView(orb, FrameLayout.LayoutParams(1, 1, Gravity.CENTER))
-        root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-            topMargin = dp(12)
-        })
-        root.addView(buildInfo, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-            topMargin = dp(30)
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+        }
+        headerRow.addView(TextView(this).apply {
+            text = "☰"
+            textSize = 25f
+            gravity = Gravity.CENTER
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            contentDescription = "Open navigation drawer"
+            setOnClickListener { showProfileMenu() }
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        status.gravity = Gravity.CENTER
+        headerRow.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
+        buildInfo.textSize = 8f
+        buildInfo.maxLines = 2
+        buildInfo.gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        headerRow.addView(buildInfo, LinearLayout.LayoutParams(dp(112), -2))
+        root.addView(headerRow, FrameLayout.LayoutParams(-1, dp(52), Gravity.TOP).apply {
+            topMargin = dp(6)
         })
         root.addView(panel, FrameLayout.LayoutParams(-1, dp(440), Gravity.BOTTOM))
         setContentView(root)
@@ -789,11 +805,12 @@ class MainActivity : Activity() {
         }
 
         root.post {
-            val size = (minOf(root.width, root.height) * 0.60f).toInt()
+            val size = minOf((root.width * 0.72f).toInt(), dp(292))
             orb.layoutParams = (orb.layoutParams as FrameLayout.LayoutParams).apply {
                 width = size
                 height = size
-                gravity = Gravity.CENTER
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                topMargin = dp(70)
             }
         }
         restoreChatMessages()
@@ -951,11 +968,39 @@ class MainActivity : Activity() {
             }
         quickRow.addView(quickCard("Tasks", "View progress") { showTab(true) },
             LinearLayout.LayoutParams(0, dp(54), 1f).apply { marginEnd = dp(5) })
-        quickRow.addView(quickCard("Chat history", "Continue a reply") { showTab(false) },
+        quickRow.addView(quickCard("Memory", if (memoryStore.isEnabled()) "On · edit facts" else "Off · manage") { showMemoryManager() },
             LinearLayout.LayoutParams(0, dp(54), 1f).apply { marginEnd = dp(5) })
-        quickRow.addView(quickCard("Profile", "Themes & settings") { showProfileMenu() },
+        quickRow.addView(quickCard("Skills", "Device capabilities") { showSkillsRegistry() },
             LinearLayout.LayoutParams(0, dp(54), 1f))
         content.addView(quickRow, LinearLayout.LayoutParams(-1, -2))
+        val routeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, dp(6))
+        }
+        routeRow.addView(TextView(this).apply {
+            text = "AUTO ROUTER"
+            textSize = 9f
+            letterSpacing = 0.12f
+            typeface = Typeface.MONOSPACE
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            background = VyomTheme.glass(this@MainActivity, 999, VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setPadding(dp(12), dp(7), dp(12), dp(7))
+        }, LinearLayout.LayoutParams(-2, -2))
+        routeRow.addView(TextView(this).apply {
+            text = if (hinglishPersona) "PERSONA · HINGLISH" else "PERSONA · ENGLISH"
+            textSize = 9f
+            typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(dp(10), 0, 0, 0)
+        })
+        content.addView(routeRow, LinearLayout.LayoutParams(-1, -2))
+        val stopControl = Button(this).apply {
+            text = if (controlKillSwitch) "CONTROL STOPPED" else "STOP CONTROL"
+            VyomTheme.stylePill(this, this@MainActivity, "cyan", "danger")
+            setOnClickListener { activateControlKillSwitch() }
+        }
+        content.addView(stopControl, LinearLayout.LayoutParams(-1, dp(46)))
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             clipToPadding = false
@@ -999,23 +1044,46 @@ class MainActivity : Activity() {
     }
 
     private fun showProfileMenu() {
-        AlertDialog.Builder(this)
-            .setTitle("Profile")
-            .setItems(arrayOf("Settings", "Files", "Control", "App access", "UI Agent", "Skills", "Fix suggestions", "Memory", "Diagnostics")) { _, which ->
-                when (which) {
-                    0 -> showTab(false, true)
-                    1 -> showTab(false, false, true)
-                    2 -> showTab(false, false, false, true)
-                    3 -> showAppAccessPanel()
-                    4 -> showUiAgentPanel()
-                    5 -> showSkillsRegistry()
-                    6 -> showFixSuggestions()
-                    7 -> showMemoryManager()
-                    8 -> showVoiceDiagnostics()
-                }
+        val memoryState = if (memoryStore.isEnabled()) "MEMORY ON" else "MEMORY OFF"
+        VyomDrawer(this, "v${BuildConfig.VERSION_NAME} · ${BuildConfig.GIT_COMMIT_SHORT} · $memoryState", ::navigateDrawerItem).show()
+    }
+
+    private fun navigateDrawerItem(destination: String) {
+        when (destination) {
+            "home" -> showHome()
+            "automations" -> showAutomationsPanel()
+            "tasks" -> showTab(true)
+            "control", "assistant_control" -> showTab(false, false, false, true)
+            "skills" -> showSkillsRegistry()
+            "connections", "settings" -> showTab(false, true)
+            "memory" -> showMemoryManager()
+            "voice" -> showVoiceMode()
+            "system" -> showVoiceDiagnostics()
+            "stop_control" -> activateControlKillSwitch()
+            "animations", "videos", "images", "vfx", "cgi", "sfx", "instructions", "icons" ->
+                android.widget.Toast.makeText(this, "${destination.replace('_', ' ').replaceFirstChar { it.uppercase() }} is not connected in this build yet.", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun activateControlKillSwitch() {
+        controlKillSwitch = true
+        controlPrefs.edit().putBoolean("kill_switch", true).apply()
+        logControlAction("STOP CONTROL", "enabled", "app")
+        if (::controlNotice.isInitialized) controlNotice.text = "STOP CONTROL is ON. Device actions are disabled until resumed."
+        AlertDialog.Builder(this).setTitle("Control stopped")
+            .setMessage("All device actions are disabled. Resume only when safe.")
+            .setPositiveButton("RESUME CONTROL") { _, _ ->
+                controlKillSwitch = false
+                controlPrefs.edit().putBoolean("kill_switch", false).apply()
+                logControlAction("RESUME CONTROL", "enabled", "app")
+                if (::controlNotice.isInitialized) controlNotice.text = "Device actions resumed."
             }
-            .setNegativeButton("Close", null)
+            .setNegativeButton("Keep stopped", null)
             .show()
+    }
+
+    private fun showAutomationsPanel() {
+        VyomAutomationsDialog(this, tasksById.values.toList(), ::navigateDrawerItem).show()
     }
 
     private fun showVoiceDiagnostics() {
