@@ -373,6 +373,26 @@ class VyomAccessibilityService : AccessibilityService() {
         return dispatchPath(x, y, x, y, 90L)
     }
 
+    fun longPressOcrTarget(expectedFingerprint: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        if (expectedFingerprint.isBlank() || root.packageName?.toString() != lastOcrPackage ||
+            !isCurrentAppAllowed(root) || screenRevision != lastOcrRevision) return false
+        val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
+        val width = resources.displayMetrics.widthPixels
+        val height = resources.displayMetrics.heightPixels
+        val targetWidth = target.right - target.left
+        val targetHeight = target.bottom - target.top
+        val area = targetWidth.toLong() * targetHeight.toLong()
+        val screenArea = width.toLong() * height.toLong()
+        if (target.left < 0 || target.top < 0 || target.right > width || target.bottom > height ||
+            targetWidth < (8 * resources.displayMetrics.density).toInt() ||
+            targetHeight < (8 * resources.displayMetrics.density).toInt() ||
+            area <= 0 || area > screenArea * 10L / 100L) return false
+        val x = (target.left + target.right) / 2f
+        val y = (target.top + target.bottom) / 2f
+        return dispatchPath(x, y, x, y, 650L)
+    }
+
     private fun isSensitiveOcrText(value: String): Boolean =
         Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token|account number|card number)").containsMatchIn(value) ||
             Regex("""\b\d{4,12}\b""").containsMatchIn(value) ||
