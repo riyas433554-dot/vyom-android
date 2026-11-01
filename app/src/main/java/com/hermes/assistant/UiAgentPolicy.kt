@@ -17,7 +17,7 @@ internal object UiAgentPolicy {
         val ocrIndex: Int = -1,
         val ocrFingerprint: String = ""
     )
-    data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
+    data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String)
 
     private val blockedTargets = Regex(
@@ -46,7 +46,7 @@ internal object UiAgentPolicy {
             }
             Kind.TAP_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
-                if (node == null || !node.gestureBoundsSafe || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
                 else Verdict.CONFIRM
             }
             Kind.LONG_PRESS_NODE -> {
