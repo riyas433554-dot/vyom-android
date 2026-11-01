@@ -31,7 +31,7 @@ internal object MemoryCapturePolicy {
             Triple(score, indexed.index, indexed.value)
         }.sortedWith(compareByDescending<Triple<Int, Int, String>> { it.first }.thenByDescending { it.second })
             .filter { queryTokens.isEmpty() || it.first > 0 }
-            .take(safeLimit).map { it.third }
+            .take(safeLimit).sortedByDescending { it.second }.map { it.third }
     }
     fun extract(message: String): List<String> {
         val text = message.trim()
