@@ -180,11 +180,6 @@ class VyomAccessibilityService : AccessibilityService() {
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node) != expectedFingerprint) return false
         if (requireClickable && !node.isClickable) {
-            var parent = node.parent
-            while (parent != null) {
-                if (parent.isClickable) return parent.performAction(action)
-                parent = parent.parent
-            }
             val rect = safeGestureBounds(node) ?: return false
             return dispatchPath(rect.centerX().toFloat(), rect.centerY().toFloat(), rect.centerX().toFloat(), rect.centerY().toFloat(), 90L)
         }
