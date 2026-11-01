@@ -1193,12 +1193,14 @@ class MainActivity : Activity() {
                             ))
                         }
                         val visibleOcr = ocrTargets.map { UiAgentPolicy.VisibleOcr(it.index, it.text, it.fingerprint) }
-                        val preparedAction = when (action.kind) {
+                        val observedPackage = tree.optJSONObject(0)?.optString("package").orEmpty()
+                        val baseAction = action.copy(screenPackage = observedPackage)
+                        val preparedAction = when (baseAction.kind) {
                             UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE, UiAgentPolicy.Kind.TYPE_TEXT ->
-                                action.copy(nodeFingerprint = visibleNodes.firstOrNull { it.index == action.nodeIndex }?.fingerprint.orEmpty())
+                                baseAction.copy(nodeFingerprint = visibleNodes.firstOrNull { it.index == baseAction.nodeIndex }?.fingerprint.orEmpty())
                             UiAgentPolicy.Kind.TAP_OCR ->
-                                action.copy(ocrFingerprint = ocrTargets.firstOrNull { it.index == action.ocrIndex }?.fingerprint.orEmpty())
-                            else -> action
+                                baseAction.copy(ocrFingerprint = ocrTargets.firstOrNull { it.index == baseAction.ocrIndex }?.fingerprint.orEmpty())
+                            else -> baseAction
                         }
                         val verdict = UiAgentPolicy.validate(
                             preparedAction, labels, goal, visibleNodes,
@@ -1254,14 +1256,14 @@ class MainActivity : Activity() {
         if (service == null) { finish("Accessibility service disconnected."); return }
         val success = when (action.kind) {
             UiAgentPolicy.Kind.OPEN_APP -> launchUiAgentApp(action.target)
-            UiAgentPolicy.Kind.TAP_TEXT -> service.clickVisibleText(action.target)
+            UiAgentPolicy.Kind.TAP_TEXT -> service.clickVisibleText(action.target, action.screenPackage)
             UiAgentPolicy.Kind.TAP_OCR -> service.tapOcrTarget(action.ocrFingerprint)
             UiAgentPolicy.Kind.TAP_NODE -> service.clickNode(action.nodeIndex, action.nodeFingerprint)
             UiAgentPolicy.Kind.LONG_PRESS_NODE -> service.longPressNode(action.nodeIndex, action.nodeFingerprint)
             UiAgentPolicy.Kind.SWIPE_NODE -> service.swipeNode(action.nodeIndex, action.nodeFingerprint, action.direction)
-            UiAgentPolicy.Kind.SCROLL -> service.scroll(action.direction)
+            UiAgentPolicy.Kind.SCROLL -> service.scroll(action.direction, action.screenPackage)
             UiAgentPolicy.Kind.TYPE_TEXT -> service.typeIntoNode(action.nodeIndex, action.nodeFingerprint, action.text)
-            UiAgentPolicy.Kind.BACK -> service.global("back")
+            UiAgentPolicy.Kind.BACK -> service.global("back", action.screenPackage)
             UiAgentPolicy.Kind.WAIT -> true
             UiAgentPolicy.Kind.DONE -> {
                 finish("Vyom ne task complete report kiya. Screen state manually verify karo.")
