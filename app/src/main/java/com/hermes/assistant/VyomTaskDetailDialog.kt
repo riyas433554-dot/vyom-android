@@ -126,7 +126,8 @@ internal class VyomTaskDetailDialog(
             section("Steps · ${steps.length()}")
             for (i in 0 until steps.length()) {
                 val step = steps.optJSONObject(i)
-                val value = step?.optString("title", step.optString("name", "Step ${i + 1}")) ?: steps.optString(i)
+                val value = if (step == null) steps.optString(i) else
+                    step.optString("title", step.optString("name", "Step ${i + 1}"))
                 val stepStatus = step?.optString("status", "").orEmpty()
                 card(if (stepStatus.isBlank()) value else "$value · ${stepStatus.uppercase()}")
             }
