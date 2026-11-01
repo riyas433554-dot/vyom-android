@@ -186,3 +186,11 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - Added policy validation: text taps must exactly match a currently visible label/description; typing is allowed only when the exact text is explicitly in the user's task; credential-like text is rejected; consequential visible controls require an on-screen confirmation; run is capped at 12 actions.
 - After each accepted action, the UI is observed again before the next plan. STOP CONTROL, service loss, empty/disabled screen, invalid plan, or rejected Android action stops the run.
 - This initial loop supports semantic text taps, scroll, type, back, wait and done. It does not yet support visual-only custom canvases or OCR-based coordinate actions; complex editors such as CapCut may expose controls that Accessibility cannot describe. Phone testing remains pending.
+
+
+## 2026-11-01 — UI Agent guarded node interactions
+- Re-observation delay after each accepted action is 300 ms (not a promise that every target app has completed its animation).
+- Added per-app AppAccessPolicy implementation and tests. First App access initialization enables the launchable app snapshot; packages added later are denied until explicitly enabled. Master OFF and persistent STOP CONTROL deny accessibility operations.
+- Added indexed TAP_NODE and LONG_PRESS_NODE actions for unlabeled controls that expose clickable/long-clickable Accessibility nodes. Node actions always require explicit confirmation and are rejected if the node's latest-observation fingerprint changes before execution.
+- Corrected Kotlin compile issues in the UI Agent step counter and ScrollView child layout parameters.
+- Still unsupported: controls with no Accessibility node, OCR/vision coordinate interaction, some custom Canvas editor surfaces, protected/secure windows. Phone testing remains pending.
