@@ -1858,20 +1858,17 @@ class MainActivity : Activity() {
             task.optString("status", "").lowercase() in setOf("running", "in_progress", "processing", "working")
         }
         if (activeTask != null) {
+            val taskStatusColor = VyomDesignSpec.taskStatusAccent(activeTask.optString("status", "running"))
             val progressCard = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(12), dp(10), dp(12), dp(10))
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(Color.rgb(18, 42, 59))
-                    cornerRadius = dp(14).toFloat()
-                    setStroke(dp(1), VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
-                }
+                setPadding(dp(13), dp(11), dp(13), dp(11))
+                background = VyomTheme.glass(this@MainActivity, VyomTheme.RADIUS_LARGE_DP, taskStatusColor)
             }
             progressCard.addView(TextView(this).apply {
                 text = "TASK IN PROGRESS"
-                textSize = 10f
-                setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                setTextColor(taskStatusColor)
             })
             progressCard.addView(TextView(this).apply {
                 text = activeTask.optString("prompt", "Working on your task").lineSequence().firstOrNull().orEmpty()
@@ -1908,8 +1905,14 @@ class MainActivity : Activity() {
                     cornerRadius = dp(16).toFloat()
                 }
             }
+            userBubble.maxWidth = (resources.displayMetrics.widthPixels * 0.86f).toInt()
+            val userBubbleRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END
+                addView(userBubble, LinearLayout.LayoutParams(-2, -2))
+            }
             chatMessageList.addView(userLabel, LinearLayout.LayoutParams(-1, -2))
-            chatMessageList.addView(userBubble, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(4) })
+            chatMessageList.addView(userBubbleRow, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(4) })
             val stateLabel = TextView(this).apply {
                 text = when (item.state) {
                     "queued" -> "QUEUED"
@@ -1917,13 +1920,15 @@ class MainActivity : Activity() {
                     "done" -> "VYOM · $time"
                     else -> "ERROR · $time"
                 }
-                textSize = 10f
-                setTextColor(when (item.state) {
-                    "error" -> Color.rgb(255, 130, 130)
-                    "done" -> VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
-                    else -> Color.LTGRAY
-                })
-                setPadding(dp(5), dp(5), dp(5), dp(3))
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                val stateColor = VyomDesignSpec.taskStatusAccent(item.state)
+                setTextColor(stateColor)
+                setPadding(dp(8), dp(5), dp(8), dp(5))
+                background = GradientDrawable().apply {
+                    setColor(Color.argb(24, Color.red(stateColor), Color.green(stateColor), Color.blue(stateColor)))
+                    cornerRadius = dp(999).toFloat()
+                }
             }
             chatMessageList.addView(stateLabel, LinearLayout.LayoutParams(-1, -2))
             if (item.reply.isNotBlank()) {
@@ -1940,7 +1945,13 @@ class MainActivity : Activity() {
                         setStroke(dp(1), Color.argb(100, 100, 130, 170))
                     }
                 }
-                chatMessageList.addView(replyBubble, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+                replyBubble.maxWidth = (resources.displayMetrics.widthPixels * 0.92f).toInt()
+                val replyBubbleRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.START
+                    addView(replyBubble, LinearLayout.LayoutParams(-2, -2))
+                }
+                chatMessageList.addView(replyBubbleRow, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
             }
         }
         if (!preserveOlderScroll) {
