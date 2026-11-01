@@ -115,9 +115,9 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(direction = "diagonal"), emptyList(), "Swipe timeline", listOf(node)))
     }
 
-    @Test fun boundsAgentRunToTwelveActions() {
+    @Test fun boundsAgentRunToFortyActions() {
         assertTrue(UiAgentPolicy.mayContinue(0))
-        assertTrue(UiAgentPolicy.mayContinue(11))
-        assertFalse(UiAgentPolicy.mayContinue(12))
+        assertTrue(UiAgentPolicy.mayContinue(39))
+        assertFalse(UiAgentPolicy.mayContinue(40))
     }
 }
