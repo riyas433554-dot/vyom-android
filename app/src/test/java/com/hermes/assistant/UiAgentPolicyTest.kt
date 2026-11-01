@@ -44,6 +44,7 @@ class UiAgentPolicyTest {
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TYPE_TEXT, text = "hello", nodeIndex = 3, nodeFingerprint = fingerprint)
         assertEquals(UiAgentPolicy.Verdict.ALLOW, UiAgentPolicy.validate(action, emptyList(), "Add caption hello", listOf(editable)))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(nodeIndex = 4), emptyList(), "Add caption hello", listOf(editable)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action, listOf("UPI transfer"), "Add caption hello", listOf(editable)))
     }
 
     @Test fun refusesCredentialLikeText() {
