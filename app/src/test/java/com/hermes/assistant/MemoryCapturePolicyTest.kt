@@ -24,6 +24,8 @@ class MemoryCapturePolicyTest {
         listOf("My OTP is 123456", "My UPI PIN is 1234", "My API key is nvapi-abcdefghijklmnop", "My bank account number is 1234567890123")
             .forEach { assertTrue(MemoryCapturePolicy.extract("Remember that $it").isEmpty()) }
         assertTrue(MemoryCapturePolicy.isSensitive("My card number is 4111111111111111"))
+        assertTrue(MemoryCapturePolicy.isSensitive("My phone number is 9876543210"))
+        assertTrue(MemoryCapturePolicy.isSensitive("My email is r@example.com"))
     }
 
     @Test fun safeNameStatementCanBeRemembered() {

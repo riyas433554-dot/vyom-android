@@ -11,6 +11,8 @@ class VyomIdentityPolicyTest {
         assertTrue(prompt.contains("Android security"))
         assertTrue(prompt.contains("verified"))
         assertTrue(prompt.contains("Never ask for passwords"))
+        assertTrue(prompt.contains("queued Hermes tasks"))
+        assertTrue(prompt.contains("OCR"))
     }
 
     @Test fun voicePromptDoesNotForceEveryReplyToOneOrTwoSentences() {
