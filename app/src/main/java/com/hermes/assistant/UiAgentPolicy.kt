@@ -5,27 +5,40 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { TAP_TEXT, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { TAP_TEXT, TAP_NODE, LONG_PRESS_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     data class Action(
         val kind: Kind,
         val target: String = "",
         val direction: String = "",
-        val text: String = ""
+        val text: String = "",
+        val nodeIndex: Int = -1,
+        val nodeFingerprint: String = ""
     )
+    data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String)
 
     private val consequential = Regex(
         """\b(pay|purchase|buy|delete|remove|send|share|post|publish|export|install|uninstall|subscribe|transfer|confirm|approve|allow|grant|order|checkout|payment|place order)\b""",
         RegexOption.IGNORE_CASE
     )
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList()): Verdict {
         return when (action.kind) {
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
                 else if (consequential.containsMatchIn(action.target)) Verdict.CONFIRM
                 else Verdict.ALLOW
+            }
+            Kind.TAP_NODE -> {
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                if (node == null || !node.clickable || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                else Verdict.CONFIRM
+            }
+            Kind.LONG_PRESS_NODE -> {
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                if (node == null || !node.longClickable || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
             Kind.TYPE_TEXT -> {
