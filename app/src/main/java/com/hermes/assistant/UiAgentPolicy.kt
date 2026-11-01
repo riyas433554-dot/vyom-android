@@ -62,8 +62,11 @@ internal object UiAgentPolicy {
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
             Kind.TYPE_TEXT -> {
                 val text = action.text.trim()
-                if (text.isBlank() || text.length > 500 ||
-                    !userGoal.contains(text, ignoreCase = true) || blockedTargets.containsMatchIn(text) ||
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                if (node == null || !node.editable || node.password || node.fingerprint.isBlank() ||
+                    node.fingerprint != action.nodeFingerprint || blockedTargets.containsMatchIn(node.label) ||
+                    text.isBlank() || text.length > 500 || !userGoal.contains(text, ignoreCase = true) ||
+                    blockedTargets.containsMatchIn(text) ||
                     Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token)").containsMatchIn(text) ||
                     Regex("""\b(?:\d[ -]*?){13,19}\b""").containsMatchIn(text) ||
                     Regex("""\b\d{4,12}\b""").containsMatchIn(text)) Verdict.REJECT
