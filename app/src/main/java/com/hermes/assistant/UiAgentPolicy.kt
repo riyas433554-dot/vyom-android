@@ -51,7 +51,7 @@ internal object UiAgentPolicy {
             }
             Kind.LONG_PRESS_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
-                if (node == null || !node.gestureBoundsSafe || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
                 else Verdict.CONFIRM
             }
             Kind.SWIPE_NODE -> {
