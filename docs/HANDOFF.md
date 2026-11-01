@@ -178,3 +178,11 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - Accessibility screen-tree inspection, visible-text click, swipe/long-press, scroll, focused-field typing, global navigation, and local screenshot now check the current foreground package against the app allowlist and STOP CONTROL.
 - Added unit tests for master-off precedence, per-app isolation, and default denial of unknown packages.
 - This is the permission/control gate only. It does NOT yet implement the autonomous observe → plan → act → verify loop, universal app-specific workflows, or guarantee control over secure/inaccessible custom UI. Phone test remains pending.
+
+
+## 2026-11-01 — UI Agent observe/act/re-observe foundation
+- Added Profile > UI Agent entry. User opens the target app, enables it in App access, then enters a natural-language UI task.
+- Added one-action-at-a-time planner using the configured NVIDIA live model. It receives the current accessibility tree as untrusted data and returns a constrained JSON action.
+- Added policy validation: text taps must exactly match a currently visible label/description; typing is allowed only when the exact text is explicitly in the user's task; credential-like text is rejected; consequential visible controls require an on-screen confirmation; run is capped at 12 actions.
+- After each accepted action, the UI is observed again before the next plan. STOP CONTROL, service loss, empty/disabled screen, invalid plan, or rejected Android action stops the run.
+- This initial loop supports semantic text taps, scroll, type, back, wait and done. It does not yet support visual-only custom canvases or OCR-based coordinate actions; complex editors such as CapCut may expose controls that Accessibility cannot describe. Phone testing remains pending.
