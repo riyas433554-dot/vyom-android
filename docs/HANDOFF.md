@@ -1,3 +1,41 @@
+# CURRENT VERIFIED ADDENDUM — 2026-11-01 15:44 UTC
+
+This addendum supersedes older Android source-head and design-status notes below.
+
+## Active source and verification
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Verified source head: `a9725363e706ae09fe2c26bec3b9cb9dbf3fc468`
+- Android CI run `41320301809`: PASS on this exact head.
+- Debug build run `41320301834`: PASS on this exact head.
+- Artifact ID: `13089046691`.
+- Artifact: `vyom-0.3.0-a9725363e706ae09fe2c26bec3b9cb9dbf3fc468`.
+- CI/debug signing continuity with the installed APK remains unverified. Do not overwrite/uninstall until certificate fingerprints are compared or the correct release key is used.
+- Physical-device testing remains pending.
+
+## Supplied design file review
+- Latest Library design source: `Vyom — Design System, Home, Drawer, Automations (1).html` (31 embedded screen/page bundles).
+- Main target screens are pages 1–4: Design System, Home, Drawer and Automations.
+- Existing native implementation is present in `VyomDesignSpec.kt`, `VyomTheme.kt`, `OrbitHomeView.kt`, `VyomDrawer.kt`, `VyomAutomationsDialog.kt`, and `MainActivity.buildHomePanel()`.
+- Home: HUD orb/task orbit, greeting, prompt input, quick access, AUTO/persona indicator and STOP CONTROL.
+- Drawer: searchable Workspace/Assistant/Brain/System destinations; unconnected workspaces remain visibly marked SOON.
+- Automations: live task-derived pending/working/done counts, filters and task cards. Scheduled/repeating automations are explicitly not connected; New Automation does not create a fake schedule and routes to immediate Tasks.
+- Design review did not modify Android source in this continuation; the relevant native implementation was already present and CI-green.
+
+## Honest remaining UI boundaries
+- The HTML board contains 31 screens; this does not mean all 31 app capabilities are implemented.
+- Animations, Videos, Images, VFX, CGI, SFX, Instructions and Icons remain unavailable/marked SOON where no executor or screen behavior is connected.
+- Connections currently routes to existing Settings, not a full OAuth connector manager.
+- Do not claim scheduled automation support.
+- Do not claim physical-device validation or release-signature continuity.
+
+## Safety
+- Android `main` untouched.
+- No Render, production Supabase, backend deployment, signing-secret or release change made.
+- Pairing/chat API boundary remains unchanged.
+
+---
+
 # CURRENT VERIFIED ADDENDUM — 2026-11-01 15:20 UTC
 
 This addendum supersedes older active-head and verification claims below.
