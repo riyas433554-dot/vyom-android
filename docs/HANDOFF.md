@@ -280,3 +280,18 @@ Implementation commit: 26a45fcf69b471221c925d1e3e81299cea341c7f.
 - Debug artifact ID 13078422171, name vyom-0.3.0-26a45fcf69b471221c925d1e3e81299cea341c7f. ZIP SHA-256 7e42f1ac38dc928a10170091b58346202ed74bc750e568eb26fb1be10e4d0f07; extracted APK SHA-256 d2aacec55feebf454f3e62eecb95d249775d6c96aad3a676c1d8a354ad4eb00d.
 - This remains an unsigned CI debug variant with a runner-generated debug certificate. Do not install over the current app or uninstall it until certificate continuity is checked or a release is built with the original keystore.
 - Android main remains unchanged. No Hermes deployment, Render deployment or production database migration was performed by the Android branch.
+
+
+## 2026-11-01 — Android memory/identity integration handoff refresh
+
+Latest Android branch tip before this documentation refresh: `fd40875a1039944e308cc7805b7f2559363699aa`.
+
+- Android memory/identity implementation commits: `11a5abcb405f6720ace38078288347a0ac328759` (capture policy, encrypted local memory, identity/capability prompt) and `26a45fcf69b471221c925d1e3e81299cea341c7f` (relevance ranking, prompt-budget refinement and LIVE language preservation).
+- Latest Android CI run `41297836301` passed on exact branch tip `fd40875a1039944e308cc7805b7f2559363699aa`.
+- Latest Android Debug run `41297836236` passed on the same exact SHA. Artifact: `vyom-0.3.0-fd40875a1039944e308cc7805b7f2559363699aa`, artifact ID `13080450404`, ZIP digest `sha256:99d9579dee465281d2baa3e683af28abcbd20885e21e08d46b042a74c0ab018b`.
+- The artifact is a CI debug APK with a runner-generated debug signing key. Certificate continuity with the user's installed Vyom APK is not established. Do not uninstall or overwrite the installed app until signing fingerprints are compared or a build uses the original release keystore.
+- The local memory store remains encrypted and bounded to 30 facts. Capture is deliberately conservative; it is not a general semantic classifier. Profile > Memory provides local enable/disable/edit/clear controls.
+- Android branch remains isolated from Android `main`; no Hermes deploy, Render deploy or production DB migration was performed as part of Android implementation.
+- Device/phone validation remains pending. CI green proves build/tests, not UI Agent task accuracy, background behavior, accessibility coverage or signature continuity.
+
+Next: finish cross-system identity/data-flow review, then proceed with semantic retrieval only after production schema/migration approval. Keep production migration, Render deploy and merge to either `main` gated separately.
