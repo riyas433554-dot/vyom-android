@@ -5,7 +5,7 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     data class Action(
         val kind: Kind,
@@ -16,7 +16,9 @@ internal object UiAgentPolicy {
         val nodeFingerprint: String = "",
         val ocrIndex: Int = -1,
         val ocrFingerprint: String = "",
-        val screenPackage: String = ""
+        val screenPackage: String = "",
+        val fromAnchor: String = "",
+        val toAnchor: String = ""
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String)
@@ -58,6 +60,15 @@ internal object UiAgentPolicy {
             Kind.SWIPE_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint || action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
+                else Verdict.CONFIRM
+            }
+            Kind.DRAG_NODE -> {
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                val anchors = setOf("left", "right", "top", "bottom", "center")
+                if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) ||
+                    node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint ||
+                    action.fromAnchor.lowercase() !in anchors || action.toAnchor.lowercase() !in anchors ||
+                    action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
                 else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
