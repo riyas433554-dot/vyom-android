@@ -75,4 +75,49 @@ class MemoryCapturePolicyTest {
             MemoryCapturePolicy.relevantFacts(facts, "concise replies", 10))
     }
 
+
+
+    @Test fun conflictingLanguagePreferencesKeepNewestAcrossEnglishHinglishAndBengali() {
+        val facts = listOf(
+            "I prefer English language replies.",
+            "Mujhe Hinglish language replies pasand hain.",
+            "আমি বাংলা ভাষায় উত্তর পছন্দ করি."
+        )
+        assertEquals(
+            listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি.", "Mujhe Hinglish language replies pasand hain.", "I prefer English language replies."),
+            MemoryCapturePolicy.relevantFacts(facts, "", 10)
+        )
+    }
+
+    @Test fun conflictingThemePreferencesKeepNewestWithoutDeletingOlderFact() {
+        val facts = listOf("I prefer dark themes.", "I prefer light themes.")
+        assertEquals(
+            listOf("I prefer light themes.", "I prefer dark themes."),
+            MemoryCapturePolicy.relevantFacts(facts, "", 10)
+        )
+    }
+
+    @Test fun conflictingOutputFormatsKeepNewestWithoutDeletingOlderFact() {
+        val facts = listOf("I prefer Markdown format.", "I prefer plain text format.")
+        assertEquals(
+            listOf("I prefer plain text format.", "I prefer Markdown format."),
+            MemoryCapturePolicy.relevantFacts(facts, "", 10)
+        )
+    }
+
+    @Test fun additionalHinglishAndBengaliRememberAndCorrectionIntentsAreRecognized() {
+        assertEquals(
+            listOf("Mujhe detailed answers pasand hain."),
+            MemoryCapturePolicy.extract("Yaad rakhna ki mujhe detailed answers pasand hain.")
+        )
+        assertEquals(
+            listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.extract("মনে রাখবে যে আমি বাংলা ভাষায় উত্তর পছন্দ করি।")
+        )
+        assertEquals(
+            listOf("আমি বিস্তারিত উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.extract("সংশোধন, আমি বলতে চেয়েছিলাম আমি বিস্তারিত উত্তর পছন্দ করি।")
+        )
+    }
+
 }
