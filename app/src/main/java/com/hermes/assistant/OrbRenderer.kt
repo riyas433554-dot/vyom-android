@@ -14,6 +14,7 @@ import javax.microedition.khronos.opengles.GL10
 
 class OrbRenderer : GLSurfaceView.Renderer {
     @Volatile var mode: Int = 0
+    @Volatile var stateMode: Int = -1
     @Volatile var reduceMotion: Boolean = false
     @Volatile var liteMode: Boolean = false
     @Volatile var audioLevel: Float = 0f
@@ -100,23 +101,27 @@ class OrbRenderer : GLSurfaceView.Renderer {
 
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
-        angle += if (reduceMotion || liteMode) 0.0015f else if (mode == 1) 0.035f else 0.008f
+        val visualMode = if (stateMode >= 0) stateMode else mode
+        angle += if (reduceMotion || liteMode) 0.0015f else if (visualMode == 1 || visualMode == 2) 0.035f else 0.008f
 
         Matrix.setLookAtM(view, 0, 0f, 0f, 4f, 0f, 0f, 0f, 0f, 1f, 0f)
         Matrix.rotateM(view, 0, angle * 57.2958f, 0f, 1f, 0f)
         Matrix.multiplyMM(vp, 0, projection, 0, view, 0)
 
-        val rgb = when (mode) {
-            1 -> floatArrayOf(0.984f, 0.749f, 0.141f) // executing: #FBBF24
-            2 -> floatArrayOf(0.545f, 0.361f, 0.965f) // reasoning: #8B5CF6
-            3 -> floatArrayOf(0.204f, 0.827f, 0.6f) // done: #34D399
-            else -> floatArrayOf(0.133f, 0.827f, 0.933f) // listening: #22D3EE
+        val rgb = when (visualMode) {
+            1 -> floatArrayOf(0.984f, 0.749f, 0.141f) // task/control: #FBBF24
+            2 -> floatArrayOf(0.545f, 0.361f, 0.965f) // reasoning/speaking: #8B5CF6
+            3 -> floatArrayOf(0.204f, 0.827f, 0.6f) // completed: #34D399
+            4 -> floatArrayOf(0.56f, 0.64f, 0.75f) // muted/offline: #8FA3BF
+            5 -> floatArrayOf(0.957f, 0.247f, 0.369f) // error: #F43F5E
+            else -> floatArrayOf(0.133f, 0.827f, 0.933f) // ready/listening: #22D3EE
         }
         for (i in 0 until particleCount) {
             val ci = i * 4
             colors[ci] = rgb[0]
             colors[ci + 1] = rgb[1]
             colors[ci + 2] = rgb[2]
+            colors[ci + 3] = if (visualMode == 4) 0.34f else if (visualMode == 5) 0.96f else 0.85f
         }
 
         positionBuffer.clear()
