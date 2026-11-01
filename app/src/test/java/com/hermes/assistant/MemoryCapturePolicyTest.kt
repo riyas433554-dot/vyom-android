@@ -68,4 +68,11 @@ class MemoryCapturePolicyTest {
             MemoryCapturePolicy.relevantFacts(facts, "বাংলা ভাষায় উত্তর দাও", 1))
     }
 
+
+    @Test fun newerConflictingPreferencesAreReturnedFirst() {
+        val facts = listOf("I prefer concise replies.", "I prefer detailed replies.")
+        assertEquals(listOf("I prefer detailed replies.", "I prefer concise replies."),
+            MemoryCapturePolicy.relevantFacts(facts, "concise replies", 10))
+    }
+
 }
