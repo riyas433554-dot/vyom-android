@@ -174,12 +174,13 @@ class VyomAccessibilityService : AccessibilityService() {
                     b.put("left", rect.left).put("top", rect.top).put("right", rect.right).put("bottom", rect.bottom)
                 })
                 .put("fingerprint", nodeFingerprint(node, root.packageName?.toString().orEmpty()))
-            if (!password) {
+            if (!password && !node.isEditable) {
                 row.put("text", node.text?.toString()?.take(240).orEmpty())
                 row.put("description", node.contentDescription?.toString()?.take(160).orEmpty())
             } else {
-                row.put("text", "").put("description", "[REDACTED PASSWORD FIELD]")
+                row.put("text", "").put("description", if (password) "[REDACTED PASSWORD FIELD]" else "[REDACTED EDITABLE FIELD]")
             }
+            if (!password) row.put("hint", node.hintText?.toString()?.take(120).orEmpty())
             result.put(row)
             for (i in 0 until node.childCount) visit(node.getChild(i), index)
         }
@@ -241,6 +242,16 @@ class VyomAccessibilityService : AccessibilityService() {
         }
         val node = findScrollable(root) ?: root
         return node.performAction(action)
+    }
+
+    fun typeIntoNode(index: Int, expectedFingerprint: String, text: String): Boolean {
+        if (index !in 0 until 180 || text.length > 500 || containsCredentialPattern(text)) return false
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root)) return false
+        val node = findNodeByIndex(root, index) ?: return false
+        if (!node.isEditable || node.isPassword || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
+        val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
+        return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
     fun typeIntoFocusedField(text: String): Boolean {
@@ -423,8 +434,9 @@ class VyomAccessibilityService : AccessibilityService() {
     private fun nodeFingerprint(node: AccessibilityNodeInfo, packageName: String): String {
         val rect = android.graphics.Rect()
         node.getBoundsInScreen(rect)
-        val visibleLabel = if (!node.isPassword && !node.isEditable) {
-            node.text?.toString().orEmpty() + "|" + node.contentDescription?.toString().orEmpty()
+        val visibleLabel = if (!node.isPassword) {
+            if (node.isEditable) node.hintText?.toString().orEmpty()
+            else node.text?.toString().orEmpty() + "|" + node.contentDescription?.toString().orEmpty()
         } else ""
         val digest = MessageDigest.getInstance("SHA-256").digest(visibleLabel.toByteArray(Charsets.UTF_8))
         val labelHash = digest.take(8).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
