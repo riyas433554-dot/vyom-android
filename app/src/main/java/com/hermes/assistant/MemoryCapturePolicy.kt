@@ -25,7 +25,7 @@ internal object MemoryCapturePolicy {
             .map { it.value }.filterNot { it in ignored }.toSet()
         val safeFacts = facts.filter { it.isNotBlank() && !isSensitive(it) }
         return safeFacts.withIndex().map { indexed ->
-            val tokens = Regex("[a-z0-9]{2,}").findAll(indexed.value.lowercase())
+            val tokens = Regex("[\\p{L}\\p{N}]{2,}").findAll(indexed.value.lowercase())
                 .map { it.value }.filterNot { it in ignored }.toSet()
             val score = queryTokens.count { it in tokens }
             Triple(score, indexed.index, indexed.value)
