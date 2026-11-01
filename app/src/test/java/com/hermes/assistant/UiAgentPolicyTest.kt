@@ -61,6 +61,14 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Long press icon", listOf(UiAgentPolicy.VisibleNode(4, false, true, false, false, fingerprint, true))))
     }
 
+    @Test fun OCRTapRequiresAnExactFreshObservedLabelAndConfirmation() {
+        val observed = UiAgentPolicy.VisibleOcr(2, "Trim", "Trim|10|20|80|50")
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "Trim", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Trim clip", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(ocrIndex = 3), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(target = "Delete"), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
+    }
+
     @Test fun onlyLaunchesAppsExplicitlyAllowedInAppAccess() {
         val allowed = setOf("com.example.editor")
         assertEquals(UiAgentPolicy.Verdict.ALLOW, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.OPEN_APP, target = "com.example.editor"), emptyList(), "Open editor", allowedAppPackages = allowed))
