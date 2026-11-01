@@ -3126,30 +3126,66 @@ class MainActivity : Activity() {
         allTasks.forEach { task ->
             val id = task.optString("id")
             val state = task.optString("status", "queued").lowercase()
+            val statusColor = VyomDesignSpec.taskStatusAccent(state)
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false
                 clipToPadding = false
-                setPadding(dp(10), dp(8), dp(10), dp(8))
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(VyomTheme.SURFACE_TASK_CARD)
-                    cornerRadius = dp(10).toFloat()
-                    setStroke(dp(1), Color.argb(80, 0, 190, 255))
-                }
+                setPadding(dp(13), dp(11), dp(13), dp(11))
+                background = VyomTheme.glass(this@MainActivity, VyomTheme.RADIUS_LARGE_DP, statusColor)
             }
-            card.addView(TextView(this).apply {
-                text = "Task $id  •  ${state.uppercase()}"
-                textSize = 12f
-                setTextColor(if (state in setOf("failed", "error")) Color.rgb(255, 120, 120) else Color.rgb(0, 210, 255))
-                setPadding(0, 0, 0, dp(5))
+            val taskHeader = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            taskHeader.addView(TextView(this).apply {
+                text = "TASK #$id"
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            taskHeader.addView(TextView(this).apply {
+                text = state.uppercase()
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                setTextColor(statusColor)
+                setPadding(dp(9), dp(5), dp(9), dp(5))
+                background = GradientDrawable().apply {
+                    setColor(Color.argb(28, Color.red(statusColor), Color.green(statusColor), Color.blue(statusColor)))
+                    cornerRadius = dp(999).toFloat()
+                }
             })
+            card.addView(taskHeader)
             card.addView(TextView(this).apply {
                 text = task.optString("prompt", "")
-                textSize = 13f
-                setTextColor(Color.WHITE)
+                textSize = 14f
+                setTextColor(VyomDesignSpec.TEXT_PRIMARY)
                 setTextIsSelectable(true)
+                setPadding(0, dp(8), 0, dp(4))
             })
+            val phase = task.optString("phase").takeIf { it.isNotBlank() && it != "null" }
+            if (phase != null) card.addView(TextView(this).apply {
+                text = "Phase · $phase"
+                textSize = 11f
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                setPadding(0, 0, 0, dp(5))
+            })
+            val progressValue = task.optDouble("progress", Double.NaN)
+                .takeIf { it.isFinite() && it in 0.0..100.0 }?.toInt()
+            if (progressValue != null) {
+                val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    max = 100
+                    this.progress = progressValue
+                    progressTintList = android.content.res.ColorStateList.valueOf(statusColor)
+                }
+                card.addView(progress, LinearLayout.LayoutParams(-1, dp(7)).apply { bottomMargin = dp(4) })
+                card.addView(TextView(this).apply {
+                    text = "$progressValue%"
+                    textSize = 9f
+                    typeface = Typeface.MONOSPACE
+                    setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                })
+            }
             val resultValue = task.opt("result")
             val resultText = when (resultValue) {
                 null, JSONObject.NULL -> ""
@@ -3181,8 +3217,9 @@ class MainActivity : Activity() {
             if (state in activeStates) {
                 card.addView(Button(this).apply {
                     text = "CANCEL TASK"
+                    VyomTheme.stylePill(this, this@MainActivity, "cyan", "danger")
                     setOnClickListener { cancelTask(id) }
-                }, LinearLayout.LayoutParams(-1, dp(40)))
+                }, LinearLayout.LayoutParams(-1, dp(42)))
             }
             val errorCode = task.optString("errorCode")
             if (errorCode.isNotBlank() && errorCode != "null") {
