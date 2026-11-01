@@ -194,3 +194,10 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - Added indexed TAP_NODE and LONG_PRESS_NODE actions for unlabeled controls that expose clickable/long-clickable Accessibility nodes. Node actions always require explicit confirmation and are rejected if the node's latest-observation fingerprint changes before execution.
 - Corrected Kotlin compile issues in the UI Agent step counter and ScrollView child layout parameters.
 - Still unsupported: controls with no Accessibility node, OCR/vision coordinate interaction, some custom Canvas editor surfaces, protected/secure windows. Phone testing remains pending.
+
+
+## 2026-11-01 — UI Agent app launch and bounded gestures
+- UI Agent can launch an app only when its exact package is in the user's current App access allowlist; the model receives only enabled launcher apps and cannot invent a package.
+- Added confirmed tap/long-press/swipe gestures for a bounded accessibility node when it has no clickable action. Gesture regions must be on-screen, at least 24 dp in each dimension, and no larger than 35% of the display. Password/editable nodes and stale node fingerprints are rejected.
+- The UI Agent start dialog now explains that visible screen labels are sent to the configured NVIDIA model for planning. Do not use it on private/secure screens.
+- Remaining gap: visual-only controls that expose no useful Accessibility node still need local OCR/vision-based perception. Secure windows remain blocked by Android.
