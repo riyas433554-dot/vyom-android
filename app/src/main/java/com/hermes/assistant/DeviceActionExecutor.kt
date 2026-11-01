@@ -15,6 +15,7 @@ import android.provider.Settings
 internal object DeviceActionExecutor {
     fun execute(activity: Activity, action: ActionEngine.Intent): String { return when (action.operation) {
         ActionEngine.Operation.BLOCK -> "Blocked by Vyom safety policy."
+        ActionEngine.Operation.INSTALL_PLAY_STORE -> "Play Store install flow must be opened after explicit confirmation."
         ActionEngine.Operation.OPEN_SETTINGS -> openIntent(activity, Intent(action.settingsAction ?: Settings.ACTION_SETTINGS), action.name)
         ActionEngine.Operation.OPEN_APP -> openApp(activity, action.target)
         ActionEngine.Operation.VOLUME_DELTA -> {
