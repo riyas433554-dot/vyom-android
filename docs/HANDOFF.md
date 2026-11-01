@@ -136,3 +136,29 @@ This section supersedes older "current status" notes above where they conflict. 
 - Updated home background/panel/dock, prompt field, suggestion chips, quick-access cards, app status/navigation accents, native buttons and text fields to follow the shared tokens.
 - Updated `OrbRenderer.kt` to use the reference's exact semantic listening/executing/reasoning/done colors. Orb surface remains transparent.
 - This is source-level design integration only. CI for the resulting commit and phone rendering are separate required checks; do not claim pixel-perfect parity or phone validation without evidence.
+
+
+## 2026-11-01 continuation — chat reliability and install routing
+
+Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or production database changes.
+
+### Implemented in source (CI/device verification pending)
+- Hermes chat context is capped at 2,000 characters for memory + recent history; current user message remains separate and is not truncated by that context cap.
+- HTTP 400 can retry once with the raw user message when it differs from the contextual prompt.
+- Connection IO failures retry up to three times with 500 ms, 1 s, and 2 s delays (capped policy); UI status displays “HERMES JAG RAHA HAI” while retrying.
+- “install/get/download <app> from Play Store” is classified separately from generic APK installation, still requires explicit CONFIRM, and opens a Play Store app-search URL. User must choose the app and tap Install in Play Store.
+- Generic “install this APK” remains on the Android document picker path.
+- Added ChatContextPolicy and ActionEngine regression tests for context bounds, raw 400 retry conditions, connection backoff, and Play Store routing.
+
+### Verified existing behaviour (no rewrite)
+- Chat queue uses a single-thread executor and stores per-message queued/running/done/error states.
+- Chat transcript renders Markdown headings and bold; HTTP response body is read as a complete string. No explicit reply truncation was found in the inspected path.
+
+### Not yet verified
+- Latest branch CI/unit-test outcome and final APK artifact/checksum.
+- Runtime Hermes 400 recovery and offline retry behaviour on device.
+- Play Store intent handling across Android devices.
+- Phone testing remains pending.
+
+### Next work
+- Continue remaining device skill/agent-loop, accessibility observe-plan-act-verify, result viewer/game output, and UI/safety regression tasks.
