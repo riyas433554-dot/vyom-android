@@ -10,6 +10,9 @@ import android.os.Bundle
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -22,6 +25,14 @@ import java.util.concurrent.Executor
  * Screenshots stay in app cache; this service never uploads screen data.
  */
 class VyomAccessibilityService : AccessibilityService() {
+    data class OcrItem(val index: Int, val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int) {
+        val fingerprint: String get() = listOf(text, left, top, right, bottom).joinToString("|")
+    }
+
+    @Volatile private var screenRevision = 0L
+    @Volatile private var lastOcrRevision = -1L
+    @Volatile private var lastOcrTargets: List<OcrItem> = emptyList()
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         active = this
@@ -29,6 +40,14 @@ class VyomAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Event text is deliberately not forwarded to network or logs.
+        if (event != null && event.eventType in setOf(
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+                AccessibilityEvent.TYPE_VIEW_SCROLLED,
+                AccessibilityEvent.TYPE_VIEW_CLICKED,
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+            )) screenRevision++
     }
 
     override fun onInterrupt() = Unit
@@ -151,6 +170,87 @@ class VyomAccessibilityService : AccessibilityService() {
         else -> false
         }
     }
+
+    fun captureVisibleOcr(onResult: (List<OcrItem>, String?) -> Unit) {
+        if (!isCurrentAppAllowed()) { onResult(emptyList(), "App access is OFF or STOP CONTROL is ON."); return }
+        if (Build.VERSION.SDK_INT < 30) { onResult(emptyList(), "OCR screenshot requires Android 11 or newer."); return }
+        val revisionAtCapture = screenRevision
+        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(screenshot: ScreenshotResult) {
+                val bitmap = try {
+                    val hardware = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                        ?: throw IllegalStateException("Screenshot buffer unavailable")
+                    val copy = hardware.copy(Bitmap.Config.ARGB_8888, false)
+                        ?: throw IllegalStateException("Could not copy screenshot for local OCR")
+                    screenshot.hardwareBuffer.close()
+                    hardware.recycle()
+                    copy
+                } catch (e: Exception) {
+                    try { screenshot.hardwareBuffer.close() } catch (_: Exception) { }
+                    onResult(emptyList(), e.message ?: "OCR screenshot unavailable.")
+                    return
+                }
+                val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                recognizer.process(InputImage.fromBitmap(bitmap, 0))
+                    .addOnSuccessListener(mainExecutor) { visionText ->
+                        val targets = mutableListOf<OcrItem>()
+                        for (block in visionText.textBlocks) {
+                            for (line in block.lines) {
+                                val value = line.text.trim()
+                                val rect = line.boundingBox ?: continue
+                                if (value.length !in 2..64 || isSensitiveOcrText(value)) continue
+                                if (rect.left < 0 || rect.top < 0 || rect.right > bitmap.width || rect.bottom > bitmap.height) continue
+                                targets.add(OcrItem(targets.size, value, rect.left, rect.top, rect.right, rect.bottom))
+                                if (targets.size >= 80) break
+                            }
+                            if (targets.size >= 80) break
+                        }
+                        lastOcrTargets = targets
+                        lastOcrRevision = revisionAtCapture
+                        onResult(targets, null)
+                    }
+                    .addOnFailureListener(mainExecutor) { error ->
+                        lastOcrTargets = emptyList()
+                        lastOcrRevision = revisionAtCapture
+                        onResult(emptyList(), error.message ?: "Local OCR failed.")
+                    }
+                    .addOnCompleteListener(mainExecutor) {
+                        recognizer.close()
+                        bitmap.recycle()
+                    }
+            }
+
+            override fun onFailure(errorCode: Int) {
+                lastOcrTargets = emptyList()
+                lastOcrRevision = revisionAtCapture
+                onResult(emptyList(), "OCR screenshot failed (code $errorCode).")
+            }
+        })
+    }
+
+    fun tapOcrTarget(expectedFingerprint: String): Boolean {
+        if (expectedFingerprint.isBlank() || !isCurrentAppAllowed() || screenRevision != lastOcrRevision) return false
+        val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
+        val width = resources.displayMetrics.widthPixels
+        val height = resources.displayMetrics.heightPixels
+        val targetWidth = target.right - target.left
+        val targetHeight = target.bottom - target.top
+        val area = targetWidth.toLong() * targetHeight.toLong()
+        val screenArea = width.toLong() * height.toLong()
+        if (target.left < 0 || target.top < 0 || target.right > width || target.bottom > height ||
+            targetWidth < (8 * resources.displayMetrics.density).toInt() ||
+            targetHeight < (8 * resources.displayMetrics.density).toInt() ||
+            area <= 0 || area > screenArea * 10L / 100L) return false
+        val x = (target.left + target.right) / 2f
+        val y = (target.top + target.bottom) / 2f
+        return dispatchPath(x, y, x, y, 90L)
+    }
+
+    private fun isSensitiveOcrText(value: String): Boolean =
+        Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token|account number|card number)").containsMatchIn(value) ||
+            Regex("""\\b\\d{4,8}\\b""").containsMatchIn(value) ||
+            Regex("""\\b(?:\\d[ -]*?){13,19}\\b""").containsMatchIn(value) ||
+            Regex("""[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}""", RegexOption.IGNORE_CASE).containsMatchIn(value)
 
     fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
         if (!isCurrentAppAllowed()) { onResult(null, "App access is OFF or STOP CONTROL is ON."); return }
