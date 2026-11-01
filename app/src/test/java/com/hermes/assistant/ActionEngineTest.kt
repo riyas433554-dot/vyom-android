@@ -24,6 +24,14 @@ class ActionEngineTest {
  }
  @Test fun alarmTimerParse(){ assertEquals("07:30",ActionEngine.classify("set alarm for 7:30")?.target); assertEquals(300,ActionEngine.classify("set timer for 5 minutes")?.value) }
  @Test fun consequentialActionsNeedConfirmation(){ assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("call +1 555 123 4567")?.risk); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("call my mom")?.risk); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("text my mom saying hello")?.risk); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("text +1 555 123 4567 saying hello")?.risk); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("send this to my friend")?.risk); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("delete old file")?.risk); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("install this app")?.risk) }
+ @Test fun playStoreInstallRequestsAreDistinctAndRequireConfirmation() {
+  val search = ActionEngine.classify("install YouTube from Play Store")
+  assertEquals(ActionEngine.Operation.INSTALL_PLAY_STORE, search?.operation)
+  assertEquals(ActionEngine.Risk.CONFIRM, search?.risk)
+  assertEquals("YouTube", search?.target)
+  assertEquals(ActionEngine.Operation.INSTALL_PLAY_STORE, ActionEngine.classify("get WhatsApp from playstore")?.operation)
+  assertEquals(ActionEngine.Operation.INSTALL, ActionEngine.classify("install this APK")?.operation)
+ }
  @Test fun blockedPolicyWins(){ assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open my bank app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("read my OTP")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("send my OTP to someone")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("uninstall the app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open security settings")?.risk) }
  @Test fun unknownDirectActionMustFallbackAndCannotExecuteDirectly(){ assertEquals(true,ActionEngine.looksLikeDeviceAction("please enable airplane mode")); assertNull(ActionEngine.classify("please enable airplane mode")) }
  @Test fun modelFallbackCannotChangeRequestedIntent(){ assertFalse(ActionEngine.fallbackMatchesIntent("please enable silent mode","open silent mode")); assertEquals(true,ActionEngine.fallbackMatchesIntent("increase sound","volume up")); assertEquals(true,ActionEngine.fallbackMatchesIntent("turn off bluetooth","open Bluetooth settings")) }
