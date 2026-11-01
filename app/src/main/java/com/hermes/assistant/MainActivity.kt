@@ -1152,7 +1152,7 @@ class MainActivity : Activity() {
                 return
             }
             if (!UiAgentPolicy.mayContinue(completedSteps)) {
-                finish("12-step safety limit reached. Review the current app state.")
+                finish("40-step safety limit reached. Review the current app state.")
                 return
             }
             val service = VyomAccessibilityService.current()
@@ -1165,7 +1165,7 @@ class MainActivity : Activity() {
                 finish("Screen unavailable or this app is OFF in App access. No action taken.")
                 return
             }
-            updateProgress("Observing screen • step " + (completedSteps + 1) + "/12")
+            updateProgress("Observing screen • step " + (completedSteps + 1) + "/40")
             service.captureVisibleOcr { ocrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
