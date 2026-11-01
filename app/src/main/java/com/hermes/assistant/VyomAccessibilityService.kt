@@ -221,7 +221,8 @@ class VyomAccessibilityService : AccessibilityService() {
     fun swipeNode(index: Int, expectedFingerprint: String, direction: String): Boolean {
         if (direction.lowercase() !in setOf("left", "right", "up", "down")) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root)) return false
+        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
+            root.packageName?.toString() != lastObservedPackage) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
         val rect = safeGestureBounds(node) ?: return false
@@ -257,7 +258,8 @@ class VyomAccessibilityService : AccessibilityService() {
     fun typeIntoNode(index: Int, expectedFingerprint: String, text: String): Boolean {
         if (index !in 0 until 180 || text.length > 500 || containsCredentialPattern(text)) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root)) return false
+        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
+            root.packageName?.toString() != lastObservedPackage) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (!node.isEditable || node.isPassword || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
         val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
