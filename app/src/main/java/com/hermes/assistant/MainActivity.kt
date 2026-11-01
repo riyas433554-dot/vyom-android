@@ -1051,6 +1051,9 @@ class MainActivity : Activity() {
     private fun navigateDrawerItem(destination: String) {
         when (destination) {
             "home" -> showHome()
+            "chat" -> showTab(false)
+            "live" -> toggleVoiceInput()
+            "profile" -> showProfileMenu()
             "automations" -> showAutomationsPanel()
             "tasks" -> showTab(true)
             "control", "assistant_control" -> showTab(false, false, false, true)
