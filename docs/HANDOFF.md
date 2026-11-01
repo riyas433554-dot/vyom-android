@@ -214,3 +214,9 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - AppAccessPolicy excludes common bank, UPI, wallet, payment, trading and investment apps from the allowlist and displays matching apps as BLOCKED. The block is also enforced in the AccessibilityService and app launcher path, not just the UI.
 - UI policy rejects visible targets labelled as payment/UPI/wallet/bank/transfer, security/permission/biometric/password/OTP, or uninstall. Node gestures inspect the node label too.
 - This is a conservative identifier/label blocklist, not a guarantee that every financial app can be recognized. Unknown apps must still be manually reviewed in App access.
+
+
+## 2026-11-01 — Exact field targeting and app-window binding
+- UI Agent text entry now requires the exact editable Accessibility node index and a current node fingerprint. Password/editable contents are redacted from the planner tree; non-sensitive field hints remain visible.
+- Tap-text, scroll, and back actions carry the observed foreground package and are rejected if a different app is now active. Node fingerprints include package, bounds, flags, and a hash of visible labels so changed controls are rejected without placing label text in the fingerprint.
+- Financial/payment app blocking is a conservative package/label heuristic; it is not exhaustive. The allowlist and action-level deny rules remain in force.
