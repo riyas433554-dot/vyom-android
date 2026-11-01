@@ -41,6 +41,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun describeVisibleTree(maxNodes: Int = 180): JSONArray {
         val result = JSONArray()
         val root = rootInActiveWindow ?: return result
+        if (!isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) return result
         var count = 0
         fun visit(node: AccessibilityNodeInfo?, parentIndex: Int) {
             if (node == null || count >= maxNodes) return
@@ -76,6 +77,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun clickVisibleText(target: String): Boolean {
         if (target.isBlank() || target.length > 100) return false
         val root = rootInActiveWindow ?: return false
+        if (!isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) return false
         val node = findNode(root, target) ?: return false
         if (node.isPassword || node.isEditable) return false
         var candidate: AccessibilityNodeInfo? = node
@@ -94,6 +96,7 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun scroll(direction: String): Boolean {
         val root = rootInActiveWindow ?: return false
+        if (!isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) return false
         val action = when (direction.lowercase()) {
             "up", "forward", "down-page" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             "down", "backward", "up-page" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
@@ -106,21 +109,31 @@ class VyomAccessibilityService : AccessibilityService() {
     fun typeIntoFocusedField(text: String): Boolean {
         if (text.length > 2000 || containsCredentialPattern(text)) return false
         val root = rootInActiveWindow ?: return false
+        if (!isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) return false
         val node = findFocusedEditable(root) ?: return false
         if (node.isPassword || !node.isEditable) return false
         val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    fun global(action: String): Boolean = when (action.lowercase()) {
+    fun global(action: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) return false
+        return when (action.lowercase()) {
         "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
         "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
         "recents" -> performGlobalAction(GLOBAL_ACTION_RECENTS)
         "notifications" -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
         else -> false
+        }
     }
 
     fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
+        val root = rootInActiveWindow
+        if (root == null || !isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) {
+            onResult(null, "App access is OFF for this screen, or STOP CONTROL is enabled.")
+            return
+        }
         if (Build.VERSION.SDK_INT < 30) { onResult(null, "Screenshot requires Android 11 or newer."); return }
         takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
@@ -141,6 +154,8 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     private fun dispatchPath(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentWindowAllowed(root.packageName?.toString().orEmpty())) return false
         val path = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
         return dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0L, durationMs)).build(), null, null)
     }
@@ -161,6 +176,11 @@ class VyomAccessibilityService : AccessibilityService() {
         if (node.isFocused && node.isEditable) return node
         for (i in 0 until node.childCount) findFocusedEditable(node.getChild(i))?.let { return it }
         return null
+    }
+
+    private fun isCurrentWindowAllowed(packageName: String): Boolean {
+        if (getSharedPreferences("vyom_control_audit", MODE_PRIVATE).getBoolean("kill_switch", false)) return false
+        return AppAccessPolicy.isAllowed(AppAccessPolicy.snapshot(this), packageName)
     }
 
     private fun containsCredentialPattern(text: String): Boolean =

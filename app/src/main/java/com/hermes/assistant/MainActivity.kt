@@ -1000,15 +1000,16 @@ class MainActivity : Activity() {
     private fun showProfileMenu() {
         AlertDialog.Builder(this)
             .setTitle("Profile")
-            .setItems(arrayOf("Settings", "Files", "Control", "Skills", "Fix suggestions", "Memory", "Diagnostics")) { _, which ->
+            .setItems(arrayOf("Settings", "Files", "Control", "App access", "Skills", "Fix suggestions", "Memory", "Diagnostics")) { _, which ->
                 when (which) {
                     0 -> showTab(false, true)
                     1 -> showTab(false, false, true)
                     2 -> showTab(false, false, false, true)
-                    3 -> showSkillsRegistry()
-                    4 -> showFixSuggestions()
-                    5 -> showMemoryManager()
-                    6 -> showVoiceDiagnostics()
+                    3 -> showAppAccessPanel()
+                    4 -> showSkillsRegistry()
+                    5 -> showFixSuggestions()
+                    6 -> showMemoryManager()
+                    7 -> showVoiceDiagnostics()
                 }
             }
             .setNegativeButton("Close", null)
@@ -1076,6 +1077,70 @@ class MainActivity : Activity() {
             loadingOlderMessages = false
             preserveOlderScroll = false
         }
+    }
+
+    private fun showAppAccessPanel() {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val launchableApps = packageManager.queryIntentActivities(launcherIntent, 0)
+            .mapNotNull { resolve ->
+                val pkg = resolve.activityInfo?.packageName ?: return@mapNotNull null
+                val label = resolve.loadLabel(packageManager)?.toString()?.takeIf { it.isNotBlank() } ?: pkg
+                pkg to label
+            }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+        val packages = launchableApps.map { it.first }
+        AppAccessPolicy.initializeForInstalledApps(this, packages)
+        val snapshot = AppAccessPolicy.snapshot(this)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+        }
+        val master = android.widget.Switch(this).apply {
+            text = "MASTER APP CONTROL"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            isChecked = snapshot.masterEnabled
+            setOnCheckedChangeListener { _, checked ->
+                AppAccessPolicy.setMasterEnabled(this@MainActivity, checked)
+                logControlAction("Master app control", if (checked) "enabled" else "disabled", "profile")
+            }
+        }
+        content.addView(master, LinearLayout.LayoutParams(-1, dp(48)))
+        content.addView(TextView(this).apply {
+            text = "Har app ka access alag control karo. OFF app par Vyom screen read, tap, swipe ya type nahi karega. Android Accessibility permission bhi manually ON honi chahiye."
+            textSize = 12f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, 0, 0, dp(8))
+        }, LinearLayout.LayoutParams(-1, -2))
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for ((pkg, label) in launchableApps) {
+            val row = CheckBox(this).apply {
+                text = "$label  ·  $pkg"
+                textSize = 12f
+                setTextColor(Color.WHITE)
+                isChecked = pkg in snapshot.enabledPackages
+                setOnCheckedChangeListener { _, checked ->
+                    AppAccessPolicy.setPackageEnabled(this@MainActivity, pkg, checked)
+                    logControlAction("App access: $label", if (checked) "enabled" else "disabled", "profile")
+                }
+            }
+            list.addView(row, LinearLayout.LayoutParams(-1, dp(44)))
+        }
+        val scroll = ScrollView(this).apply {
+            isFillViewport = false
+            addView(list, ScrollView.LayoutParams(-1, -2))
+        }
+        content.addView(scroll, LinearLayout.LayoutParams(-1, dp(340)))
+        AlertDialog.Builder(this)
+            .setTitle("App access • ${launchableApps.size} apps")
+            .setView(content)
+            .setPositiveButton("DONE", null)
+            .setNeutralButton("ENABLE ALL") { _, _ ->
+                AppAccessPolicy.setMasterEnabled(this, true)
+                packages.forEach { AppAccessPolicy.setPackageEnabled(this, it, true) }
+                showAppAccessPanel()
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
     }
 
     private fun showSkillsRegistry() {

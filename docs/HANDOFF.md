@@ -170,3 +170,11 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - Queue Limit control now has a neutral grey surface rather than inheriting a dynamic button theme.
 - Task result cards and their nested result scroller disable child clipping/nested scrolling to reduce card clipping risk.
 - These UI adjustments are source changes only; visual device verification remains pending.
+
+
+## 2026-11-01 — Per-app Accessibility access foundation
+- Added a per-app access policy with a master switch and explicit package allowlist. STOP CONTROL is checked independently and always blocks the Accessibility service.
+- Added Profile > App access: launchable installed apps are listed with individual ON/OFF checkboxes, a master ON/OFF switch, and Enable All. The first visit initializes launchable apps as enabled; the user can turn off any app.
+- Accessibility screen-tree inspection, visible-text click, swipe/long-press, scroll, focused-field typing, global navigation, and local screenshot now check the current foreground package against the app allowlist and STOP CONTROL.
+- Added unit tests for master-off precedence, per-app isolation, and default denial of unknown packages.
+- This is the permission/control gate only. It does NOT yet implement the autonomous observe → plan → act → verify loop, universal app-specific workflows, or guarantee control over secure/inaccessible custom UI. Phone test remains pending.
