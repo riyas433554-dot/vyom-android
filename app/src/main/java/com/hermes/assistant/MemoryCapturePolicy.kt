@@ -20,8 +20,8 @@ internal object MemoryCapturePolicy {
     fun relevantFacts(facts: List<String>, query: String, limit: Int = 10): List<String> {
         val safeLimit = limit.coerceIn(0, 30)
         if (safeLimit == 0) return emptyList()
-        val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please")
-        val queryTokens = Regex("[a-z0-9]{2,}").findAll(query.lowercase())
+        val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please", "আমি", "আমার", "পছন্দ", "করি", "হয়", "হবে", "দাও", "দেন", "এবং", "যে", "আমাকে")
+        val queryTokens = Regex("[\\p{L}\\p{N}]{2,}").findAll(query.lowercase())
             .map { it.value }.filterNot { it in ignored }.toSet()
         val safeFacts = facts.filter { it.isNotBlank() && !isSensitive(it) }
         return safeFacts.withIndex().map { indexed ->
