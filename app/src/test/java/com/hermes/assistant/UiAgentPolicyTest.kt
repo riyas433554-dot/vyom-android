@@ -24,6 +24,14 @@ class UiAgentPolicyTest {
                 listOf("Delete", "Cancel"), "Delete this draft"))
     }
 
+    @Test fun rejectsPaymentSecurityAndUninstallTargetsWithoutConfirmation() {
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Security"), listOf("Security"), "Open settings"))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Uninstall"), listOf("Uninstall"), "Remove app"))
+        val ocr = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20")
+        val ocrAction = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "UPI", ocrIndex = 1, ocrFingerprint = ocr.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(ocrAction, emptyList(), "Pay", visibleOcr = listOf(ocr)))
+    }
+
     @Test fun refusesToTypeTextNotExplicitlyIncludedInUserGoal() {
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TYPE_TEXT, text = "Buy premium"),
