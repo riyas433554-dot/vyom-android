@@ -1,6 +1,6 @@
 # Vyom Android — Handoff
 
-Last updated: 2026-10-28
+Last updated: 2026-11-01
 
 ## Repository and safety boundaries
 - Repository: `riyas433554-dot/vyom-android`.
@@ -228,3 +228,23 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - Extended the per-task bounded action budget to 40 steps so multi-screen workflows are not cut off after 12 actions.
 - Text entry is rejected if the current screen exposes payment/security-sensitive labels; screenshots remain local while filtered OCR labels may be sent to the configured planner.
 - These controls are guarded automation, not unrestricted control of every Android surface. Custom canvas/editor flows and protected OS screens still require device validation.
+
+
+## 2026-11-01 — UI Agent confirmation modes and action audit
+
+Implementation commit: `bf714cac1afdc6444bbaff6fba89aa07b66e37b7` on `feature/u1-live-orbit-tasks`.
+
+- Profile > UI Agent now offers three per-task confirmation modes:
+  - **Always ask:** visible text taps require explicit confirmation; node/OCR gestures continue to require confirmation.
+  - **Risky asks (default):** ordinary visible text taps can proceed; consequential targets and unlabeled/OCR gestures require confirmation.
+  - **Session grant:** after a second explicit grant confirmation, safe bounded node/OCR gestures can proceed without repeated prompts for this task only. Grant expires after 5 minutes or the existing 40-action limit.
+- Session grants never override the app allowlist, STOP CONTROL, password/editable-field protections, payment/banking/security/uninstall deny rules, fresh-screen fingerprints, bounded gesture regions, or consequential-action confirmations. If the task goal or target label indicates sending, sharing, deletion, purchase, install, posting, transfer or similar consequential work, confirmation remains required.
+- The selected mode and grant start/expiry/revocation are recorded in the local action audit. Every UI Agent action records its action kind and outcome; typed contents and visible labels are deliberately omitted from audit descriptions.
+- Corrected the UI Agent progress text to show the actual 40-step budget (it previously displayed /12 in one progress message).
+- Regression tests cover all three modes, session-grant handling of consequential OCR targets, and blocked sensitive targets.
+- RED verification: test-only commit `3bf41351163e00dab2f2369bfe15b80ece36b8a1` failed as expected because `ConfirmationMode` and the `confirmationMode` parameter did not yet exist.
+- GREEN verification: CI run `41280298743` and debug run `41280298861` both succeeded on implementation SHA `bf714cac1afdc6444bbaff6fba89aa07b66e37b7`. Secret scan, unit tests, debug APK build, packaging and upload succeeded.
+- Debug artifact: `vyom-0.3.0-bf714cac1afdc6444bbaff6fba89aa07b66e37b7` (artifact ID `13073271470`); APK SHA-256 `56d2f793f75aad69b1d8fe71be2701a804a4f3ae65c60f95399ea57e1179a9ce`. Artifact ZIP digest: `3b216fda35e8754b0180f0c80d32ba5cd377810e9cbce0099b52bf1bfbf8f2bb`.
+- The APK is an unsigned debug build. CI does not prove device behavior, signature continuity, or that a task's final result is correct. Phone testing remains pending. UI Agent's `DONE` status is still a model-reported completion and must be checked against the actual app screen.
+- Scope unchanged: this is Android-only. No Android `main`, Hermes/Render backend, or production DB changes.
+
