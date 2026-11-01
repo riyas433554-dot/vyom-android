@@ -37,7 +37,9 @@ internal object MemoryCapturePolicy {
         val explicit = listOf(
             Regex("(?i)^(?:please\\s+)?remember\\s+(?:that\\s+)?(.+)$"),
             Regex("(?i)^yaad\\s+rakhna\\s*[:,-]?\\s*(.+)$"),
-            Regex("(?i)^yaad\\s+rakhna\\s+ki\\s+(.+)$")
+            Regex("(?i)^yaad\\s+rakhna\\s+ki\\s+(.+)$"),
+            Regex("(?i)^(?:please\\s+)?keep\\s+in\\s+mind\\s+(?:that\\s+)?(.+)$"),
+            Regex("^(?:মনে রেখো|মনে রাখবে|মনে রাখবেন)(?: যে)?\\s*[:,,-]?\\s*(.+)$")
         )
         for (pattern in explicit) {
             val match = pattern.matchEntire(text) ?: continue
@@ -45,7 +47,8 @@ internal object MemoryCapturePolicy {
         }
         val corrections = listOf(
             Regex("(?i)^(?:no|nah|nahi),?\\s*(?:i meant|mera matlab(?: tha)?|what i meant was)\\s+(.+)$"),
-            Regex("(?i)^(?:correction|actually),?\\s*(?:i meant|mera matlab(?: hai| tha)?)\\s+(.+)$")
+            Regex("(?i)^(?:correction|actually),?\\s*(?:i meant|mera matlab(?: hai| tha)?)\\s+(.+)$"),
+            Regex("^(?:না|সংশোধন),?\\s*(?:আমার মানে ছিল|আমি বলতে চেয়েছিলাম)\\s+(.+)$")
         )
         for (pattern in corrections) {
             val match = pattern.matchEntire(text) ?: continue
@@ -54,9 +57,14 @@ internal object MemoryCapturePolicy {
         val preferenceText = text.replace(Regex("[.!?]+$"), "")
         val preferences = listOf(
             Regex("(?i)^(i prefer .+|i like .+|i dislike .+|i don't like .+|my preference is .+)$"),
-            Regex("(?i)^(mujhe .+ pasand hain?|mujhe .+ pasand nahi(?: hai)?|meri preference .+ hai)$")
+            Regex("(?i)^(mujhe .+ pasand hain?|mujhe .+ pasand nahi(?: hai)?|meri preference .+ hai)$"),
+            Regex("^(আমি .+ পছন্দ করি|আমার পছন্দ .+)$")
         )
         if (preferences.any { it.matches(preferenceText) }) return safeFact(preferenceText)
+        val englishDirective = Regex("(?i)^(?:going forward|from now on),?\\s*(?:please\\s+)?keep\\s+(?:your\\s+)?replies?\\s+(concise|short|brief|detailed)[.!]?$").matchEntire(text)
+        if (englishDirective != null) return safeFact("I prefer ${englishDirective.groupValues[1].lowercase()} replies")
+        val hinglishDirective = Regex("(?i)^(?:aage se\\s+)?mujhe\\s+(.+?)\\s+(?:dena|do)[.!]?$").matchEntire(text)
+        if (hinglishDirective != null) return safeFact("Mujhe ${hinglishDirective.groupValues[1]} pasand hain")
         val names = listOf(
             Regex("(?i)^my name is ([a-z][a-z .'-]{1,48})[.!]?$"),
             Regex("(?i)^mera naam ([a-z][a-z .'-]{1,48}) hai[.!]?$")
@@ -69,7 +77,7 @@ internal object MemoryCapturePolicy {
     }
     private fun safeFact(value: String): List<String> {
         val fact = value.replace(Regex("\\s+"), " ").trim()
-            .trim('"', '\'', '“', '”', '.', '!', '?').take(MAX_FACT_CHARS).trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            .trim('"', '\'', '“', '”', '.', '!', '?', '।').take(MAX_FACT_CHARS).trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         if (fact.isBlank() || isSensitive(fact)) return emptyList()
         return listOf(if (fact.endsWith(".")) fact else "$fact.")
     }
