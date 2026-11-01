@@ -180,7 +180,6 @@ class VyomAccessibilityService : AccessibilityService() {
         val rect = android.graphics.Rect()
         node.getBoundsInScreen(rect)
         return listOf(node.className?.toString().orEmpty(), rect.left, rect.top, rect.right, rect.bottom,
-            node.text?.toString().orEmpty().take(120), node.contentDescription?.toString().orEmpty().take(120),
             node.isClickable, node.isLongClickable, node.isPassword, node.isEditable).joinToString("|")
     }
 
