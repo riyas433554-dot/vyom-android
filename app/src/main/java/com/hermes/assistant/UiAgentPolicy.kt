@@ -76,7 +76,7 @@ internal object UiAgentPolicy {
                 val text = action.text.trim()
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.editable || node.password || node.fingerprint.isBlank() ||
-                    node.fingerprint != action.nodeFingerprint || blockedTargets.containsMatchIn(node.label) ||
+                    node.fingerprint != action.nodeFingerprint || blockedTargets.containsMatchIn(node.label) || visibleLabels.any { blockedTargets.containsMatchIn(it) } ||
                     text.isBlank() || text.length > 500 || !userGoal.contains(text, ignoreCase = true) ||
                     blockedTargets.containsMatchIn(text) ||
                     Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token)").containsMatchIn(text) ||
