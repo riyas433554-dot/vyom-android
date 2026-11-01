@@ -1564,21 +1564,13 @@ class MainActivity : Activity() {
     }
 
     private fun showSkillsRegistry() {
-        val ids = arrayOf("open_app", "volume", "torch", "settings")
-        val labels = arrayOf("Open apps", "Media volume", "Torch", "System settings panels")
-        val prefs = getSharedPreferences("vyom_skill_registry", MODE_PRIVATE)
-        val checked = BooleanArray(ids.size) { i -> prefs.getBoolean(ids[i], true) }
-        AlertDialog.Builder(this)
-            .setTitle("Skills • On this device")
-            .setMultiChoiceItems(labels, checked) { _, which, enabled ->
-                prefs.edit().putBoolean(ids[which], enabled).apply()
-                logControlAction("Skill: " + labels[which], if (enabled) "enabled" else "disabled", "profile")
-            }
-            .setPositiveButton("Done", null)
-            .setNeutralButton("Teach Vyom") { _, _ -> showTeachCommandDialog("new taught command", "profile") { message ->
+        VyomSkillsDialog(this, { label, enabled ->
+            logControlAction("Skill: $label", if (enabled) "enabled" else "disabled", "profile")
+        }, {
+            showTeachCommandDialog("new taught command", "profile") { message ->
                 AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show()
-            } }
-            .show()
+            }
+        }, ::navigateDrawerItem).show()
     }
 
     private fun showFixSuggestions() {
