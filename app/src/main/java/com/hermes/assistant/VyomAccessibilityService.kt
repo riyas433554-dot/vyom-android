@@ -40,6 +40,7 @@ class VyomAccessibilityService : AccessibilityService() {
 
     @Volatile private var screenRevision = 0L
     @Volatile private var lastOcrRevision = -1L
+    @Volatile private var lastOcrPackage = ""
     @Volatile private var lastOcrTargets: List<OcrItem> = emptyList()
     private var agentOverlayRoot: LinearLayout? = null
     private var agentOverlayStatus: TextView? = null
@@ -51,7 +52,9 @@ class VyomAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Event text is deliberately not forwarded to network or logs.
-        if (event != null && event.eventType in setOf(
+        if (event != null && event.packageName?.toString() == lastOcrPackage &&
+            lastOcrPackage.isNotBlank() && lastOcrPackage != packageName &&
+            event.eventType in setOf(
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
                 AccessibilityEvent.TYPE_WINDOWS_CHANGED,
@@ -264,6 +267,9 @@ class VyomAccessibilityService : AccessibilityService() {
     fun captureVisibleOcr(onResult: (List<OcrItem>, String?) -> Unit) {
         if (!isCurrentAppAllowed()) { onResult(emptyList(), "App access is OFF or STOP CONTROL is ON."); return }
         if (Build.VERSION.SDK_INT < 30) { onResult(emptyList(), "OCR screenshot requires Android 11 or newer."); return }
+        val rootAtCapture = rootInActiveWindow
+        if (!isCurrentAppAllowed(rootAtCapture)) { onResult(emptyList(), "Current app is not enabled."); return }
+        val packageAtCapture = rootAtCapture?.packageName?.toString().orEmpty()
         val revisionAtCapture = screenRevision
         takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
@@ -296,11 +302,13 @@ class VyomAccessibilityService : AccessibilityService() {
                             if (targets.size >= 80) break
                         }
                         lastOcrTargets = targets
+                        lastOcrPackage = packageAtCapture
                         lastOcrRevision = revisionAtCapture
                         onResult(targets, null)
                     }
                     .addOnFailureListener(mainExecutor) { error ->
                         lastOcrTargets = emptyList()
+                        lastOcrPackage = packageAtCapture
                         lastOcrRevision = revisionAtCapture
                         onResult(emptyList(), error.message ?: "Local OCR failed.")
                     }
@@ -312,6 +320,7 @@ class VyomAccessibilityService : AccessibilityService() {
 
             override fun onFailure(errorCode: Int) {
                 lastOcrTargets = emptyList()
+                lastOcrPackage = packageAtCapture
                 lastOcrRevision = revisionAtCapture
                 onResult(emptyList(), "OCR screenshot failed (code $errorCode).")
             }
@@ -319,7 +328,9 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     fun tapOcrTarget(expectedFingerprint: String): Boolean {
-        if (expectedFingerprint.isBlank() || !isCurrentAppAllowed() || screenRevision != lastOcrRevision) return false
+        val root = rootInActiveWindow ?: return false
+        if (expectedFingerprint.isBlank() || root.packageName?.toString() != lastOcrPackage ||
+            !isCurrentAppAllowed(root) || screenRevision != lastOcrRevision) return false
         val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
