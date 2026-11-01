@@ -78,7 +78,7 @@ internal class VyomDrawer(
 
         val search = EditText(activity).apply {
             hint = "Search workspace…"
-            singleLine = true
+            isSingleLine = true
             textSize = 14f
             setTextColor(VyomDesignSpec.TEXT_PRIMARY)
             setHintTextColor(VyomDesignSpec.TEXT_SECONDARY)
@@ -97,7 +97,7 @@ internal class VyomDrawer(
             setPadding(0, dp(2), 0, dp(8))
         }
         val list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-        scroll.addView(list, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(list, android.widget.FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         fun render(filter: String) {
