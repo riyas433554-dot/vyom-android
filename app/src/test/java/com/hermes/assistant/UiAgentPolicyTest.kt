@@ -121,4 +121,18 @@ class UiAgentPolicyTest {
         assertTrue(UiAgentPolicy.mayContinue(39))
         assertFalse(UiAgentPolicy.mayContinue(40))
     }
+
+    @Test fun progressCounterUsesTheFortyStepTaskBudget() {
+        assertEquals("Action accepted • rechecking screen • step 1/40", UiAgentPolicy.progressMessage(1))
+        assertEquals("Action accepted • rechecking screen • step 40/40", UiAgentPolicy.progressMessage(40))
+    }
+
+    @Test fun auditLabelNeverStoresTypedMessageContents() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TYPE_TEXT, text = "private caption 123", nodeIndex = 7)
+        val label = UiAgentPolicy.auditLabel(action)
+        assertTrue(label.contains("TYPE_TEXT"))
+        assertTrue(label.contains("#7"))
+        assertFalse(label.contains("private caption"))
+        assertFalse(label.contains("123"))
+    }
 }
