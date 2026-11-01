@@ -37,4 +37,22 @@ class MemoryCapturePolicyTest {
     @Test fun safeNameStatementCanBeRemembered() {
         assertEquals(listOf("My name is Riya."), MemoryCapturePolicy.extract("My name is Riya."))
     }
+
+    @Test fun EnglishHinglishAndBengaliParaphrasesAreRecognized() {
+        assertEquals(listOf("I prefer concise replies."),
+            MemoryCapturePolicy.extract("Going forward, please keep your replies concise."))
+        assertEquals(listOf("Mujhe short answers pasand hain."),
+            MemoryCapturePolicy.extract("Aage se mujhe short answers dena."))
+        assertEquals(listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.extract("মনে রেখো, আমি বাংলা ভাষায় উত্তর পছন্দ করি।"))
+        assertEquals(listOf("আমি সংক্ষিপ্ত উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.extract("আমি সংক্ষিপ্ত উত্তর পছন্দ করি।"))
+    }
+
+    @Test fun BengaliCorrectionsAreCapturedButTemporaryGoalsAreNot() {
+        assertEquals(listOf("আমি বিস্তারিত উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.extract("না, আমার মানে ছিল আমি বিস্তারিত উত্তর পছন্দ করি।"))
+        assertTrue(MemoryCapturePolicy.extract("আমি কালকের পরীক্ষার জন্য পড়তে চাই").isEmpty())
+    }
+
 }
