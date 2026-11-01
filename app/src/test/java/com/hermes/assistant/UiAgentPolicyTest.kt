@@ -38,6 +38,14 @@ class UiAgentPolicyTest {
                 listOf("Caption"), "Add a caption"))
     }
 
+    @Test fun allowsExactGoalTextOnlyInObservedEditableField() {
+        val fingerprint = "com.example.editor|EditText|1|2|30|40"
+        val editable = UiAgentPolicy.VisibleNode(3, false, false, false, true, fingerprint, false, "Caption")
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TYPE_TEXT, text = "hello", nodeIndex = 3, nodeFingerprint = fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.ALLOW, UiAgentPolicy.validate(action, emptyList(), "Add caption hello", listOf(editable)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(nodeIndex = 4), emptyList(), "Add caption hello", listOf(editable)))
+    }
+
     @Test fun refusesCredentialLikeText() {
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TYPE_TEXT, text = "123456"),
