@@ -162,3 +162,11 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 
 ### Next work
 - Continue remaining device skill/agent-loop, accessibility observe-plan-act-verify, result viewer/game output, and UI/safety regression tasks.
+
+
+### Follow-up safety and UI hardening
+- Added a centralized device-action safety decision: STOP CONTROL overrides SAFE, CONFIRM, and BLOCKED; CONFIRM remains explicit-tap only; BLOCKED remains denied. Added unit tests for the precedence matrix and wired the policy into the action execution gate.
+- Primary OpenGL orb now explicitly uses a transparent view background.
+- Queue Limit control now has a neutral grey surface rather than inheriting a dynamic button theme.
+- Task result cards and their nested result scroller disable child clipping/nested scrolling to reduce card clipping risk.
+- These UI adjustments are source changes only; visual device verification remains pending.
