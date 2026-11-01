@@ -12,7 +12,7 @@ internal object ChatContextPolicy {
         val recent = history.trim()
         if (memory.isEmpty() && recent.isEmpty() || maxChars == 0) return ""
 
-        val memoryLabel = if (memory.isEmpty()) "" else "On-device memory facts (user-controlled):\n$memory"
+        val memoryLabel = if (memory.isEmpty()) "" else "On-device memory facts (user-controlled; newest first; newest fact wins when preferences conflict):\n$memory"
         val historyLabel = if (recent.isEmpty()) "" else "Recent conversation context:\n$recent"
         val complete = listOf(memoryLabel, historyLabel).filter { it.isNotEmpty() }.joinToString("\n\n")
         if (complete.length <= maxChars) return complete
