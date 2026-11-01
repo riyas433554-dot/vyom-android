@@ -31,7 +31,16 @@ internal object MemoryCapturePolicy {
             Triple(score, indexed.index, indexed.value)
         }.sortedWith(compareByDescending<Triple<Int, Int, String>> { it.first }.thenByDescending { it.second })
             .filter { queryTokens.isEmpty() || it.first > 0 }
-            .take(safeLimit).sortedByDescending { it.second }.map { it.third }
+            .take(safeLimit).toMutableList().also { selected ->
+                val conflictGroups = selected.indices.groupBy { conflictTopic(selected[it].third) }
+                    .filterKeys { it != null }.values
+                conflictGroups.forEach { positions ->
+                    if (positions.size > 1) {
+                        val newestFirst = positions.map { selected[it] }.sortedByDescending { it.second }
+                        positions.forEachIndexed { index, position -> selected[position] = newestFirst[index] }
+                    }
+                }
+            }.map { it.third }
     }
     fun extract(message: String): List<String> {
         val text = message.trim()
@@ -77,6 +86,18 @@ internal object MemoryCapturePolicy {
         }
         return emptyList()
     }
+
+    private fun conflictTopic(memory: String): String? {
+        val value = memory.lowercase()
+        if (!Regex("(prefer|like|dislike|preference|pasand|পছন্দ)").containsMatchIn(value)) return null
+        if (Regex("(concise|short|brief|detailed|long|verbose|সংক্ষিপ্ত|বিস্তারিত)").containsMatchIn(value) &&
+            Regex("(replies?|answers?|responses?|উত্তর)").containsMatchIn(value)) return "response-style"
+        if (Regex("(english|hindi|hinglish|bengali|bangla|language|বাংলা|হিন্দি|ইংরেজি)").containsMatchIn(value)) return "language"
+        if (Regex("\\b(dark|light)\\s+themes?\\b").containsMatchIn(value)) return "theme"
+        if (Regex("(markdown|plain text|bullets?|numbered lists?|prose)").containsMatchIn(value)) return "format"
+        return null
+    }
+
     private fun safeFact(value: String): List<String> {
         val fact = value.replace(Regex("\\s+"), " ").trim()
             .trim('"', '\'', '“', '”', '.', '!', '?', '।').take(MAX_FACT_CHARS).trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
