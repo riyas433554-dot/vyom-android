@@ -220,3 +220,11 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - UI Agent text entry now requires the exact editable Accessibility node index and a current node fingerprint. Password/editable contents are redacted from the planner tree; non-sensitive field hints remain visible.
 - Tap-text, scroll, and back actions carry the observed foreground package and are rejected if a different app is now active. Node fingerprints include package, bounds, flags, and a hash of visible labels so changed controls are rejected without placing label text in the fingerprint.
 - Financial/payment app blocking is a conservative package/label heuristic; it is not exhaustive. The allowlist and action-level deny rules remain in force.
+
+
+## 2026-11-01 — UI Agent continuation
+- Action-to-re-observation cadence is 300 ms.
+- Added OCR-target tap/long-press, bounded accessibility-node tap/long-press/swipe/drag, exact editable-node text entry, and app launch from the explicitly enabled launcher-app allowlist.
+- Extended the per-task bounded action budget to 40 steps so multi-screen workflows are not cut off after 12 actions.
+- Text entry is rejected if the current screen exposes payment/security-sensitive labels; screenshots remain local while filtered OCR labels may be sent to the configured planner.
+- These controls are guarded automation, not unrestricted control of every Android surface. Custom canvas/editor flows and protected OS screens still require device validation.
