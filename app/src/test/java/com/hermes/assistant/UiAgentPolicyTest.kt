@@ -83,6 +83,8 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Trim clip", visibleOcr = listOf(observed)))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(ocrIndex = 3), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(target = "Delete"), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
+        val longPress = UiAgentPolicy.Action(UiAgentPolicy.Kind.LONG_PRESS_OCR, target = "Trim", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(longPress, emptyList(), "Select clip", visibleOcr = listOf(observed)))
     }
 
     @Test fun onlyLaunchesAppsExplicitlyAllowedInAppAccess() {
