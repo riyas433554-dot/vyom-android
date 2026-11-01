@@ -13,7 +13,8 @@ internal object AppAccessPolicy {
     private val blockedMarkers = listOf(
         "bank", "banking", "upi", "wallet", "payment", "paytm", "phonepe", "googlepay",
         "google pay", "gpay", "paypal", "amazonpay", "amazon pay", "mobikwik", "freecharge", "bharatpe",
-        "cred", "zerodha", "groww", "angelone", "trading", "broker", "investment", "finance"
+        "cred", "zerodha", "groww", "angelone", "trading", "broker", "investment", "finance",
+        "sbi", "hdfc", "icici", "axis", "kotak", "idfc", "canara", "pnb", "indusind", "yesbank"
     )
 
     internal fun isBlockedIdentifier(packageName: String, label: String = ""): Boolean {
