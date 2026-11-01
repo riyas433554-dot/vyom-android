@@ -202,10 +202,13 @@ class VyomAccessibilityService : AccessibilityService() {
         if (node.isPassword || node.isEditable) return false
         var candidate: AccessibilityNodeInfo? = node
         while (candidate != null) {
-            if (candidate.isClickable) return candidate.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            if (candidate.isClickable && safeGestureBounds(candidate) != null) {
+                return candidate.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            }
             candidate = candidate.parent
         }
-        return false
+        val rect = safeGestureBounds(node) ?: return false
+        return dispatchPath(rect.centerX().toFloat(), rect.centerY().toFloat(), rect.centerX().toFloat(), rect.centerY().toFloat(), 90L)
     }
 
     fun longPress(x: Float, y: Float, durationMs: Long = 650L): Boolean =
