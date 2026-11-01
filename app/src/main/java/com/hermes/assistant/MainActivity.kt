@@ -191,6 +191,7 @@ class MainActivity : Activity() {
         api = VyomApiClient(applicationContext)
         memoryStore = VyomMemoryStore(applicationContext)
         controlKillSwitch = controlPrefs.getBoolean("kill_switch", false)
+        sanitizeControlAuditHistory()
         voiceStateMachine = VoiceStateMachine()
         orbMode = settingsPrefs.getInt("orb_mode", 0).coerceIn(0, 3)
         reduceMotion = settingsPrefs.getBoolean("reduce_motion", false)
@@ -1060,6 +1061,8 @@ class MainActivity : Activity() {
             "tasks" -> showTab(true)
             "control", "assistant_control" -> showTab(false, false, false, true)
             "skills" -> showSkillsRegistry()
+            "audit" -> showAuditLog()
+            "permissions" -> showAppAccessPanel()
             "connections", "settings" -> showTab(false, true)
             "memory" -> showMemoryManager()
             "voice" -> showVoiceMode()
@@ -1672,10 +1675,32 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun sanitizeControlAuditHistory() {
+        val rows = try { JSONArray(controlPrefs.getString("events", "[]")) } catch (_: Exception) { JSONArray() }
+        val safe = JSONArray()
+        for (i in 0 until minOf(rows.length(), 50)) {
+            val row = rows.optJSONObject(i) ?: continue
+            val timestamp = row.optString("at").takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}T.*")) } ?: "TIME NOT PROVIDED"
+            safe.put(JSONObject()
+                .put("at", timestamp)
+                .put("elapsedMs", row.optLong("elapsedMs").coerceIn(0L, 60_000L))
+                .put("source", VyomAuditPolicy.sanitize(row.optString("source")))
+                .put("action", VyomAuditPolicy.sanitize(row.optString("action")))
+                .put("result", VyomAuditPolicy.sanitize(row.optString("result"))))
+        }
+        controlPrefs.edit().putString("events", safe.toString()).apply()
+    }
+
     private fun logControlAction(action: String, result: String, source: String = "app", elapsedMs: Long = 0L) {
+        sanitizeControlAuditHistory()
         val rows = try { JSONArray(controlPrefs.getString("events", "[]")) } catch (_: Exception) { JSONArray() }
         val next = JSONArray()
-        next.put(JSONObject().put("at", java.time.Instant.now().toString()).put("elapsedMs", elapsedMs).put("source", source).put("action", action).put("result", result))
+        next.put(JSONObject()
+            .put("at", java.time.Instant.now().toString())
+            .put("elapsedMs", elapsedMs.coerceIn(0L, 60_000L))
+            .put("source", VyomAuditPolicy.sanitize(source))
+            .put("action", VyomAuditPolicy.sanitize(action))
+            .put("result", VyomAuditPolicy.sanitize(result)))
         for (i in 0 until minOf(rows.length(), 49)) next.put(rows.getJSONObject(i))
         controlPrefs.edit().putString("events", next.toString()).apply()
         renderControlAudit()
@@ -1683,25 +1708,34 @@ class MainActivity : Activity() {
 
     private fun renderControlAudit() {
         if (!::controlAuditList.isInitialized) return
+        sanitizeControlAuditHistory()
         controlAuditList.removeAllViews()
         val rows = try { JSONArray(controlPrefs.getString("events", "[]")) } catch (_: Exception) { JSONArray() }
         if (rows.length() == 0) {
             controlAuditList.addView(TextView(this).apply {
                 text = "No device actions yet."
                 textSize = 11f
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             })
             return
         }
         for (i in 0 until rows.length()) {
             val row = rows.optJSONObject(i) ?: continue
             controlAuditList.addView(TextView(this).apply {
-                text = "${row.optString("at")} • ${row.optString("source", "app")} • ${row.optString("action")} — ${row.optString("result")} (${row.optLong("elapsedMs")} ms)"
+                text = "${row.optString("at")} • ${VyomAuditPolicy.sanitize(row.optString("source"))} • ${VyomAuditPolicy.sanitize(row.optString("action"))} — ${VyomAuditPolicy.sanitize(row.optString("result"))} (${row.optLong("elapsedMs").coerceAtLeast(0)} ms)"
                 textSize = 10f
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(0, dp(2), 0, dp(2))
             })
         }
+    }
+
+    private fun showAuditLog() {
+        sanitizeControlAuditHistory()
+        VyomAuditLogDialog(this, controlPrefs.getString("events", "[]") ?: "[]", {
+            controlPrefs.edit().putString("events", "[]").apply()
+            logControlAction("Audit log", "cleared", "profile")
+        }, ::navigateDrawerItem).show()
     }
 
     private fun showPairingRequired() {
