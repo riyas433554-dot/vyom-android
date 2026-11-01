@@ -1109,36 +1109,9 @@ class MainActivity : Activity() {
     }
 
     private fun showMemoryManager() {
-        val enabled = memoryStore.isEnabled()
-        val editor = EditText(this).apply {
-            setText(memoryStore.facts().joinToString("\n"))
-            hint = "One safe fact per line (name, preferences)"
-            minLines = 5; maxLines = 12
-            gravity = Gravity.TOP or Gravity.START
-            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-        val wrap = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(4))
-            addView(TextView(this@MainActivity).apply {
-                text = "Encrypted on this device. Passwords, OTPs, payment-card data, API keys, and tokens are never saved."
-                textSize = 12f; setTextColor(Color.LTGRAY)
-            })
-            addView(editor, LinearLayout.LayoutParams(-1, dp(180)))
-        }
-        AlertDialog.Builder(this).setTitle("Profile • Memory").setView(wrap)
-            .setNeutralButton(if (enabled) "Turn OFF" else "Turn ON") { _, _ ->
-                memoryStore.setEnabled(!enabled); showMemoryManager()
-            }
-            .setPositiveButton("Save") { _, _ ->
-                memoryStore.replaceFacts(editor.text.toString())
-                logControlAction("Memory facts", "updated", "profile")
-            }
-            .setNegativeButton("Delete all") { _, _ ->
-                memoryStore.clearFacts()
-                logControlAction("Memory facts", "deleted", "profile")
-            }.show()
+        VyomMemoryDialog(this, memoryStore, { change ->
+            logControlAction("Memory facts", change, "profile")
+        }, ::navigateDrawerItem).show()
     }
 
     private fun loadOlderChatMessages() {
