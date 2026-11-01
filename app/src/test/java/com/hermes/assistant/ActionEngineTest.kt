@@ -30,6 +30,7 @@ class ActionEngineTest {
   assertEquals(ActionEngine.Risk.CONFIRM, search?.risk)
   assertEquals("YouTube", search?.target)
   assertEquals(ActionEngine.Operation.INSTALL_PLAY_STORE, ActionEngine.classify("get WhatsApp from playstore")?.operation)
+  assertEquals(true, ActionEngine.looksLikeDeviceAction("get WhatsApp from playstore"))
   assertEquals(ActionEngine.Operation.INSTALL, ActionEngine.classify("install this APK")?.operation)
  }
  @Test fun blockedPolicyWins(){ assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open my bank app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("read my OTP")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("send my OTP to someone")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("uninstall the app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open security settings")?.risk) }
