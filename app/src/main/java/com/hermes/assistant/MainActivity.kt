@@ -1093,10 +1093,40 @@ class MainActivity : Activity() {
             maxLines = 4
             setPadding(dp(16), dp(12), dp(16), dp(12))
         }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), 0, dp(8), 0)
+        }
+        content.addView(input, LinearLayout.LayoutParams(-1, -2))
+        content.addView(TextView(this).apply {
+            text = "CONFIRMATION MODE"
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, dp(12), 0, dp(4))
+        }, LinearLayout.LayoutParams(-1, -2))
+        val modeGroup = android.widget.RadioGroup(this).apply {
+            orientation = android.widget.RadioGroup.VERTICAL
+        }
+        val modes = listOf(
+            UiAgentPolicy.ConfirmationMode.ALWAYS_ASK to "Always ask — confirm every visible text tap",
+            UiAgentPolicy.ConfirmationMode.RISKY_ASK to "Risky asks — confirm risky and unlabeled controls",
+            UiAgentPolicy.ConfirmationMode.SESSION_GRANT to "Session grant — safe controls can run without repeated prompts"
+        )
+        modes.forEach { (mode, label) ->
+            val option = android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = label
+                tag = mode
+                textSize = 12f
+            }
+            modeGroup.addView(option, android.widget.RadioGroup.LayoutParams(-1, -2))
+            if (mode == UiAgentPolicy.ConfirmationMode.RISKY_ASK) modeGroup.check(option.id)
+        }
+        content.addView(modeGroup, LinearLayout.LayoutParams(-1, -2))
         AlertDialog.Builder(this)
             .setTitle("Vyom UI Agent")
-            .setMessage("Profile > App access mein jis app ko control karna hai use ON rakho. Vyom allowed app khud open kar sakta hai. Accessibility labels aur filtered OCR text NVIDIA model ko analysis ke liye bheje jaate hain; screenshot upload nahi hota. Private ya secure screens par use mat karo. Har action bounded aur rechecked hai.")
-            .setView(input)
+            .setMessage("Profile > App access mein jis app ko control karna hai use ON rakho. Accessibility labels aur filtered OCR text NVIDIA model ko analysis ke liye bheje jaate hain; screenshot upload nahi hota. Private ya secure screens par use mat karo. STOP CONTROL, app allowlist aur blocked-action rules har mode mein active rahenge.")
+            .setView(content)
             .setNegativeButton("CANCEL", null)
             .setPositiveButton("START", null)
             .create().also { dialog ->
@@ -1111,20 +1141,39 @@ class MainActivity : Activity() {
                             input.error = "Android Settings > Accessibility mein Vyom service ON karo."
                             return@setOnClickListener
                         }
+                        val selectedMode = modeGroup.findViewById<android.widget.RadioButton>(modeGroup.checkedRadioButtonId)
+                            ?.tag as? UiAgentPolicy.ConfirmationMode ?: UiAgentPolicy.ConfirmationMode.RISKY_ASK
                         dialog.dismiss()
-                        mainHandler.postDelayed({ startUiAgentTask(goal) }, 300L)
+                        fun launchSelectedTask() {
+                            mainHandler.postDelayed({ startUiAgentTask(goal, selectedMode) }, 300L)
+                        }
+                        if (selectedMode == UiAgentPolicy.ConfirmationMode.SESSION_GRANT) {
+                            AlertDialog.Builder(this)
+                                .setTitle("Grant temporary UI control?")
+                                .setMessage("This grants up to 5 minutes or 40 actions across apps currently ON in App access. Banking/payment/security/uninstall actions stay blocked. Sending, deleting, purchasing and posting still need a separate confirmation. STOP CONTROL remains available.")
+                                .setNegativeButton("CANCEL", null)
+                                .setPositiveButton("GRANT & START") { _, _ -> launchSelectedTask() }
+                                .show()
+                        } else {
+                            launchSelectedTask()
+                        }
                     }
                 }
                 dialog.show()
             }
     }
 
-    private fun startUiAgentTask(goal: String) {
+    private fun startUiAgentTask(goal: String, confirmationMode: UiAgentPolicy.ConfirmationMode) {
         val generation = ++uiAgentGeneration
+        val sessionGrantExpiresAt = if (confirmationMode == UiAgentPolicy.ConfirmationMode.SESSION_GRANT) System.currentTimeMillis() + 5 * 60 * 1000L else null
+        logControlAction("UI Agent task", "started; mode=${confirmationMode.name}", "ui-agent")
+        if (sessionGrantExpiresAt != null) logControlAction("UI Agent session grant", "granted for up to 5 minutes / 40 actions", "ui-agent")
         val initialService = VyomAccessibilityService.current() ?: return
 
         fun stopAgent() {
             if (generation == uiAgentGeneration) uiAgentGeneration++
+            logControlAction("UI Agent task", "stopped-by-user", "ui-agent")
+            if (sessionGrantExpiresAt != null) logControlAction("UI Agent session grant", "revoked-by-user-stop", "ui-agent")
             initialService.hideAgentOverlay()
         }
 
@@ -1147,6 +1196,11 @@ class MainActivity : Activity() {
 
         fun nextStep() {
             if (generation != uiAgentGeneration) return
+            if (sessionGrantExpiresAt != null && System.currentTimeMillis() >= sessionGrantExpiresAt) {
+                logControlAction("UI Agent session grant", "expired", "ui-agent")
+                finish("5-minute session grant expired. Task stopped.")
+                return
+            }
             if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
                 finish("STOP CONTROL ON — agent stopped.")
                 return
@@ -1205,7 +1259,7 @@ class MainActivity : Activity() {
                         }
                         val verdict = UiAgentPolicy.validate(
                             preparedAction, labels, goal, visibleNodes,
-                            allowedApps.map { it.first }.toSet(), visibleOcr
+                            allowedApps.map { it.first }.toSet(), visibleOcr, confirmationMode
                         )
                         when (verdict) {
                             UiAgentPolicy.Verdict.REJECT -> {
@@ -1223,10 +1277,11 @@ class MainActivity : Activity() {
                                 }
                                 val shown = service.showAgentConfirmation(message, {
                                     if (generation != uiAgentGeneration || controlPrefs.getBoolean("kill_switch", false)) {
+                                        logControlAction(UiAgentPolicy.auditLabel(preparedAction), "blocked-by-stop-control", "ui-agent")
                                         finish("STOP CONTROL ON — action blocked.")
                                     } else {
                                         if (service.showAgentProgress("Confirmed • executing action…", ::stopAgent)) {
-                                            performUiAgentAction(preparedAction, generation, completedSteps,
+                                            performUiAgentAction(preparedAction, generation, completedSteps, sessionGrantExpiresAt,
                                                 { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
                                         } else {
                                             finish("STOP overlay unavailable. Action was not executed.")
@@ -1239,7 +1294,7 @@ class MainActivity : Activity() {
                                 if (!shown) finish("Confirmation overlay unavailable. Action not executed.")
                             }
                             UiAgentPolicy.Verdict.ALLOW ->
-                                performUiAgentAction(preparedAction, generation, completedSteps,
+                                performUiAgentAction(preparedAction, generation, completedSteps, sessionGrantExpiresAt,
                                     { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
                         }
                     }
@@ -1253,6 +1308,7 @@ class MainActivity : Activity() {
         action: UiAgentPolicy.Action,
         generation: Int,
         completedSteps: Int,
+        sessionGrantExpiresAt: Long?,
         onStepCompleted: () -> Unit,
         updateProgress: (String) -> Unit,
         nextStep: () -> Unit,
@@ -1261,6 +1317,11 @@ class MainActivity : Activity() {
         if (generation != uiAgentGeneration || controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
             logControlAction(UiAgentPolicy.auditLabel(action), "blocked-by-stop-control", "ui-agent")
             finish("STOP CONTROL ON — action blocked.")
+            return
+        }
+        if (sessionGrantExpiresAt != null && System.currentTimeMillis() >= sessionGrantExpiresAt) {
+            logControlAction("UI Agent session grant", "expired-before-action", "ui-agent")
+            finish("5-minute session grant expired. Action not executed.")
             return
         }
         val service = VyomAccessibilityService.current()

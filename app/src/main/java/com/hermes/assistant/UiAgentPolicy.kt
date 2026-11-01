@@ -7,6 +7,7 @@ package com.hermes.assistant
 internal object UiAgentPolicy {
     enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
+    enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT }
     data class Action(
         val kind: Kind,
         val target: String = "",
@@ -33,33 +34,37 @@ internal object UiAgentPolicy {
         RegexOption.IGNORE_CASE
     )
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList()): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK): Verdict {
         return when (action.kind) {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
             Kind.TAP_OCR, Kind.LONG_PRESS_OCR -> {
                 val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
                 if (target == null || action.target.isBlank() || target.text != action.target || target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 || blockedTargets.containsMatchIn(action.target) ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
-                else if (consequential.containsMatchIn(action.target)) Verdict.CONFIRM
+                else if (confirmationMode == ConfirmationMode.ALWAYS_ASK || consequential.containsMatchIn(action.target)) Verdict.CONFIRM
                 else Verdict.ALLOW
             }
             Kind.TAP_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.LONG_PRESS_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.SWIPE_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint || action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.DRAG_NODE -> {
@@ -69,6 +74,7 @@ internal object UiAgentPolicy {
                     node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint ||
                     action.fromAnchor.lowercase() !in anchors || action.toAnchor.lowercase() !in anchors ||
                     action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
@@ -87,6 +93,10 @@ internal object UiAgentPolicy {
             Kind.BACK, Kind.WAIT, Kind.DONE -> Verdict.ALLOW
         }
     }
+
+    private fun sessionGrantAllows(mode: ConfirmationMode, userGoal: String, targetLabel: String): Boolean =
+        mode == ConfirmationMode.SESSION_GRANT &&
+            !consequential.containsMatchIn(userGoal) && !consequential.containsMatchIn(targetLabel)
 
     fun mayContinue(completedSteps: Int, maxSteps: Int = 40): Boolean =
         completedSteps >= 0 && completedSteps < maxSteps
