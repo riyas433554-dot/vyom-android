@@ -31,6 +31,7 @@ internal class VyomMemoryDialog(
     private lateinit var search: EditText
     private lateinit var status: TextView
     private lateinit var toggle: Button
+    private lateinit var addButton: Button
 
     fun show() {
         dialog = Dialog(activity)
@@ -119,10 +120,10 @@ internal class VyomMemoryDialog(
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(8), 0, 0)
         }
-        val add = Button(activity).apply {
+        addButton = Button(activity).apply {
             text = "＋ ADD FACT"
             VyomTheme.stylePill(this, activity, "amber", "secondary")
-            setOnClickListener { editFact(null) }
+            setOnClickListener { if (store.isEnabled()) editFact(null) }
         }
         val clear = Button(activity).apply {
             text = "DELETE ALL"
@@ -139,7 +140,7 @@ internal class VyomMemoryDialog(
                     }.show()
             }
         }
-        actions.addView(add, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginEnd = dp(6) })
+        actions.addView(addButton, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginEnd = dp(6) })
         actions.addView(clear, LinearLayout.LayoutParams(0, dp(44), 1f))
         root.addView(actions)
 
@@ -186,6 +187,7 @@ internal class VyomMemoryDialog(
     private fun refresh() {
         toggle.text = if (store.isEnabled()) "MEMORY: ON · TURN OFF" else "MEMORY: OFF · TURN ON"
         search.isEnabled = store.isEnabled()
+        addButton.isEnabled = store.isEnabled()
         render(search.text.toString())
     }
 
@@ -275,6 +277,7 @@ internal class VyomMemoryDialog(
     }
 
     private fun editFact(existing: Pair<Int, String>?) {
+        if (!store.isEnabled()) return
         val input = EditText(activity).apply {
             hint = "A safe preference or project fact"
             setText(existing?.second.orEmpty())
