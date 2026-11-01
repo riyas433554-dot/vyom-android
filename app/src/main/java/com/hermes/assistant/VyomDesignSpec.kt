@@ -31,6 +31,20 @@ internal object VyomDesignSpec {
         NavItem("profile", "Profile")
     )
 
+    data class SkillItem(
+        val id: String,
+        val label: String,
+        val description: String,
+        val risk: String = "SAFE"
+    )
+
+    val deviceSkills = listOf(
+        SkillItem("open_app", "Open apps", "Launch an installed app from the Android launcher."),
+        SkillItem("volume", "Media volume", "Raise, lower, mute or set media volume."),
+        SkillItem("torch", "Torch", "Turn the device flashlight on or off."),
+        SkillItem("settings", "System settings panels", "Open Android settings screens; changes remain user-controlled.")
+    )
+
     val drawerItems = listOf(
         NavItem("home", "Home", "Workspace"),
         NavItem("automations", "Automations", "Workspace"),
