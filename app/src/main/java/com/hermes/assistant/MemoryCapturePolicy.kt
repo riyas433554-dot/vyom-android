@@ -50,7 +50,7 @@ internal object MemoryCapturePolicy {
     }
     private fun safeFact(value: String): List<String> {
         val fact = value.replace(Regex("\\s+"), " ").trim()
-            .trim('"', '\'', '“', '”', '.', '!', '?').take(MAX_FACT_CHARS).trim()
+            .trim('"', '\'', '“', '”', '.', '!', '?').take(MAX_FACT_CHARS).trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         if (fact.isBlank() || isSensitive(fact)) return emptyList()
         return listOf(if (fact.endsWith(".")) fact else "$fact.")
     }
