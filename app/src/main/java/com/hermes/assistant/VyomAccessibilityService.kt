@@ -248,9 +248,9 @@ class VyomAccessibilityService : AccessibilityService() {
 
     private fun isSensitiveOcrText(value: String): Boolean =
         Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token|account number|card number)").containsMatchIn(value) ||
-            Regex("""\\b\\d{4,8}\\b""").containsMatchIn(value) ||
-            Regex("""\\b(?:\\d[ -]*?){13,19}\\b""").containsMatchIn(value) ||
-            Regex("""[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}""", RegexOption.IGNORE_CASE).containsMatchIn(value)
+            Regex("""\b\d{4,8}\b""").containsMatchIn(value) ||
+            Regex("""\b(?:\d[ -]*?){13,19}\b""").containsMatchIn(value) ||
+            Regex("""[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}""", RegexOption.IGNORE_CASE).containsMatchIn(value)
 
     fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
         if (!isCurrentAppAllowed()) { onResult(null, "App access is OFF or STOP CONTROL is ON."); return }
