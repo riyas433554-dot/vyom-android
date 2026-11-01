@@ -10,7 +10,7 @@ internal object MemoryCapturePolicy {
         Regex("(?i)\\b(medical diagnosis|medication|prescription|health condition)\\b"),
         Regex("(?i)\\b\\d{13,19}\\b"),
         Regex("[A-Z0-9._%+-]+@[A-Z0-9.-]+\\\\.[A-Z]{2,}", RegexOption.IGNORE_CASE),
-        Regex("\\\\b(?:\\\\+?91[- ]?)?[6-9]\\\\d{9}\\\\b"),
+        Regex("\\b(?:\\+?91[- ]?)?[6-9]\\d{9}\\b"),
         Regex("(?i)\\b(nvapi-|sk-|gh[pousr]_|github_pat_|xox[baprs]-)\\S{12,}")
     )
     fun isSensitive(text: String): Boolean = sensitivePatterns.any { it.containsMatchIn(text) }
