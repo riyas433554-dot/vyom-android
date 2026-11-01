@@ -57,4 +57,13 @@ class VyomDesignSpecTest {
         assertEquals(5, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.ERROR))
     }
 
+
+    @Test fun skillCatalogContainsOnlyImplementedSafeDeviceActions() {
+        assertEquals(
+            listOf("open_app", "volume", "torch", "settings"),
+            VyomDesignSpec.deviceSkills.map { it.id }
+        )
+        assertTrue(VyomDesignSpec.deviceSkills.all { it.risk == "SAFE" })
+    }
+
 }
