@@ -206,7 +206,7 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 ## 2026-11-01 — Foreground-safe UI Agent and local OCR
 - Replaced task progress/confirmation AlertDialogs with a non-focusable Android Accessibility Overlay panel. It has STOP, CONFIRM/CANCEL, and CLOSE controls without intentionally moving the target app out of the foreground.
 - Added local ML Kit text recognition from Android screenshots. Screenshots are processed in memory and are not uploaded; filtered OCR text labels and the Accessibility tree are sent to the configured NVIDIA planner after the user starts UI Agent.
-- Added tap_ocr and long_press_ocr planning. Each must select an exact OCR label/index from the latest observation, always requires user confirmation, and is rejected if the target app/window changed before execution. OCR lines matching credential/OTP/card/email patterns are filtered.
+- Added tap_ocr and long_press_ocr planning. Each must select an exact OCR label/index from the latest observation and is rejected if the target app/window changed before execution. Always Ask and Risky Asks require confirmation; a temporary Session Grant can skip confirmation only for non-consequential OCR targets in allowlisted apps. Consequential targets still require confirmation. OCR lines matching credential/OTP/card/email patterns are filtered.
 - This increases coverage for visible text in some custom views, but does not provide universal visual understanding or reliable editing of every custom Canvas/timeline surface. Phone testing remains required.
 
 
@@ -245,6 +245,6 @@ Implementation commit: `bf714cac1afdc6444bbaff6fba89aa07b66e37b7` on `feature/u1
 - RED verification: test-only commit `3bf41351163e00dab2f2369bfe15b80ece36b8a1` failed as expected because `ConfirmationMode` and the `confirmationMode` parameter did not yet exist.
 - GREEN verification: CI run `41280298743` and debug run `41280298861` both succeeded on implementation SHA `bf714cac1afdc6444bbaff6fba89aa07b66e37b7`. Secret scan, unit tests, debug APK build, packaging and upload succeeded.
 - Debug artifact: `vyom-0.3.0-bf714cac1afdc6444bbaff6fba89aa07b66e37b7` (artifact ID `13073271470`); APK SHA-256 `56d2f793f75aad69b1d8fe71be2701a804a4f3ae65c60f95399ea57e1179a9ce`. Artifact ZIP digest: `3b216fda35e8754b0180f0c80d32ba5cd377810e9cbce0099b52bf1bfbf8f2bb`.
-- The APK is an unsigned debug build. CI does not prove device behavior, signature continuity, or that a task's final result is correct. Phone testing remains pending. UI Agent's `DONE` status is still a model-reported completion and must be checked against the actual app screen.
+- The APK is a debug build, not a release-signed update. Its debug signing key is generated in the CI runner; certificate continuity with the previously installed APK has not been verified. Do not uninstall the current app or install this artifact over it until the signing-certificate fingerprints are compared or a release is built with the existing keystore. CI does not prove device behavior or that a task's final result is correct. Phone testing remains pending. UI Agent's `DONE` status is still a model-reported completion and must be checked against the actual app screen.
 - Scope unchanged: this is Android-only. No Android `main`, Hermes/Render backend, or production DB changes.
 
