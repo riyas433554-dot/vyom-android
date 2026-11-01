@@ -15,7 +15,8 @@ internal object UiAgentPolicy {
         val nodeIndex: Int = -1,
         val nodeFingerprint: String = "",
         val ocrIndex: Int = -1,
-        val ocrFingerprint: String = ""
+        val ocrFingerprint: String = "",
+        val screenPackage: String = ""
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String)
