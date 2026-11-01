@@ -1095,7 +1095,7 @@ class MainActivity : Activity() {
         }
         AlertDialog.Builder(this)
             .setTitle("Vyom UI Agent")
-            .setMessage("Profile > App access mein jis app ko control karna hai use ON rakho. Vyom allowed app khud open kar sakta hai. Screen ke visible labels NVIDIA model ko analysis ke liye bheje jaate hain; private ya secure screens par use mat karo. Har action bounded aur rechecked hai.")
+            .setMessage("Profile > App access mein jis app ko control karna hai use ON rakho. Vyom allowed app khud open kar sakta hai. Accessibility labels aur filtered OCR text NVIDIA model ko analysis ke liye bheje jaate hain; screenshot upload nahi hota. Private ya secure screens par use mat karo. Har action bounded aur rechecked hai.")
             .setView(input)
             .setNegativeButton("CANCEL", null)
             .setPositiveButton("START", null)
