@@ -35,13 +35,13 @@ class VyomDesignSpecTest {
     }
 
     @Test fun orbStatesHaveExplicitVisualSemantics() {
-        assertEquals(CYAN, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
-        assertEquals(CYAN, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
-        assertEquals(VIOLET, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.THINKING))
-        assertEquals(VIOLET, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.SPEAKING))
-        assertEquals(AMBER, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.TASK_RUNNING))
-        assertEquals(AMBER, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.CONTROL_ACTIVE))
-        assertEquals(ROSE, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.ERROR))
-        assertEquals(TEXT_SECONDARY, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.OFFLINE))
+        assertEquals(VyomDesignSpec.CYAN, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
+        assertEquals(VyomDesignSpec.CYAN, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
+        assertEquals(VyomDesignSpec.VIOLET, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.THINKING))
+        assertEquals(VyomDesignSpec.VIOLET, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.SPEAKING))
+        assertEquals(VyomDesignSpec.AMBER, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.TASK_RUNNING))
+        assertEquals(VyomDesignSpec.AMBER, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.CONTROL_ACTIVE))
+        assertEquals(VyomDesignSpec.ROSE, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.ERROR))
+        assertEquals(VyomDesignSpec.TEXT_SECONDARY, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.OFFLINE))
     }
 }
