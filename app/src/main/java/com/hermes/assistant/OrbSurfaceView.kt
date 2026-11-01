@@ -21,6 +21,14 @@ class OrbSurfaceView(context: Context) : GLSurfaceView(context) {
         orbRenderer.mode = mode
     }
 
+    fun setOrbState(mode: Int) {
+        orbRenderer.stateMode = mode.coerceIn(0, 5)
+    }
+
+    fun clearOrbState() {
+        orbRenderer.stateMode = -1
+    }
+
     fun setReduceMotion(enabled: Boolean) {
         orbRenderer.reduceMotion = enabled
     }
