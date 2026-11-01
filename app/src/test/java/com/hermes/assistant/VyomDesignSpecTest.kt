@@ -44,4 +44,17 @@ class VyomDesignSpecTest {
         assertEquals(VyomDesignSpec.ROSE, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.ERROR))
         assertEquals(VyomDesignSpec.TEXT_SECONDARY, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.OFFLINE))
     }
+
+    @Test fun orbStatesMapToRendererModesWithoutChangingThemePreferences() {
+        assertEquals(0, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.READY))
+        assertEquals(0, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.LISTENING))
+        assertEquals(2, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.THINKING))
+        assertEquals(2, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.SPEAKING))
+        assertEquals(1, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.TASK_RUNNING))
+        assertEquals(1, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.CONTROL_ACTIVE))
+        assertEquals(4, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.MUTED))
+        assertEquals(4, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.OFFLINE))
+        assertEquals(5, VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.ERROR))
+    }
+
 }
