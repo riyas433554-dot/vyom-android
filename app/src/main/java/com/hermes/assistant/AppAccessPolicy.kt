@@ -12,7 +12,7 @@ internal object AppAccessPolicy {
 
     private val blockedMarkers = listOf(
         "bank", "banking", "upi", "wallet", "payment", "paytm", "phonepe", "googlepay",
-        "google pay", "amazonpay", "amazon pay", "mobikwik", "freecharge", "bharatpe",
+        "google pay", "gpay", "paypal", "amazonpay", "amazon pay", "mobikwik", "freecharge", "bharatpe",
         "cred", "zerodha", "groww", "angelone", "trading", "broker", "investment", "finance"
     )
 
