@@ -61,4 +61,11 @@ class MemoryCapturePolicyTest {
         assertTrue(MemoryCapturePolicy.extract("মনে রেখো, আমার ওটিপি ১২৩৪৫৬").isEmpty())
     }
 
+
+    @Test fun BengaliMemoryRetrievalUsesUnicodeTokenOverlap() {
+        val facts = listOf("আমি বিস্তারিত উত্তর পছন্দ করি.", "আমি বাংলা ভাষায় উত্তর পছন্দ করি.")
+        assertEquals(listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.relevantFacts(facts, "বাংলা ভাষায় উত্তর দাও", 1))
+    }
+
 }
