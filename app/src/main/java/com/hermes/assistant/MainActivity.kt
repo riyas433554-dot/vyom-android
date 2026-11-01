@@ -2018,8 +2018,8 @@ class MainActivity : Activity() {
             .joinToString("\n") { item ->
                 "User: ${item.text.take(900)}" + if (item.reply.isBlank()) "" else "\nVyom: ${item.reply.take(900)}"
             }
-        val facts = memoryStore.facts().take(30).joinToString("\n")
-        val context = ChatContextPolicy.buildContext(facts, history, maxChars = 2_000)
+        val facts = MemoryCapturePolicy.relevantFacts(memoryStore.facts(), message, 10).joinToString("\n")
+        val context = ChatContextPolicy.buildContext(facts, history, maxChars = 1_600)
         val contextBlock = if (context.isBlank()) "" else "\n\n$context"
         val identity = VyomIdentityPolicy.systemInstruction(hinglish = hinglishPersona)
         return "$identity\n\n$instruction$contextBlock\n\nCurrent user message:\n$message"

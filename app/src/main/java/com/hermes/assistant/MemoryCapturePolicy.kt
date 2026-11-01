@@ -14,6 +14,22 @@ internal object MemoryCapturePolicy {
         Regex("(?i)\\b(nvapi-|sk-|gh[pousr]_|github_pat_|xox[baprs]-)\\S{12,}")
     )
     fun isSensitive(text: String): Boolean = sensitivePatterns.any { it.containsMatchIn(text) }
+
+    fun relevantFacts(facts: List<String>, query: String, limit: Int = 10): List<String> {
+        val safeLimit = limit.coerceIn(0, 30)
+        if (safeLimit == 0) return emptyList()
+        val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please")
+        val queryTokens = Regex("[a-z0-9]{2,}").findAll(query.lowercase())
+            .map { it.value }.filterNot { it in ignored }.toSet()
+        val safeFacts = facts.filter { it.isNotBlank() && !isSensitive(it) }
+        return safeFacts.withIndex().map { indexed ->
+            val tokens = Regex("[a-z0-9]{2,}").findAll(indexed.value.lowercase())
+                .map { it.value }.filterNot { it in ignored }.toSet()
+            val score = queryTokens.count { it in tokens }
+            Triple(score, indexed.index, indexed.value)
+        }.sortedWith(compareByDescending<Triple<Int, Int, String>> { it.first }.thenByDescending { it.second })
+            .take(safeLimit).map { it.third }
+    }
     fun extract(message: String): List<String> {
         val text = message.trim()
         if (text.isBlank() || text.length > MAX_INPUT_CHARS || isSensitive(text)) return emptyList()

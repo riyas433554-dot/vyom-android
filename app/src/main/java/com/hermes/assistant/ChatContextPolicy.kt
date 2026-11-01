@@ -19,7 +19,7 @@ internal object ChatContextPolicy {
         if (memoryLabel.isEmpty()) return historyLabel.takeLast(maxChars)
         if (historyLabel.isEmpty()) return memoryLabel.takeLast(maxChars)
 
-        val memoryBudget = (maxChars / 3).coerceAtMost(memoryLabel.length)
+        val memoryBudget = (maxChars / 2).coerceAtMost(memoryLabel.length)
         val historyBudget = maxChars - memoryBudget
         return buildString(maxChars) {
             append(memoryLabel.takeLast(memoryBudget))
