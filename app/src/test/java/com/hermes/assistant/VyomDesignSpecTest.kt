@@ -66,4 +66,14 @@ class VyomDesignSpecTest {
         assertTrue(VyomDesignSpec.deviceSkills.all { it.risk == "SAFE" })
     }
 
+
+    @Test fun taskStatusPillsUseDistinctHonestStates() {
+        assertEquals(VyomDesignSpec.AMBER, VyomDesignSpec.taskStatusAccent("queued"))
+        assertEquals(VyomDesignSpec.AMBER, VyomDesignSpec.taskStatusAccent("pending"))
+        assertEquals(VyomDesignSpec.AMBER, VyomDesignSpec.taskStatusAccent("running"))
+        assertEquals(VyomDesignSpec.GREEN, VyomDesignSpec.taskStatusAccent("completed"))
+        assertEquals(VyomDesignSpec.ROSE, VyomDesignSpec.taskStatusAccent("failed"))
+        assertEquals(VyomDesignSpec.TEXT_SECONDARY, VyomDesignSpec.taskStatusAccent("unknown"))
+    }
+
 }
