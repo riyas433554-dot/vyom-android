@@ -88,4 +88,11 @@ internal object VyomDesignSpec {
         OrbState.MUTED, OrbState.OFFLINE -> 4
         OrbState.ERROR -> 5
     }
+
+    fun taskStatusAccent(status: String): Int = when (status.trim().lowercase()) {
+        "queued", "pending", "running", "in_progress", "processing", "working" -> AMBER
+        "done", "success", "completed" -> GREEN
+        "failed", "error", "cancelled" -> ROSE
+        else -> TEXT_SECONDARY
+    }
 }
