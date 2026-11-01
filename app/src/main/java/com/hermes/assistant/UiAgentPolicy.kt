@@ -20,6 +20,11 @@ internal object UiAgentPolicy {
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String)
 
+    private val blockedTargets = Regex(
+        """\b(pay|payment|upi|wallet|bank|transfer|security|permissions?|biometric|password|passcode|otp|uninstall)\b""",
+        RegexOption.IGNORE_CASE
+    )
+
     private val consequential = Regex(
         """\b(pay|purchase|buy|delete|remove|send|share|post|publish|export|install|uninstall|subscribe|transfer|confirm|approve|allow|grant|order|checkout|payment|place order)\b""",
         RegexOption.IGNORE_CASE
@@ -30,11 +35,11 @@ internal object UiAgentPolicy {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
             Kind.TAP_OCR -> {
                 val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
-                if (target == null || action.target.isBlank() || target.text != action.target || target.fingerprint != action.ocrFingerprint) Verdict.REJECT
+                if (target == null || action.target.isBlank() || target.text != action.target || target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
                 else Verdict.CONFIRM
             }
             Kind.TAP_TEXT -> {
-                if (action.target.isBlank() || action.target.length > 100 ||
+                if (action.target.isBlank() || action.target.length > 100 || blockedTargets.containsMatchIn(action.target) ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
                 else if (consequential.containsMatchIn(action.target)) Verdict.CONFIRM
                 else Verdict.ALLOW
