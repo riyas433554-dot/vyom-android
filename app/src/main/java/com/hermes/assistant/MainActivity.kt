@@ -1930,7 +1930,7 @@ class MainActivity : Activity() {
                     cornerRadius = dp(999).toFloat()
                 }
             }
-            chatMessageList.addView(stateLabel, LinearLayout.LayoutParams(-1, -2))
+            chatMessageList.addView(stateLabel, LinearLayout.LayoutParams(-2, -2))
             if (item.reply.isNotBlank()) {
                 val replyBubble = TextView(this).apply {
                     text = android.text.Html.fromHtml(markdownToHtml(item.reply), android.text.Html.FROM_HTML_MODE_COMPACT)
