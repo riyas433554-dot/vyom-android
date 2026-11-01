@@ -26,6 +26,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.util.concurrent.Executor
 
 /**
@@ -422,8 +423,13 @@ class VyomAccessibilityService : AccessibilityService() {
     private fun nodeFingerprint(node: AccessibilityNodeInfo): String {
         val rect = android.graphics.Rect()
         node.getBoundsInScreen(rect)
+        val visibleLabel = if (!node.isPassword && !node.isEditable) {
+            node.text?.toString().orEmpty() + "|" + node.contentDescription?.toString().orEmpty()
+        } else ""
+        val digest = MessageDigest.getInstance("SHA-256").digest(visibleLabel.toByteArray(Charsets.UTF_8))
+        val labelHash = digest.take(8).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
         return listOf(node.className?.toString().orEmpty(), rect.left, rect.top, rect.right, rect.bottom,
-            node.isClickable, node.isLongClickable, node.isPassword, node.isEditable).joinToString("|")
+            node.isClickable, node.isLongClickable, node.isPassword, node.isEditable, labelHash).joinToString("|")
     }
 
     private fun isCurrentAppAllowed(root: AccessibilityNodeInfo? = rootInActiveWindow): Boolean {
