@@ -8,6 +8,8 @@ internal object MemoryCapturePolicy {
         Regex("(?i)\\b(bank account|account number|routing number|credit card|debit card|card number|wallet address)\\b"),
         Regex("(?i)\\b(aadhaar|aadhar|pan number|passport number|social security number|ssn)\\b"),
         Regex("(?i)\\b(medical diagnosis|medication|prescription|health condition)\\b"),
+        Regex("(পাসওয়ার্ড|পাসকোড|ওটিপি|এককালীন কোড|যাচাইকরণ কোড|পিন|ইউপিআই পিন|সিভিভি|সিভিসি|ব্যাংক অ্যাকাউন্ট|অ্যাকাউন্ট নম্বর|ক্রেডিট কার্ড|ডেবিট কার্ড|কার্ড নম্বর|আধার|প্যান নম্বর|পাসপোর্ট নম্বর|ওষুধ|প্রেসক্রিপশন|রোগ নির্ণয়|স্বাস্থ্য সমস্যা)"),
+        Regex("[০-৯]{13,19}"),
         Regex("(?i)\\b\\d{13,19}\\b"),
         Regex("[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", RegexOption.IGNORE_CASE),
         Regex("\\b(?:\\+?91[- ]?)?[6-9]\\d{9}\\b"),
@@ -54,7 +56,7 @@ internal object MemoryCapturePolicy {
             val match = pattern.matchEntire(text) ?: continue
             return safeFact(match.groupValues[1])
         }
-        val preferenceText = text.replace(Regex("[.!?]+$"), "")
+        val preferenceText = text.replace(Regex("[.!?।]+$"), "")
         val preferences = listOf(
             Regex("(?i)^(i prefer .+|i like .+|i dislike .+|i don't like .+|my preference is .+)$"),
             Regex("(?i)^(mujhe .+ pasand hain?|mujhe .+ pasand nahi(?: hai)?|meri preference .+ hai)$"),
