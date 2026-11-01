@@ -15,7 +15,7 @@ internal object UiAgentPolicy {
     )
 
     private val consequential = Regex(
-        """\b(pay|purchase|buy|delete|remove|send|share|post|publish|install|uninstall|subscribe|transfer|confirm|approve|order|checkout|payment|place order)\b""",
+        """\b(pay|purchase|buy|delete|remove|send|share|post|publish|export|install|uninstall|subscribe|transfer|confirm|approve|allow|grant|order|checkout|payment|place order)\b""",
         RegexOption.IGNORE_CASE
     )
 
@@ -33,7 +33,8 @@ internal object UiAgentPolicy {
                 if (text.isBlank() || text.length > 500 ||
                     !userGoal.contains(text, ignoreCase = true) ||
                     Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token)").containsMatchIn(text) ||
-                    Regex("""\b(?:\d[ -]*?){13,19}\b""").containsMatchIn(text)) Verdict.REJECT
+                    Regex("""\b(?:\d[ -]*?){13,19}\b""").containsMatchIn(text) ||
+                    Regex("""\b\d{4,8}\b""").containsMatchIn(text)) Verdict.REJECT
                 else Verdict.ALLOW
             }
             Kind.BACK, Kind.WAIT, Kind.DONE -> Verdict.ALLOW
