@@ -47,8 +47,8 @@ internal object MemoryCapturePolicy {
         if (text.isBlank() || text.length > MAX_INPUT_CHARS || isSensitive(text)) return emptyList()
         val explicit = listOf(
             Regex("(?i)^(?:please\\s+)?remember\\s+(?:that\\s+)?(.+)$"),
-            Regex("(?i)^yaad\\s+rakhna\\s*[:,-]?\\s*(.+)$"),
             Regex("(?i)^yaad\\s+rakhna\\s+ki\\s+(.+)$"),
+            Regex("(?i)^yaad\\s+rakhna\\s*[:,-]?\\s*(.+)$"),
             Regex("(?i)^(?:please\\s+)?keep\\s+in\\s+mind\\s+(?:that\\s+)?(.+)$"),
             Regex("^(?:মনে রেখো|মনে রাখবে|মনে রাখবেন)(?: যে)?\\s*[:,,-]?\\s*(.+)$")
         )
