@@ -28,7 +28,7 @@ class VyomDesignSpecTest {
         val ids = VyomDesignSpec.drawerItems.map { it.id }
         listOf(
             "home", "automations", "animations", "videos", "images", "vfx", "cgi", "sfx",
-            "tasks", "control", "assistant_control", "skills", "connections", "memory",
+            "tasks", "control", "assistant_control", "skills", "connections", "audit", "permissions", "memory",
             "instructions", "voice", "system", "icons", "settings"
         ).forEach { assertTrue("Missing drawer destination: $it", ids.contains(it)) }
         assertEquals(ids.size, ids.distinct().size)
