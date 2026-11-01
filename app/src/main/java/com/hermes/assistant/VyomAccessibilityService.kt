@@ -59,7 +59,6 @@ class VyomAccessibilityService : AccessibilityService() {
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
                 AccessibilityEvent.TYPE_WINDOWS_CHANGED,
                 AccessibilityEvent.TYPE_VIEW_SCROLLED,
-                AccessibilityEvent.TYPE_VIEW_CLICKED,
                 AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
             )) screenRevision++
     }
