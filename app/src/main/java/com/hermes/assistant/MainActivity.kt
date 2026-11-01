@@ -1175,21 +1175,26 @@ class MainActivity : Activity() {
                         return@runOnUiThread
                     }
                     val labels = mutableListOf<String>()
+                    val visibleNodes = mutableListOf<UiAgentPolicy.VisibleNode>()
                     for (i in 0 until tree.length()) {
                         val node = tree.optJSONObject(i) ?: continue
                         node.optString("text").takeIf { it.isNotBlank() }?.let(labels::add)
                         node.optString("description").takeIf { it.isNotBlank() && !it.startsWith("[REDACTED") }?.let(labels::add)
+                        visibleNodes.add(UiAgentPolicy.VisibleNode(node.optInt("index", -1), node.optBoolean("clickable"), node.optBoolean("longClickable"), node.optBoolean("password"), node.optBoolean("editable"), node.optString("fingerprint")))
                     }
-                    when (UiAgentPolicy.validate(action, labels, goal)) {
+                    val nodeAction = if (action.kind == UiAgentPolicy.Kind.TAP_NODE || action.kind == UiAgentPolicy.Kind.LONG_PRESS_NODE) {
+                        action.copy(nodeFingerprint = visibleNodes.firstOrNull { it.index == action.nodeIndex }?.fingerprint.orEmpty())
+                    } else action
+                    when (UiAgentPolicy.validate(nodeAction, labels, goal, visibleNodes)) {
                         UiAgentPolicy.Verdict.REJECT -> finish("Proposed action screen par verify nahi hua ya task se match nahi karta. Stopped.")
                         UiAgentPolicy.Verdict.CONFIRM -> {
                             AlertDialog.Builder(this).setTitle("Confirm UI action")
-                                .setMessage("Vyom wants to tap: ${action.target}. Ye consequential action hai.")
+                                .setMessage(if (action.kind == UiAgentPolicy.Kind.TAP_NODE || action.kind == UiAgentPolicy.Kind.LONG_PRESS_NODE) "Vyom wants to interact with unlabeled screen control #${action.nodeIndex}. Confirm only if this is the intended control." else "Vyom wants to tap: ${action.target}. Ye consequential action hai.")
                                 .setNegativeButton("CANCEL") { _, _ -> finish("Cancelled.")}
                                 .setPositiveButton("CONFIRM") { _, _ ->
                                     if (generation != uiAgentGeneration || controlPrefs.getBoolean("kill_switch", false)) {
                                         finish("STOP CONTROL ON — action blocked.")
-                                    } else performUiAgentAction(action, goal, generation, completedSteps, { completedSteps++ }, progress, dialog, ::nextStep, ::finish)
+                                    } else performUiAgentAction(nodeAction, goal, generation, completedSteps, { completedSteps++ }, progress, dialog, ::nextStep, ::finish)
                                 }.show()
                         }
                         UiAgentPolicy.Verdict.ALLOW ->
@@ -1220,6 +1225,8 @@ class MainActivity : Activity() {
         if (service == null) { finish("Accessibility service disconnected."); return }
         val success = when (action.kind) {
             UiAgentPolicy.Kind.TAP_TEXT -> service.clickVisibleText(action.target)
+            UiAgentPolicy.Kind.TAP_NODE -> service.clickNode(action.nodeIndex, action.nodeFingerprint)
+            UiAgentPolicy.Kind.LONG_PRESS_NODE -> service.longPressNode(action.nodeIndex, action.nodeFingerprint)
             UiAgentPolicy.Kind.SCROLL -> service.scroll(action.direction)
             UiAgentPolicy.Kind.TYPE_TEXT -> service.typeIntoFocusedField(action.text)
             UiAgentPolicy.Kind.BACK -> service.global("back")
@@ -1272,6 +1279,8 @@ class MainActivity : Activity() {
             val json = JSONObject(content.substring(start, end + 1))
             val kind = when (json.optString("action").lowercase()) {
                 "tap_text" -> UiAgentPolicy.Kind.TAP_TEXT
+                "tap_node" -> UiAgentPolicy.Kind.TAP_NODE
+                "long_press_node" -> UiAgentPolicy.Kind.LONG_PRESS_NODE
                 "scroll" -> UiAgentPolicy.Kind.SCROLL
                 "type_text" -> UiAgentPolicy.Kind.TYPE_TEXT
                 "back" -> UiAgentPolicy.Kind.BACK
@@ -1280,7 +1289,7 @@ class MainActivity : Activity() {
                 else -> return null
             }
             return UiAgentPolicy.Action(kind, json.optString("target").take(100),
-                json.optString("direction").take(10), json.optString("text").take(500))
+                json.optString("direction").take(10), json.optString("text").take(500), json.optInt("node_index", -1))
         } finally { connection.disconnect() }
     }
 
