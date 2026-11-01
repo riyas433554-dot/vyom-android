@@ -213,6 +213,31 @@ class VyomAccessibilityService : AccessibilityService() {
     fun longPress(x: Float, y: Float, durationMs: Long = 650L): Boolean =
         isCurrentAppAllowed() && dispatchPath(x, y, x, y, durationMs.coerceIn(500L, 1500L))
 
+    fun dragNode(index: Int, expectedFingerprint: String, fromAnchor: String, toAnchor: String): Boolean {
+        val anchors = setOf("left", "right", "top", "bottom", "center")
+        if (fromAnchor.lowercase() !in anchors || toAnchor.lowercase() !in anchors ||
+            fromAnchor.equals(toAnchor, ignoreCase = true)) return false
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
+            root.packageName?.toString() != lastObservedPackage) return false
+        val node = findNodeByIndex(root, index) ?: return false
+        if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
+        val rect = safeGestureBounds(node) ?: return false
+        fun point(anchor: String): Pair<Float, Float> = when (anchor.lowercase()) {
+            "left" -> (rect.left + rect.width() * 0.12f) to rect.centerY().toFloat()
+            "right" -> (rect.right - rect.width() * 0.12f) to rect.centerY().toFloat()
+            "top" -> rect.centerX().toFloat() to (rect.top + rect.height() * 0.12f)
+            "bottom" -> rect.centerX().toFloat() to (rect.bottom - rect.height() * 0.12f)
+            else -> rect.centerX().toFloat() to rect.centerY().toFloat()
+        }
+        val start = point(fromAnchor)
+        val end = point(toAnchor)
+        val dx = start.first - end.first
+        val dy = start.second - end.second
+        if (kotlin.math.sqrt(dx * dx + dy * dy) < 12 * resources.displayMetrics.density) return false
+        return dispatchPath(start.first, start.second, end.first, end.second, 450L)
+    }
+
     fun clickNode(index: Int, expectedFingerprint: String): Boolean = performNodeAction(index, expectedFingerprint, AccessibilityNodeInfo.ACTION_CLICK, requireClickable = true)
 
     fun longPressNode(index: Int, expectedFingerprint: String): Boolean = performNodeAction(index, expectedFingerprint, AccessibilityNodeInfo.ACTION_LONG_CLICK, requireLongClickable = true)
