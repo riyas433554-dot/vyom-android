@@ -83,6 +83,13 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.OPEN_APP, target = "com.example.other"), emptyList(), "Open editor", allowedAppPackages = allowed))
     }
 
+    @Test fun rejectsBlockedLabelsOnOtherwiseSafeNodeGestures() {
+        val fingerprint = "android.view.View|1|2|30|40"
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
+        val node = UiAgentPolicy.VisibleNode(4, true, false, false, false, fingerprint, true, "Payment")
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action, emptyList(), "Pay bill", listOf(node)))
+    }
+
     @Test fun allowsConfirmedTapOnSafeBoundedUnlabelledView() {
         val fingerprint = "android.view.View|1|2|30|40"
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
