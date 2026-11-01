@@ -4,7 +4,7 @@ import android.provider.Settings
 
 object ActionEngine {
     enum class Risk { SAFE, CONFIRM, BLOCKED }
-    enum class Operation { OPEN_SETTINGS, OPEN_APP, VOLUME_DELTA, VOLUME_SET, VOLUME_MUTE, VOLUME_UNMUTE, BRIGHTNESS_SET, TORCH, SET_ALARM, SET_TIMER, DIAL, SMS, SHARE, DELETE, INSTALL, BLOCK }
+    enum class Operation { OPEN_SETTINGS, OPEN_APP, VOLUME_DELTA, VOLUME_SET, VOLUME_MUTE, VOLUME_UNMUTE, BRIGHTNESS_SET, TORCH, SET_ALARM, SET_TIMER, DIAL, SMS, SHARE, DELETE, INSTALL, INSTALL_PLAY_STORE, BLOCK }
     data class Intent(val name: String, val risk: Risk, val operation: Operation, val target: String = "", val value: Int = 0, val settingsAction: String? = null)
     private val financeTargets = Regex("""\b(bank|banking|payment|pay|upi)\b""", RegexOption.IGNORE_CASE)
     private val credentialTargets = Regex("""\b(otp|password|passcode|pin code)\b""", RegexOption.IGNORE_CASE)
@@ -102,6 +102,10 @@ object ActionEngine {
             return Intent("Compose SMS", Risk.CONFIRM, Operation.SMS, target = "\u0000" + body)
         }
         if (Regex("""\b(delete|remove)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Delete request", Risk.CONFIRM, Operation.DELETE, target=s)
+        Regex("""\b(?:install|get|download)\s+(.+?)\s+(?:from\s+)?(?:google\s+)?play\s*store\b""", RegexOption.IGNORE_CASE).find(s)?.let {
+            val app = it.groupValues[1].trim().removeSurrounding("\\\"").removeSurrounding("'")
+            if (app.isNotBlank()) return Intent("Search Play Store for $app", Risk.CONFIRM, Operation.INSTALL_PLAY_STORE, target=app)
+        }
         if (Regex("""\binstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Install request", Risk.CONFIRM, Operation.INSTALL, target=s)
         if (sendTarget.containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)
         val appTarget = DeviceCommandConfig.extractAppTarget(s)
