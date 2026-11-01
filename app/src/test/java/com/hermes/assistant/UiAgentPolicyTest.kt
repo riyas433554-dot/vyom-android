@@ -135,4 +135,44 @@ class UiAgentPolicyTest {
         assertFalse(label.contains("private caption"))
         assertFalse(label.contains("123"))
     }
+
+    @Test fun alwaysAskConfirmsEveryVisibleTextTap() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Edit")
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(action, listOf("Edit"), "Edit clip",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.ALWAYS_ASK))
+    }
+
+    @Test fun riskyAsksAllowsSafeVisibleTextTapWithoutConfirmation() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Edit")
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(action, listOf("Edit"), "Edit clip",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
+    }
+
+    @Test fun sessionGrantAllowsFreshBoundedNodeGestureForNonRiskyTask() {
+        val fingerprint = "android.view.View|1|2|30|40"
+        val node = UiAgentPolicy.VisibleNode(4, true, false, false, false, fingerprint, true)
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(action, emptyList(), "Trim this clip", listOf(node),
+                confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+    }
+
+    @Test fun sessionGrantStillConfirmsConsequentialOcrTargets() {
+        val observed = UiAgentPolicy.VisibleOcr(2, "Send", "Send|10|20|80|50")
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "Send", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(action, emptyList(), "Send video to contact",
+                visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+    }
+
+    @Test fun sessionGrantNeverOverridesBlockedSensitiveTargets() {
+        val observed = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20")
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "UPI", ocrIndex = 1, ocrFingerprint = observed.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, emptyList(), "Open app",
+                visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+    }
+
 }
