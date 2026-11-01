@@ -14,14 +14,14 @@ internal object AppAccessPolicy {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.getBoolean(INITIALIZED, false)) {
             prefs.edit().putBoolean(MASTER, true)
-                .putStringSet(PACKAGES, launchablePackages.filter { it.isNotBlank() }.toSet())
+                .putStringSet(PACKAGES, launchablePackages.filter { it.isNotBlank() }.toMutableSet())
                 .putBoolean(INITIALIZED, true).apply()
         }
     }
 
     fun snapshot(context: Context): Snapshot {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return Snapshot(prefs.getBoolean(MASTER, false), prefs.getStringSet(PACKAGES, emptySet()).orEmpty().toSet())
+        return Snapshot(prefs.getBoolean(MASTER, false), prefs.getStringSet(PACKAGES, mutableSetOf()).orEmpty().toSet())
     }
 
     fun setMasterEnabled(context: Context, enabled: Boolean) {
