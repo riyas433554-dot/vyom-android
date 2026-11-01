@@ -378,3 +378,31 @@ Latest Android branch tip before this documentation refresh: `fd40875a1039944e30
 - Device/phone validation remains pending. CI green proves build/tests, not UI Agent task accuracy, background behavior, accessibility coverage or signature continuity.
 
 Next: finish cross-system identity/data-flow review, then proceed with semantic retrieval only after production schema/migration approval. Keep production migration, Render deploy and merge to either `main` gated separately.
+
+
+# CURRENT DESIGN IMPLEMENTATION + BUILD ADDENDUM — 2026-11-01
+
+This addendum supersedes prior Android source-head and artifact statements above.
+
+## Current verified source
+- Branch: `feature/memory-intelligence`
+- Source SHA: `dab5c46cd93500b03a9bf31c544e8c757c1ca703`
+- Android CI run `41314611445`: PASS.
+- Android Debug run `41314611509`: PASS. Build, unit tests, APK packaging and artifact upload all succeeded.
+- Artifact ID: `13086004190`
+- Artifact name: `vyom-0.3.0-dab5c46cd93500b03a9bf31c544e8c757c1ca703`
+- Artifact ZIP SHA-256: `cd14ed8d8f0a4e7dde63f1fb4906dd286e39db38c7ee763a384009efef0f1746`
+- Artifact expires 2026-12-01.
+- This remains a CI debug-signed artifact. Signing continuity with the installed APK is unverified; do not uninstall/overwrite until certificate fingerprints match or the correct release keystore is used.
+
+## Design source reviewed
+- `Vyom — Design System, Home, Drawer, Automations (1).html` (2026-11-01 supplied design board).
+- Implemented native Android HUD design tokens, Home quick-access area, searchable drawer, bottom navigation styling, Automations task workspace, searchable Skills registry and task-detail inspector.
+- Automations display only actual task API records and actual status counts. Scheduled/repeating automations remain unavailable and are clearly disclosed.
+- Skills enable/disable preferences are persisted locally and enforced by the device action dispatcher for open-app, volume, torch and settings-panel operations.
+- Unsupported workspace destinations remain visibly marked SOON; no fake editor integrations or sample task records are presented.
+
+## Validation boundary
+- CI verifies compilation and unit tests only. Physical Android testing remains pending.
+- No backend, Render, production Supabase, migration, deploy or merge was performed.
+- Android `main` remains untouched.
