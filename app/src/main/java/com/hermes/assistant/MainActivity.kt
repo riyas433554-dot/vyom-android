@@ -1336,7 +1336,7 @@ class MainActivity : Activity() {
         return packageManager.queryIntentActivities(launcherIntent, 0)
             .mapNotNull { resolve ->
                 val pkg = resolve.activityInfo?.packageName ?: return@mapNotNull null
-                if (pkg !in snapshot.enabledPackages) return@mapNotNull null
+                if (!AppAccessPolicy.isAllowed(this, pkg)) return@mapNotNull null
                 val label = resolve.loadLabel(packageManager)?.toString()?.takeIf { it.isNotBlank() } ?: pkg
                 pkg to label
             }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
@@ -1402,11 +1402,13 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, -2))
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         for ((pkg, label) in launchableApps) {
+            val blocked = AppAccessPolicy.isBlocked(this, pkg)
             val row = CheckBox(this).apply {
-                text = "$label  ·  $pkg"
+                text = if (blocked) "$label  ·  BLOCKED (financial/security)" else "$label  ·  $pkg"
                 textSize = 12f
-                setTextColor(Color.WHITE)
-                isChecked = pkg in snapshot.enabledPackages
+                setTextColor(if (blocked) Color.GRAY else Color.WHITE)
+                isEnabled = !blocked
+                isChecked = !blocked && pkg in snapshot.enabledPackages
                 setOnCheckedChangeListener { _, checked ->
                     AppAccessPolicy.setPackageEnabled(this@MainActivity, pkg, checked)
                     logControlAction("App access: $label", if (checked) "enabled" else "disabled", "profile")
