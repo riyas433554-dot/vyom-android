@@ -5,7 +5,7 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { TAP_TEXT, TAP_NODE, LONG_PRESS_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     data class Action(
         val kind: Kind,
@@ -15,15 +15,16 @@ internal object UiAgentPolicy {
         val nodeIndex: Int = -1,
         val nodeFingerprint: String = ""
     )
-    data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String)
+    data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
 
     private val consequential = Regex(
         """\b(pay|purchase|buy|delete|remove|send|share|post|publish|export|install|uninstall|subscribe|transfer|confirm|approve|allow|grant|order|checkout|payment|place order)\b""",
         RegexOption.IGNORE_CASE
     )
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList()): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet()): Verdict {
         return when (action.kind) {
+            Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
@@ -32,12 +33,17 @@ internal object UiAgentPolicy {
             }
             Kind.TAP_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
-                if (node == null || !node.clickable || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                if (node == null || (!node.clickable && !node.gestureBoundsSafe) || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
                 else Verdict.CONFIRM
             }
             Kind.LONG_PRESS_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
-                if (node == null || !node.longClickable || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                if (node == null || (!node.longClickable && !node.gestureBoundsSafe) || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                else Verdict.CONFIRM
+            }
+            Kind.SWIPE_NODE -> {
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                if (node == null || !node.gestureBoundsSafe || node.password || node.editable || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint || action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
                 else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
