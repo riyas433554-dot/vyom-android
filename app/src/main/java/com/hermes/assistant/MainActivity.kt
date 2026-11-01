@@ -1296,7 +1296,7 @@ class MainActivity : Activity() {
                 renderChatMessages()
             }
             try {
-                val reply = api.chat(personaPrompt(item.text))
+                val reply = requestChatReply(item)
                 runOnUiThread {
                     item.state = "done"
                     item.reply = reply
@@ -1578,11 +1578,36 @@ class MainActivity : Activity() {
             .takeLast(20)
             .joinToString("\n") { item ->
                 "User: ${item.text.take(900)}" + if (item.reply.isBlank()) "" else "\nVyom: ${item.reply.take(900)}"
-            }.takeLast(9000)
+            }
         val facts = memoryStore.facts().take(30).joinToString("\n")
-        val memoryBlock = if (facts.isBlank()) "" else "\n\nOn-device memory facts (user-controlled):\n$facts"
-        val historyBlock = if (history.isBlank()) "" else "\n\nRecent conversation context (up to 20 messages):\n$history"
-        return "$instruction$memoryBlock$historyBlock\n\nCurrent user message:\n$message".take(14000)
+        val context = ChatContextPolicy.buildContext(facts, history, maxChars = 2_000)
+        val contextBlock = if (context.isBlank()) "" else "\n\n$context"
+        return "$instruction$contextBlock\n\nCurrent user message:\n$message"
+    }
+
+    private fun requestChatReply(item: ChatMessage): String {
+        var attempt = 0
+        while (true) {
+            try {
+                return api.chat(personaPrompt(item.text), item.text)
+            } catch (error: java.io.IOException) {
+                if (attempt >= 3) throw error
+                val delay = ChatContextPolicy.connectionRetryDelayMillis(attempt)
+                runOnUiThread {
+                    status.text = "HERMES JAG RAHA HAI"
+                    item.state = "running"
+                    persistChatMessages()
+                    renderChatMessages()
+                }
+                try {
+                    Thread.sleep(delay)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw error
+                }
+                attempt += 1
+            }
+        }
     }
 
     private fun setHinglishPersona(enabled: Boolean) {
