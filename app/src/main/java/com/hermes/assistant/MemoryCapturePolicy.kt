@@ -28,6 +28,7 @@ internal object MemoryCapturePolicy {
             val score = queryTokens.count { it in tokens }
             Triple(score, indexed.index, indexed.value)
         }.sortedWith(compareByDescending<Triple<Int, Int, String>> { it.first }.thenByDescending { it.second })
+            .filter { queryTokens.isEmpty() || it.first > 0 }
             .take(safeLimit).map { it.third }
     }
     fun extract(message: String): List<String> {
