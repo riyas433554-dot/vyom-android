@@ -2796,6 +2796,24 @@ class MainActivity : Activity() {
         catch (_: Exception) { pendingDocumentCallback = null; callback("Android file picker is unavailable.") }
     }
 
+    private fun openPlayStoreSearch(appName: String, source: String, callback: (String) -> Unit) {
+        val query = appName.trim()
+        if (query.isBlank()) {
+            callback("App ka naam missing hai. Example: install YouTube from Play Store.")
+            return
+        }
+        try {
+            val uri = Uri.parse("https://play.google.com/store/search?q=" + Uri.encode(query) + "&c=apps")
+            val intent = Intent(Intent.ACTION_VIEW, uri)
+            startActivity(intent)
+            logControlAction("Play Store search: $query", "opened-after-confirmation", source)
+            callback("Play Store search opened for $query. App select karke Install tap tumhe khud karna hoga.")
+        } catch (_: Exception) {
+            logControlAction("Play Store search: $query", "open-failed", source)
+            callback("Play Store search open nahi ho saka. Play Store manually kholkar $query search karo.")
+        }
+    }
+
     private fun openInstallPicker(source: String, callback: (String) -> Unit) {
         pendingDocumentSource = source
         pendingDocumentCallback = callback
@@ -2982,6 +3000,8 @@ class MainActivity : Activity() {
                     } else if (action.operation == ActionEngine.Operation.INSTALL && Regex("""\b(update|vyom)\b""", RegexOption.IGNORE_CASE).containsMatchIn(action.target)) {
                         logControlAction(action.name, "verified-update-flow-opened", source)
                         onResult("Checking for a signed Vyom update. Download and Android installation still require separate taps."); checkForUpdate()
+                    } else if (action.operation == ActionEngine.Operation.INSTALL_PLAY_STORE) {
+                        openPlayStoreSearch(action.target, source, onResult)
                     } else if (action.operation == ActionEngine.Operation.DELETE) {
                         openDeletePicker(source, onResult)
                     } else if (action.operation == ActionEngine.Operation.INSTALL) {
