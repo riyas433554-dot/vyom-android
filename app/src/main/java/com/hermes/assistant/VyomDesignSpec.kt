@@ -65,4 +65,13 @@ internal object VyomDesignSpec {
         OrbState.MUTED, OrbState.OFFLINE -> TEXT_SECONDARY
         OrbState.ERROR -> ROSE
     }
+
+    /** Renderer modes: cyan=0, amber=1, violet=2, green=3, muted/offline=4, error=5. */
+    fun orbMode(state: OrbState): Int = when (state) {
+        OrbState.READY, OrbState.LISTENING, OrbState.HEARING -> 0
+        OrbState.TASK_RUNNING, OrbState.CONTROL_ACTIVE, OrbState.CONFIRM_NEEDED -> 1
+        OrbState.THINKING, OrbState.SPEAKING -> 2
+        OrbState.MUTED, OrbState.OFFLINE -> 4
+        OrbState.ERROR -> 5
+    }
 }
