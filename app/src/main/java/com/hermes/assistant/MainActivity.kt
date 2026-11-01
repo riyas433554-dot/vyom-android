@@ -257,6 +257,7 @@ class MainActivity : Activity() {
         mainPanel = panel
         fun dockItem(label: String, action: () -> Unit): TextView = TextView(this).apply {
             text = label
+            contentDescription = when (label) { "◉" -> "Open live voice"; else -> "Open $label" }
             gravity = Gravity.CENTER
             textSize = if (label == "◉") 22f else 10f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -269,7 +270,7 @@ class MainActivity : Activity() {
         filesTab = dockItem("Files") { showTab(false, false, true) }
         controlTab = dockItem("Control") { showTab(false, false, false, true) }
         val homeDock = dockItem("Home") { showHome() }
-        val voiceDock = dockItem("LIVE") { toggleVoiceInput() }
+        val voiceDock = dockItem("◉") { toggleVoiceInput() }
         listOf(homeDock, chatTab, voiceDock, tasksTab, settingsTab).forEachIndexed { index, item ->
             tabBar.addView(item, LinearLayout.LayoutParams(0, dp(if (index == 2) 48 else 42), 1f))
         }
@@ -1023,6 +1024,7 @@ class MainActivity : Activity() {
         filesPanel.visibility = View.GONE
         controlPanel.visibility = View.GONE
         orbitHomeView?.visibility = View.VISIBLE
+        updateHomeOrbState()
         chatTab.alpha = 0.65f
         tasksTab.alpha = 0.65f
         settingsTab.alpha = 0.65f
@@ -1071,6 +1073,7 @@ class MainActivity : Activity() {
     private fun activateControlKillSwitch() {
         controlKillSwitch = true
         controlPrefs.edit().putBoolean("kill_switch", true).apply()
+        updateHomeOrbState()
         logControlAction("STOP CONTROL", "enabled", "app")
         if (::controlNotice.isInitialized) controlNotice.text = "STOP CONTROL is ON. Device actions are disabled until resumed."
         AlertDialog.Builder(this).setTitle("Control stopped")
@@ -2581,21 +2584,31 @@ class MainActivity : Activity() {
     }
 
     private fun setLiveStatus(state: String) {
-        val color = when (state) {
-            "thinking" -> Color.rgb(255, 190, 60)
-            "speaking" -> Color.rgb(80, 150, 255)
-            "muted" -> Color.GRAY
-            else -> VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+        val visualState = when (state.lowercase()) {
+            "listening", "hearing" -> VyomDesignSpec.OrbState.LISTENING
+            "thinking" -> VyomDesignSpec.OrbState.THINKING
+            "speaking" -> VyomDesignSpec.OrbState.SPEAKING
+            "muted" -> VyomDesignSpec.OrbState.MUTED
+            "error" -> VyomDesignSpec.OrbState.ERROR
+            "offline" -> VyomDesignSpec.OrbState.OFFLINE
+            else -> VyomDesignSpec.OrbState.READY
         }
         liveStateLabel?.text = state.uppercase()
-        liveStateLabel?.setTextColor(color)
+        liveStateLabel?.setTextColor(VyomDesignSpec.orbAccent(visualState))
         liveStateLabel?.contentDescription = "Live voice state: $state"
-        liveVoiceOrb?.setOrbMode(when (state) {
-            "thinking" -> 1
-            "speaking" -> 2
-            "muted" -> 3
-            else -> orbMode
-        })
+        liveVoiceOrb?.setOrbState(VyomDesignSpec.orbMode(visualState))
+    }
+
+    private fun updateHomeOrbState() {
+        if (!::orb.isInitialized) return
+        val activeTask = tasksById.values.any {
+            it.optString("status", "").lowercase() in setOf("running", "in_progress", "processing", "working")
+        }
+        when {
+            controlKillSwitch -> orb.setOrbState(VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.MUTED))
+            activeTask -> orb.setOrbState(VyomDesignSpec.orbMode(VyomDesignSpec.OrbState.TASK_RUNNING))
+            else -> orb.clearOrbState()
+        }
     }
 
     private fun startVoiceForegroundService() {
@@ -3044,6 +3057,7 @@ class MainActivity : Activity() {
                 .lineSequence().firstOrNull().orEmpty().ifBlank { "Task ${task.optString("id")}" }
             title to task.optString("status", "queued")
         })
+        updateHomeOrbState()
         taskList.removeAllViews()
         val activeStates = setOf("queued", "pending", "running", "in_progress", "processing", "working")
         val active = allTasks.filter { it.optString("status", "queued").lowercase() in activeStates }
