@@ -5,7 +5,8 @@ This addendum is authoritative and supersedes older branch/baseline statements l
 ## Active source state
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Verified branch head: `d59590d5faa5dd201e5d49939093e4332a8f8b61`
+- Verified implementation head: `d59590d5faa5dd201e5d49939093e4332a8f8b61`
+- Documentation-only commit: `5439aa63934907ba2da21d7482876cf43c351b84`
 - Parent implementation tip: `fd40875a1039944e308cc7805b7f2559363699aa`
 - Do not modify or merge `main`.
 
