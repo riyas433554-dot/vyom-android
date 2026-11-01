@@ -28,6 +28,12 @@ class MemoryCapturePolicyTest {
         assertTrue(MemoryCapturePolicy.isSensitive("My email is r@example.com"))
     }
 
+    @Test fun relevantFactsAreRankedForTheCurrentMessage() {
+        val facts = listOf("I like dark themes.", "Mujhe short Hinglish replies pasand hain.")
+        assertEquals(listOf("Mujhe short Hinglish replies pasand hain."),
+            MemoryCapturePolicy.relevantFacts(facts, "Please use short Hinglish replies"))
+    }
+
     @Test fun safeNameStatementCanBeRemembered() {
         assertEquals(listOf("My name is Riya."), MemoryCapturePolicy.extract("My name is Riya."))
     }

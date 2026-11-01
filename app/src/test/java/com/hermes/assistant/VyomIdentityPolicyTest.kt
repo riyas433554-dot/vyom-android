@@ -21,6 +21,10 @@ class VyomIdentityPolicyTest {
         assertFalse(prompt.contains("Avoid lists, markdown, and long explanations"))
     }
 
+    @Test fun identityPromptFitsTheAndroidChatContextBudget() {
+        assertTrue(VyomIdentityPolicy.systemInstruction().length <= 1_100)
+    }
+
     @Test fun languageModeIsExplicit() {
         assertTrue(VyomIdentityPolicy.systemInstruction(hinglish = true).contains("natural Hinglish"))
     }
