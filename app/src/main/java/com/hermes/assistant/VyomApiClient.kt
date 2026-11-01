@@ -59,6 +59,7 @@ internal class VyomApiClient(context: Context) {
     private val baseUrl = BuildConfig.HERMES_BASE_URL
 
     class TaskApiException(val statusCode: Int) : Exception("Tasks API error ($statusCode)")
+    class HttpStatusException(val statusCode: Int) : Exception("Hermes API error ($statusCode)")
 
     fun hasPairingCode(): Boolean = !store.get("pairing_code").isNullOrBlank()
 
@@ -79,13 +80,20 @@ internal class VyomApiClient(context: Context) {
         return token
     }
 
-    fun chat(message: String): String {
+    fun chat(message: String, rawMessageFallback: String? = null): String {
         val token = store.get("access_token")
             ?.takeIf { it.isNotBlank() }
             ?: throw SessionExpiredException()
         return try {
-            request("/api/android/chat", JSONObject().put("message", message), token)
-                .optString("reply", "No reply received")
+            try {
+                request("/api/android/chat", JSONObject().put("message", message), token)
+                    .optString("reply", "No reply received")
+            } catch (error: HttpStatusException) {
+                val raw = rawMessageFallback.orEmpty()
+                if (!ChatContextPolicy.shouldRetryWithRaw(error.statusCode, message, raw)) throw error
+                request("/api/android/chat", JSONObject().put("message", raw), token)
+                    .optString("reply", "No reply received")
+            }
         } catch (_: UnauthorizedSessionException) {
             throw SessionExpiredException()
         }
@@ -154,7 +162,7 @@ internal class VyomApiClient(context: Context) {
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             val json = try { JSONObject(text) } catch (_: Exception) { JSONObject() }
-            if (code !in 200..299) throw IllegalStateException("Hermes API error ($code)")
+            if (code !in 200..299) throw HttpStatusException(code)
             return json
         } finally {
             connection.disconnect()
