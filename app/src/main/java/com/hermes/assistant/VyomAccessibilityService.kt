@@ -31,7 +31,7 @@ import java.util.concurrent.Executor
 /**
  * Optional, explicitly user-enabled local accessibility bridge.
  * It can inspect visible UI nodes and perform a bounded action requested by Vyom.
- * Screenshots stay in app cache; this service never uploads screen data.
+ * Screenshots are processed locally and never uploaded. Filtered OCR labels may be sent to the configured planner by the app.
  */
 class VyomAccessibilityService : AccessibilityService() {
     data class OcrItem(val index: Int, val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int) {
