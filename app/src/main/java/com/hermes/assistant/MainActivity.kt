@@ -1221,9 +1221,12 @@ class MainActivity : Activity() {
                                     if (generation != uiAgentGeneration || controlPrefs.getBoolean("kill_switch", false)) {
                                         finish("STOP CONTROL ON — action blocked.")
                                     } else {
-                                        service.showAgentProgress("Confirmed • executing action…", ::stopAgent)
-                                        performUiAgentAction(preparedAction, generation, completedSteps,
-                                            { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
+                                        if (service.showAgentProgress("Confirmed • executing action…", ::stopAgent)) {
+                                            performUiAgentAction(preparedAction, generation, completedSteps,
+                                                { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
+                                        } else {
+                                            finish("STOP overlay unavailable. Action was not executed.")
+                                        }
                                     }
                                 }, { finish("Cancelled.") })
                                 if (!shown) finish("Confirmation overlay unavailable. Action not executed.")
