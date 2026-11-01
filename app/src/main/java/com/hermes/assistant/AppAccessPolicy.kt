@@ -10,11 +10,32 @@ internal object AppAccessPolicy {
     private const val INITIALIZED = "initialized"
     private const val PACKAGES = "enabled_packages"
 
+    private val blockedMarkers = listOf(
+        "bank", "banking", "upi", "wallet", "payment", "paytm", "phonepe", "googlepay",
+        "google pay", "amazonpay", "amazon pay", "mobikwik", "freecharge", "bharatpe",
+        "cred", "zerodha", "groww", "angelone", "trading", "broker", "investment", "finance"
+    )
+
+    internal fun isBlockedIdentifier(packageName: String, label: String = ""): Boolean {
+        val identity = (packageName + " " + label).lowercase()
+        return blockedMarkers.any { it in identity }
+    }
+
+    fun isBlocked(context: Context, packageName: String): Boolean {
+        if (isBlockedIdentifier(packageName)) return true
+        val label = try {
+            val info = context.packageManager.getApplicationInfo(packageName, 0)
+            context.packageManager.getApplicationLabel(info).toString()
+        } catch (_: Exception) { "" }
+        return isBlockedIdentifier(packageName, label)
+    }
+
     fun initializeForInstalledApps(context: Context, launchablePackages: Collection<String>) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.getBoolean(INITIALIZED, false)) {
+            val safePackages = launchablePackages.filter { it.isNotBlank() && !isBlocked(context, it) }.toMutableSet()
             prefs.edit().putBoolean(MASTER, true)
-                .putStringSet(PACKAGES, launchablePackages.filter { it.isNotBlank() }.toMutableSet())
+                .putStringSet(PACKAGES, safePackages)
                 .putBoolean(INITIALIZED, true).apply()
         }
     }
@@ -29,7 +50,7 @@ internal object AppAccessPolicy {
     }
 
     fun setPackageEnabled(context: Context, packageName: String, enabled: Boolean) {
-        if (packageName.isBlank()) return
+        if (packageName.isBlank() || isBlocked(context, packageName)) return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val packages = prefs.getStringSet(PACKAGES, emptySet()).orEmpty().toMutableSet()
         if (enabled) packages.add(packageName) else packages.remove(packageName)
@@ -37,6 +58,7 @@ internal object AppAccessPolicy {
     }
 
     fun isAllowed(context: Context, packageName: String): Boolean {
+        if (isBlocked(context, packageName)) return false
         val state = snapshot(context)
         return isAllowed(state.masterEnabled, state.enabledPackages, packageName)
     }
