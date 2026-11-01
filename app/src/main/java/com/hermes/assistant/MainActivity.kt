@@ -2982,14 +2982,18 @@ class MainActivity : Activity() {
             onResult("Ye skill Profile > Skills mein disabled hai. Pehle enable karo.")
             return
         }
-        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+        val safetyDecision = DeviceActionSafetyPolicy.evaluate(
+            controlKillSwitch || controlPrefs.getBoolean("kill_switch", false),
+            action.risk
+        )
+        if (safetyDecision == DeviceActionSafetyPolicy.Decision.STOP_CONTROL) {
             logControlAction(action.name, "blocked-by-kill-switch", source); onResult("STOP CONTROL is ON. Device action blocked."); return
         }
-        if (action.risk == ActionEngine.Risk.BLOCKED) {
+        if (safetyDecision == DeviceActionSafetyPolicy.Decision.BLOCK) {
             logControlAction(action.name, "blocked-by-policy", source)
             onResult("Blocked by Vyom safety policy. Banking/payment apps, passwords/OTPs, uninstall and security settings are never controlled."); return
         }
-        if (action.risk == ActionEngine.Risk.CONFIRM) {
+        if (safetyDecision == DeviceActionSafetyPolicy.Decision.REQUIRE_CONFIRMATION) {
             logControlAction(action.name, "awaiting-explicit-screen-confirmation", source)
             AlertDialog.Builder(this).setTitle("Confirm device action")
                 .setMessage("Vyom wants to: " + action.name + ". This requires your explicit screen tap. Voice alone cannot approve it.")
