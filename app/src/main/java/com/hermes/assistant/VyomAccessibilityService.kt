@@ -131,7 +131,7 @@ class VyomAccessibilityService : AccessibilityService() {
         root.addView(buttons, LinearLayout.LayoutParams(-1, -2))
         val availableWidth = (resources.displayMetrics.widthPixels - (32 * density).toInt()).coerceAtLeast((220 * density).toInt())
         val params = WindowManager.LayoutParams(
-            availableWidth.coerceAtMost((360 * density).toInt()),
+            availableWidth.coerceAtMost((280 * density).toInt()),
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
