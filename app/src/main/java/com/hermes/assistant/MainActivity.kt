@@ -3144,6 +3144,10 @@ class MainActivity : Activity() {
                 clipToPadding = false
                 setPadding(dp(13), dp(11), dp(13), dp(11))
                 background = VyomTheme.glass(this@MainActivity, VyomTheme.RADIUS_LARGE_DP, statusColor)
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Task $id, ${state.uppercase()}. Tap for details."
+                setOnClickListener { VyomTaskDetailDialog(this@MainActivity, task, ::cancelTask).show() }
             }
             val taskHeader = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
