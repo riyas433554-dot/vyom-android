@@ -206,7 +206,7 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 ## 2026-11-01 — Foreground-safe UI Agent and local OCR
 - Replaced task progress/confirmation AlertDialogs with a non-focusable Android Accessibility Overlay panel. It has STOP, CONFIRM/CANCEL, and CLOSE controls without intentionally moving the target app out of the foreground.
 - Added local ML Kit text recognition from Android screenshots. Screenshots are processed in memory and are not uploaded; filtered OCR text labels and the Accessibility tree are sent to the configured NVIDIA planner after the user starts UI Agent.
-- Added tap_ocr planning. It must select an exact OCR label/index from the latest observation, always requires user confirmation, and is rejected if the target app/window changed before execution. OCR lines matching credential/OTP/card/email patterns are filtered.
+- Added tap_ocr and long_press_ocr planning. Each must select an exact OCR label/index from the latest observation, always requires user confirmation, and is rejected if the target app/window changed before execution. OCR lines matching credential/OTP/card/email patterns are filtered.
 - This increases coverage for visible text in some custom views, but does not provide universal visual understanding or reliable editing of every custom Canvas/timeline surface. Phone testing remains required.
 
 
