@@ -270,6 +270,7 @@ class VyomAccessibilityService : AccessibilityService() {
         val rootAtCapture = rootInActiveWindow
         if (!isCurrentAppAllowed(rootAtCapture)) { onResult(emptyList(), "Current app is not enabled."); return }
         val packageAtCapture = rootAtCapture?.packageName?.toString().orEmpty()
+        lastOcrPackage = packageAtCapture
         val revisionAtCapture = screenRevision
         takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
