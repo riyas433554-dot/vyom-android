@@ -1,3 +1,29 @@
+# CURRENT VERIFIED ADDENDUM — 2026-11-01 15:20 UTC
+
+This addendum supersedes older active-head and verification claims below.
+
+## Active source and safety
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Verified source head: `24542baa07826215ea77535e17a5ce439b9d383f`
+- Android `main` untouched. Hermes production, Render, Supabase production, signing secrets and releases untouched.
+- No physical-device test was performed. Do not claim runtime/device readiness.
+
+## Latest Android verification
+- Android CI run `41319206715`: PASS on exact head `24542baa07826215ea77535e17a5ce439b9d383f`.
+- Debug APK run `41319206727`: PASS on the same exact head.
+- Artifact ID: `13088433453`.
+- Artifact: `vyom-0.3.0-24542baa07826215ea77535e17a5ce439b9d383f`.
+- Artifact is CI/debug-signed; signing continuity with the installed APK remains unverified. Do not overwrite/uninstall until certificate fingerprints are compared or the correct release key is used.
+
+## Current implementation notes
+- Supplied Design System / Home / Drawer / Automations implementation remains in the active source tree.
+- Memory capture now prioritizes the specific Hinglish phrase `Yaad rakhna ki ...` before the broader `Yaad rakhna ...` matcher.
+- Pairing/chat, Android-local encrypted memory and current app API boundary remain unchanged by the latest memory-intent fix.
+- Physical testing and release-signature continuity remain pending.
+
+---
+
 # CURRENT IMPLEMENTATION ADDENDUM — 2026-11-01
 
 This addendum supersedes older Android implementation-head and UI-status notes below.
