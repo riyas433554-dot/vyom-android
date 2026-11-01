@@ -208,3 +208,9 @@ Branch: `feature/u1-live-orbit-tasks` only. No `main`, Hermes/Render backend, or
 - Added local ML Kit text recognition from Android screenshots. Screenshots are processed in memory and are not uploaded; filtered OCR text labels and the Accessibility tree are sent to the configured NVIDIA planner after the user starts UI Agent.
 - Added tap_ocr planning. It must select an exact OCR label/index from the latest observation, always requires user confirmation, and is rejected if the target app/window changed before execution. OCR lines matching credential/OTP/card/email patterns are filtered.
 - This increases coverage for visible text in some custom views, but does not provide universal visual understanding or reliable editing of every custom Canvas/timeline surface. Phone testing remains required.
+
+
+## 2026-11-01 — Financial/security action deny rules
+- AppAccessPolicy excludes common bank, UPI, wallet, payment, trading and investment apps from the allowlist and displays matching apps as BLOCKED. The block is also enforced in the AccessibilityService and app launcher path, not just the UI.
+- UI policy rejects visible targets labelled as payment/UPI/wallet/bank/transfer, security/permission/biometric/password/OTP, or uninstall. Node gestures inspect the node label too.
+- This is a conservative identifier/label blocklist, not a guarantee that every financial app can be recognized. Unknown apps must still be manually reviewed in App access.
