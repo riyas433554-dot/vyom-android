@@ -60,6 +60,27 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Long press icon", listOf(UiAgentPolicy.VisibleNode(4, false, true, false, false, fingerprint))))
     }
 
+    @Test fun onlyLaunchesAppsExplicitlyAllowedInAppAccess() {
+        val allowed = setOf("com.example.editor")
+        assertEquals(UiAgentPolicy.Verdict.ALLOW, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.OPEN_APP, target = "com.example.editor"), emptyList(), "Open editor", allowedAppPackages = allowed))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.OPEN_APP, target = "com.example.other"), emptyList(), "Open editor", allowedAppPackages = allowed))
+    }
+
+    @Test fun allowsConfirmedTapOnSafeBoundedUnlabelledView() {
+        val fingerprint = "android.view.View|1|2|30|40"
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
+        val node = UiAgentPolicy.VisibleNode(4, false, false, false, false, fingerprint, true)
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Tap icon", listOf(node)))
+    }
+
+    @Test fun allowsOnlyDirectionalSwipeOnSafeBoundedView() {
+        val fingerprint = "android.view.View|1|2|30|40"
+        val node = UiAgentPolicy.VisibleNode(4, false, false, false, false, fingerprint, true)
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_NODE, direction = "left", nodeIndex = 4, nodeFingerprint = fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Swipe timeline", listOf(node)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(direction = "diagonal"), emptyList(), "Swipe timeline", listOf(node)))
+    }
+
     @Test fun boundsAgentRunToTwelveActions() {
         assertTrue(UiAgentPolicy.mayContinue(0))
         assertTrue(UiAgentPolicy.mayContinue(11))
