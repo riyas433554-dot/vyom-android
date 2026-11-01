@@ -41,6 +41,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun describeVisibleTree(maxNodes: Int = 180): JSONArray {
         val result = JSONArray()
         val root = rootInActiveWindow ?: return result
+        if (!isCurrentAppAllowed(root)) return result
         var count = 0
         fun visit(node: AccessibilityNodeInfo?, parentIndex: Int) {
             if (node == null || count >= maxNodes) return
@@ -60,6 +61,7 @@ class VyomAccessibilityService : AccessibilityService() {
                     node.getBoundsInScreen(rect)
                     b.put("left", rect.left).put("top", rect.top).put("right", rect.right).put("bottom", rect.bottom)
                 })
+                .put("fingerprint", nodeFingerprint(node))
             if (!password) {
                 row.put("text", node.text?.toString()?.take(240).orEmpty())
                 row.put("description", node.contentDescription?.toString()?.take(160).orEmpty())
@@ -76,6 +78,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun clickVisibleText(target: String): Boolean {
         if (target.isBlank() || target.length > 100) return false
         val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root)) return false
         val node = findNode(root, target) ?: return false
         if (node.isPassword || node.isEditable) return false
         var candidate: AccessibilityNodeInfo? = node
@@ -87,13 +90,18 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     fun longPress(x: Float, y: Float, durationMs: Long = 650L): Boolean =
-        dispatchPath(x, y, x, y, durationMs.coerceIn(500L, 1500L))
+        isCurrentAppAllowed() && dispatchPath(x, y, x, y, durationMs.coerceIn(500L, 1500L))
+
+    fun clickNode(index: Int, expectedFingerprint: String): Boolean = performNodeAction(index, expectedFingerprint, AccessibilityNodeInfo.ACTION_CLICK, requireClickable = true)
+
+    fun longPressNode(index: Int, expectedFingerprint: String): Boolean = performNodeAction(index, expectedFingerprint, AccessibilityNodeInfo.ACTION_LONG_CLICK, requireLongClickable = true)
 
     fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long = 350L): Boolean =
-        dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
+        isCurrentAppAllowed() && dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
 
     fun scroll(direction: String): Boolean {
         val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root)) return false
         val action = when (direction.lowercase()) {
             "up", "forward", "down-page" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             "down", "backward", "up-page" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
@@ -106,21 +114,26 @@ class VyomAccessibilityService : AccessibilityService() {
     fun typeIntoFocusedField(text: String): Boolean {
         if (text.length > 2000 || containsCredentialPattern(text)) return false
         val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root)) return false
         val node = findFocusedEditable(root) ?: return false
         if (node.isPassword || !node.isEditable) return false
         val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    fun global(action: String): Boolean = when (action.lowercase()) {
+    fun global(action: String): Boolean {
+        if (!isCurrentAppAllowed()) return false
+        return when (action.lowercase()) {
         "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
         "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
         "recents" -> performGlobalAction(GLOBAL_ACTION_RECENTS)
         "notifications" -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
         else -> false
+        }
     }
 
     fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
+        if (!isCurrentAppAllowed()) { onResult(null, "App access is OFF or STOP CONTROL is ON."); return }
         if (Build.VERSION.SDK_INT < 30) { onResult(null, "Screenshot requires Android 11 or newer."); return }
         takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
@@ -138,6 +151,43 @@ class VyomAccessibilityService : AccessibilityService() {
                 onResult(null, if (errorCode == ERROR_TAKE_SCREENSHOT_SECURE_WINDOW) "Secure window screenshot blocked by Android." else "Screenshot failed (code $errorCode).")
             }
         })
+    }
+
+    private fun performNodeAction(index: Int, expectedFingerprint: String, action: Int, requireClickable: Boolean = false, requireLongClickable: Boolean = false): Boolean {
+        if (index !in 0 until 180 || expectedFingerprint.isBlank()) return false
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root)) return false
+        val node = findNodeByIndex(root, index) ?: return false
+        if (node.isPassword || node.isEditable || nodeFingerprint(node) != expectedFingerprint) return false
+        if (requireClickable && !node.isClickable) return false
+        if (requireLongClickable && !node.isLongClickable) return false
+        return node.performAction(action)
+    }
+
+    private fun findNodeByIndex(root: AccessibilityNodeInfo, targetIndex: Int): AccessibilityNodeInfo? {
+        var count = 0
+        fun visit(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+            if (node == null || count >= 180) return null
+            val index = count++
+            if (index == targetIndex) return node
+            for (i in 0 until node.childCount) visit(node.getChild(i))?.let { return it }
+            return null
+        }
+        return visit(root)
+    }
+
+    private fun nodeFingerprint(node: AccessibilityNodeInfo): String {
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
+        return listOf(node.className?.toString().orEmpty(), rect.left, rect.top, rect.right, rect.bottom,
+            node.text?.toString().orEmpty().take(120), node.contentDescription?.toString().orEmpty().take(120),
+            node.isClickable, node.isLongClickable, node.isPassword, node.isEditable).joinToString("|")
+    }
+
+    private fun isCurrentAppAllowed(root: AccessibilityNodeInfo? = rootInActiveWindow): Boolean {
+        if (getSharedPreferences("vyom_control_audit", MODE_PRIVATE).getBoolean("kill_switch", false)) return false
+        val packageName = root?.packageName?.toString().orEmpty()
+        return AppAccessPolicy.isAllowed(this, packageName)
     }
 
     private fun dispatchPath(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
