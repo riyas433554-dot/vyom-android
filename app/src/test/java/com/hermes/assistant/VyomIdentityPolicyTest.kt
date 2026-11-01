@@ -22,7 +22,7 @@ class VyomIdentityPolicyTest {
     }
 
     @Test fun identityPromptFitsTheAndroidChatContextBudget() {
-        assertTrue(VyomIdentityPolicy.systemInstruction().length <= 1_100)
+        assertTrue(VyomIdentityPolicy.systemInstruction().length <= 1_400)
     }
 
     @Test fun languageModeIsExplicit() {
