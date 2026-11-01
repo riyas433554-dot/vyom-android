@@ -1187,7 +1187,8 @@ class MainActivity : Activity() {
                                 node.optInt("index", -1), node.optBoolean("clickable"),
                                 node.optBoolean("longClickable"), node.optBoolean("password"),
                                 node.optBoolean("editable"), node.optString("fingerprint"),
-                                isSafeUiGestureBounds(node.optJSONObject("bounds"))
+                                isSafeUiGestureBounds(node.optJSONObject("bounds")),
+                                node.optString("text").ifBlank { node.optString("description") }
                             ))
                         }
                         val visibleOcr = ocrTargets.map { UiAgentPolicy.VisibleOcr(it.index, it.text, it.fingerprint) }
