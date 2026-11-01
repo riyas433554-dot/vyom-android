@@ -1112,7 +1112,7 @@ class MainActivity : Activity() {
                             return@setOnClickListener
                         }
                         dialog.dismiss()
-                        startUiAgentTask(goal)
+                        mainHandler.postDelayed({ startUiAgentTask(goal) }, 300L)
                     }
                 }
                 dialog.show()
