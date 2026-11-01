@@ -382,7 +382,7 @@ class VyomAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return false
         if (!isCurrentAppAllowed(root)) return false
         val node = findNodeByIndex(root, index) ?: return false
-        if (node.isPassword || node.isEditable || nodeFingerprint(node) != expectedFingerprint || safeGestureBounds(node) == null) return false
+        if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint || safeGestureBounds(node) == null) return false
         if (requireClickable && !node.isClickable) {
             val rect = safeGestureBounds(node) ?: return false
             return dispatchPath(rect.centerX().toFloat(), rect.centerY().toFloat(), rect.centerX().toFloat(), rect.centerY().toFloat(), 90L)
