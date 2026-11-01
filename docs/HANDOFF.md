@@ -1,3 +1,42 @@
+# CURRENT MEMORY + INTELLIGENCE ADDENDUM — 2026-11-01
+
+This addendum is authoritative and supersedes older branch/baseline statements later in this document.
+
+## Active source state
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Verified branch head: `d59590d5faa5dd201e5d49939093e4332a8f8b61`
+- Parent implementation tip: `fd40875a1039944e308cc7805b7f2559363699aa`
+- Do not modify or merge `main`.
+
+## Memory behavior
+- Memory capture recognizes explicit remember requests, preferences and corrections in English, Hinglish and Bengali.
+- Sensitive-data filters include Bengali credential/OTP labels and Bengali numeric identifiers.
+- Retrieval tokenization supports Unicode letters and combining marks.
+- When captured preferences in the same supported category conflict, the newer fact is prioritized; facts are not automatically deleted.
+- Local store remains encrypted, bounded to 30 facts, and user-manageable through Profile > Memory.
+
+## Android ↔ Hermes boundary
+- Android memory remains device-local.
+- Relevant safe facts are included in the contextual message sent to `/api/android/chat`; there is no separate structured memory-sync field.
+- The Hermes Android API routes the chat request to the model; it does not persist Android local facts into Telegram memory.
+- Telegram memory remains separately scoped to the private Telegram chat. No Android-session-to-Telegram identity mapping or cross-store synchronization exists.
+- Do not add synchronization without explicit identity mapping, authorization and leakage tests.
+
+## Verified CI and artifact
+- Android CI run `41309421821`: PASS on exact head `d59590d5faa5dd201e5d49939093e4332a8f8b61`.
+- `testDebugUnitTest assembleDebug`: BUILD SUCCESSFUL.
+- Artifact ID: `13085200684`
+- Artifact: `vyom-phase6-d59590d5faa5dd201e5d49939093e4332a8f8b61`
+- SHA-256: `3f3239858a287f1a89eba74b8bf1e7276fc21a9af95f96a8d769a8613ba399c5`
+- Debug artifact uses CI signing. Signing continuity with the user's installed APK is not established; do not overwrite/uninstall until fingerprints are compared or the correct release keystore is used.
+- Physical-device testing remains pending. CI success is not device validation.
+
+## Production restrictions
+- No production migration, database write, Render deploy, environment change or merge was performed.
+
+---
+
 # Vyom Android — Handoff
 
 Last updated: 2026-11-01
