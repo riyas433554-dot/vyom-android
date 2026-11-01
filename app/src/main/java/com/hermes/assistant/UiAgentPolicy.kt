@@ -90,4 +90,17 @@ internal object UiAgentPolicy {
 
     fun mayContinue(completedSteps: Int, maxSteps: Int = 40): Boolean =
         completedSteps >= 0 && completedSteps < maxSteps
+    fun progressMessage(completedSteps: Int): String =
+        "Action accepted • rechecking screen • step " + completedSteps.coerceIn(0, 40) + "/40"
+
+    /** Audit descriptions intentionally omit user-entered text and visible labels. */
+    fun auditLabel(action: Action): String {
+        val detail = when (action.kind) {
+            Kind.TAP_NODE, Kind.LONG_PRESS_NODE, Kind.SWIPE_NODE, Kind.DRAG_NODE -> " node #" + action.nodeIndex
+            Kind.TYPE_TEXT -> " field #" + action.nodeIndex
+            else -> ""
+        }
+        return "UI Agent " + action.kind.name + detail
+    }
+
 }

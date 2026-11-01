@@ -1208,9 +1208,12 @@ class MainActivity : Activity() {
                             allowedApps.map { it.first }.toSet(), visibleOcr
                         )
                         when (verdict) {
-                            UiAgentPolicy.Verdict.REJECT ->
+                            UiAgentPolicy.Verdict.REJECT -> {
+                                logControlAction(UiAgentPolicy.auditLabel(preparedAction), "rejected-by-policy", "ui-agent")
                                 finish("Proposed action screen par verify nahi hua ya task se match nahi karta. Stopped.")
+                            }
                             UiAgentPolicy.Verdict.CONFIRM -> {
+                                logControlAction(UiAgentPolicy.auditLabel(preparedAction), "awaiting-confirmation", "ui-agent")
                                 val message = when (action.kind) {
                                     UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE, UiAgentPolicy.Kind.DRAG_NODE ->
                                         "Vyom wants to interact with bounded screen control #" + action.nodeIndex + ". Confirm only if this is the intended control."
@@ -1229,7 +1232,10 @@ class MainActivity : Activity() {
                                             finish("STOP overlay unavailable. Action was not executed.")
                                         }
                                     }
-                                }, { finish("Cancelled.") })
+                                }, {
+                                    logControlAction(UiAgentPolicy.auditLabel(preparedAction), "cancelled", "ui-agent")
+                                    finish("Cancelled.")
+                                })
                                 if (!shown) finish("Confirmation overlay unavailable. Action not executed.")
                             }
                             UiAgentPolicy.Verdict.ALLOW ->
@@ -1253,6 +1259,7 @@ class MainActivity : Activity() {
         finish: (String) -> Unit
     ) {
         if (generation != uiAgentGeneration || controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+            logControlAction(UiAgentPolicy.auditLabel(action), "blocked-by-stop-control", "ui-agent")
             finish("STOP CONTROL ON — action blocked.")
             return
         }
@@ -1272,16 +1279,19 @@ class MainActivity : Activity() {
             UiAgentPolicy.Kind.BACK -> service.global("back", action.screenPackage)
             UiAgentPolicy.Kind.WAIT -> true
             UiAgentPolicy.Kind.DONE -> {
+                logControlAction(UiAgentPolicy.auditLabel(action), "completion-reported; manual verification required", "ui-agent")
                 finish("Vyom ne task complete report kiya. Screen state manually verify karo.")
                 return
             }
         }
         if (!success) {
+            logControlAction(UiAgentPolicy.auditLabel(action), "rejected-by-android-or-stale-screen", "ui-agent")
             finish("Android ne action accept nahi kiya ya screen badal gayi. Task stopped; koi blind retry nahi hua.")
             return
         }
         val nextCount = completedSteps + 1
-        updateProgress("Action accepted • rechecking screen • step " + nextCount + "/12")
+        logControlAction(UiAgentPolicy.auditLabel(action), "action-accepted", "ui-agent")
+        updateProgress(UiAgentPolicy.progressMessage(nextCount))
         mainHandler.postDelayed({
             if (generation == uiAgentGeneration) {
                 onStepCompleted()
@@ -1359,7 +1369,6 @@ class MainActivity : Activity() {
         val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return false
         return try {
             startActivity(intent)
-            logControlAction("UI Agent open app: $packageName", "launched", "ui-agent")
             true
         } catch (_: Exception) { false }
     }
