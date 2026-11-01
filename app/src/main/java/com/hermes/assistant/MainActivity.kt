@@ -1121,31 +1121,28 @@ class MainActivity : Activity() {
 
     private fun startUiAgentTask(goal: String) {
         val generation = ++uiAgentGeneration
-        val progress = TextView(this).apply {
-            text = "Screen observe ho rahi hai…"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setPadding(dp(20), dp(16), dp(20), dp(16))
+        val initialService = VyomAccessibilityService.current() ?: return
+
+        fun stopAgent() {
+            if (generation == uiAgentGeneration) uiAgentGeneration++
+            initialService.hideAgentOverlay()
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Vyom UI Agent")
-            .setView(progress)
-            .setNegativeButton("STOP", null)
-            .create()
-        dialog.setOnCancelListener { uiAgentGeneration++ }
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
-                uiAgentGeneration++
-                dialog.dismiss()
-            }
-        }
-        dialog.show()
-        var completedSteps = 0
 
         fun finish(message: String) {
             if (generation != uiAgentGeneration) return
-            progress.text = message
-            dialog.setButton(AlertDialog.BUTTON_NEGATIVE, "CLOSE") { _, _ -> dialog.dismiss() }
+            val service = VyomAccessibilityService.current() ?: return
+            if (!service.showAgentFinished(message)) service.hideAgentOverlay()
+        }
+
+        fun updateProgress(message: String) {
+            if (generation != uiAgentGeneration) return
+            VyomAccessibilityService.current()?.updateAgentProgress(message)
+        }
+
+        var completedSteps = 0
+        if (!initialService.showAgentProgress("UI Agent starting…", ::stopAgent)) {
+            finish("Accessibility overlay could not be shown. Task stopped.")
+            return
         }
 
         fun nextStep() {
@@ -1155,7 +1152,7 @@ class MainActivity : Activity() {
                 return
             }
             if (!UiAgentPolicy.mayContinue(completedSteps)) {
-                finish("12-step safety limit reached. Task stopped; review the current app state.")
+                finish("12-step safety limit reached. Review the current app state.")
                 return
             }
             val service = VyomAccessibilityService.current()
@@ -1168,50 +1165,70 @@ class MainActivity : Activity() {
                 finish("Screen unavailable or this app is OFF in App access. No action taken.")
                 return
             }
-            progress.text = "Observing screen • step ${completedSteps + 1}/12"
+            updateProgress("Observing screen • step " + (completedSteps + 1) + "/12")
             service.captureVisibleOcr { ocrTargets ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
                 io.execute {
-                val allowedApps = uiAgentAllowedApps()
-                val action = try { requestUiAgentAction(goal, tree, allowedApps, ocrTargets) } catch (_: Exception) { null }
-                runOnUiThread {
-                    if (generation != uiAgentGeneration) return@runOnUiThread
-                    if (action == null) {
-                        finish("Vyom could not produce a valid next action. Task stopped safely.")
-                        return@runOnUiThread
-                    }
-                    val labels = mutableListOf<String>()
-                    val visibleNodes = mutableListOf<UiAgentPolicy.VisibleNode>()
-                    for (i in 0 until tree.length()) {
-                        val node = tree.optJSONObject(i) ?: continue
-                        node.optString("text").takeIf { it.isNotBlank() }?.let(labels::add)
-                        node.optString("description").takeIf { it.isNotBlank() && !it.startsWith("[REDACTED") }?.let(labels::add)
-                        visibleNodes.add(UiAgentPolicy.VisibleNode(node.optInt("index", -1), node.optBoolean("clickable"), node.optBoolean("longClickable"), node.optBoolean("password"), node.optBoolean("editable"), node.optString("fingerprint"), isSafeUiGestureBounds(node.optJSONObject("bounds"))))
-                    }
-                    val visibleOcr = ocrTargets.map { UiAgentPolicy.VisibleOcr(it.index, it.text, it.fingerprint) }
-                    val preparedAction = when (action.kind) {
-                        UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE ->
-                            action.copy(nodeFingerprint = visibleNodes.firstOrNull { it.index == action.nodeIndex }?.fingerprint.orEmpty())
-                        UiAgentPolicy.Kind.TAP_OCR ->
-                            action.copy(ocrFingerprint = ocrTargets.firstOrNull { it.index == action.ocrIndex }?.fingerprint.orEmpty())
-                        else -> action
-                    }
-                    when (UiAgentPolicy.validate(preparedAction, labels, goal, visibleNodes, allowedApps.map { it.first }.toSet(), visibleOcr)) {
-                        UiAgentPolicy.Verdict.REJECT -> finish("Proposed action screen par verify nahi hua ya task se match nahi karta. Stopped.")
-                        UiAgentPolicy.Verdict.CONFIRM -> {
-                            AlertDialog.Builder(this).setTitle("Confirm UI action")
-                                .setMessage(if (action.kind == UiAgentPolicy.Kind.TAP_NODE || action.kind == UiAgentPolicy.Kind.LONG_PRESS_NODE || action.kind == UiAgentPolicy.Kind.SWIPE_NODE) "Vyom wants to interact with unlabeled screen control #${action.nodeIndex}. Confirm only if this is the intended control." else "Vyom wants to tap: ${action.target}. Ye consequential action hai.")
-                                .setNegativeButton("CANCEL") { _, _ -> finish("Cancelled.")}
-                                .setPositiveButton("CONFIRM") { _, _ ->
+                    val allowedApps = uiAgentAllowedApps()
+                    val action = try { requestUiAgentAction(goal, tree, allowedApps, ocrTargets) } catch (_: Exception) { null }
+                    runOnUiThread {
+                        if (generation != uiAgentGeneration) return@runOnUiThread
+                        if (action == null) {
+                            finish("Vyom could not produce a valid next action. Task stopped safely.")
+                            return@runOnUiThread
+                        }
+                        val labels = mutableListOf<String>()
+                        val visibleNodes = mutableListOf<UiAgentPolicy.VisibleNode>()
+                        for (i in 0 until tree.length()) {
+                            val node = tree.optJSONObject(i) ?: continue
+                            node.optString("text").takeIf { it.isNotBlank() }?.let(labels::add)
+                            node.optString("description").takeIf { it.isNotBlank() && !it.startsWith("[REDACTED") }?.let(labels::add)
+                            visibleNodes.add(UiAgentPolicy.VisibleNode(
+                                node.optInt("index", -1), node.optBoolean("clickable"),
+                                node.optBoolean("longClickable"), node.optBoolean("password"),
+                                node.optBoolean("editable"), node.optString("fingerprint"),
+                                isSafeUiGestureBounds(node.optJSONObject("bounds"))
+                            ))
+                        }
+                        val visibleOcr = ocrTargets.map { UiAgentPolicy.VisibleOcr(it.index, it.text, it.fingerprint) }
+                        val preparedAction = when (action.kind) {
+                            UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE ->
+                                action.copy(nodeFingerprint = visibleNodes.firstOrNull { it.index == action.nodeIndex }?.fingerprint.orEmpty())
+                            UiAgentPolicy.Kind.TAP_OCR ->
+                                action.copy(ocrFingerprint = ocrTargets.firstOrNull { it.index == action.ocrIndex }?.fingerprint.orEmpty())
+                            else -> action
+                        }
+                        val verdict = UiAgentPolicy.validate(
+                            preparedAction, labels, goal, visibleNodes,
+                            allowedApps.map { it.first }.toSet(), visibleOcr
+                        )
+                        when (verdict) {
+                            UiAgentPolicy.Verdict.REJECT ->
+                                finish("Proposed action screen par verify nahi hua ya task se match nahi karta. Stopped.")
+                            UiAgentPolicy.Verdict.CONFIRM -> {
+                                val message = when (action.kind) {
+                                    UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE ->
+                                        "Vyom wants to interact with bounded screen control #" + action.nodeIndex + ". Confirm only if this is the intended control."
+                                    UiAgentPolicy.Kind.TAP_OCR ->
+                                        "Vyom wants to tap visible screen text: " + action.target + ". Confirm only if this is the intended target."
+                                    else -> "Vyom wants to tap: " + action.target + ". Ye consequential action hai."
+                                }
+                                val shown = service.showAgentConfirmation(message, {
                                     if (generation != uiAgentGeneration || controlPrefs.getBoolean("kill_switch", false)) {
                                         finish("STOP CONTROL ON — action blocked.")
-                                    } else performUiAgentAction(preparedAction, goal, generation, completedSteps, { completedSteps++ }, progress, dialog, ::nextStep, ::finish)
-                                }.show()
+                                    } else {
+                                        service.showAgentProgress("Confirmed • executing action…", ::stopAgent)
+                                        performUiAgentAction(preparedAction, generation, completedSteps,
+                                            { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
+                                    }
+                                }, { finish("Cancelled.") })
+                                if (!shown) finish("Confirmation overlay unavailable. Action not executed.")
+                            }
+                            UiAgentPolicy.Verdict.ALLOW ->
+                                performUiAgentAction(preparedAction, generation, completedSteps,
+                                    { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
                         }
-                        UiAgentPolicy.Verdict.ALLOW ->
-                            performUiAgentAction(preparedAction, goal, generation, completedSteps, { completedSteps++ }, progress, dialog, ::nextStep, ::finish)
                     }
-                }
                 }
             }
         }
@@ -1220,12 +1237,10 @@ class MainActivity : Activity() {
 
     private fun performUiAgentAction(
         action: UiAgentPolicy.Action,
-        goal: String,
         generation: Int,
         completedSteps: Int,
         onStepCompleted: () -> Unit,
-        progress: TextView,
-        dialog: AlertDialog,
+        updateProgress: (String) -> Unit,
         nextStep: () -> Unit,
         finish: (String) -> Unit
     ) {
@@ -1252,11 +1267,11 @@ class MainActivity : Activity() {
             }
         }
         if (!success) {
-            finish("Android ne action accept nahi kiya. Task stopped; koi blind retry nahi hua.")
+            finish("Android ne action accept nahi kiya ya screen badal gayi. Task stopped; koi blind retry nahi hua.")
             return
         }
         val nextCount = completedSteps + 1
-        progress.text = "Action accepted • rechecking screen • step $nextCount/12"
+        updateProgress("Action accepted • rechecking screen • step " + nextCount + "/12")
         mainHandler.postDelayed({
             if (generation == uiAgentGeneration) {
                 onStepCompleted()
