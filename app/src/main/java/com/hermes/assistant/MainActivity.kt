@@ -209,6 +209,7 @@ class MainActivity : Activity() {
             fitsSystemWindows = true
         }
         orb = OrbSurfaceView(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
             isClickable = false
             isFocusable = false
             setOrbMode(orbMode)
@@ -2561,6 +2562,14 @@ class MainActivity : Activity() {
         })
         dashboard.addView(Button(this).apply {
             text = "QUEUE LIMIT: $maxTasks (CHANGE)"
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.rgb(48, 58, 73))
+                cornerRadius = dp(21).toFloat()
+                setStroke(dp(1), Color.rgb(105, 119, 139))
+            }
+            setTextColor(Color.WHITE)
+            isAllCaps = false
             contentDescription = "Change local active task submission limit"
             setOnClickListener {
                 val choices = arrayOf("5 tasks", "10 tasks", "15 tasks", "20 tasks")
@@ -2630,6 +2639,8 @@ class MainActivity : Activity() {
             val state = task.optString("status", "queued").lowercase()
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
+                clipChildren = false
+                clipToPadding = false
                 setPadding(dp(10), dp(8), dp(10), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
@@ -2659,6 +2670,9 @@ class MainActivity : Activity() {
             if (resultText.isNotBlank()) {
                 val resultScroll = ScrollView(this).apply {
                     isFillViewport = false
+                    isNestedScrollingEnabled = false
+                    clipChildren = false
+                    clipToPadding = false
                     addView(TextView(this@MainActivity).apply {
                         text = resultText
                         textSize = 12f
