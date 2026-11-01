@@ -40,6 +40,8 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     @Volatile private var screenRevision = 0L
+    @Volatile private var lastObservedRevision = -1L
+    @Volatile private var lastObservedPackage = ""
     @Volatile private var lastOcrRevision = -1L
     @Volatile private var lastOcrPackage = ""
     @Volatile private var lastOcrTargets: List<OcrItem> = emptyList()
@@ -154,6 +156,8 @@ class VyomAccessibilityService : AccessibilityService() {
         val result = JSONArray()
         val root = rootInActiveWindow ?: return result
         if (!isCurrentAppAllowed(root)) return result
+        lastObservedRevision = screenRevision
+        lastObservedPackage = root.packageName?.toString().orEmpty()
         var count = 0
         fun visit(node: AccessibilityNodeInfo?, parentIndex: Int) {
             if (node == null || count >= maxNodes) return
@@ -192,7 +196,8 @@ class VyomAccessibilityService : AccessibilityService() {
     fun clickVisibleText(target: String, expectedPackage: String = ""): Boolean {
         if (target.isBlank() || target.length > 100) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage)) return false
+        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage) ||
+            root.packageName?.toString() != lastObservedPackage || screenRevision != lastObservedRevision) return false
         val node = findNode(root, target) ?: return false
         if (node.isPassword || node.isEditable) return false
         var candidate: AccessibilityNodeInfo? = node
@@ -235,7 +240,8 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun scroll(direction: String, expectedPackage: String = ""): Boolean {
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage)) return false
+        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage) ||
+            root.packageName?.toString() != lastObservedPackage || screenRevision != lastObservedRevision) return false
         val action = when (direction.lowercase()) {
             "up", "forward", "down-page" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             "down", "backward", "up-page" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
@@ -267,7 +273,8 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun global(action: String, expectedPackage: String = ""): Boolean {
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage)) return false
+        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage) ||
+            root.packageName?.toString() != lastObservedPackage || screenRevision != lastObservedRevision) return false
         return when (action.lowercase()) {
         "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
         "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
