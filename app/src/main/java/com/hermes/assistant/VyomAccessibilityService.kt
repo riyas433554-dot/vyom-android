@@ -173,7 +173,7 @@ class VyomAccessibilityService : AccessibilityService() {
                     node.getBoundsInScreen(rect)
                     b.put("left", rect.left).put("top", rect.top).put("right", rect.right).put("bottom", rect.bottom)
                 })
-                .put("fingerprint", nodeFingerprint(node))
+                .put("fingerprint", nodeFingerprint(node, root.packageName?.toString().orEmpty()))
             if (!password) {
                 row.put("text", node.text?.toString()?.take(240).orEmpty())
                 row.put("description", node.contentDescription?.toString()?.take(160).orEmpty())
@@ -213,7 +213,7 @@ class VyomAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return false
         if (!isCurrentAppAllowed(root)) return false
         val node = findNodeByIndex(root, index) ?: return false
-        if (node.isPassword || node.isEditable || nodeFingerprint(node) != expectedFingerprint) return false
+        if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
         val rect = safeGestureBounds(node) ?: return false
         val x1: Float
         val y1: Float
@@ -420,7 +420,7 @@ class VyomAccessibilityService : AccessibilityService() {
         return rect
     }
 
-    private fun nodeFingerprint(node: AccessibilityNodeInfo): String {
+    private fun nodeFingerprint(node: AccessibilityNodeInfo, packageName: String): String {
         val rect = android.graphics.Rect()
         node.getBoundsInScreen(rect)
         val visibleLabel = if (!node.isPassword && !node.isEditable) {
@@ -428,7 +428,7 @@ class VyomAccessibilityService : AccessibilityService() {
         } else ""
         val digest = MessageDigest.getInstance("SHA-256").digest(visibleLabel.toByteArray(Charsets.UTF_8))
         val labelHash = digest.take(8).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
-        return listOf(node.className?.toString().orEmpty(), rect.left, rect.top, rect.right, rect.bottom,
+        return listOf(packageName, node.className?.toString().orEmpty(), rect.left, rect.top, rect.right, rect.bottom,
             node.isClickable, node.isLongClickable, node.isPassword, node.isEditable, labelHash).joinToString("|")
     }
 
