@@ -248,3 +248,23 @@ Implementation commit: `bf714cac1afdc6444bbaff6fba89aa07b66e37b7` on `feature/u1
 - The APK is a debug build, not a release-signed update. Its debug signing key is generated in the CI runner; certificate continuity with the previously installed APK has not been verified. Do not uninstall the current app or install this artifact over it until the signing-certificate fingerprints are compared or a release is built with the existing keystore. CI does not prove device behavior or that a task's final result is correct. Phone testing remains pending. UI Agent's `DONE` status is still a model-reported completion and must be checked against the actual app screen.
 - Scope unchanged: this is Android-only. No Android `main`, Hermes/Render backend, or production DB changes.
 
+
+
+## 2026-11-01 — Memory + Intelligence Android integration
+
+Branch: `feature/memory-intelligence`
+Implementation SHA: `11a5abcb405f6720ace38078288347a0ac328759`
+
+- Added `MemoryCapturePolicy`: explicit remember requests, simple preference statements, corrections and safe name statements can become local facts. Ordinary questions are not automatically saved.
+- Sensitive-value filters reject passwords, OTP/PIN/CVV, API/access tokens, card/account identifiers, government IDs, health/medication details, email addresses, phone numbers and long numeric identifiers.
+- `VyomMemoryStore` continues to use Android EncryptedSharedPreferences; maximum 30 facts. Profile > Memory allows enable/disable, edit/replace and clear.
+- Relevant local facts are ranked for the current message; nonmatching facts are excluded when matches exist. Current message remains separate from the bounded context.
+- Added `VyomIdentityPolicy` to ground responses in actual connected capabilities and limitations, distinguish local UI Agent from Hermes task execution, and require verification before claiming actions.
+- Identity policy is used by the Android chat persona prompt. LIVE voice prompt no longer forces every response to one or two short sentences; selected language is retained.
+- Regression tests cover memory capture, sensitive-data rejection, relevance ranking, identity/capability boundaries, context budget and language mode.
+- RED verification: initial Android CI run `41285930431` failed 3 new tests (relevance ranking and two identity-prompt assertions). Fixed the implementation and prompt.
+- GREEN verification: Android CI run `41293163136` and Debug run `41293163133` both succeeded on SHA `11a5abcb405f6720ace38078288347a0ac328759`.
+- Artifact `vyom-0.3.0-11a5abcb405f6720ace38078288347a0ac328759`, ID `13077883833`; ZIP SHA-256 `ccb6e28af72566fcb6e99b7d6677acd10024d06dc3676c1a6478177477456c44`; APK SHA-256 `c19577de869347ed9bf1e7fb6e87a598a074add17391f985ec7f02b2e70d909f`.
+- APK is an unsigned CI debug variant with a CI-generated debug signing key. Certificate continuity with the previously installed Vyom APK is not established; do not uninstall the existing app or install over it until certificate fingerprints are compared or the correct release keystore is configured.
+- Device behavior remains unverified until user phone testing. No production deployment or merge to Android `main`.
+
