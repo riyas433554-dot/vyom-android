@@ -96,6 +96,26 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun longPressNode(index: Int, expectedFingerprint: String): Boolean = performNodeAction(index, expectedFingerprint, AccessibilityNodeInfo.ACTION_LONG_CLICK, requireLongClickable = true)
 
+    fun swipeNode(index: Int, expectedFingerprint: String, direction: String): Boolean {
+        if (direction.lowercase() !in setOf("left", "right", "up", "down")) return false
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root)) return false
+        val node = findNodeByIndex(root, index) ?: return false
+        if (node.isPassword || node.isEditable || nodeFingerprint(node) != expectedFingerprint) return false
+        val rect = safeGestureBounds(node) ?: return false
+        val x1: Float
+        val y1: Float
+        val x2: Float
+        val y2: Float
+        when (direction.lowercase()) {
+            "left" -> { y1 = rect.centerY().toFloat(); y2 = y1; x1 = rect.right - rect.width() * 0.08f; x2 = rect.left + rect.width() * 0.08f }
+            "right" -> { y1 = rect.centerY().toFloat(); y2 = y1; x1 = rect.left + rect.width() * 0.08f; x2 = rect.right - rect.width() * 0.08f }
+            "up" -> { x1 = rect.centerX().toFloat(); x2 = x1; y1 = rect.bottom - rect.height() * 0.08f; y2 = rect.top + rect.height() * 0.08f }
+            else -> { x1 = rect.centerX().toFloat(); x2 = x1; y1 = rect.top + rect.height() * 0.08f; y2 = rect.bottom - rect.height() * 0.08f }
+        }
+        return dispatchPath(x1, y1, x2, y2, 350L)
+    }
+
     fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long = 350L): Boolean =
         isCurrentAppAllowed() && dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
 
@@ -159,8 +179,19 @@ class VyomAccessibilityService : AccessibilityService() {
         if (!isCurrentAppAllowed(root)) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node) != expectedFingerprint) return false
-        if (requireClickable && !node.isClickable) return false
-        if (requireLongClickable && !node.isLongClickable) return false
+        if (requireClickable && !node.isClickable) {
+            var parent = node.parent
+            while (parent != null) {
+                if (parent.isClickable) return parent.performAction(action)
+                parent = parent.parent
+            }
+            val rect = safeGestureBounds(node) ?: return false
+            return dispatchPath(rect.centerX().toFloat(), rect.centerY().toFloat(), rect.centerX().toFloat(), rect.centerY().toFloat(), 90L)
+        }
+        if (requireLongClickable && !node.isLongClickable) {
+            val rect = safeGestureBounds(node) ?: return false
+            return dispatchPath(rect.centerX().toFloat(), rect.centerY().toFloat(), rect.centerX().toFloat(), rect.centerY().toFloat(), 650L)
+        }
         return node.performAction(action)
     }
 
@@ -174,6 +205,20 @@ class VyomAccessibilityService : AccessibilityService() {
             return null
         }
         return visit(root)
+    }
+
+    private fun safeGestureBounds(node: AccessibilityNodeInfo): android.graphics.Rect? {
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
+        val width = resources.displayMetrics.widthPixels
+        val height = resources.displayMetrics.heightPixels
+        val area = rect.width().toLong() * rect.height().toLong()
+        val screenArea = width.toLong() * height.toLong()
+        if (rect.left < 0 || rect.top < 0 || rect.right > width || rect.bottom > height ||
+            rect.width() < (24 * resources.displayMetrics.density).toInt() ||
+            rect.height() < (24 * resources.displayMetrics.density).toInt() ||
+            area <= 0 || area > screenArea * 35L / 100L) return null
+        return rect
     }
 
     private fun nodeFingerprint(node: AccessibilityNodeInfo): String {
