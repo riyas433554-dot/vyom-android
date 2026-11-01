@@ -161,6 +161,7 @@ class VyomAccessibilityService : AccessibilityService() {
             val password = node.isPassword
             val row = JSONObject()
                 .put("index", index)
+                .put("package", root.packageName?.toString().orEmpty())
                 .put("parent", parentIndex)
                 .put("class", node.className?.toString().orEmpty().take(100))
                 .put("clickable", node.isClickable)
@@ -188,10 +189,10 @@ class VyomAccessibilityService : AccessibilityService() {
         return result
     }
 
-    fun clickVisibleText(target: String): Boolean {
+    fun clickVisibleText(target: String, expectedPackage: String = ""): Boolean {
         if (target.isBlank() || target.length > 100) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root)) return false
+        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage)) return false
         val node = findNode(root, target) ?: return false
         if (node.isPassword || node.isEditable) return false
         var candidate: AccessibilityNodeInfo? = node
@@ -232,9 +233,9 @@ class VyomAccessibilityService : AccessibilityService() {
     fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long = 350L): Boolean =
         isCurrentAppAllowed() && dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
 
-    fun scroll(direction: String): Boolean {
+    fun scroll(direction: String, expectedPackage: String = ""): Boolean {
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root)) return false
+        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage)) return false
         val action = when (direction.lowercase()) {
             "up", "forward", "down-page" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             "down", "backward", "up-page" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
@@ -264,8 +265,9 @@ class VyomAccessibilityService : AccessibilityService() {
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    fun global(action: String): Boolean {
-        if (!isCurrentAppAllowed()) return false
+    fun global(action: String, expectedPackage: String = ""): Boolean {
+        val root = rootInActiveWindow ?: return false
+        if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage)) return false
         return when (action.lowercase()) {
         "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
         "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
