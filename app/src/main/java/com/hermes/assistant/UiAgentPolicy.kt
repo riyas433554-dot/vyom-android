@@ -88,6 +88,6 @@ internal object UiAgentPolicy {
         }
     }
 
-    fun mayContinue(completedSteps: Int, maxSteps: Int = 12): Boolean =
+    fun mayContinue(completedSteps: Int, maxSteps: Int = 40): Boolean =
         completedSteps >= 0 && completedSteps < maxSteps
 }
