@@ -14,6 +14,13 @@ class AppAccessPolicyTest {
         assertFalse(AppAccessPolicy.isAllowed(true, emptySet(), "com.example.app"))
     }
 
+    @Test fun financeAndPaymentAppsAreBlockedByPackageOrLabel() {
+        assertTrue(AppAccessPolicy.isBlockedIdentifier("com.example.wallet"))
+        assertTrue(AppAccessPolicy.isBlockedIdentifier("com.example.mobile", "State Bank"))
+        assertTrue(AppAccessPolicy.isBlockedIdentifier("com.phonepe.app"))
+        assertFalse(AppAccessPolicy.isBlockedIdentifier("com.example.videoeditor", "CapCut"))
+    }
+
     @Test fun unknownOrBlankPackagesAreDenied() {
         assertFalse(AppAccessPolicy.isAllowed(true, setOf("com.example.app"), "com.other.app"))
         assertFalse(AppAccessPolicy.isAllowed(true, setOf("com.example.app"), ""))
