@@ -63,10 +63,10 @@ internal object UiAgentPolicy {
             Kind.TYPE_TEXT -> {
                 val text = action.text.trim()
                 if (text.isBlank() || text.length > 500 ||
-                    !userGoal.contains(text, ignoreCase = true) ||
+                    !userGoal.contains(text, ignoreCase = true) || blockedTargets.containsMatchIn(text) ||
                     Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token)").containsMatchIn(text) ||
                     Regex("""\b(?:\d[ -]*?){13,19}\b""").containsMatchIn(text) ||
-                    Regex("""\b\d{4,8}\b""").containsMatchIn(text)) Verdict.REJECT
+                    Regex("""\b\d{4,12}\b""").containsMatchIn(text)) Verdict.REJECT
                 else Verdict.ALLOW
             }
             Kind.BACK, Kind.WAIT, Kind.DONE -> Verdict.ALLOW
