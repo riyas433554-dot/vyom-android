@@ -53,7 +53,7 @@ internal object AppAccessPolicy {
     fun setPackageEnabled(context: Context, packageName: String, enabled: Boolean) {
         if (packageName.isBlank() || isBlocked(context, packageName)) return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val packages = prefs.getStringSet(PACKAGES, emptySet()).orEmpty().toMutableSet()
+        val packages = prefs.getStringSet(PACKAGES, mutableSetOf()).orEmpty().toMutableSet()
         if (enabled) packages.add(packageName) else packages.remove(packageName)
         prefs.edit().putStringSet(PACKAGES, packages).apply()
     }
