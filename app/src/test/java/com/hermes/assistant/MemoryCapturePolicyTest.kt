@@ -55,4 +55,10 @@ class MemoryCapturePolicyTest {
         assertTrue(MemoryCapturePolicy.extract("আমি কালকের পরীক্ষার জন্য পড়তে চাই").isEmpty())
     }
 
+
+    @Test fun BengaliSensitiveMemoryIsRejected() {
+        assertTrue(MemoryCapturePolicy.extract("মনে রেখো, আমার পাসওয়ার্ড হলো example-secret").isEmpty())
+        assertTrue(MemoryCapturePolicy.extract("মনে রেখো, আমার ওটিপি ১২৩৪৫৬").isEmpty())
+    }
+
 }
