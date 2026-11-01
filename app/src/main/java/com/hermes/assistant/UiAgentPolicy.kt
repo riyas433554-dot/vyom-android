@@ -5,7 +5,7 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { OPEN_APP, TAP_TEXT, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     data class Action(
         val kind: Kind,
@@ -13,18 +13,26 @@ internal object UiAgentPolicy {
         val direction: String = "",
         val text: String = "",
         val nodeIndex: Int = -1,
-        val nodeFingerprint: String = ""
+        val nodeFingerprint: String = "",
+        val ocrIndex: Int = -1,
+        val ocrFingerprint: String = ""
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
+    data class VisibleOcr(val index: Int, val text: String, val fingerprint: String)
 
     private val consequential = Regex(
         """\b(pay|purchase|buy|delete|remove|send|share|post|publish|export|install|uninstall|subscribe|transfer|confirm|approve|allow|grant|order|checkout|payment|place order)\b""",
         RegexOption.IGNORE_CASE
     )
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet()): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList()): Verdict {
         return when (action.kind) {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
+            Kind.TAP_OCR -> {
+                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
+                if (target == null || action.target.isBlank() || target.text != action.target || target.fingerprint != action.ocrFingerprint) Verdict.REJECT
+                else Verdict.CONFIRM
+            }
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
