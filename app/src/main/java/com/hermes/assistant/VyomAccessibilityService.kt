@@ -4,10 +4,19 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Bitmap
 import android.graphics.Path
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Bundle
 import android.view.Display
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.google.mlkit.vision.common.InputImage
@@ -32,6 +41,8 @@ class VyomAccessibilityService : AccessibilityService() {
     @Volatile private var screenRevision = 0L
     @Volatile private var lastOcrRevision = -1L
     @Volatile private var lastOcrTargets: List<OcrItem> = emptyList()
+    private var agentOverlayRoot: LinearLayout? = null
+    private var agentOverlayStatus: TextView? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -53,8 +64,87 @@ class VyomAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        hideAgentOverlay()
         if (active === this) active = null
         super.onDestroy()
+    }
+
+    fun showAgentProgress(message: String, onStop: () -> Unit): Boolean =
+        showAgentOverlay(message, listOf("STOP" to onStop))
+
+    fun updateAgentProgress(message: String) {
+        agentOverlayStatus?.text = message
+    }
+
+    fun showAgentConfirmation(message: String, onConfirm: () -> Unit, onCancel: () -> Unit): Boolean =
+        showAgentOverlay(message, listOf("CANCEL" to onCancel, "CONFIRM" to onConfirm))
+
+    fun showAgentFinished(message: String): Boolean =
+        showAgentOverlay(message, listOf("CLOSE" to { hideAgentOverlay() }))
+
+    fun hideAgentOverlay() {
+        val root = agentOverlayRoot ?: return
+        try { (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(root) } catch (_: Exception) { }
+        agentOverlayRoot = null
+        agentOverlayStatus = null
+    }
+
+    private fun showAgentOverlay(message: String, actions: List<Pair<String, () -> Unit>>): Boolean {
+        hideAgentOverlay()
+        val density = resources.displayMetrics.density
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((14 * density).toInt(), (10 * density).toInt(), (14 * density).toInt(), (10 * density).toInt())
+            background = GradientDrawable().apply {
+                setColor(0xF0101A2E.toInt())
+                cornerRadius = 18 * density
+                setStroke((1 * density).toInt(), 0xFF22D3EE.toInt())
+            }
+            elevation = 8 * density
+        }
+        val status = TextView(this).apply {
+            text = message
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            setPadding(0, 0, 0, (8 * density).toInt())
+        }
+        root.addView(status, LinearLayout.LayoutParams(-1, -2))
+        val buttons = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+        }
+        actions.forEach { (label, action) ->
+            val button = Button(this).apply {
+                text = label
+                isAllCaps = false
+                setOnClickListener { action() }
+            }
+            buttons.addView(button, LinearLayout.LayoutParams(-2, (40 * density).toInt()).apply {
+                leftMargin = (6 * density).toInt()
+            })
+        }
+        root.addView(buttons, LinearLayout.LayoutParams(-1, -2))
+        val availableWidth = (resources.displayMetrics.widthPixels - (32 * density).toInt()).coerceAtLeast((220 * density).toInt())
+        val params = WindowManager.LayoutParams(
+            availableWidth.coerceAtMost((360 * density).toInt()),
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = (48 * density).toInt()
+        }
+        return try {
+            (getSystemService(WINDOW_SERVICE) as WindowManager).addView(root, params)
+            agentOverlayRoot = root
+            agentOverlayStatus = status
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun describeVisibleTree(maxNodes: Int = 180): JSONArray {
