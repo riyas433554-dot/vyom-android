@@ -1189,7 +1189,7 @@ class MainActivity : Activity() {
                                 .setPositiveButton("CONFIRM") { _, _ ->
                                     if (generation != uiAgentGeneration || controlPrefs.getBoolean("kill_switch", false)) {
                                         finish("STOP CONTROL ON — action blocked.")
-                                    } else performUiAgentAction(action, goal, generation, completedSteps, progress, dialog, ::nextStep, ::finish)
+                                    } else performUiAgentAction(action, goal, generation, completedSteps, { completedSteps++ }, progress, dialog, ::nextStep, ::finish)
                                 }.show()
                         }
                         UiAgentPolicy.Verdict.ALLOW ->
@@ -1206,6 +1206,7 @@ class MainActivity : Activity() {
         goal: String,
         generation: Int,
         completedSteps: Int,
+        onStepCompleted: () -> Unit,
         progress: TextView,
         dialog: AlertDialog,
         nextStep: () -> Unit,
@@ -1236,10 +1237,10 @@ class MainActivity : Activity() {
         progress.text = "Action accepted • rechecking screen • step $nextCount/12"
         mainHandler.postDelayed({
             if (generation == uiAgentGeneration) {
-                completedSteps = nextCount
+                onStepCompleted()
                 nextStep()
             }
-        }, 800L)
+        }, 300L)
     }
 
     private fun requestUiAgentAction(goal: String, screenTree: JSONArray): UiAgentPolicy.Action? {
@@ -1331,7 +1332,7 @@ class MainActivity : Activity() {
         }
         val scroll = ScrollView(this).apply {
             isFillViewport = false
-            addView(list, ScrollView.LayoutParams(-1, -2))
+            addView(list, FrameLayout.LayoutParams(-1, -2))
         }
         content.addView(scroll, LinearLayout.LayoutParams(-1, dp(340)))
         AlertDialog.Builder(this)
