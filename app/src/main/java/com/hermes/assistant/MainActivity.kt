@@ -2021,7 +2021,8 @@ class MainActivity : Activity() {
         val facts = memoryStore.facts().take(30).joinToString("\n")
         val context = ChatContextPolicy.buildContext(facts, history, maxChars = 2_000)
         val contextBlock = if (context.isBlank()) "" else "\n\n$context"
-        return "$instruction$contextBlock\n\nCurrent user message:\n$message"
+        val identity = VyomIdentityPolicy.systemInstruction(hinglish = hinglishPersona)
+        return "$identity\n\n$instruction$contextBlock\n\nCurrent user message:\n$message"
     }
 
     private fun requestChatReply(item: ChatMessage): String {

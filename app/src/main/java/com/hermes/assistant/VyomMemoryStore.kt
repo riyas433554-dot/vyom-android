@@ -30,17 +30,8 @@ internal class VyomMemoryStore(context: Context) {
     }
 
     fun learnFrom(message: String) {
-        if (!isEnabled() || isSensitive(message)) return
-        val patterns = listOf(
-            Regex("(?i)\\bmy name is ([a-z][a-z .'-]{1,48})"),
-            Regex("(?i)\\bmera naam ([a-z][a-z .'-]{1,48}) hai"),
-            Regex("(?i)\\bI prefer ([^.!?\\n]{2,100})"),
-            Regex("(?i)\\bI like ([^.!?\\n]{2,100})"),
-            Regex("(?i)\\bplease remember that ([^.!?\\n]{2,120})"),
-            Regex("(?i)\\bmeri preference hai ([^.!?\\n]{2,100})")
-        )
-        val extracted = patterns.mapNotNull { it.find(message.trim().take(500))?.value?.trim() }
-            .map { it.replace(Regex("\\s+"), " ").take(140) }.filterNot(::isSensitive)
+        if (!isEnabled()) return
+        val extracted = MemoryCapturePolicy.extract(message)
         if (extracted.isEmpty()) return
         write((facts() + extracted).distinctBy { it.lowercase() }.takeLast(MAX_FACTS))
     }
@@ -55,15 +46,7 @@ internal class VyomMemoryStore(context: Context) {
     fun clearFacts() { prefs.edit().remove(KEY_FACTS).apply() }
     private fun write(items: List<String>) { prefs.edit().putString(KEY_FACTS, JSONArray(items).toString()).apply() }
 
-    private fun isSensitive(text: String): Boolean {
-        val lower = text.lowercase()
-        val forbidden = listOf("password", "passcode", "otp", "one-time password", "verification code",
-            "credit card", "debit card", "cvv", "cvc", "card number", "api key", "secret key",
-            "access token", "refresh token", "private key", "recovery phrase")
-        return forbidden.any(lower::contains) ||
-            Regex("\\b(?:\\d[ -]*?){13,19}\\b").containsMatchIn(text) ||
-            Regex("(?i)\\b(?:sk-|nvapi-|gh[pousr]_)\\S{12,}").containsMatchIn(text)
-    }
+    private fun isSensitive(text: String): Boolean = MemoryCapturePolicy.isSensitive(text)
 
     companion object {
         private const val KEY_ENABLED = "enabled"

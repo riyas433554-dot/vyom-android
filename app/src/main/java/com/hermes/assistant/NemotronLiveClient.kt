@@ -59,7 +59,7 @@ internal class NemotronLiveClient(private val apiKey: String, private val modelI
                 .put("temperature", 0.6)
                 .put("max_tokens", 2048)
                 .put("messages", org.json.JSONArray()
-                    .put(JSONObject().put("role", "system").put("content", "You are Vyom, a helpful voice assistant. Reply naturally in one or two short spoken sentences. Avoid lists, markdown, and long explanations."))
+                    .put(JSONObject().put("role", "system").put("content", VyomIdentityPolicy.systemInstruction(voiceMode = true)))
                     .put(JSONObject().put("role", "user").put("content", prompt)))
             conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
