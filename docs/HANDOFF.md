@@ -1,3 +1,46 @@
+# CURRENT IMPLEMENTATION ADDENDUM — 2026-11-01
+
+This addendum supersedes older Android implementation-head and UI-status notes below.
+
+## Active source
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Verified source head: `168664ceede0310b9335935422bceda79aedffd2`
+- `main` remains untouched.
+
+## Supplied design implementation
+- Added canonical HUD tokens, navigation destinations, safe device-skill catalog and orb/task state semantics in `VyomDesignSpec.kt`.
+- Reworked top header with a three-line navigation affordance, moved the five-item dock to the bottom, and repositioned the hero orb/task orbit to remain visible above the glass panel.
+- Added searchable drawer with Workspace, Assistant, Brain and System sections. Unsupported workspaces remain explicitly marked SOON.
+- Home exposes Tasks, Memory, Skills, AUTO ROUTER/persona indicators and STOP CONTROL.
+- Added full Memory manager: enable/disable, search, add/edit, individual delete and confirmed clear-all. Facts remain in the encrypted local store; audit entries never contain fact text.
+- Added searchable Skills screen exposing only the four implemented local device actions: open app, volume, torch and settings panels.
+- Added Automations workspace showing actual task records and real status counts. Time-based/repeating scheduling is explicitly shown as not connected; the New Automation action explains this and offers Tasks instead.
+- Task cards use distinct status pills and show progress only when a numeric progress value is actually supplied by the API. Tapping opens task details populated only from returned task fields.
+- Chat bubbles/status pills refined. Orb supports ready/listening, task/control, thinking/speaking, muted/offline and error visual states.
+- STOP CONTROL is accessible from Home and the drawer. Existing pairing, chat, memory encryption and task API flows are preserved.
+
+## Honest feature boundaries
+- Animations, Videos, Images, VFX, CGI, SFX, Instructions and Icons remain marked SOON because no corresponding Android executor/workspace is connected.
+- Connections currently routes to existing Settings; it is not a separate OAuth connection manager.
+- Automations currently displays immediate task records only; no scheduled or recurring job has been created.
+- Device UI remains dependent on existing Android permission/confirmation gates. The design work does not grant accessibility, overlay, microphone or background permissions.
+
+## Verification and artifact
+- Android CI run `41313585475`: PASS on exact source head `168664ceede0310b9335935422bceda79aedffd2`.
+- Debug build run `41313585469`: PASS; unit tests and APK packaging steps successful.
+- Artifact ID: `13086636946`
+- Artifact name: `vyom-0.3.0-168664ceede0310b9335935422bceda79aedffd2`
+- Artifact ZIP digest: `sha256:07a4ca7d4e7211734ca8b8eabaab1c887db531399e328a90a4070d9ed76c6ceb`
+- CI artifact signing continuity with the installed phone APK is not established. Do not uninstall or overwrite the installed app until signing fingerprints are compared or the correct release keystore is used.
+- Physical-device validation remains pending.
+
+## Restrictions
+- Android `main` untouched.
+- No Hermes production changes, Supabase production migration, Render deploy or production environment change was made by Android UI work.
+
+---
+
 # CURRENT MEMORY + INTELLIGENCE ADDENDUM — 2026-11-01
 
 This addendum is authoritative and supersedes older branch/baseline statements later in this document.
