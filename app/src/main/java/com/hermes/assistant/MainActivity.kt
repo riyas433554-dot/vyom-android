@@ -1166,8 +1166,9 @@ class MainActivity : Activity() {
                 return
             }
             updateProgress("Observing screen • step " + (completedSteps + 1) + "/12")
-            service.captureVisibleOcr { ocrTargets ->
+            service.captureVisibleOcr { ocrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
+                if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
                 io.execute {
                     val allowedApps = uiAgentAllowedApps()
                     val action = try { requestUiAgentAction(goal, tree, allowedApps, ocrTargets) } catch (_: Exception) { null }
