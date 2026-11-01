@@ -147,7 +147,7 @@ internal class VyomAutomationsDialog(
 
         val scroll = ScrollView(activity).apply { clipToPadding = false }
         list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-        scroll.addView(list, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(list, android.widget.FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         renderTasks()
 
