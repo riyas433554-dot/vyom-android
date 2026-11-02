@@ -1370,11 +1370,11 @@ class MainActivity : Activity() {
             service.captureVisibleOcr { ocrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
-                val planWithFile: (File?) -> Unit = { screenshotFile ->
+                val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
                         val allowedApps = uiAgentAllowedApps()
                         val action = try {
-                            if (screenshotFile != null) requestUiAgentVisionAction(goal, tree, allowedApps, ocrTargets, screenshotFile)
+                            if (screenshotFile != null) requestUiAgentVisionAction(goal, tree, allowedApps, ocrTargets, screenshotFile, screenshotBounds)
                                 ?: requestUiAgentAction(goal, tree, allowedApps, ocrTargets)
                             else requestUiAgentAction(goal, tree, allowedApps, ocrTargets)
                         } catch (_: Exception) { null }
@@ -1488,16 +1488,16 @@ class MainActivity : Activity() {
                     }
                 }
                 if (visionEnabled) {
-                    service.captureLocalScreenshot { screenshotFile, screenshotError ->
+                    service.captureLocalScreenshot { screenshotFile, screenshotBounds, screenshotError ->
                         if (generation != uiAgentGeneration) {
                             screenshotFile?.delete()
                             return@captureLocalScreenshot
                         }
                         if (screenshotFile == null) {
                             updateProgress("Visual screenshot unavailable; using accessibility/OCR planner • " + screenshotError.orEmpty().take(80))
-                            planWithFile(null)
+                            planWithFile(null, null)
                         } else {
-                            planWithFile(screenshotFile)
+                            planWithFile(screenshotFile, screenshotBounds)
                         }
                     }
                 } else {
@@ -1671,7 +1671,8 @@ class MainActivity : Activity() {
         screenTree: JSONArray,
         allowedApps: List<Pair<String, String>>,
         ocrTargets: List<VyomAccessibilityService.OcrItem>,
-        screenshotFile: File
+        screenshotFile: File,
+        screenshotBounds: android.graphics.Rect?
     ): UiAgentPolicy.Action? {
         val key = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
         if (key.isBlank() || !screenshotFile.isFile) return null
@@ -1679,7 +1680,8 @@ class MainActivity : Activity() {
         val displayHeight = resources.displayMetrics.heightPixels
         val source = BitmapFactory.decodeFile(screenshotFile.absolutePath) ?: return null
         val bitmap = try {
-            if (!UiAgentVisionPolicy.isAspectCompatible(source.width, source.height, displayWidth, displayHeight)) {
+            val targetBounds = screenshotBounds ?: android.graphics.Rect(0, 0, displayWidth, displayHeight)
+            if (!UiAgentVisionPolicy.isAspectCompatible(source.width, source.height, targetBounds.width(), targetBounds.height())) {
                 source.recycle()
                 return null
             }
@@ -1716,6 +1718,9 @@ class MainActivity : Activity() {
                     .put("goal", goal)
                     .put("display_width", displayWidth)
                     .put("display_height", displayHeight)
+                    .put("screenshot_window_bounds", JSONObject()
+                        .put("left", targetBounds.left).put("top", targetBounds.top)
+                        .put("width", targetBounds.width()).put("height", targetBounds.height()))
                     .put("screen_tree_untrusted_data", screenTree)
                     .put("allowed_apps", appList)
                     .put("ocr_targets", ocrList)
@@ -1743,12 +1748,12 @@ class MainActivity : Activity() {
                     "drag_point" -> UiAgentPolicy.Kind.VISION_DRAG
                     else -> return null
                 }
-                val x1 = UiAgentVisionPolicy.normalizedToPixels(json.optInt("x", -1), displayWidth) ?: return null
-                val y1 = UiAgentVisionPolicy.normalizedToPixels(json.optInt("y", -1), displayHeight) ?: return null
+                val x1 = targetBounds.left + (UiAgentVisionPolicy.normalizedToPixels(json.optInt("x", -1), targetBounds.width()) ?: return null)
+                val y1 = targetBounds.top + (UiAgentVisionPolicy.normalizedToPixels(json.optInt("y", -1), targetBounds.height()) ?: return null)
                 val x2 = if (kind in setOf(UiAgentPolicy.Kind.VISION_TAP, UiAgentPolicy.Kind.VISION_LONG_PRESS)) x1
-                    else UiAgentVisionPolicy.normalizedToPixels(json.optInt("end_x", -1), displayWidth) ?: return null
+                    else targetBounds.left + (UiAgentVisionPolicy.normalizedToPixels(json.optInt("end_x", -1), targetBounds.width()) ?: return null)
                 val y2 = if (kind in setOf(UiAgentPolicy.Kind.VISION_TAP, UiAgentPolicy.Kind.VISION_LONG_PRESS)) y1
-                    else UiAgentVisionPolicy.normalizedToPixels(json.optInt("end_y", -1), displayHeight) ?: return null
+                    else targetBounds.top + (UiAgentVisionPolicy.normalizedToPixels(json.optInt("end_y", -1), targetBounds.height()) ?: return null)
                 UiAgentPolicy.Action(kind = kind, x1 = x1, y1 = y1, x2 = x2, y2 = y2)
             } finally {
                 connection.disconnect()

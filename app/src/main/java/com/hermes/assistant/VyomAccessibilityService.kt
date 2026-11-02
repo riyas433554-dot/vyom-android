@@ -458,7 +458,6 @@ class VyomAccessibilityService : AccessibilityService() {
         val packageAtCapture = rootAtCapture?.packageName?.toString().orEmpty()
         lastOcrPackage = packageAtCapture
         val revisionAtCapture = screenRevision
-        val windowIdAtCapture = rootAtCapture?.windowId ?: -1
         val screenshotCallback = object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
                 val bitmap = try {
@@ -513,11 +512,7 @@ class VyomAccessibilityService : AccessibilityService() {
                 onResult(emptyList(), "OCR screenshot failed (code $errorCode).")
             }
         }
-        if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0) {
-            takeScreenshotOfWindow(windowIdAtCapture, mainExecutor, screenshotCallback)
-        } else {
-            takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, screenshotCallback)
-        }
+        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, screenshotCallback)
     }
 
     private fun freshSafeOcrBounds(expectedFingerprint: String): android.graphics.Rect? {
@@ -640,12 +635,19 @@ class VyomAccessibilityService : AccessibilityService() {
         return dispatchPath(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat(), duration)
     }
 
-    fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
-        if (!isCurrentAppAllowed()) { onResult(null, "App access is OFF or STOP CONTROL is ON."); return }
-        if (Build.VERSION.SDK_INT < 30) { onResult(null, "Screenshot requires Android 11 or newer."); return }
+    fun captureLocalScreenshot(onResult: (File?, android.graphics.Rect?, String?) -> Unit) {
+        if (!isCurrentAppAllowed()) { onResult(null, null, "App access is OFF or STOP CONTROL is ON."); return }
+        if (Build.VERSION.SDK_INT < 30) { onResult(null, null, "Screenshot requires Android 11 or newer."); return }
         val rootAtCapture = rootInActiveWindow
-        if (!isCurrentAppAllowed(rootAtCapture)) { onResult(null, "Current app is not enabled."); return }
+        if (!isCurrentAppAllowed(rootAtCapture)) { onResult(null, null, "Current app is not enabled."); return }
         val windowIdAtCapture = rootAtCapture?.windowId ?: -1
+        val displayBounds = android.graphics.Rect(0, 0, resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
+        val activeWindowBounds = if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0) {
+            windows.firstOrNull { it.id == windowIdAtCapture }?.let { window ->
+                android.graphics.Rect().also { window.getBoundsInScreen(it) }.takeIf { !it.isEmpty }
+            }
+        } else null
+        val captureBounds = activeWindowBounds ?: displayBounds
         val screenshotCallback = object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
                 var bitmap: Bitmap? = null
@@ -660,19 +662,19 @@ class VyomAccessibilityService : AccessibilityService() {
                     } finally {
                         copy.recycle()
                     }
-                    onResult(file, null)
+                    onResult(file, android.graphics.Rect(captureBounds), null)
                 } catch (e: Exception) {
-                    onResult(null, e.message ?: "Could not save screenshot.")
+                    onResult(null, null, e.message ?: "Could not save screenshot.")
                 } finally {
                     try { bitmap?.recycle() } catch (_: Exception) { }
                     try { screenshot.hardwareBuffer.close() } catch (_: Exception) { }
                 }
             }
             override fun onFailure(errorCode: Int) {
-                onResult(null, if (errorCode == ERROR_TAKE_SCREENSHOT_SECURE_WINDOW) "Secure window screenshot blocked by Android." else "Screenshot failed (code $errorCode).")
+                onResult(null, null, if (errorCode == ERROR_TAKE_SCREENSHOT_SECURE_WINDOW) "Secure window screenshot blocked by Android." else "Screenshot failed (code $errorCode).")
             }
         }
-        if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0) {
+        if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0 && activeWindowBounds != null) {
             takeScreenshotOfWindow(windowIdAtCapture, mainExecutor, screenshotCallback)
         } else {
             takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, screenshotCallback)

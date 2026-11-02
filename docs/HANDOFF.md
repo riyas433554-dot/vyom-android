@@ -1061,3 +1061,5 @@ Branch: `feature/memory-intelligence`
 - Declared `android:canTakeScreenshot="true"` in the Accessibility Service metadata. Android's API explicitly requires this capability for `takeScreenshot` / `takeScreenshotOfWindow`.
 - On Android 14+ (API 34), both local OCR and opt-in visual planning now use `takeScreenshotOfWindow` for the exact active app window, so Vyom's own accessibility overlay does not cover the app screenshot. Android 11–13 retain the display screenshot fallback.
 - Secure-window screenshots remain blocked by Android and are not bypassed.
+
+- Coordinate mapping correction: OCR remains based on full-display screenshots to preserve its established display-coordinate mapping. Visual AI uses active-window screenshots on API 34+ and maps normalized VLM points through the captured window's actual screen bounds; API 30–33 use full-display bounds.
