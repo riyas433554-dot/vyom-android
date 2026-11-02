@@ -533,6 +533,50 @@ class VyomAccessibilityService : AccessibilityService() {
             Regex("""[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}""", RegexOption.IGNORE_CASE).containsMatchIn(value) ||
             Regex("""\b[A-Za-z0-9_-]{24,}\b""").containsMatchIn(value)
 
+
+    /**
+     * Executes a screenshot-derived gesture only against the exact foreground observation
+     * used by the planner. Point actions are always confirmation-gated by UiAgentPolicy.
+     */
+    fun performVisionGesture(
+        kind: String, expectedPackage: String, expectedRevision: Long, expectedForegroundEpoch: Long,
+        x1: Int, y1: Int, x2: Int, y2: Int
+    ): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val observation = screenObservation()
+        val packageName = root.packageName?.toString().orEmpty()
+        if (expectedPackage.isBlank() || observation.revision != expectedRevision ||
+            observation.foregroundPackage != expectedPackage || packageName != expectedPackage ||
+            observation.foregroundEpoch != expectedForegroundEpoch || !isCurrentAppAllowed(root)) return false
+        val visibleLabels = mutableListOf<String>()
+        var hasPasswordField = false
+        var visited = 0
+        fun inspect(node: AccessibilityNodeInfo?) {
+            if (node == null || visited >= 180) return
+            visited++
+            if (node.isPassword) hasPasswordField = true
+            if (!node.isPassword) {
+                node.text?.toString()?.takeIf { it.isNotBlank() }?.let(visibleLabels::add)
+                node.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let(visibleLabels::add)
+            }
+            for (index in 0 until node.childCount) inspect(node.getChild(index))
+        }
+        inspect(root)
+        if (!UiAgentVisionPolicy.isSafeGesture(
+                kind, x1, y1, x2, y2, resources.displayMetrics.widthPixels,
+                resources.displayMetrics.heightPixels, resources.displayMetrics.density,
+                UiAgentVisionPolicy.hasSensitiveContext(visibleLabels, hasPasswordField)
+            )) return false
+        val duration = when (kind.lowercase()) {
+            "tap" -> 90L
+            "long_press" -> 650L
+            "swipe" -> 350L
+            "drag" -> 450L
+            else -> return false
+        }
+        return dispatchPath(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat(), duration)
+    }
+
     fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
         if (!isCurrentAppAllowed()) { onResult(null, "App access is OFF or STOP CONTROL is ON."); return }
         if (Build.VERSION.SDK_INT < 30) { onResult(null, "Screenshot requires Android 11 or newer."); return }

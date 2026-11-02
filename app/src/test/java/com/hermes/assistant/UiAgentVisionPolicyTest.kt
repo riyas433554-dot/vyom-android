@@ -34,6 +34,17 @@ class UiAgentVisionPolicyTest {
         assertFalse(UiAgentVisionPolicy.isSafeGesture("tap", 540, 900, 540, 900, 1080, 2400, 3f, true))
     }
 
+    @Test fun screenshotAndDisplayAspectRatiosMustMatch() {
+        assertTrue(UiAgentVisionPolicy.isAspectCompatible(720, 1600, 1080, 2400))
+        assertFalse(UiAgentVisionPolicy.isAspectCompatible(720, 1200, 1080, 2400))
+    }
+
+    @Test fun sensitiveTextAndPasswordFieldsBlockVisualGestures() {
+        assertTrue(UiAgentVisionPolicy.hasSensitiveContext(listOf("Enter OTP"), false))
+        assertTrue(UiAgentVisionPolicy.hasSensitiveContext(emptyList(), true))
+        assertFalse(UiAgentVisionPolicy.hasSensitiveContext(listOf("Trim clip", "Export preview"), false))
+    }
+
     @Test fun unknownGestureKindsAreRejected() {
         assertFalse(UiAgentVisionPolicy.isSafeGesture("type_text", 540, 900, 540, 900, 1080, 2400, 3f, false))
     }

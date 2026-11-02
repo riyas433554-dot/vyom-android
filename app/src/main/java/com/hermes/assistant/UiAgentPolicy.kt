@@ -5,7 +5,7 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
     data class Action(
@@ -21,7 +21,13 @@ internal object UiAgentPolicy {
         val fromAnchor: String = "",
         val toAnchor: String = "",
         val completionEvidence: String = "",
-        val waitMs: Int = 1000
+        val waitMs: Int = 1000,
+        val screenRevision: Long = -1L,
+        val foregroundEpoch: Long = -1L,
+        val x1: Int = -1,
+        val y1: Int = -1,
+        val x2: Int = -1,
+        val y2: Int = -1
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
@@ -140,7 +146,7 @@ internal object UiAgentPolicy {
         return matchingTitles.size == 1
     }
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK, screenWidth: Int = 0, screenHeight: Int = 0, density: Float = 1f, sensitiveScreen: Boolean = false): Verdict {
         return when (action.kind) {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
             Kind.TAP_OCR, Kind.LONG_PRESS_OCR -> {
@@ -212,6 +218,19 @@ internal object UiAgentPolicy {
                     action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
                 else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
+            }
+            Kind.VISION_TAP, Kind.VISION_LONG_PRESS, Kind.VISION_SWIPE, Kind.VISION_DRAG -> {
+                val gesture = when (action.kind) {
+                    Kind.VISION_TAP -> "tap"
+                    Kind.VISION_LONG_PRESS -> "long_press"
+                    Kind.VISION_SWIPE -> "swipe"
+                    else -> "drag"
+                }
+                if (action.screenPackage.isBlank() || action.screenRevision < 0L || action.foregroundEpoch < 0L ||
+                    !UiAgentVisionPolicy.isSafeGesture(
+                        gesture, action.x1, action.y1, action.x2, action.y2,
+                        screenWidth, screenHeight, density, sensitiveScreen
+                    )) Verdict.REJECT else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
             Kind.TYPE_TEXT -> {
@@ -298,6 +317,7 @@ internal object UiAgentPolicy {
         val detail = when (action.kind) {
             Kind.TAP_NODE, Kind.LONG_PRESS_NODE, Kind.SWIPE_NODE, Kind.DRAG_NODE -> " node #" + action.nodeIndex
             Kind.TAP_OCR, Kind.LONG_PRESS_OCR, Kind.SWIPE_OCR, Kind.DRAG_OCR -> " OCR #" + action.ocrIndex
+            Kind.VISION_TAP, Kind.VISION_LONG_PRESS, Kind.VISION_SWIPE, Kind.VISION_DRAG -> " visual target"
             Kind.TYPE_TEXT -> " field #" + action.nodeIndex
             else -> ""
         }

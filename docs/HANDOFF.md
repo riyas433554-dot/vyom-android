@@ -1017,3 +1017,12 @@ Branch: `feature/memory-intelligence`
 - Added `UiAgentVisionPolicyTest.kt` with six regression cases for normalized screenshot coordinates, safe display bounds, bounded gestures, sensitive-screen denial and unknown gesture rejection. Added the policy skeleton in `UiAgentVisionPolicy.kt`.
 - This is the test-first checkpoint. The expected failing assertions have NOT yet been executed in a CI run; do not claim RED observed. Next implement the pure geometry policy, opt-in screenshot upload to NVIDIA's documented VLM endpoint, and confirmation-gated point gestures. Default screenshot upload must remain OFF and existing text/OCR planning must remain available.
 - Branch remains `feature/memory-intelligence` only. No Android `main`, Hermes/backend, Render, production Supabase, secrets or deployment changes.
+
+
+## 2026-11-02 — Screenshot-based visual Android control implementation
+
+- Added `UiAgentVisionPolicy` with normalized-coordinate mapping, screenshot/display aspect-ratio guard, 24dp edge exclusion, bounded swipe/drag geometry, and whole-screen sensitive-content denial. Added 9 focused policy tests (coordinate mapping, invalid values, aspect ratio, bounds, movement, sensitive content, unknown gesture).
+- Added screenshot-based NVIDIA Vision planner using the documented OpenAI-compatible multimodal chat format and model `nvidia/nemotron-nano-12b-v2-vl`. It can propose tap/long-press/swipe/drag points for custom Canvas/timeline controls that do not expose accessibility nodes or OCR labels.
+- Screenshot upload is explicitly opt-in in the UI Agent dialog and OFF by default. When enabled, a resized JPEG is uploaded to NVIDIA; the temporary local screenshot is deleted after planning. The existing text/OCR planner remains the fallback if screenshot capture or VLM planning fails.
+- Visual point actions are never auto-approved by session grant: they always require explicit confirmation, fresh package/revision/foreground-epoch checks at dispatch, current per-app access + STOP checks, and a second sensitive-screen scan. No password/OTP/payment/security/permission screen may receive coordinate gestures.
+- Source implementation is committed on `feature/memory-intelligence`. CI/build and physical-device runtime verification are not yet confirmed. Screenshot upload and Canvas/timeline interaction remain to be tested on-device; do not describe Android's protected/secure surfaces as controllable.
