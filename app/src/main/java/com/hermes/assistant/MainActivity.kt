@@ -1372,13 +1372,14 @@ class MainActivity : Activity() {
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
                 val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
-                        val allowedApps = uiAgentAllowedApps()
                         val action = try {
+                            val allowedApps = uiAgentAllowedApps()
                             if (screenshotFile != null) requestUiAgentVisionAction(goal, tree, allowedApps, ocrTargets, screenshotFile, screenshotBounds)
                                 ?: requestUiAgentAction(goal, tree, allowedApps, ocrTargets)
                             else requestUiAgentAction(goal, tree, allowedApps, ocrTargets)
-                        } catch (_: Exception) { null }
-                        screenshotFile?.delete()
+                        } catch (_: Exception) { null } finally {
+                            screenshotFile?.delete()
+                        }
                         runOnUiThread {
                         if (generation != uiAgentGeneration) return@runOnUiThread
                         if (action == null) {

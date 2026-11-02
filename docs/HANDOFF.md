@@ -1065,3 +1065,5 @@ Branch: `feature/memory-intelligence`
 - Coordinate mapping correction: OCR remains based on full-display screenshots to preserve its established display-coordinate mapping. Visual AI uses active-window screenshots on API 34+ and maps normalized VLM points through the captured window's actual screen bounds; API 30–33 use full-display bounds.
 
 - Visual point actions also fail closed whenever any editable or password input field is present in the active window; text entry continues through the separately validated accessibility-node path.
+
+- Tightened screenshot/window aspect-ratio tolerance to 5% so coordinate mapping fails closed rather than silently shifting targets when the captured window and screen bounds differ. Temporary screenshot files are cleared before a new capture and deleted in the planner `finally` path; OCR hardware buffers are now closed/recycled on both success and failure.

@@ -460,18 +460,18 @@ class VyomAccessibilityService : AccessibilityService() {
         val revisionAtCapture = screenRevision
         val screenshotCallback = object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
+                var hardware: Bitmap? = null
                 val bitmap = try {
-                    val hardware = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                    hardware = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
                         ?: throw IllegalStateException("Screenshot buffer unavailable")
-                    val copy = hardware.copy(Bitmap.Config.ARGB_8888, false)
+                    hardware!!.copy(Bitmap.Config.ARGB_8888, false)
                         ?: throw IllegalStateException("Could not copy screenshot for local OCR")
-                    screenshot.hardwareBuffer.close()
-                    hardware.recycle()
-                    copy
                 } catch (e: Exception) {
-                    try { screenshot.hardwareBuffer.close() } catch (_: Exception) { }
                     onResult(emptyList(), e.message ?: "OCR screenshot unavailable.")
                     return
+                } finally {
+                    try { hardware?.recycle() } catch (_: Exception) { }
+                    try { screenshot.hardwareBuffer.close() } catch (_: Exception) { }
                 }
                 val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
                 recognizer.process(InputImage.fromBitmap(bitmap, 0))
@@ -640,6 +640,7 @@ class VyomAccessibilityService : AccessibilityService() {
         if (Build.VERSION.SDK_INT < 30) { onResult(null, null, "Screenshot requires Android 11 or newer."); return }
         val rootAtCapture = rootInActiveWindow
         if (!isCurrentAppAllowed(rootAtCapture)) { onResult(null, null, "Current app is not enabled."); return }
+        cacheDir.listFiles()?.filter { it.name.startsWith("vyom-screen-") }?.forEach { it.delete() }
         val windowIdAtCapture = rootAtCapture?.windowId ?: -1
         val displayBounds = android.graphics.Rect(0, 0, resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
         val activeWindowBounds = if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0) {

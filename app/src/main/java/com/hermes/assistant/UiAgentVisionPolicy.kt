@@ -14,7 +14,7 @@ internal object UiAgentVisionPolicy {
         val imageCross = imageWidth.toLong() * screenHeight.toLong()
         val screenCross = screenWidth.toLong() * imageHeight.toLong()
         val difference = kotlin.math.abs(imageCross - screenCross)
-        return difference * 100L <= maxOf(imageCross, screenCross) * 10L
+        return difference * 100L <= maxOf(imageCross, screenCross) * 5L
     }
 
     fun hasSensitiveContext(labels: Collection<String>, hasSensitiveInputField: Boolean): Boolean {

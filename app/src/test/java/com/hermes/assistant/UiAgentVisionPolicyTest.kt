@@ -36,6 +36,7 @@ class UiAgentVisionPolicyTest {
 
     @Test fun screenshotAndDisplayAspectRatiosMustMatch() {
         assertTrue(UiAgentVisionPolicy.isAspectCompatible(720, 1600, 1080, 2400))
+        assertFalse(UiAgentVisionPolicy.isAspectCompatible(720, 1500, 1080, 2400))
         assertFalse(UiAgentVisionPolicy.isAspectCompatible(720, 1200, 1080, 2400))
     }
 
