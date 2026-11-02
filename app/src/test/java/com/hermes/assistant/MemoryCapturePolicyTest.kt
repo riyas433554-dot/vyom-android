@@ -154,4 +154,13 @@ class MemoryCapturePolicyTest {
         )
     }
 
+
+    @Test fun crossScriptLanguageQueriesRetrieveBengaliPreferences() {
+        val facts = listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি.")
+        assertEquals(
+            listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি."),
+            MemoryCapturePolicy.relevantFacts(facts, "Bangla language answers", 5)
+        )
+    }
+
 }
