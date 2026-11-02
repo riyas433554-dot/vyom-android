@@ -939,3 +939,13 @@ Branch: `feature/memory-intelligence`
 - New integration specification and expanded acceptance checklist are recorded in `docs/VYOM_AUTONOMY_AND_CREATIVE_STUDIO.md` and `docs/VYOM_COMPLETION_CHECKLIST.md`. They are specifications, not completed runtime features.
 - The supplied video repositories were audited; no third-party source has yet been copied into the app. VoiceStudio companion automation, Higgsfield provider execution, repository/ZIP learning, Creative Studio, background task orchestration and self-update remain implementation work.
 - Scope unchanged: do not touch Android `main`, Hermes/Telegram, Render, backend, production Supabase, secrets or deployments. Do not deliver an APK until exact-head Debug + CI, artifact checksum and stable signing certificate are verified.
+
+## 2026-11-02 — Signing workflow environment propagation fix (verification pending)
+
+- Inspected exact source/workflow and failed job logs for run `41457214306` on workflow commit `266009e3cd8a0957b66722ffd99b67ae672bc00e`.
+- `testDebugUnitTest assembleDebug` completed successfully; release packaging failed at `:app:packageRelease` with `KeytoolException: keystore password was incorrect`.
+- Root cause confirmed in workflow scope: the signing-validation step received `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` as step-local environment variables, but only wrote `ANDROID_KEYSTORE_PATH` and `ANDROID_KEY_PASSWORD` to `GITHUB_ENV`. The later Gradle process therefore saw empty store-password/alias values. This was a workflow propagation defect, not proof that the user's keystore password itself is invalid.
+- Fixed in commit `0afd2790bda7e225d42cbc592583912c154cd976`: after validation, the workflow now exports the validated keystore path, store password, alias and key password together to subsequent steps. Secret values are not printed. The key password fallback remains allowed only after `keytool -certreq` proves the store password unlocks the alias.
+- The previous full CI run `41457214252` was cancelled before unit tests; only its secret-scan step completed. It is NOT a green CI result.
+- Exact-head Debug/full CI for the fix commit and a signed APK/certificate output have not yet been verified. Do not claim signing continuity, do not uninstall the installed app, and do not deliver an APK until a successful signed artifact is independently inspected and its certificate is compared with the installed/base APK.
+- No Android app source, Android `main`, Hermes/backend, Render, production Supabase, secrets or deployment settings were changed. Only the feature-branch workflow was corrected.
