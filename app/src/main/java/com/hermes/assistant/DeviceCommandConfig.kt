@@ -73,6 +73,40 @@ object DeviceCommandConfig {
         val best=json.keys().asSequence().map { it to json.optString(it) }.maxByOrNull { (learned,_)->similarity(key,learned) } ?: return null
         return best.second.takeIf { similarity(key,best.first)>=if(key.length<=5)80 else 68 }
     }
+    fun learnedCommands(context: Context): Map<String, String> {
+        val root = try {
+            readConfig(context)
+        } catch (_: Exception) {
+            val raw = context.getSharedPreferences("vyom_taught_commands", Context.MODE_PRIVATE)
+                .getString("aliases_json", null) ?: return emptyMap()
+            try { JSONObject(raw) } catch (_: Exception) { return emptyMap() }
+        }
+        val learned = root.optJSONObject("learnedCommands") ?: return emptyMap()
+        return learned.keys().asSequence().mapNotNull { key ->
+            learned.optString(key).takeIf { it.isNotBlank() }?.let { key to it }
+        }.toMap()
+    }
+
+    fun deleteTeaching(context: Context, phrase: String): Boolean {
+        val key = normalize(phrase).take(100)
+        if (key.isBlank()) return false
+        val file = localConfigFile(context)
+        val root = try { if (file.exists()) JSONObject(file.readText()) else readConfig(context) }
+            catch (_: Exception) { return false }
+        val learned = root.optJSONObject("learnedCommands") ?: return false
+        if (!learned.has(key)) return false
+        learned.remove(key)
+        val temp = File(context.filesDir, "device_commands.json.tmp")
+        temp.writeText(root.toString(2))
+        try {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } catch (_: Exception) {
+            temp.delete()
+            throw IllegalStateException("Could not safely update local command config")
+        }
+        return true
+    }
+
     fun saveTeaching(context:Context,phrase:String,canonicalCommand:String) {
         val key=normalize(phrase).take(100); val canonical=canonicalCommand.trim().take(120)
         require(key.isNotBlank()&&canonical.isNotBlank())
