@@ -619,3 +619,18 @@ Branch: `feature/memory-intelligence`
 - This is event-aware re-observation, not deterministic semantic outcome verification. The current `DONE` response still requires manual screen verification; automated goal-success proof remains open.
 - Tests/build/CI and physical device behavior have NOT been run for this step. No CI polling was performed.
 - Scope: Android feature branch only. Android `main`, Hermes/Render, backend and production data were not touched.
+
+
+## 2026-11-02 — UI Agent visible completion-evidence gate
+
+Branch: `feature/memory-intelligence`
+
+- `UiAgentPolicy.Action` now carries `completionEvidence`; `DONE` is rejected unless the evidence is nonblank, at most 120 characters, and exactly matches a label in the latest observed accessibility/OCR label collection (case-insensitive).
+- Planner JSON schema and instructions now require an exact, current, non-sensitive visible label that directly indicates the requested outcome. Invented/paraphrased evidence is not accepted.
+- `DONE` audit/UI messaging now reports a visible-label match and explicitly says it is NOT final proof of success; user must manually verify the actual result.
+- Added four policy regression tests: missing evidence, exact visible match, invented/paraphrased evidence, and overlong evidence. Test source currently contains 32 `@Test` methods.
+- Commits: policy `76189b6260d63a1094504a1e4b544d5498efd29b`; planner/runner `d761c45290f9957134129f58e5c8060b1e873d75`; tests `9b43738a1065e9c8827088fdee6ae318703f2c7f`.
+- Tests/build/CI have NOT been run. These commits are source changes only; Kotlin compilation is unverified.
+- Limitation: exact label matching is a conservative evidence gate, not semantic verification. A visible toast/status label may be stale or unrelated; phone validation and stronger task-specific outcome checks remain open.
+- Next fixed work: add deterministic regression coverage for stale-screen/app-switch rejection, STOP, grant expiry and Android action failure; inspect/implement any missing enforcement. Then run the agreed automated verification before physical phone testing. Memory Intelligence stays paused until Android Control is verified.
+- Scope: Android feature branch only. No Android `main`, Hermes/Render, backend, production DB or deployment changes.
