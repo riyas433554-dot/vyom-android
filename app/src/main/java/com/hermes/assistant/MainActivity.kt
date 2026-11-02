@@ -557,7 +557,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(githubProposalTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
         val selfChangeNotice = TextView(this).apply {
-            text = "Self-change is proposal-only: allowed Kotlin file → separate branch → PR. No auto-merge or auto-install."
+            text = "AI-assisted self-update: inspect one allowed Kotlin file → generate a proposal → separate branch → PR. CI/review required; no auto-merge or auto-install. Policy and STOP files stay protected."
             textSize = 10f
             setTextColor(Color.LTGRAY)
         }
@@ -585,30 +585,32 @@ class MainActivity : Activity() {
                     setSingleLine(true)
                     setText("app/src/main/java/com/hermes/assistant/NemotronLiveClient.kt")
                 }
-                val proposalContent = EditText(this@MainActivity).apply {
-                    hint = "Complete proposed Kotlin file content"
-                    minLines = 6
-                    maxLines = 12
+                val proposalTask = EditText(this@MainActivity).apply {
+                    hint = "Describe what Vyom should improve in this file (max 2,000 characters)"
+                    minLines = 5
+                    maxLines = 8
                     gravity = Gravity.TOP or Gravity.START
                     inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 }
                 form.addView(proposalTitle, LinearLayout.LayoutParams(-1, dp(48)))
                 form.addView(proposalPath, LinearLayout.LayoutParams(-1, dp(48)))
-                form.addView(proposalContent, LinearLayout.LayoutParams(-1, dp(180)))
+                form.addView(proposalTask, LinearLayout.LayoutParams(-1, dp(150)))
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Create review-only proposal")
-                    .setMessage("Only non-policy Kotlin source files are accepted. GitHub will run CI on the PR; you must review and install manually.")
+                    .setMessage("Vyom reads the current source and asks the configured NVIDIA model to generate one complete Kotlin file. Only non-policy Kotlin files are allowed. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
                     .setView(form)
                     .setNegativeButton("CANCEL", null)
                     .setPositiveButton("CREATE PR") { _, _ ->
                         val title = proposalTitle.text.toString().trim()
                         val path = proposalPath.text.toString().trim()
-                        val source = proposalContent.text.toString()
+                        val task = proposalTask.text.toString().trim()
                         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
-                        selfChangeNotice.text = "Validating proposal and opening a separate review branch…"
+                        val nvidiaKey = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+                        val model = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
+                        selfChangeNotice.text = "Reading current source and generating a guarded one-file proposal…"
                         io.execute {
                             try {
-                                val proposal = SelfModificationClient().createProposal(token, title, path, source)
+                                val proposal = SelfModificationClient().createGeneratedProposal(token, nvidiaKey, title, path, task, model)
                                 runOnUiThread {
                                     logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
                                     selfChangeNotice.text = "PR created; waiting for CI and your manual review: ${proposal.pullRequestUrl}"
