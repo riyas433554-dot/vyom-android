@@ -1,6 +1,7 @@
 package com.hermes.assistant
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -77,4 +78,17 @@ class VyomDesignSpecTest {
         assertEquals(VyomDesignSpec.TEXT_SECONDARY, VyomDesignSpec.taskStatusAccent("unknown"))
     }
 
+
+    @Test fun drawerShowsOnlyImplementedDestinationsAndNeverRendersSoonPlaceholders() {
+        val visibleIds = VyomDesignSpec.visibleDrawerItems().map { it.id }
+        assertTrue(visibleIds.containsAll(listOf("home", "automations", "tasks", "control", "skills", "memory")))
+        assertFalse(visibleIds.any { it in setOf("animations", "videos", "images", "vfx", "cgi", "sfx", "icons") })
+        assertEquals(visibleIds.size, visibleIds.distinct().size)
+    }
+
+    @Test fun drawerSearchOnlyReturnsEnabledDestinations() {
+        val results = VyomDesignSpec.visibleDrawerItems("vfx")
+        assertTrue(results.isEmpty())
+        assertTrue(VyomDesignSpec.visibleDrawerItems("memory").any { it.id == "memory" })
+    }
 }
