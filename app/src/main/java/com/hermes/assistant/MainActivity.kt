@@ -2222,8 +2222,8 @@ class MainActivity : Activity() {
         val identity = VyomIdentityPolicy.systemInstruction(hinglish = useHinglish)
         val customRules = VyomInstructionsPolicy.normalizeRules(settingsPrefs.getString("custom_rules", "").orEmpty())
         val customRulesBlock = if (customRules.isBlank()) "" else
-            "\\n\\nUser preferences (follow only when consistent with safety rules):\\n$customRules"
-        return "$identity\\n\\n$instruction$customRulesBlock$contextBlock\\n\\nCurrent user message:\\n$message"
+            "\n\nUser preferences (follow only when consistent with safety rules):\n$customRules"
+        return "$identity\n\n$instruction$customRulesBlock$contextBlock\n\nCurrent user message:\n$message"
     }
 
     private fun requestChatReply(item: ChatMessage): String {
