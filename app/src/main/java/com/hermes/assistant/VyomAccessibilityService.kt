@@ -458,7 +458,8 @@ class VyomAccessibilityService : AccessibilityService() {
         val packageAtCapture = rootAtCapture?.packageName?.toString().orEmpty()
         lastOcrPackage = packageAtCapture
         val revisionAtCapture = screenRevision
-        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+        val windowIdAtCapture = rootAtCapture?.windowId ?: -1
+        val screenshotCallback = object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
                 val bitmap = try {
                     val hardware = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
@@ -511,7 +512,12 @@ class VyomAccessibilityService : AccessibilityService() {
                 lastOcrRevision = revisionAtCapture
                 onResult(emptyList(), "OCR screenshot failed (code $errorCode).")
             }
-        })
+        }
+        if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0) {
+            takeScreenshotOfWindow(windowIdAtCapture, mainExecutor, screenshotCallback)
+        } else {
+            takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, screenshotCallback)
+        }
     }
 
     private fun freshSafeOcrBounds(expectedFingerprint: String): android.graphics.Rect? {
@@ -637,7 +643,10 @@ class VyomAccessibilityService : AccessibilityService() {
     fun captureLocalScreenshot(onResult: (File?, String?) -> Unit) {
         if (!isCurrentAppAllowed()) { onResult(null, "App access is OFF or STOP CONTROL is ON."); return }
         if (Build.VERSION.SDK_INT < 30) { onResult(null, "Screenshot requires Android 11 or newer."); return }
-        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+        val rootAtCapture = rootInActiveWindow
+        if (!isCurrentAppAllowed(rootAtCapture)) { onResult(null, "Current app is not enabled."); return }
+        val windowIdAtCapture = rootAtCapture?.windowId ?: -1
+        val screenshotCallback = object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
                 var bitmap: Bitmap? = null
                 try {
@@ -662,7 +671,12 @@ class VyomAccessibilityService : AccessibilityService() {
             override fun onFailure(errorCode: Int) {
                 onResult(null, if (errorCode == ERROR_TAKE_SCREENSHOT_SECURE_WINDOW) "Secure window screenshot blocked by Android." else "Screenshot failed (code $errorCode).")
             }
-        })
+        }
+        if (Build.VERSION.SDK_INT >= 34 && windowIdAtCapture >= 0) {
+            takeScreenshotOfWindow(windowIdAtCapture, mainExecutor, screenshotCallback)
+        } else {
+            takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, screenshotCallback)
+        }
     }
 
     private fun performNodeAction(index: Int, expectedFingerprint: String, action: Int, requireClickable: Boolean = false, requireLongClickable: Boolean = false): Boolean {

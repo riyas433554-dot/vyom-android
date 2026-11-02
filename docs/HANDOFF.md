@@ -1054,3 +1054,10 @@ Branch: `feature/memory-intelligence`
 - Screenshot capture now closes the hardware buffer and recycles both hardware/software bitmap handles in a `finally` path, including file-write failures. Additional sensitive-context tests cover destructive labels, numeric OTP-like values and email addresses.
 
 - Final prompt/safety adjustment: the screenshot VLM is instructed to ignore Vyom's own floating progress/STOP overlay; export actions are included in the sensitive-screen deny scan. Marker circles now use the explicit Android oval shape setter.
+
+
+## 2026-11-02 — Android screenshot capability and overlay-safe capture
+
+- Declared `android:canTakeScreenshot="true"` in the Accessibility Service metadata. Android's API explicitly requires this capability for `takeScreenshot` / `takeScreenshotOfWindow`.
+- On Android 14+ (API 34), both local OCR and opt-in visual planning now use `takeScreenshotOfWindow` for the exact active app window, so Vyom's own accessibility overlay does not cover the app screenshot. Android 11–13 retain the display screenshot fallback.
+- Secure-window screenshots remain blocked by Android and are not bypassed.
