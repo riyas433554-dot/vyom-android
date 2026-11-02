@@ -556,6 +556,13 @@ class UiAgentPolicyTest {
                 visibleNodes = listOf(node)))
     }
 
+    @Test fun systemUiCompletionRequiresVisibleRequestedToggleState() {
+        assertTrue(UiAgentPolicy.isSystemUiCompletionVerified("Wi-Fi, On", "Turn on Wi-Fi"))
+        assertTrue(UiAgentPolicy.isSystemUiCompletionVerified("Bluetooth, Off", "Turn off Bluetooth"))
+        assertFalse(UiAgentPolicy.isSystemUiCompletionVerified("Wi-Fi, Off", "Turn on Wi-Fi"))
+        assertFalse(UiAgentPolicy.isSystemUiCompletionVerified("Brightness", "Make the screen brighter"))
+    }
+
     @Test fun systemUiRejectsVisualCoordinatesAndUnapprovedLabels() {
         val point = UiAgentPolicy.Action(
             UiAgentPolicy.Kind.VISION_TAP,

@@ -1649,6 +1649,12 @@ class MainActivity : Activity() {
                         logControlAction(UiAgentPolicy.auditLabel(action), "target-app-not-foreground-after-launch", "ui-agent")
                         finish("Android accepted the app launch, but the requested app did not become foreground. Task stopped; no action was taken on another app.")
                     }
+                    action.kind == UiAgentPolicy.Kind.QUICK_SETTINGS &&
+                        observation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
+                        !AppAccessPolicy.isAllowed(this@MainActivity, observation.foregroundPackage) -> {
+                        logControlAction(UiAgentPolicy.auditLabel(action), "system-ui-access-off", "ui-agent")
+                        finish("Quick Settings opened, but Android System UI access is OFF. Enable it in Profile > App access to continue. No further action was taken.")
+                    }
                     else -> {
                         logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-after-action", "ui-agent")
                         finish("Foreground app changed or became unavailable after the action. Task stopped; no further action was taken on another app.")

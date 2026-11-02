@@ -1083,3 +1083,5 @@ Branch: `feature/memory-intelligence`
 - Tightened System UI isolation further: only nodes whose package is exactly `com.android.systemui` survive the filter; OCR text is never sent to the planner for System UI, and screenshot/VLM remains disabled there. If System UI access is off, the agent explains the required manual opt-in instead of silently stopping.
 
 - Tightened System UI interaction from text/OCR targets to exact clickable accessibility-node IDs/fingerprints only; the only non-clickable exception is the labelled Brightness SeekBar, which permits a confirmed drag. Notification text cannot become a tappable target merely because it resembles a safe label.
+
+- Quick Settings completion now requires a visible state matching the requested direction (e.g. Wi-Fi On for “turn on Wi-Fi”, Off for “turn off Wi-Fi”); merely seeing the tile no longer satisfies DONE. If System UI opt-in is missing after opening Quick Settings, the user receives the exact Profile > App access instruction.

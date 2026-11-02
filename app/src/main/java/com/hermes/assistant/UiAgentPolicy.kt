@@ -295,6 +295,16 @@ internal object UiAgentPolicy {
     }
 
     /** System UI can show private notifications; only explicitly requested quick-setting controls pass. */
+    fun isSystemUiCompletionVerified(evidence: String, userGoal: String): Boolean {
+        if (!isSafeSystemUiLabel(evidence) || !isSystemUiTargetRequested(evidence, userGoal)) return false
+        val state = Regex("""(?i)\b(on|off|enabled|disabled|connected|disconnected)\b""")
+            .find(evidence)?.value?.lowercase() ?: return false
+        val wantsOn = Regex("""(?i)\b(turn on|enable|activate|connect|on)\b""").containsMatchIn(userGoal)
+        val wantsOff = Regex("""(?i)\b(turn off|disable|deactivate|disconnect|off)\b""").containsMatchIn(userGoal)
+        return (wantsOn && state in setOf("on", "enabled", "connected")) ||
+            (wantsOff && state in setOf("off", "disabled", "disconnected"))
+    }
+
     private fun validateSystemUiAction(
         action: Action, visibleLabels: Collection<String>, userGoal: String,
         visibleNodes: Collection<VisibleNode>, visibleOcr: Collection<VisibleOcr>
@@ -323,7 +333,7 @@ internal object UiAgentPolicy {
             Kind.WAIT -> if (action.waitMs in 250..8000) Verdict.ALLOW else Verdict.REJECT
             Kind.DONE -> if (action.completionEvidence.isNotBlank() &&
                 visibleLabels.any { it.trim().equals(action.completionEvidence.trim(), true) } &&
-                isSafeSystemUiLabel(action.completionEvidence)) Verdict.ALLOW else Verdict.REJECT
+                isSystemUiCompletionVerified(action.completionEvidence, userGoal)) Verdict.ALLOW else Verdict.REJECT
             else -> Verdict.REJECT
         }
     }
