@@ -999,3 +999,13 @@ Branch: `feature/memory-intelligence`
 - Bumped build defaults and workflow to `0.3.1`, versionCode `4` in `806071f`. Application ID `com.vyom.assistant` and namespace `com.hermes.assistant` were not changed.
 - Added `docs/ANDROID_SIGNING.md` and linked it from the checklist; updated S6/S7 acceptance statuses.
 - Current checkpoint before this handoff append: `5be4f0a155093d88ea086291dfb3ab1dbc8d6e6b`. No exact-head Debug/full CI run, signed artifact, certificate comparison or phone update test has been observed after these changes. Release remains BLOCKED/UNVERIFIED; do not deliver an APK.
+
+## 2026-11-02 — Device action outcome honesty and readback
+
+- Added `DeviceActionExecutor.auditState()`; unknown/legacy result text defaults to `unverified`, not `executed`. Blocked, failed, permission-required, pending, not-verified and verified are distinct audit states.
+- Media volume increase/decrease/set/mute/unmute now read back Android's actual `STREAM_MUSIC` value and report `Verified` only when the actual value equals the requested value.
+- Brightness writes now read back `Settings.System.SCREEN_BRIGHTNESS`; success is reported only when the stored value matches. Torch requests are explicitly `Pending verification` because the current path does not yet observe a TorchCallback. App/settings/alarm/timer/dialer/SMS/share launches are explicitly pending until foreground/result verification; they no longer claim the target action is complete. Calls/messages/shares/alarms are not claimed sent or set.
+- MainActivity now logs the executor's verification state instead of treating every non-exception response as executed/confirmed; voice acknowledgement says “Checking” rather than implying success. Settings shortcuts are also logged as verification-pending.
+- Added `DeviceActionExecutorTest` (2 tests) for status classification, blocked/no-op handling and unknown-result fallback. Expected whole unit suite count is now 151 (144 baseline + 3 UI Agent + 2 design + 2 device-result tests). Tests have not been run.
+- Updated A6 in `docs/ACCEPTANCE_TESTS.md`. Direct app-launch foreground verification, TorchCallback verification and domain-specific postconditions for generic UI actions remain incomplete.
+- Current checkpoint before this handoff append: `955a27714c8f2ef43253bc45ee02c3e3a863e8a2` on `feature/memory-intelligence`. CI, Debug/full CI, signed artifact and phone testing remain UNVERIFIED.
