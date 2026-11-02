@@ -1134,9 +1134,7 @@ class MainActivity : Activity() {
     private var uiAgentGeneration = 0
 
     private fun showUiAgentPanel() {
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val installedPackages = packageManager.queryIntentActivities(launcherIntent, 0).mapNotNull { it.activityInfo?.packageName }.distinct()
-        AppAccessPolicy.initializeForInstalledApps(this, installedPackages)
+        AppAccessPolicy.initializeForInstalledApps(this)
         val input = EditText(this).apply {
             hint = "e.g. CapCut mein current clip trim karo"
             minLines = 2
