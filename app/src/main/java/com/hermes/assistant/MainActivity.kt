@@ -1085,7 +1085,7 @@ class MainActivity : Activity() {
             "connections", "settings" -> showTab(false, true)
             "memory" -> showMemoryManager()
             "instructions" -> showInstructions()
-            "voice" -> showVoiceMode()
+            "voice" -> showTab(false, true)
             "system" -> showVoiceDiagnostics()
             "stop_control" -> activateControlKillSwitch()
         }
