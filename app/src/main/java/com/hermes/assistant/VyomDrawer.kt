@@ -103,9 +103,7 @@ internal class VyomDrawer(
         fun render(filter: String) {
             list.removeAllViews()
             val query = filter.trim().lowercase()
-            val matches = VyomDesignSpec.drawerItems.filter {
-                query.isBlank() || it.label.lowercase().contains(query) || it.section.lowercase().contains(query)
-            }
+            val matches = VyomDesignSpec.visibleDrawerItems(filter)
             var lastSection = ""
             matches.forEach { item ->
                 if (item.section != lastSection) {
@@ -149,14 +147,6 @@ internal class VyomDrawer(
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                     setTextColor(if (item.enabled) VyomDesignSpec.TEXT_PRIMARY else VyomDesignSpec.TEXT_SECONDARY)
                 }, LinearLayout.LayoutParams(0, -2, 1f))
-                if (!item.enabled) {
-                    row.addView(TextView(activity).apply {
-                        text = "SOON"
-                        textSize = 8f
-                        typeface = Typeface.MONOSPACE
-                        setTextColor(VyomDesignSpec.TEXT_SECONDARY)
-                    })
-                }
                 list.addView(row, LinearLayout.LayoutParams(-1, dp(44)).apply {
                     bottomMargin = dp(3)
                 })
