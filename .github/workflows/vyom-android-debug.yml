@@ -42,7 +42,7 @@ jobs:
           APK="vyom-0.3.0-${SHORT_SHA}.apk"
           mkdir -p output
           cp app/build/outputs/apk/debug/app-debug.apk "output/${APK}"
-          sha256sum "output/${APK}" | tee "output/${APK}.sha256"
+          (cd output && sha256sum "${APK}") > "output/${APK}.sha256"
           printf 'versionName=0.3.0\nversionCode=3\ncommit=%s\n' "$SHORT_SHA" > output/build-info.txt
       - name: Upload unsigned debug APK
         uses: actions/upload-artifact@v4
