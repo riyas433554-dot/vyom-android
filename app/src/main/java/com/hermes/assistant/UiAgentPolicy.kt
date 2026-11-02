@@ -27,6 +27,16 @@ internal object UiAgentPolicy {
 
     data class ScreenBounds(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
+    fun isGestureWithinDisplay(
+        x1: Float, y1: Float, x2: Float, y2: Float, screenWidth: Int, screenHeight: Int
+    ): Boolean {
+        if (screenWidth <= 0 || screenHeight <= 0 ||
+            !x1.isFinite() || !y1.isFinite() || !x2.isFinite() || !y2.isFinite()) return false
+        fun inside(x: Float, y: Float) =
+            x >= 0f && y >= 0f && x < screenWidth.toFloat() && y < screenHeight.toFloat()
+        return inside(x1, y1) && inside(x2, y2)
+    }
+
     /** Maps OCR pixels from the captured screenshot into current display pixels.
      * Refuses invalid bounds and portrait/landscape mismatches rather than guessing.
      */
