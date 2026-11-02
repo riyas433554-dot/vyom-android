@@ -21,12 +21,10 @@ internal object MemoryCapturePolicy {
         val safeLimit = limit.coerceIn(0, 30)
         if (safeLimit == 0) return emptyList()
         val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please", "আমি", "আমার", "পছন্দ", "করি", "হয়", "হবে", "দাও", "দেন", "এবং", "যে", "আমাকে")
-        val queryTokens = Regex("[\\p{L}\\p{M}\\p{N}]{2,}").findAll(query.lowercase())
-            .map { it.value }.filterNot { it in ignored }.toSet()
+        val queryTokens = semanticTokens(query, ignored)
         val safeFacts = facts.filter { it.isNotBlank() && !isSensitive(it) }
         return safeFacts.withIndex().map { indexed ->
-            val tokens = Regex("[\\p{L}\\p{M}\\p{N}]{2,}").findAll(indexed.value.lowercase())
-                .map { it.value }.filterNot { it in ignored }.toSet()
+            val tokens = semanticTokens(indexed.value, ignored)
             val score = queryTokens.count { it in tokens }
             Triple(score, indexed.index, indexed.value)
         }.sortedWith(compareByDescending<Triple<Int, Int, String>> { it.first }.thenByDescending { it.second })
@@ -87,6 +85,25 @@ internal object MemoryCapturePolicy {
         return emptyList()
     }
 
+    private fun semanticTokens(text: String, ignored: Set<String>): Set<String> =
+        Regex("[\\p{L}\\p{M}\\p{N}]{2,}").findAll(text.lowercase())
+            .map { canonicalToken(it.value) }
+            .filterNot { it in ignored }
+            .toSet()
+
+    /** Small, explicit synonym map; this is lexical retrieval, not embedding/vector search. */
+    private fun canonicalToken(token: String): String = when (token) {
+        "short", "brief", "concise", "compact", "detailed", "detail", "long", "verbose",
+        "thorough", "comprehensive", "length", "verbosity", "depth" -> "response-style"
+        "answer", "answers", "reply", "replies", "response", "responses" -> "response"
+        "bangla" -> "bengali"
+        "bullet", "bullets", "list", "lists" -> "list-format"
+        "confirm", "confirmation", "approve", "approval", "autonomous", "automatic",
+        "automatically", "ask" -> "execution-consent"
+        "action", "actions", "task", "tasks", "change", "changes" -> "action"
+        else -> token
+    }
+
     private fun conflictTopic(memory: String): String? {
         val value = memory.lowercase()
         if (!Regex("(prefer|like|dislike|preference|pasand|পছন্দ)").containsMatchIn(value)) return null
@@ -95,6 +112,10 @@ internal object MemoryCapturePolicy {
         if (Regex("(english|hindi|hinglish|bengali|bangla|language|বাংলা|হিন্দি|ইংরেজি)").containsMatchIn(value)) return "language"
         if (Regex("\\b(dark|light)\\s+themes?\\b").containsMatchIn(value)) return "theme"
         if (Regex("(markdown|plain text|bullets?|numbered lists?|prose)").containsMatchIn(value)) return "format"
+        if (Regex("(direct|blunt|friendly|formal|casual|polite|warm|critical|supportive)").containsMatchIn(value) &&
+            Regex("(answers?|replies?|responses?|communication|tone)").containsMatchIn(value)) return "tone"
+        if (Regex("(confirm|confirmation|approval|approve|autonomous|automatic|ask before|without asking)").containsMatchIn(value) &&
+            Regex("(actions?|tasks?|changes?)").containsMatchIn(value)) return "execution-consent"
         return null
     }
 
