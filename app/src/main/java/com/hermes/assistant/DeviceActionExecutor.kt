@@ -89,8 +89,8 @@ internal object DeviceActionExecutor {
             val launch=try { pm.getLaunchIntentForPackage(pkg) } catch(_:Exception) { null }
             if(launch!=null) return openIntent(a,launch,DeviceCommandConfig.displayNameForPackage(pkg) ?: n)
             val installed=try { pm.getPackageInfo(pkg,0); true } catch(_:PackageManager.NameNotFoundException) { false } catch(_:Exception) { false }
-            if(!installed) return "App not installed: " + (DeviceCommandConfig.displayNameForPackage(pkg) ?: n) + " (" + pkg + "). Android launcher visibility queries are enabled; install the app or check its package."
-            return "App is installed but has no visible launcher activity: " + (DeviceCommandConfig.displayNameForPackage(pkg) ?: n) + "."
+            if(!installed) return "Failed: App not installed: " + (DeviceCommandConfig.displayNameForPackage(pkg) ?: n) + " (" + pkg + "). Android launcher visibility queries are enabled; install the app or check its package."
+            return "Failed: App is installed but has no visible launcher activity: " + (DeviceCommandConfig.displayNameForPackage(pkg) ?: n) + "."
         }
         val launcher=Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val apps=try { pm.queryIntentActivities(launcher,0) } catch(_:Exception) { emptyList() }
@@ -98,8 +98,8 @@ internal object DeviceActionExecutor {
             .map { (info,label) -> Triple(info,label,DeviceCommandConfig.similarityScore(n,label)) }
             .filter { it.third >= DeviceCommandConfig.minimumAppMatchScore(n) }
             .maxByOrNull { it.third }
-            ?: return "No matching launcher app is visible. '" + n + "' may not be installed, or Android package visibility may hide it; launcher visibility queries are enabled."
-        val intent=pm.getLaunchIntentForPackage(hit.first.activityInfo.packageName) ?: return "App is visible but has no launch screen: " + hit.second + "."
+            ?: return "Failed: No matching launcher app is visible. '" + n + "' may not be installed, or Android package visibility may hide it; launcher visibility queries are enabled."
+        val intent=pm.getLaunchIntentForPackage(hit.first.activityInfo.packageName) ?: return "Failed: App is visible but has no launch screen: " + hit.second + "."
         return openIntent(a,intent,hit.second)
     }
     private fun setBrightness(a:Activity,p:Int):String {
