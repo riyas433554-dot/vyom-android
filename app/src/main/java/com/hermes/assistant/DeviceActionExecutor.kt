@@ -14,7 +14,7 @@ import android.provider.Settings
 
 internal object DeviceActionExecutor {
     fun execute(activity: Activity, action: ActionEngine.Intent): String { return when (action.operation) {
-        ActionEngine.Operation.BLOCK -> "Blocked by Vyom safety policy."
+        ActionEngine.Operation.BLOCK -> "Blocked: Vyom safety policy."
         ActionEngine.Operation.INSTALL_PLAY_STORE -> "Pending verification: Play Store install flow must be opened after explicit confirmation."
         ActionEngine.Operation.OPEN_SETTINGS -> openIntent(activity, Intent(action.settingsAction ?: Settings.ACTION_SETTINGS), action.name)
         ActionEngine.Operation.OPEN_APP -> openApp(activity, action.target)
@@ -117,11 +117,11 @@ internal object DeviceActionExecutor {
     private fun setTorch(a:Activity,on:Boolean):String {
         if(a.checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED) {
             a.requestPermissions(arrayOf(Manifest.permission.CAMERA),704)
-            return "Camera permission requested. Allow it, then repeat the torch command."
+            return "Pending permission: Camera permission requested. Allow it, then repeat the torch command."
         }
         return try {
             val m=a.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val id=m.cameraIdList.firstOrNull { m.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE)==true } ?: return "This device has no available torch."
+            val id=m.cameraIdList.firstOrNull { m.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE)==true } ?: return "Failed: This device has no available torch."
             m.setTorchMode(id,on)
             "Pending verification: Android accepted the torch ${if(on) "ON" else "OFF"} request; the torch state callback has not yet been independently observed."
         } catch(e:Exception) { "Failed: Could not change torch: " + (e.message ?: "Android camera service error") }
@@ -131,12 +131,14 @@ internal object DeviceActionExecutor {
         i:Intent,
         label:String,
         pendingMessage:String = "Pending verification: Android launch requested for $label; foreground package has not yet been confirmed."
-    ):String = try {
-        val resolved=i.resolveActivity(a.packageManager)
-            ?: return "Failed: No Android app can handle $label."
-        a.startActivity(i)
-        "$pendingMessage (handler: ${resolved.packageName})."
-    } catch(e:Exception) { "Failed: Could not open $label: " + (e.message ?: "Android rejected the request") }
+    ):String {
+        return try {
+            val resolved=i.resolveActivity(a.packageManager)
+                ?: return "Failed: No Android app can handle $label."
+            a.startActivity(i)
+            "$pendingMessage (handler: ${resolved.packageName})."
+        } catch(e:Exception) { "Failed: Could not open $label: " + (e.message ?: "Android rejected the request") }
+    }
 
     internal fun auditState(message:String):String = when {
         message.startsWith("Verified:", ignoreCase = true) -> "verified"
@@ -150,6 +152,6 @@ internal object DeviceActionExecutor {
             message.startsWith("Could not", ignoreCase = true) ||
             message.startsWith("No Android", ignoreCase = true) ||
             message.startsWith("Android refused", ignoreCase = true) -> "failed"
-        else -> "executed"
+        else -> "unverified"
     }
 }
