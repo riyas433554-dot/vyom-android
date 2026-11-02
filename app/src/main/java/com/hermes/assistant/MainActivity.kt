@@ -3850,6 +3850,11 @@ class MainActivity : Activity() {
                             if (DeviceCommandConfig.deleteTeaching(this, phrase)) {
                                 logControlAction("Teach command: $phrase", "deleted-from-local-library", "profile")
                                 showTeachLibrary()
+                            } else {
+                                AlertDialog.Builder(this)
+                                    .setMessage("Phrase delete nahi hui. Local storage update failed; original teaching safe rakhi gayi.")
+                                    .setPositiveButton("OK", null)
+                                    .show()
                             }
                         }
                     }
