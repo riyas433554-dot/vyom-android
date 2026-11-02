@@ -1487,8 +1487,20 @@ class MainActivity : Activity() {
             UiAgentPolicy.Kind.BACK -> service.global("back", action.screenPackage)
             UiAgentPolicy.Kind.WAIT -> false // handled by the bounded asynchronous wait path above
             UiAgentPolicy.Kind.DONE -> {
-                logControlAction(UiAgentPolicy.auditLabel(action), "visible-completion-evidence-matched; user review required", "ui-agent")
-                finish("Screen par completion label match hua: \"" + action.completionEvidence + "\". Ye success ka final proof nahi hai — app mein result manually verify karo.")
+                if (goal.contains("from Google Play Store", ignoreCase = true) &&
+                    goal.startsWith("Install ", ignoreCase = true)) {
+                    val installed = verifyInstalledPlayStoreApp(goal)
+                    if (installed != null) {
+                        logControlAction("Play Store install", "installed-package-verified: $installed", "ui-agent")
+                        finish("Installation verified: $installed. Android package manager confirms the app is installed.")
+                    } else {
+                        logControlAction("Play Store install", "completion-label-seen; installed package not verified", "ui-agent")
+                        finish("Play Store screen par completion label mila, lekin Android package manager matching installed app verify nahi kar saka. Isliye install ko SUCCESS mark nahi kiya.")
+                    }
+                } else {
+                    logControlAction(UiAgentPolicy.auditLabel(action), "visible-completion-evidence-matched; final outcome still requires app-specific verification", "ui-agent")
+                    finish("Screen par completion label match hua: \"" + action.completionEvidence + "\". Action label match hua hai; actual result abhi independently verify nahi hua.")
+                }
                 return
             }
         }
@@ -3560,6 +3572,27 @@ class MainActivity : Activity() {
             logControlAction("Play Store search: $query", "open-failed", source)
             callback("Play Store search open nahi ho saka: " + (error.message ?: "Android activity unavailable"))
         }
+    }
+
+    private fun verifyInstalledPlayStoreApp(goal: String): String? {
+        val requested = Regex(
+            """(?i)\\binstall\\s+(.+?)\\s+from\\s+(?:google\\s+)?play\\s*store\\b"""
+        ).find(goal)?.groupValues?.getOrNull(1) ?: return null
+        val ignored = setOf("latest", "newest", "version", "app", "application", "the", "official")
+        val tokens = Regex("""[\\p{L}\\p{N}]+""").findAll(requested.lowercase())
+            .map { it.value }.filter { it !in ignored }.toSet()
+        if (tokens.isEmpty()) return null
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val matches = packageManager.queryIntentActivities(launcherIntent, 0).mapNotNull { resolve ->
+            val info = resolve.activityInfo ?: return@mapNotNull null
+            val label = resolve.loadLabel(packageManager)?.toString().orEmpty()
+            val labelTokens = Regex("""[\\p{L}\\p{N}]+""").findAll(label.lowercase()).map { it.value }.toSet()
+            if (tokens.all { it in labelTokens }) info.packageName to label else null
+        }.distinctBy { it.first }
+        val match = matches.singleOrNull() ?: return null
+        val version = try { packageManager.getPackageInfo(match.first, 0).versionName ?: "unknown" }
+            catch (_: Exception) { "unknown" }
+        return "${match.second} (${match.first}), version ${version}"
     }
 
     private fun openInstallPicker(source: String, callback: (String) -> Unit) {
