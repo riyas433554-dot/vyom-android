@@ -809,3 +809,50 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Scope audit performed in this pass: first-run app access is deny-by-default; existing stored choices are preserved; blocked finance/payment identifiers remain denied; STOP CONTROL is checked in the accessibility service and action loop; accessibility gestures require fresh observations and bounded screen regions; OCR actions require matching fresh OCR fingerprints and safe mapped bounds; WAIT and OPEN_APP have dedicated freshness/continuation gates.
 - Remaining audit limits: this is source review plus automated unit-test/build evidence, not physical-device proof. Android framework gesture behavior, overlay visibility, OCR coordinate alignment across device-specific display modes, and app-switch/permission-revocation behavior still require device validation. Do not claim Full Android Control production-complete until these limitations and remaining cross-file audit are closed.
 - The earlier compile-fix entry above is historical; its rerun requirement is satisfied by the two green exact-head workflows listed here.
+
+
+## 2026-11-02 — Memory Intelligence retrieval and context hardening (verified)
+
+Branch: `feature/memory-intelligence`
+
+### Exact-head verification
+- Source head before this documentation-only update: `9a9536bcca2bc9be9dbcbb9eb30508d402cd9fe7`.
+- Android Debug run `41398310496`: SUCCESS on exact head. `:app:testDebugUnitTest`, `:app:assembleDebug`, versioned packaging and artifact upload all passed. Build log: `BUILD SUCCESSFUL in 3m 13s`.
+- Debug artifact: `vyom-0.3.0-9a9536bcca2bc9be9dbcbb9eb30508d402cd9fe7`, artifact ID `13120811235`, 45,878,849 bytes, expires 2026-12-02. Artifact ZIP digest: `d7bab97828abad399ec5e5981d1f617d2e6f79416bad5ad984e4bee5af2e50c3`.
+- Android CI run `41398310583`: SUCCESS on the same exact head. Secret scan, unit tests, debug APK build, packaging and upload all passed. Build log: `BUILD SUCCESSFUL in 3m 6s`.
+- CI artifact: `vyom-phase6-9a9536bcca2bc9be9dbcbb9eb30508d402cd9fe7`, artifact ID `13120636678`, 45,878,842 bytes, expires 2026-12-02. Artifact ZIP digest: `5729d5bf934132c9dd72655b406af9a53d4bbef97bf7f7e37cd9af4579d72b92`.
+- Gradle unit-test task reported success in both workflows. The suite contained 126 tests at this checkpoint; focused files: `MemoryCapturePolicyTest.kt` 21 tests and `ChatContextPolicyTest.kt` 6 tests.
+- These are unsigned debug artifacts, not signed release APKs. Physical device behavior and installation continuity remain unverified.
+
+### Memory retrieval improvements
+- `MemoryCapturePolicy.relevantFacts` now identifies conflict categories across response style, language, theme, output format, tone and execution consent.
+- For each detected conflict category, only the newest fact is included in the model context. Older facts remain in encrypted local storage and remain editable/deletable in the Memory screen; they are not erased by retrieval.
+- Conflict ranking is evaluated before applying the retrieval limit, so an older high-overlap fact cannot displace the latest preference when `limit=1`.
+- Added cross-script Bengali normalization: Bengali `বাংলা` aligns with English `Bangla/Bengali`; `ভাষা/ভাষায়` aligns with `language`; Bengali Hindi/English terms are normalized to their English labels.
+- Regression tests cover newest-conflict-only prompt retrieval, limit-one recency, cross-worded response style, tone, execution consent, and cross-script Bengali language lookup.
+- Important limitation remains: this is bounded synonym-aware lexical matching, NOT embedding/vector semantic search. Supported extraction/retrieval coverage is explicit English, Hinglish and Bengali patterns; it is not general multilingual understanding.
+
+### Context budget and long-reply source audit
+- `ChatContextPolicy.buildContext` now keeps explicit memory/history section labels and preserves complete newest lines when the context budget is tight; if the newest line alone exceeds its budget, its suffix is retained.
+- Context remains bounded (production call currently uses 1,200 characters); current user message is appended separately and is not folded into that budget.
+- Added tests for section-label retention, newest memory/history line retention, zero/negative budget behavior and the existing maximum-context bound.
+- Source audit of `VyomApiClient.request` found the response body is read with `readText()`; no fixed response-character cap was found in that path. Chat rendering sets the full reply string on a selectable TextView and no fixed reply `take()`/substring truncation was found. This is source inspection only, not proof of full long-reply rendering on every Android device.
+- Markdown rendering currently handles headings (`#` through `###`), bold, italic, inline code and fenced code blocks. It is a lightweight renderer, not full CommonMark; tables, nested lists and other Markdown extensions are not guaranteed.
+
+### Verification history and resolved intermediate failures
+- Context truncation regression initially failed on old verbose section labels; fixed by shorter labels and a 110-character boundary test.
+- Cross-script Bengali regression was added before its normalization fix; the fix is in commit `8e7310f280098c9b817d6336cf84c88b4e71d943`.
+- Conflict suppression was implemented in `ecd10280de9b73f7df58c4820aaf973951eacf48`; the first run then correctly exposed seven stale expectations that still asserted older facts should be returned. Assertions were updated to require newest-only results in `9a9536bcca2bc9be9dbcbb9eb30508d402cd9fe7`; exact-head CI and Debug are green as recorded above.
+- Earlier retrieval limit-one regression fix `2cd72ebb029253f550149588a073ae2a3153a2c8` had exact-head CI run `41396704217` and Debug run `41396704380` both SUCCESS. This newer checkpoint supersedes that artifact.
+
+### Remaining Memory Intelligence blockers
+- Supabase was inspected read-only: one project `Vyom-Hermes` (`kjsxsswgzyoezjuzpfqm`), no staging branch, existing `public.memory` schema has `chat_id`, `memory`, `created_at`, no Android identity mapping, and vector extension has no installed version.
+- No Supabase schema/data/extension/migration writes were made. Do not enable vector, create staging resources, or sync Android-local facts into Telegram's `chat_id` memory table without explicit approval and a validated Android identity/isolation design.
+- Production vector migration, semantic embedding retrieval, staging validation and cross-device sync remain BLOCKED. Do not call Memory Intelligence fully production-complete.
+- Current local encrypted memory capture, user-editable storage, synonym-aware lexical retrieval, conflict resolution and bounded prompt context are implemented and exact-head CI/Debug green.
+
+### Design handoff
+- Retrieved the supplied `Vyom — Design System, Home, Drawer, Automations (1).html` prototype (8,009,167 bytes) for the next phase. It contains the app-wide visual/system reference and screens including Home, Drawer, Automations, Chat, Tasks, Skills, Teach Vyom, Assistant control, Audit log, Permissions, Memory, Instructions, Voice, Connections, Model picker, System and Self-update.
+- Design implementation has NOT started in this checkpoint. Preserve the supplied dark HUD/liquid-glass direction and its documented color/type tokens; inspect the embedded screen assets and map each screen to the existing Android navigation/components before implementation.
+- Agreed order remains: Android Control implementation → Memory Intelligence local implementation → supplied app design implementation → final exact-head APK for user phone testing. Physical phone testing remains user-side and is deferred until the requested implementation phases are complete.
+- Scope: Android repository feature branch only. Android `main`, Hermes/Telegram, Render, backend and production Supabase were not touched.
