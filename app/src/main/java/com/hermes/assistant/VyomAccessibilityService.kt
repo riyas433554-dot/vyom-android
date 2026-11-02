@@ -586,8 +586,14 @@ class VyomAccessibilityService : AccessibilityService() {
                     val bitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
                         ?: throw IllegalStateException("Screenshot buffer unavailable")
                     val file = File(cacheDir, "vyom-screen-${System.currentTimeMillis()}.png")
-                    FileOutputStream(file).use { bitmap.copy(Bitmap.Config.ARGB_8888, false).compress(Bitmap.CompressFormat.PNG, 100, it) }
-                    bitmap.recycle()
+                    val copy = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                        ?: throw IllegalStateException("Could not copy screenshot")
+                    try {
+                        FileOutputStream(file).use { copy.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    } finally {
+                        copy.recycle()
+                        bitmap.recycle()
+                    }
                     screenshot.hardwareBuffer.close()
                     onResult(file, null)
                 } catch (e: Exception) { onResult(null, e.message ?: "Could not save screenshot.") }

@@ -1661,13 +1661,19 @@ class MainActivity : Activity() {
         val displayHeight = resources.displayMetrics.heightPixels
         val source = BitmapFactory.decodeFile(screenshotFile.absolutePath) ?: return null
         val bitmap = try {
-            if (!UiAgentVisionPolicy.isAspectCompatible(source.width, source.height, displayWidth, displayHeight)) return null
+            if (!UiAgentVisionPolicy.isAspectCompatible(source.width, source.height, displayWidth, displayHeight)) {
+                source.recycle()
+                return null
+            }
             val scale = minOf(1f, 1280f / maxOf(source.width, source.height).toFloat())
             if (scale < 1f) Bitmap.createScaledBitmap(
                 source, (source.width * scale).toInt().coerceAtLeast(1),
                 (source.height * scale).toInt().coerceAtLeast(1), true
             ) else source
-        } catch (_: Exception) { return null }
+        } catch (_: Exception) {
+            source.recycle()
+            return null
+        }
         try {
             val bytes = ByteArrayOutputStream().use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 76, output)

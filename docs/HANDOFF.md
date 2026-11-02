@@ -1026,3 +1026,11 @@ Branch: `feature/memory-intelligence`
 - Screenshot upload is explicitly opt-in in the UI Agent dialog and OFF by default. When enabled, a resized JPEG is uploaded to NVIDIA; the temporary local screenshot is deleted after planning. The existing text/OCR planner remains the fallback if screenshot capture or VLM planning fails.
 - Visual point actions are never auto-approved by session grant: they always require explicit confirmation, fresh package/revision/foreground-epoch checks at dispatch, current per-app access + STOP checks, and a second sensitive-screen scan. No password/OTP/payment/security/permission screen may receive coordinate gestures.
 - Source implementation is committed on `feature/memory-intelligence`. CI/build and physical-device runtime verification are not yet confirmed. Screenshot upload and Canvas/timeline interaction remain to be tested on-device; do not describe Android's protected/secure surfaces as controllable.
+
+
+## 2026-11-02 — Visual-control safety hardening
+
+- Expanded the sensitive-screen deny scan to include destructive/consequential labels (delete/remove/send/share/post/publish/purchase/checkout/subscribe/approve/grant/install/uninstall/confirm), OTP-like numeric strings, card-like number sequences and email addresses.
+- Added regression coverage proving screenshot point actions always require confirmation even under a temporary session grant, and reject stale observations or sensitive-screen context.
+- Fixed temporary screenshot bitmap cleanup on incompatible aspect ratios, decode/resize errors and successful image preparation; fixed the screenshot-copy bitmap cleanup in the local capture method.
+- Verification remains pending for the latest commit. Do not claim the screenshot VLM path or Android gestures runtime-tested until exact-head CI and physical-device checks complete.

@@ -45,6 +45,39 @@ class UiAgentVisionPolicyTest {
         assertFalse(UiAgentVisionPolicy.hasSensitiveContext(listOf("Trim clip", "Export preview"), false))
     }
 
+    @Test fun visualActionsAlwaysRequireConfirmationEvenWithSessionGrant() {
+        val action = UiAgentPolicy.Action(
+            kind = UiAgentPolicy.Kind.VISION_TAP,
+            screenPackage = "com.example.editor",
+            screenRevision = 7L,
+            foregroundEpoch = 3L,
+            x1 = 540, y1 = 900, x2 = 540, y2 = 900
+        )
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(
+            action, emptyList(), "Trim the selected clip",
+            confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT,
+            screenWidth = 1080, screenHeight = 2400, density = 3f
+        ))
+    }
+
+    @Test fun visualActionsRejectStaleOrSensitiveObservations() {
+        val action = UiAgentPolicy.Action(
+            kind = UiAgentPolicy.Kind.VISION_TAP,
+            screenPackage = "com.example.editor",
+            screenRevision = 7L,
+            foregroundEpoch = 3L,
+            x1 = 540, y1 = 900, x2 = 540, y2 = 900
+        )
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(
+            action.copy(screenRevision = -1L), emptyList(), "Trim clip",
+            screenWidth = 1080, screenHeight = 2400, density = 3f
+        ))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(
+            action, listOf("Enter OTP"), "Trim clip",
+            screenWidth = 1080, screenHeight = 2400, density = 3f, sensitiveScreen = true
+        ))
+    }
+
     @Test fun unknownGestureKindsAreRejected() {
         assertFalse(UiAgentVisionPolicy.isSafeGesture("type_text", 540, 900, 540, 900, 1080, 2400, 3f, false))
     }
