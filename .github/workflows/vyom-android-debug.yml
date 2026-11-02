@@ -34,8 +34,8 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -84,10 +84,22 @@ jobs:
             printf 'ANDROID_KEY_PASSWORD=%s\n' "$VERIFIED_KEY_PASSWORD"
           } >> "$GITHUB_ENV"
           echo "available=true" >> "$GITHUB_OUTPUT"
+      - name: Verify release signing environment for Gradle
+        if: steps.signing.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$ANDROID_KEYSTORE_PATH"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-gradle-env-check.csr" -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" >/dev/null
+          rm -f "$RUNNER_TEMP/vyom-gradle-env-check.csr"
       - name: Build and test APKs
         env:
-          ANDROID_VERSION_NAME: "0.3.0"
-          ANDROID_VERSION_CODE: "3"
+          ANDROID_VERSION_NAME: "0.3.1"
+          ANDROID_VERSION_CODE: "4"
         run: |
           set -euo pipefail
           gradle testDebugUnitTest assembleDebug --no-daemon
@@ -102,23 +114,36 @@ jobs:
           set -euo pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
           mkdir -p output
-          DEBUG_APK="vyom-0.3.0-${SHORT_SHA}-debug.apk"
+          DEBUG_APK="vyom-0.3.1-${SHORT_SHA}-debug.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "output/${DEBUG_APK}"
           (cd output && sha256sum "${DEBUG_APK}") > "output/${DEBUG_APK}.sha256"
           if [[ "$SIGNING_AVAILABLE" == "true" ]]; then
-            RELEASE_APK="vyom-0.3.0-${SHORT_SHA}-signed.apk"
+            RELEASE_APK="vyom-0.3.1-${SHORT_SHA}-signed.apk"
             cp app/build/outputs/apk/release/app-release.apk "output/${RELEASE_APK}"
             (cd output && sha256sum "${RELEASE_APK}") > "output/${RELEASE_APK}.sha256"
             SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
             APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
             test -n "$APKSIGNER" || { echo "apksigner not found in Android SDK build-tools"; exit 1; }
             "$APKSIGNER" verify --verbose --print-certs "output/${RELEASE_APK}" > "output/${RELEASE_APK}.certs.txt"
+            EXPECTED_CERT_SHA256="7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a"
+            ACTUAL_CERT_SHA256="$(awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print tolower($2); exit}' "output/${RELEASE_APK}.certs.txt" | tr -d '[:space:]:')"
+            if [[ ! "$ACTUAL_CERT_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+              echo "Could not extract a valid SHA-256 signing certificate fingerprint."
+              exit 1
+            fi
+            if [[ "$ACTUAL_CERT_SHA256" != "$EXPECTED_CERT_SHA256" ]]; then
+              echo "Signing certificate mismatch. Expected $EXPECTED_CERT_SHA256; received $ACTUAL_CERT_SHA256. APK will not be published."
+              exit 1
+            fi
+            CERT_SHA256="$ACTUAL_CERT_SHA256"
+          else
+            CERT_SHA256="not-built"
           fi
-          printf 'versionName=0.3.0\nversionCode=3\ncommit=%s\nreleaseSigning=%s\n' "$SHORT_SHA" "${SIGNING_AVAILABLE:-false}" > output/build-info.txt
+          printf 'versionName=0.3.1\nversionCode=4\ncommit=%s\nreleaseSigning=%s\ncertificateSha256=%s\n' "$SHORT_SHA" "${SIGNING_AVAILABLE:-false}" "$CERT_SHA256" > output/build-info.txt
       - name: Upload debug and signed APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vyom-0.3.0-${{ github.sha }}
+          name: vyom-0.3.1-${{ github.sha }}
           path: output/*
           if-no-files-found: error
           retention-days: 30
