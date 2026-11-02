@@ -1134,7 +1134,7 @@ class MainActivity : Activity() {
                 .apply()
             hinglishPersona = useHinglish
             if (::personaButton.isInitialized) {
-                personaButton.text = if (useHinglish) "PERSONA: HINGLISH" else "PERSONA: ENGLISH"
+                personaButton.text = "PERSONA: ${selectedPersona.uppercase()}"
             }
             setOrbAppearance(if (selectedRole == "Ultron") 1 else 0)
             status.text = "VYOM • INSTRUCTIONS SAVED"

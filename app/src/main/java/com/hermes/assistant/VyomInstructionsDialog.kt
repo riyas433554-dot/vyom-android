@@ -19,9 +19,9 @@ import android.widget.TextView
 /** Native implementation of the supplied Instructions screen. */
 internal class VyomInstructionsDialog(
     private val activity: Activity,
-    initialPersona: String,
-    initialRole: String,
-    initialRules: String,
+    private val initialPersona: String,
+    private val initialRole: String,
+    private val initialRules: String,
     private val onSave: (String, String, String) -> Unit,
     private val onNavigate: (String) -> Unit
 ) {
