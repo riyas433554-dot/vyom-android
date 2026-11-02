@@ -5,8 +5,8 @@ plugins {
 }
 
 val gitCommitShort = System.getenv("GITHUB_SHA")?.take(7) ?: "local"
-val androidVersionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 3
-val androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.3.0"
+val androidVersionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 4
+val androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.3.1"
 val hermesBaseUrl = (System.getenv("HERMES_BASE_URL")?.takeIf { it.isNotBlank() } ?: "https://hermes-oregon.onrender.com").trimEnd('/')
 
 android {
