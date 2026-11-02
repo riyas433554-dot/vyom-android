@@ -2309,7 +2309,7 @@ class MainActivity : Activity() {
                 "User: ${item.text.take(900)}" + if (item.reply.isBlank()) "" else "\nVyom: ${item.reply.take(900)}"
             }
         val facts = MemoryCapturePolicy.relevantFacts(memoryStore.facts(), message, 10).joinToString("\n")
-        val context = ChatContextPolicy.buildContext(facts, history, maxChars = 1_200)
+        val context = ChatContextPolicy.buildContext(facts, history, maxChars = 2_000)
         val contextBlock = if (context.isBlank()) "" else "\n\n$context"
         val identity = VyomIdentityPolicy.systemInstruction(hinglish = useHinglish)
         val customRules = VyomInstructionsPolicy.normalizeRules(settingsPrefs.getString("custom_rules", "").orEmpty())
