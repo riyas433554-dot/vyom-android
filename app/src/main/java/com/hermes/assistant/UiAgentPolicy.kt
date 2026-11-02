@@ -295,15 +295,54 @@ internal object UiAgentPolicy {
     }
 
     /** System UI can show private notifications; only explicitly requested quick-setting controls pass. */
-    fun isSystemUiCompletionVerified(evidence: String, userGoal: String): Boolean {
-        if (!isSafeSystemUiLabel(evidence) || !isSystemUiTargetRequested(evidence, userGoal)) return false
-        val state = Regex("""(?i)\b(on|off|enabled|disabled|connected|disconnected)\b""")
-            .find(evidence)?.value?.lowercase() ?: return false
+    private fun systemUiCategory(label: String): String? {
+        val normalized = label.trim().lowercase()
+        return when {
+            normalized.startsWith("wi-fi") || normalized.startsWith("wifi") || normalized.startsWith("internet") -> "network"
+            normalized.startsWith("bluetooth") -> "bluetooth"
+            normalized.startsWith("airplane mode") -> "airplane"
+            normalized.startsWith("do not disturb") -> "dnd"
+            normalized.startsWith("battery saver") -> "battery"
+            normalized.startsWith("flashlight") -> "flashlight"
+            normalized.startsWith("location") -> "location"
+            normalized.startsWith("auto-rotate") -> "rotation"
+            normalized.startsWith("screen record") -> "recording"
+            normalized.startsWith("hotspot") -> "hotspot"
+            normalized.startsWith("mobile data") -> "mobile-data"
+            normalized.startsWith("brightness") -> "brightness"
+            else -> null
+        }
+    }
+
+    fun isQuickSettingsOpenGoal(userGoal: String): Boolean =
+        Regex("""(?i)\b(open|show|expand|pull down)\b""").containsMatchIn(userGoal) &&
+            Regex("""(?i)\b(quick settings|notification shade)\b""").containsMatchIn(userGoal)
+
+    fun isSystemUiGoalVerified(visibleLabels: Collection<String>, userGoal: String): Boolean {
+        if (isQuickSettingsOpenGoal(userGoal)) return visibleLabels.any { isSafeSystemUiLabel(it) }
+        val knownTargets = listOf(
+            "Wi-Fi", "Internet", "Bluetooth", "Airplane mode", "Do Not Disturb",
+            "Battery Saver", "Flashlight", "Location", "Auto-rotate", "Screen record",
+            "Hotspot", "Mobile data", "Brightness"
+        )
+        val requestedCategories = knownTargets.filter { isSystemUiTargetRequested(it, userGoal) }
+            .mapNotNull(::systemUiCategory).toSet()
+        if (requestedCategories.isEmpty()) return false
         val wantsOn = Regex("""(?i)\b(turn on|enable|activate|connect|on)\b""").containsMatchIn(userGoal)
         val wantsOff = Regex("""(?i)\b(turn off|disable|deactivate|disconnect|off)\b""").containsMatchIn(userGoal)
-        return (wantsOn && state in setOf("on", "enabled", "connected")) ||
-            (wantsOff && state in setOf("off", "disabled", "disconnected"))
+        if (wantsOn == wantsOff) return false
+        val requiredStates = if (wantsOn) setOf("on", "enabled", "connected") else setOf("off", "disabled", "disconnected")
+        val statePattern = Regex("""(?i)\b(on|off|enabled|disabled|connected|disconnected)\b""")
+        val observedCategories = visibleLabels.filter { isSafeSystemUiLabel(it) }.filter { label ->
+            val state = statePattern.find(label)?.value?.lowercase()
+            state in requiredStates
+        }.mapNotNull(::systemUiCategory).toSet()
+        return requestedCategories.all { it in observedCategories }
     }
+
+    fun isSystemUiCompletionVerified(evidence: String, userGoal: String): Boolean =
+        isSafeSystemUiLabel(evidence) && isSystemUiTargetRequested(evidence, userGoal) &&
+            isSystemUiGoalVerified(listOf(evidence), userGoal)
 
     private fun validateSystemUiAction(
         action: Action, visibleLabels: Collection<String>, userGoal: String,
@@ -333,7 +372,7 @@ internal object UiAgentPolicy {
             Kind.WAIT -> if (action.waitMs in 250..8000) Verdict.ALLOW else Verdict.REJECT
             Kind.DONE -> if (action.completionEvidence.isNotBlank() &&
                 visibleLabels.any { it.trim().equals(action.completionEvidence.trim(), true) } &&
-                isSystemUiCompletionVerified(action.completionEvidence, userGoal)) Verdict.ALLOW else Verdict.REJECT
+                isSystemUiGoalVerified(visibleLabels, userGoal)) Verdict.ALLOW else Verdict.REJECT
             else -> Verdict.REJECT
         }
     }

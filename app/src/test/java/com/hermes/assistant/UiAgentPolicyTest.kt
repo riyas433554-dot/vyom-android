@@ -562,6 +562,18 @@ class UiAgentPolicyTest {
         assertTrue(UiAgentPolicy.isSystemUiCompletionVerified("Bluetooth, Off", "Turn off Bluetooth"))
         assertFalse(UiAgentPolicy.isSystemUiCompletionVerified("Wi-Fi, Off", "Turn on Wi-Fi"))
         assertFalse(UiAgentPolicy.isSystemUiCompletionVerified("Brightness", "Make the screen brighter"))
+        assertTrue(UiAgentPolicy.isSystemUiGoalVerified(
+            listOf("Wi-Fi, On", "Bluetooth, On"), "Turn on Wi-Fi and Bluetooth"
+        ))
+        assertFalse(UiAgentPolicy.isSystemUiGoalVerified(
+            listOf("Wi-Fi, On"), "Turn on Wi-Fi and Bluetooth"
+        ))
+        assertFalse(UiAgentPolicy.isSystemUiGoalVerified(
+            listOf("Wi-Fi, Off", "Bluetooth, On"), "Turn off Wi-Fi and turn on Bluetooth"
+        ))
+        assertTrue(UiAgentPolicy.isSystemUiGoalVerified(
+            listOf("Wi-Fi, On"), "Open Quick Settings"
+        ))
     }
 
     @Test fun systemUiRejectsVisualCoordinatesAndUnapprovedLabels() {
