@@ -3646,46 +3646,27 @@ class MainActivity : Activity() {
     }
 
     private fun showTeachCommandDialog(original: String, source: String, onResult: (String) -> Unit) {
-        val answer = EditText(this).apply {
-            hint = "e.g. open YouTube / volume badhao / torch chalu"
-            setSingleLine(true)
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-        }
-        val body = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), 0)
-            addView(TextView(this@MainActivity).apply {
-                text = "Ye kya karna chahiye? Ek supported command likho. Vyom ise sirf isi phone par save karega."
-                setTextColor(Color.WHITE)
-                textSize = 14f
-            })
-            addView(answer, LinearLayout.LayoutParams(-1, dp(52)))
-        }
-        val dialog = AlertDialog.Builder(this).setTitle("Teach Vyom").setView(body)
-            .setNegativeButton("CANCEL") { _, _ -> onResult("Okay, command save nahi kiya.") }
-            .setPositiveButton("SAVE & RUN", null).create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val canonical = answer.text.toString().trim()
-                if (canonical.isBlank() || canonical.length > 120) {
-                    answer.error = "Short command likho (1–120 characters)."; return@setOnClickListener
-                }
-                val taught = ActionEngine.classify(canonical)
-                if (taught == null || taught.risk == ActionEngine.Risk.BLOCKED) {
-                    answer.error = "Supported command do, jaise 'open YouTube', 'volume up', 'torch chalu'. Safety rules badle nahi ja sakte."
-                    return@setOnClickListener
-                }
-                if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
-                    logControlAction(original, "teaching-blocked-by-kill-switch", source)
-                    dialog.dismiss(); onResult("STOP CONTROL is ON. Device action blocked; teaching was not run."); return@setOnClickListener
-                }
-                DeviceCommandConfig.saveTeaching(this, original, canonical)
-                logControlAction("Teach command: $original", "saved-locally-to=$canonical", source)
-                dialog.dismiss()
-                executeClassifiedDeviceAction(taught, source, onResult)
+        VyomTeachDialog(this, original, { canonical ->
+            if (canonical.isBlank() || canonical.length > 120) {
+                onResult("Short command likho (1–120 characters).")
+                return@VyomTeachDialog
             }
-        }
-        dialog.show()
+            val taught = ActionEngine.classify(canonical)
+            if (taught == null || taught.risk == ActionEngine.Risk.BLOCKED) {
+                onResult("Supported command do, jaise 'open YouTube', 'volume up', 'torch chalu'. Safety rules badle nahi ja sakte.")
+                return@VyomTeachDialog
+            }
+            if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+                logControlAction(original, "teaching-blocked-by-kill-switch", source)
+                onResult("STOP CONTROL is ON. Device action blocked; teaching was not run.")
+                return@VyomTeachDialog
+            }
+            DeviceCommandConfig.saveTeaching(this, original, canonical)
+            logControlAction("Teach command: $original", "saved-locally-to=$canonical", source)
+            executeClassifiedDeviceAction(taught, source, onResult)
+        }, {
+            onResult("Okay, command save nahi kiya.")
+        }).show()
     }
 
     private fun executeClassifiedDeviceAction(action: ActionEngine.Intent, source: String, onResult: (String) -> Unit) {
