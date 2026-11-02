@@ -3934,7 +3934,7 @@ class MainActivity : Activity() {
                         openInstallPicker(source, onResult)
                     } else {
                         val reply = DeviceActionExecutor.execute(this, action)
-                        logControlAction(action.name, if (reply.startsWith("Could not") || reply.startsWith("Blocked")) "failed" else "confirmed", source)
+                        logControlAction(action.name, DeviceActionExecutor.auditState(reply), source)
                         onResult(reply)
                     }
                 }.show()
@@ -3942,13 +3942,13 @@ class MainActivity : Activity() {
         }
         if (source == "voice" && action.operation in setOf(ActionEngine.Operation.VOLUME_DELTA, ActionEngine.Operation.VOLUME_SET, ActionEngine.Operation.BRIGHTNESS_SET, ActionEngine.Operation.TORCH)) {
             voiceActionAckInFlight = true
-            speakReply("Okay, " + action.name) {
+            speakReply("Checking: " + action.name) {
                 voiceActionAckInFlight = false
                 if (voiceLoopEnabled && !voiceMuted) startVoiceInput()
             }
         }
         val reply = DeviceActionExecutor.execute(this, action)
-        logControlAction(action.name, if (reply.startsWith("Could not") || reply.startsWith("No Android") || reply.startsWith("Couldn't")) "failed" else "executed", source)
+        logControlAction(action.name, DeviceActionExecutor.auditState(reply), source)
         onResult(reply)
     }
 
