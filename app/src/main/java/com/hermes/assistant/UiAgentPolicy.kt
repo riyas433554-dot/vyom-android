@@ -171,6 +171,12 @@ internal object UiAgentPolicy {
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 || blockedTargets.containsMatchIn(action.target) ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
+                else if (confirmationMode == ConfirmationMode.USER_REQUESTED_INSTALL &&
+                    action.target.trim().equals("Install", ignoreCase = true)) {
+                    if (action.screenPackage != "com.android.vending") Verdict.REJECT
+                    else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
+                    else Verdict.CONFIRM
+                }
                 else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (confirmationMode == ConfirmationMode.ALWAYS_ASK || consequential.containsMatchIn(action.target)) Verdict.CONFIRM
                 else Verdict.ALLOW
