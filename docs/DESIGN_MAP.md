@@ -51,7 +51,7 @@ Current source already has the exact base palette in `VyomDesignSpec` and `VyomT
 | 21 | Setup — permissions | `showControlReadiness()`, `showAppAccessPanel()` | Readiness/app access exists; a single guided screen for Accessibility, overlay, visibility, notification, mic, exact alarm, installer and battery state remains. |
 | 22 | Memory | `showMemoryManager()`, `VyomMemoryDialog`, memory store | Memory exists; full-screen tier filters, counts, search, pin/edit/delete and evidence remain. |
 | 23 | Instructions | `showInstructions()`, `VyomInstructionsDialog` | Persona/rules dialog exists; full-screen role/persona/rules editor and TRUSTED authorization language remain. |
-| 24 | Voice settings | Settings panel in `MainActivity` | Settings exist; separate voice settings screen, selectable local voices, provider fallback state and controls remain. |
+| 24 | Voice settings | Drawer Voice now routes to the Settings panel via `showTab(false, true)`; Live remains on the centre orb | The route no longer starts a live session unexpectedly. A dedicated voice-only screen, selectable local voices, provider fallback state and controls remain. |
 | 25 | Voice picker | No dedicated picker identified | Meera/Kabir/Aarav/Ira/Veer selection, preview, persistence and Android TTS integration remain. |
 | 26 | Connections | Settings panel stores provider credentials | Dedicated Connections screen with truthful connection status, masked credentials and per-provider test remains. |
 | 27 | Model picker | `loadNvidiaModels()` and LIVE model settings | Model loading exists; searchable lane-aware picker, unavailable model state and verified fallback remain. |
@@ -69,7 +69,7 @@ Current source already has the exact base palette in `VyomDesignSpec` and `VyomT
 
 ## Current source reconciliation (2026-11-02)
 
-- Fixed the Profile/Drawer collision: bottom Profile now opens the settings panel; the three-line menu remains the Drawer.
+- Fixed the Profile/Drawer collision: bottom Profile now opens the settings panel; the three-line menu remains the Drawer. Drawer Voice routes to settings rather than starting a live session; Live remains on the centre orb.
 - Hid unimplemented Drawer entries rather than rendering SOON badges; the dead “not connected in this build” Toast route and non-persistent New Automation button were removed.
 - Added tests for filtering disabled Drawer entries. Exact-head CI and device screenshots are still pending.
 - The 31-board mapping is source inspection, not screenshot acceptance. Add one screenshot/instrumentation test per implemented screen and attach exact-commit artifacts before marking a board FIXED.
