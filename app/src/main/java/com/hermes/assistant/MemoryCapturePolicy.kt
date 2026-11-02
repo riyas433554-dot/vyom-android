@@ -112,7 +112,6 @@ internal object MemoryCapturePolicy {
     /** Small, explicit synonym map; this is lexical retrieval, not embedding/vector search. */
     private fun canonicalToken(token: String): String = when (token) {
         "repo", "repository", "github" -> "repository"
-        "active", "current", "working", "development" -> "project-state"
         "feature", "branch", "branches" -> "branch"
         "apk", "artifact", "build" -> "build-artifact"
         "commit", "commits", "sha", "revision" -> "revision"
