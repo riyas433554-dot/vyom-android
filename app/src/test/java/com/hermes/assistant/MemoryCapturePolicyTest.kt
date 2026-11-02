@@ -145,4 +145,13 @@ class MemoryCapturePolicyTest {
         )
     }
 
+
+    @Test fun newestConflictingPreferenceWinsEvenWhenRetrievalLimitIsOne() {
+        val facts = listOf("I prefer direct answers.", "I prefer friendly answers.")
+        assertEquals(
+            listOf("I prefer friendly answers."),
+            MemoryCapturePolicy.relevantFacts(facts, "direct answer tone", 1)
+        )
+    }
+
 }
