@@ -744,6 +744,16 @@ class MainActivity : Activity() {
         controlPanel.addView(controlNotice, LinearLayout.LayoutParams(-1, -2))
         controlPanel.addView(controlButtons, LinearLayout.LayoutParams(-1, dp(48)))
         controlPanel.addView(Button(this).apply {
+            text = "START UI AGENT"
+            contentDescription = "Start bounded Android UI automation with progress and STOP control"
+            setOnClickListener { showUiAgentPanel() }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        controlPanel.addView(Button(this).apply {
+            text = "APP ACCESS"
+            contentDescription = "Choose which apps Vyom may inspect and control"
+            setOnClickListener { showAppAccessPanel() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        controlPanel.addView(Button(this).apply {
             text = "VYOM APP SETTINGS"
             setOnClickListener { confirmControlAction("Open Vyom app settings", "app-details") }
         }, LinearLayout.LayoutParams(-1, dp(42)))
@@ -753,7 +763,7 @@ class MainActivity : Activity() {
             setOnClickListener { performControlAction("Open Android accessibility settings", Settings.ACTION_ACCESSIBILITY_SETTINGS) }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         controlPanel.addView(TextView(this).apply {
-            text = "Accessibility is optional and must be enabled by you in Android Settings. Vyom's service does not read screen text or tap controls."
+            text = "Accessibility is optional and must be enabled by you in Android Settings. When enabled, Vyom can inspect visible non-sensitive UI labels and perform bounded taps/gestures only in apps you allow. Secure screens and protected system actions remain blocked."
             textSize = 10f
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, -2))
