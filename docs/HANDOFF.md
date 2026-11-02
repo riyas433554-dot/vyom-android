@@ -1121,3 +1121,5 @@ Branch: `feature/memory-intelligence`
 
 - Moved accessibility-label/node extraction ahead of the model request. Credential-like or sensitive screens now stop before any screen tree/OCR is sent to the planner.
 - When an editable field is present, Vyom keeps text-entry via the redacted accessibility tree but disables OCR and screenshot/VLM sharing for that step. System UI remains OCR- and screenshot-free.
+
+- Separated sensitive content from consequential controls: passwords/OTP/payment/security/credential-like content still blocks planner upload, but labels such as Send/Delete/Export/Post no longer block the whole screen. Those actions remain governed by UiAgentPolicy's mandatory confirmation path. App Access now explicitly discloses that visible UI text may be sent to the configured planner; screenshot upload remains a separate Visual AI opt-in.

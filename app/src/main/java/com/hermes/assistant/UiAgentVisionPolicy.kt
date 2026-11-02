@@ -20,7 +20,7 @@ internal object UiAgentVisionPolicy {
     fun hasSensitiveContext(labels: Collection<String>, hasSensitiveInputField: Boolean): Boolean {
         if (hasSensitiveInputField) return true
         val sensitive = Regex(
-            """\b(password|passcode|otp|cvv|upi|wallet|bank|payment|pay|transfer|security|permission|biometric|card number|account number|delete|remove|export|send|share|post|publish|purchase|checkout|subscribe|approve|grant|install|uninstall|confirm)\b""",
+            """\b(password|passcode|otp|cvv|pin|api key|access token|secret|seed phrase|recovery phrase|private key|upi|wallet|bank|payment|pay|transfer|security|permission|biometric|card number|account number)\b""",
             RegexOption.IGNORE_CASE
         )
         val credentialLike = Regex("""\b\d{4,12}\b|\b(?:\d[ -]*?){13,19}\b|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}""", RegexOption.IGNORE_CASE)

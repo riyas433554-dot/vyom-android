@@ -1992,7 +1992,7 @@ class MainActivity : Activity() {
         }
         content.addView(master, LinearLayout.LayoutParams(-1, dp(48)))
         content.addView(TextView(this).apply {
-            text = "Har app ka access alag control karo. Android System UI ko ON karne par Vyom Quick Settings ke sirf Wi-Fi/Bluetooth/brightness jaise safe controls use karega; notification text filter hoga aur System UI screenshots NVIDIA ko kabhi upload nahi honge. Android Accessibility permission bhi manually ON honi chahiye."
+            text = "Har app ka access alag control karo. Task ke dauran visible UI text configured AI planner ko bheja ja sakta hai; screenshot sirf Visual AI checkbox ON karne par upload hota hai. Android System UI ko ON karne par Vyom Quick Settings ke sirf Wi-Fi/Bluetooth/brightness jaise safe controls use karega; notification text filter hoga aur System UI screenshots NVIDIA ko kabhi upload nahi honge. Android Accessibility permission bhi manually ON honi chahiye."
             textSize = 12f
             setTextColor(Color.LTGRAY)
             setPadding(0, 0, 0, dp(8))
