@@ -139,6 +139,7 @@ object DeviceCommandConfig {
         if(a.length<4||b.length<4)return false
         return editDistance(a,b)<=(if(maxOf(a.length,b.length)>=8)2 else 1)
     }
+    fun normalizedPhrase(phrase: String): String = normalize(phrase).take(100)
     private fun normalize(s:String):String=s.lowercase(Locale.ROOT).replace('ā','a').replace('ī','i').replace(Regex("[^a-z0-9% ]")," ").replace(Regex("\\s+")," ").trim()
     private fun similarity(a:String,b:String):Int {
         if(a.isEmpty()||b.isEmpty())return if(a==b)100 else 0
