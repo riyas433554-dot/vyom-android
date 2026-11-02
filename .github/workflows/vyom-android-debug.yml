@@ -48,7 +48,21 @@ jobs:
           test -n "${ANDROID_KEYSTORE_PASSWORD:-}" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
           test -n "${ANDROID_KEY_ALIAS:-}" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
           test -n "${ANDROID_KEY_PASSWORD:-}" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/vyom-release.jks"
+          ENCODED_KEYSTORE="$(printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | tr '_-' '/+')"
+          if [[ ! "$ENCODED_KEYSTORE" =~ ^[A-Za-z0-9+/]*={0,2}$ ]]; then
+            echo "ANDROID_KEYSTORE_BASE64 contains non-base64 characters; secret value was not logged."
+            exit 1
+          fi
+          ENCODED_LENGTH="$(printf '%s' "$ENCODED_KEYSTORE" | wc -c | tr -d ' ')"
+          case $((ENCODED_LENGTH % 4)) in
+            0) ;;
+            2) ENCODED_KEYSTORE="${ENCODED_KEYSTORE}==" ;;
+            3) ENCODED_KEYSTORE="${ENCODED_KEYSTORE}=" ;;
+            1) echo "ANDROID_KEYSTORE_BASE64 has an invalid length; secret value was not logged."; exit 1 ;;
+          esac
+          printf '%s' "$ENCODED_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/vyom-release.jks"
+          test -s "$RUNNER_TEMP/vyom-release.jks" || { echo "Decoded keystore is empty"; exit 1; }
+          keytool -list -keystore "$RUNNER_TEMP/vyom-release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/vyom-release.jks" >> "$GITHUB_ENV"
           echo "available=true" >> "$GITHUB_OUTPUT"
       - name: Build and test APKs
