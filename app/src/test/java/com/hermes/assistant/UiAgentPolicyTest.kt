@@ -441,4 +441,20 @@ class UiAgentPolicyTest {
             ))
     }
 
+
+    @Test fun requestedInstallRejectsAmbiguousMultipleInstallButtons() {
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.TAP_TEXT,
+            target = "Install",
+            screenPackage = "com.android.vending"
+        )
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                action,
+                listOf("Godot Engine 4", "Godot Foundation", "Install", "Install"),
+                "Install Godot 4 latest version from Play Store",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+    }
+
 }
