@@ -149,11 +149,11 @@ internal class SelfModificationClient {
             .put("body", "## Constrained self-modification proposal\n\n" +
                 "- Proposed file: `$path`\n" +
                 (if (requestSummary.isBlank()) "" else "- Requested change: ${requestSummary.take(1_000)}\n") +
-                "- Generated from the current source on the active working branch.\n" +
+                "- Source base commit: `$baseSha`.\n" +
                 "- Created by Vyom's user-requested proposal workflow.\n" +
                 "- This PR is not auto-merged or auto-installed.\n" +
                 "- CI must pass; the repository owner must review the diff and manually install any approved build.\n" +
-                "- Policy-critical files are blocked by the in-app allowlist and protected by CODEOWNERS."))
+                "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
         val prUrl = pr.optString("html_url")
         require(prUrl.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {
             "GitHub did not return an approved pull request URL"
