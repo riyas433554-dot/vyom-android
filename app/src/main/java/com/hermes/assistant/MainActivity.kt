@@ -1222,8 +1222,31 @@ class MainActivity : Activity() {
                             input.error = "Task 1–500 characters ka hona chahiye."
                             return@setOnClickListener
                         }
-                        if (VyomAccessibilityService.current() == null) {
+                        val service = VyomAccessibilityService.current()
+                        if (service == null) {
                             input.error = "Android Settings > Accessibility mein Vyom service ON karo."
+                            return@setOnClickListener
+                        }
+                        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+                            input.error = "STOP CONTROL ON hai. Control tab se explicitly Resume karo."
+                            return@setOnClickListener
+                        }
+                        val access = AppAccessPolicy.snapshot(this@MainActivity)
+                        if (!access.masterEnabled) {
+                            input.error = "Profile > Setup permissions > App access mein MASTER APP CONTROL ON karo."
+                            return@setOnClickListener
+                        }
+                        val foregroundPackage = service.screenObservation().foregroundPackage
+                        if (!AppAccessPolicy.isAllowed(this@MainActivity, foregroundPackage)) {
+                            input.error = "Current app ($foregroundPackage) App access mein OFF hai. Current app aur target app ko allow karo."
+                            return@setOnClickListener
+                        }
+                        if (secureVoicePrefs().getString("nvidia_api_key", "").orEmpty().isBlank()) {
+                            input.error = "UI planner ke liye Settings mein NVIDIA API key configure karo."
+                            return@setOnClickListener
+                        }
+                        if (uiAgentAllowedApps().isEmpty()) {
+                            input.error = "App access mein kam se kam ek target app enable karo."
                             return@setOnClickListener
                         }
                         val selectedMode = modeGroup.findViewById<android.widget.RadioButton>(modeGroup.checkedRadioButtonId)
