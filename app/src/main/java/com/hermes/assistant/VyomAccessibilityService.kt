@@ -639,8 +639,9 @@ class VyomAccessibilityService : AccessibilityService() {
         if (Build.VERSION.SDK_INT < 30) { onResult(null, "Screenshot requires Android 11 or newer."); return }
         takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
+                var bitmap: Bitmap? = null
                 try {
-                    val bitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                    bitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
                         ?: throw IllegalStateException("Screenshot buffer unavailable")
                     val file = File(cacheDir, "vyom-screen-${System.currentTimeMillis()}.png")
                     val copy = bitmap.copy(Bitmap.Config.ARGB_8888, false)
@@ -649,11 +650,14 @@ class VyomAccessibilityService : AccessibilityService() {
                         FileOutputStream(file).use { copy.compress(Bitmap.CompressFormat.PNG, 100, it) }
                     } finally {
                         copy.recycle()
-                        bitmap.recycle()
                     }
-                    screenshot.hardwareBuffer.close()
                     onResult(file, null)
-                } catch (e: Exception) { onResult(null, e.message ?: "Could not save screenshot.") }
+                } catch (e: Exception) {
+                    onResult(null, e.message ?: "Could not save screenshot.")
+                } finally {
+                    try { bitmap?.recycle() } catch (_: Exception) { }
+                    try { screenshot.hardwareBuffer.close() } catch (_: Exception) { }
+                }
             }
             override fun onFailure(errorCode: Int) {
                 onResult(null, if (errorCode == ERROR_TAKE_SCREENSHOT_SECURE_WINDOW) "Secure window screenshot blocked by Android." else "Screenshot failed (code $errorCode).")

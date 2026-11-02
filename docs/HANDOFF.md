@@ -1050,3 +1050,5 @@ Branch: `feature/memory-intelligence`
 - Narrowed the VLM prompt to visual point actions only; normal text/OCR planner owns app launch, labeled controls and Android global navigation.
 
 - Prompt reconciliation: the text-only planner schema explicitly lists Back/Home/Recents/Notifications/Quick Settings; the screenshot VLM schema is restricted to point gestures plus `none` (which falls back to the text planner).
+
+- Screenshot capture now closes the hardware buffer and recycles both hardware/software bitmap handles in a `finally` path, including file-write failures. Additional sensitive-context tests cover destructive labels, numeric OTP-like values and email addresses.
