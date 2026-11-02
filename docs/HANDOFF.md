@@ -974,3 +974,11 @@ Branch: `feature/memory-intelligence`
 - Updated `docs/VYOM_COMPLETION_CHECKLIST.md` to link both new documents. Latest checkpoint before this handoff append: `4b80129fd70287fed82793f2bcfdd73cc2b2e0da` on `feature/memory-intelligence`.
 - Remaining design gaps include full-screen implementations for several current dialogs, true Profile hub completeness, Connections/System/Audit/Memory/Skills full screens, floating orb/status panel, Voice picker, workflow canvas, creative VFX screen, app icon and screenshot/instrumentation comparisons. The supplied boards remain the target; do not replace them with generic AlertDialogs or a WebView.
 - CI/Debug/full CI, signed APK, certificate continuity and phone acceptance are still UNVERIFIED. No APK is delivered. Local test execution could not be performed because the container cannot resolve GitHub and the GitHub connector does not expose push-triggered run history.
+
+## 2026-11-02 — Navigation and placeholder cleanup
+
+- Followed the supplied HUD source further: Profile and Drawer are distinct destinations. The bottom Profile now opens the real Settings panel; the hamburger remains the Drawer (`e30f610`).
+- Disabled Creative Studio Drawer entries are filtered out by `VyomDesignSpec.visibleDrawerItems()`; the `SOON` badge and dead Toast route are gone (`ee93a4c`, `4b82a6e`). The original destination metadata remains disabled until a real screen is implemented.
+- Removed the visible `NEW AUTOMATION` button because it could not persist a schedule and only showed a “not connected” dialog (`50633dc`). It must return only after the scheduler saves, lists and executes a real schedule.
+- Updated `docs/ACCEPTANCE_TESTS.md` statuses U3/U8 and `docs/DESIGN_MAP.md` board mappings. These are source-level fixes; no CI or phone test is claimed.
+- Latest checkpoint before this note: `42731f530d59a7ccccd897a84cf7cbb500c03e5b` on `feature/memory-intelligence`. Expected whole unit test count remains 149 (144 previous + 5 new regression tests); not executed.
