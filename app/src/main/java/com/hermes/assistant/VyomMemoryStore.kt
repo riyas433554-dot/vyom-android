@@ -38,7 +38,7 @@ internal class VyomMemoryStore(context: Context) {
 
     fun replaceFacts(text: String) {
         val safe = text.lineSequence().map(String::trim).filter(String::isNotBlank)
-            .filterNot(::isSensitive).map { it.take(140) }.distinctBy { it.lowercase() }
+            .filterNot(::isSensitive).map { it.take(300) }.distinctBy { it.lowercase() }
             .toList().takeLast(MAX_FACTS)
         write(safe)
     }
@@ -51,6 +51,6 @@ internal class VyomMemoryStore(context: Context) {
     companion object {
         private const val KEY_ENABLED = "enabled"
         private const val KEY_FACTS = "facts"
-        private const val MAX_FACTS = 30
+        private const val MAX_FACTS = 100
     }
 }
