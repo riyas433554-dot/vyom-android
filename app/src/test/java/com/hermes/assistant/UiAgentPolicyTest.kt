@@ -318,4 +318,32 @@ class UiAgentPolicyTest {
         assertTrue(UiAgentPolicy.isActionObservationFresh(30L, 30L, "com.example.editor", "com.example.editor"))
     }
 
+    @Test fun scalesOcrCoordinatesFromScreenshotPixelsToDisplayPixels() {
+        val mapped = UiAgentPolicy.mapOcrBoundsToScreen(
+            left = 100, top = 200, right = 300, bottom = 400,
+            imageWidth = 1080, imageHeight = 2400,
+            screenWidth = 540, screenHeight = 1200
+        )
+        assertEquals(UiAgentPolicy.ScreenBounds(50, 100, 150, 200), mapped)
+    }
+
+    @Test fun rejectsOcrBoundsOutsideScreenshotOrInvalidDimensions() {
+        assertNull(UiAgentPolicy.mapOcrBoundsToScreen(
+            left = -1, top = 10, right = 20, bottom = 30,
+            imageWidth = 100, imageHeight = 100, screenWidth = 100, screenHeight = 100
+        ))
+        assertNull(UiAgentPolicy.mapOcrBoundsToScreen(
+            left = 10, top = 10, right = 20, bottom = 30,
+            imageWidth = 0, imageHeight = 100, screenWidth = 100, screenHeight = 100
+        ))
+    }
+
+    @Test fun rejectsOcrCoordinateMappingWhenScreenshotAndDisplayOrientationsDiffer() {
+        assertNull(UiAgentPolicy.mapOcrBoundsToScreen(
+            left = 100, top = 100, right = 300, bottom = 300,
+            imageWidth = 2400, imageHeight = 1080,
+            screenWidth = 1080, screenHeight = 2400
+        ))
+    }
+
 }
