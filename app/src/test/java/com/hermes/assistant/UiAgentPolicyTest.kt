@@ -27,7 +27,7 @@ class UiAgentPolicyTest {
     @Test fun rejectsPaymentSecurityAndUninstallTargetsWithoutConfirmation() {
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Security"), listOf("Security"), "Open settings"))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Uninstall"), listOf("Uninstall"), "Remove app"))
-        val ocr = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20")
+        val ocr = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20", true)
         val ocrAction = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "UPI", ocrIndex = 1, ocrFingerprint = ocr.fingerprint)
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(ocrAction, emptyList(), "Pay", visibleOcr = listOf(ocr)))
     }
@@ -79,7 +79,7 @@ class UiAgentPolicyTest {
     }
 
     @Test fun OCRTapRequiresAnExactFreshObservedLabelAndConfirmation() {
-        val observed = UiAgentPolicy.VisibleOcr(2, "Trim", "Trim|10|20|80|50")
+        val observed = UiAgentPolicy.VisibleOcr(2, "Trim", "Trim|10|20|80|50", true)
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "Trim", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
         assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Trim clip", visibleOcr = listOf(observed)))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(ocrIndex = 3), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
@@ -168,7 +168,7 @@ class UiAgentPolicyTest {
     }
 
     @Test fun sessionGrantNeverOverridesBlockedSensitiveTargets() {
-        val observed = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20")
+        val observed = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20", true)
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "UPI", ocrIndex = 1, ocrFingerprint = observed.fingerprint)
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(action, emptyList(), "Open app",
