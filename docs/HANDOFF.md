@@ -1097,3 +1097,5 @@ Branch: `feature/memory-intelligence`
 - Quick Settings DONE verification now requires every requested toggle category to be visibly in the requested on/off state; mixed-direction requests fail closed rather than claiming partial completion. Opening Quick Settings itself is recognized as a separate visible-panel goal.
 
 - Added an explicit non-null state guard in the multi-toggle verification path so absent accessibility state labels cannot be treated as a valid toggle state.
+
+- Node-based confirmation now displays the exact visible accessibility label (e.g. Wi-Fi or Brightness) instead of only a numeric node index, so users can judge the target before approving.

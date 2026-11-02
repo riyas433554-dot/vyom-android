@@ -1444,8 +1444,11 @@ class MainActivity : Activity() {
                             UiAgentPolicy.Verdict.CONFIRM -> {
                                 logControlAction(UiAgentPolicy.auditLabel(preparedAction), "awaiting-confirmation", "ui-agent")
                                 val message = when (action.kind) {
-                                    UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE, UiAgentPolicy.Kind.DRAG_NODE ->
-                                        "Vyom wants to interact with bounded screen control #" + action.nodeIndex + ". Confirm only if this is the intended control."
+                                    UiAgentPolicy.Kind.TAP_NODE, UiAgentPolicy.Kind.LONG_PRESS_NODE, UiAgentPolicy.Kind.SWIPE_NODE, UiAgentPolicy.Kind.DRAG_NODE -> {
+                                        val targetLabel = visibleNodes.firstOrNull { it.index == action.nodeIndex }?.label
+                                            ?.takeIf { it.isNotBlank() } ?: "screen control #" + action.nodeIndex
+                                        "Vyom wants to interact with '" + targetLabel + "'. Confirm only if this exact visible control is intended."
+                                    }
                                     UiAgentPolicy.Kind.TAP_OCR, UiAgentPolicy.Kind.LONG_PRESS_OCR, UiAgentPolicy.Kind.SWIPE_OCR, UiAgentPolicy.Kind.DRAG_OCR ->
                                         "Vyom wants to gesture on OCR-detected screen target: " + action.target + ". Confirm only if this exact visible target is intended."
                                     UiAgentPolicy.Kind.VISION_TAP, UiAgentPolicy.Kind.VISION_LONG_PRESS, UiAgentPolicy.Kind.VISION_SWIPE, UiAgentPolicy.Kind.VISION_DRAG ->
