@@ -27,7 +27,10 @@ internal class SelfModificationClient {
         SelfModificationPolicy.validateTask(title, path, task)
         require(nvidiaApiKey.trim().length >= 20) { "Configure the NVIDIA API key before generating a code proposal" }
         require(model.isNotBlank() && model.length <= 120) { "Choose a supported code-generation model" }
-        val currentSource = readCurrentSource(token, path)
+        val initialBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
+        val initialBaseSha = initialBaseRef.optJSONObject("object")?.optString("sha").orEmpty()
+        require(initialBaseSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the working branch head" }
+        val currentSource = readCurrentSource(token, path, initialBaseSha)
         require(currentSource.length <= 200_000) { "Current source file exceeds the safe generation limit" }
 
         val connection = (URL("https://integrate.api.nvidia.com/v1/chat/completions").openConnection() as HttpURLConnection).apply {
@@ -58,6 +61,7 @@ internal class SelfModificationClient {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val responseText = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (status !in 200..299) throw IllegalStateException("NVIDIA code generation API $status")
+            require(responseText.length <= MAX_RESPONSE_BYTES) { "Code model response exceeded the safe limit" }
             val response = JSONObject(responseText)
             val choice = response.optJSONArray("choices")?.optJSONObject(0)
                 ?: throw IllegalStateException("Code model returned no proposal")
@@ -71,18 +75,23 @@ internal class SelfModificationClient {
             val proposedContent = JSONObject(message.substring(start, end + 1)).optString("file_content", "")
             SelfModificationPolicy.validate(title, path, proposedContent)
             require(proposedContent != currentSource) { "The model did not produce a source change" }
-            return createProposal(token, title, path, proposedContent, task)
+            val latestBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
+            val latestBaseSha = latestBaseRef.optJSONObject("object")?.optString("sha").orEmpty()
+            require(latestBaseSha == initialBaseSha) {
+                "The working branch changed during code generation. No PR was created; generate again from the latest source."
+            }
+            return createProposal(token, title, path, proposedContent, task, initialBaseSha)
         } finally {
             connection.disconnect()
         }
     }
 
-    private fun readCurrentSource(token: String, path: String): String {
+    private fun readCurrentSource(token: String, path: String, sourceRef: String): String {
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
         val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
         val existing = request(
             "GET",
-            "/contents/$encodedPath?ref=" + URLEncoder.encode(BASE_BRANCH, "UTF-8"),
+            "/contents/$encodedPath?ref=" + URLEncoder.encode(sourceRef, "UTF-8"),
             token = token,
             allowNotFound = true
         )
@@ -97,14 +106,19 @@ internal class SelfModificationClient {
         title: String,
         path: String,
         proposedContent: String,
-        requestSummary: String = ""
+        requestSummary: String = "",
+        expectedBaseSha: String? = null
     ): Proposal {
         SelfModificationPolicy.validate(title, path, proposedContent)
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
 
         val baseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
-        val baseSha = baseRef.optJSONObject("object")?.optString("sha").orEmpty()
-        require(baseSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the working branch head" }
+        val currentBaseSha = baseRef.optJSONObject("object")?.optString("sha").orEmpty()
+        require(currentBaseSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the working branch head" }
+        require(expectedBaseSha == null || expectedBaseSha == currentBaseSha) {
+            "The working branch changed before proposal creation. No PR was created; retry from the latest source."
+        }
+        val baseSha = expectedBaseSha ?: currentBaseSha
 
         val suffix = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(28).ifBlank { "change" }
         val proposalBranch = "vyom-proposal-${System.currentTimeMillis()}-$suffix"
@@ -115,7 +129,7 @@ internal class SelfModificationClient {
         val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
         val existing = request(
             "GET",
-            "/contents/$encodedPath?ref=" + URLEncoder.encode(BASE_BRANCH, "UTF-8"),
+            "/contents/$encodedPath?ref=" + URLEncoder.encode(proposalBranch, "UTF-8"),
             token = token,
             allowNotFound = true
         )
