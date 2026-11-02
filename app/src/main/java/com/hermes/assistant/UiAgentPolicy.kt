@@ -7,7 +7,7 @@ package com.hermes.assistant
 internal object UiAgentPolicy {
     enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
-    enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT }
+    enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
     data class Action(
         val kind: Kind,
         val target: String = "",
