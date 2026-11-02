@@ -1228,7 +1228,7 @@ class MainActivity : Activity() {
         }
 
         fun finish(message: String) {
-            if (generation != uiAgentGeneration) return
+            if (!UiAgentPolicy.mayExecute(generation == uiAgentGeneration, false, System.currentTimeMillis(), null)) return
             val service = VyomAccessibilityService.current() ?: return
             if (!service.showAgentFinished(message)) service.hideAgentOverlay()
         }
@@ -1246,7 +1246,7 @@ class MainActivity : Activity() {
 
         fun nextStep() {
             if (generation != uiAgentGeneration) return
-            if (sessionGrantExpiresAt != null && System.currentTimeMillis() >= sessionGrantExpiresAt) {
+            if (!UiAgentPolicy.mayExecute(true, false, System.currentTimeMillis(), sessionGrantExpiresAt)) {
                 logControlAction("UI Agent session grant", "expired", "ui-agent")
                 finish("5-minute session grant expired. Task stopped.")
                 return
@@ -1364,7 +1364,7 @@ class MainActivity : Activity() {
         nextStep: () -> Unit,
         finish: (String) -> Unit
     ) {
-        if (generation != uiAgentGeneration || controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+        if (!UiAgentPolicy.mayExecute(generation == uiAgentGeneration, controlKillSwitch || controlPrefs.getBoolean("kill_switch", false), System.currentTimeMillis(), null)) {
             logControlAction(UiAgentPolicy.auditLabel(action), "blocked-by-stop-control", "ui-agent")
             finish("STOP CONTROL ON — action blocked.")
             return
