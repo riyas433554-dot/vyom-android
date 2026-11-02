@@ -1063,3 +1063,5 @@ Branch: `feature/memory-intelligence`
 - Secure-window screenshots remain blocked by Android and are not bypassed.
 
 - Coordinate mapping correction: OCR remains based on full-display screenshots to preserve its established display-coordinate mapping. Visual AI uses active-window screenshots on API 34+ and maps normalized VLM points through the captured window's actual screen bounds; API 30–33 use full-display bounds.
+
+- Visual point actions also fail closed whenever any editable or password input field is present in the active window; text entry continues through the separately validated accessibility-node path.

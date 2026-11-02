@@ -17,8 +17,8 @@ internal object UiAgentVisionPolicy {
         return difference * 100L <= maxOf(imageCross, screenCross) * 10L
     }
 
-    fun hasSensitiveContext(labels: Collection<String>, hasPasswordField: Boolean): Boolean {
-        if (hasPasswordField) return true
+    fun hasSensitiveContext(labels: Collection<String>, hasSensitiveInputField: Boolean): Boolean {
+        if (hasSensitiveInputField) return true
         val sensitive = Regex(
             """\b(password|passcode|otp|cvv|upi|wallet|bank|payment|pay|transfer|security|permission|biometric|card number|account number|delete|remove|export|send|share|post|publish|purchase|checkout|subscribe|approve|grant|install|uninstall|confirm)\b""",
             RegexOption.IGNORE_CASE

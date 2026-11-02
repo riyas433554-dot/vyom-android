@@ -612,7 +612,7 @@ class VyomAccessibilityService : AccessibilityService() {
         fun inspect(node: AccessibilityNodeInfo?) {
             if (node == null || visited >= 180) return
             visited++
-            if (node.isPassword) hasPasswordField = true
+            if (node.isPassword || node.isEditable) hasPasswordField = true
             if (!node.isPassword) {
                 node.text?.toString()?.takeIf { it.isNotBlank() }?.let(visibleLabels::add)
                 node.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let(visibleLabels::add)

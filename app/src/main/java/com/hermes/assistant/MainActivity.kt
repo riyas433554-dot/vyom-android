@@ -1429,7 +1429,7 @@ class MainActivity : Activity() {
                             resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels,
                             resources.displayMetrics.density,
                             UiAgentVisionPolicy.hasSensitiveContext(
-                                labels + ocrTargets.map { it.text }, visibleNodes.any { it.password }
+                                labels + ocrTargets.map { it.text }, visibleNodes.any { it.password || it.editable }
                             )
                         )
                         when (verdict) {
@@ -1679,8 +1679,8 @@ class MainActivity : Activity() {
         val displayWidth = resources.displayMetrics.widthPixels
         val displayHeight = resources.displayMetrics.heightPixels
         val source = BitmapFactory.decodeFile(screenshotFile.absolutePath) ?: return null
+        val targetBounds = screenshotBounds ?: android.graphics.Rect(0, 0, displayWidth, displayHeight)
         val bitmap = try {
-            val targetBounds = screenshotBounds ?: android.graphics.Rect(0, 0, displayWidth, displayHeight)
             if (!UiAgentVisionPolicy.isAspectCompatible(source.width, source.height, targetBounds.width(), targetBounds.height())) {
                 source.recycle()
                 return null
