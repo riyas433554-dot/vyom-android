@@ -377,6 +377,64 @@ class VyomAccessibilityService : AccessibilityService() {
         })
     }
 
+    private fun freshSafeOcrTarget(expectedFingerprint: String): Pair<AccessibilityNodeInfo, OcrItem>? {
+        if (expectedFingerprint.isBlank()) return null
+        val root = rootInActiveWindow ?: return null
+        val packageName = root.packageName?.toString().orEmpty()
+        if (packageName.isBlank() || packageName != lastOcrPackage || !isCurrentAppAllowed(root) ||
+            screenRevision != lastOcrRevision) return null
+        val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return null
+        if (isSensitiveOcrText(target.text)) return null
+        val width = resources.displayMetrics.widthPixels
+        val height = resources.displayMetrics.heightPixels
+        val targetWidth = target.right - target.left
+        val targetHeight = target.bottom - target.top
+        val area = targetWidth.toLong() * targetHeight.toLong()
+        val screenArea = width.toLong() * height.toLong()
+        if (target.left < 0 || target.top < 0 || target.right > width || target.bottom > height ||
+            targetWidth < (8 * resources.displayMetrics.density).toInt() ||
+            targetHeight < (8 * resources.displayMetrics.density).toInt() ||
+            area <= 0 || area > screenArea * 10L / 100L) return null
+        return root to target
+    }
+
+    fun swipeOcrTarget(expectedFingerprint: String, direction: String, durationMs: Long = 350L): Boolean {
+        val (_, target) = freshSafeOcrTarget(expectedFingerprint) ?: return false
+        val rect = android.graphics.Rect(target.left, target.top, target.right, target.bottom)
+        val insetX = rect.width() * 0.12f
+        val insetY = rect.height() * 0.12f
+        val (x1, y1, x2, y2) = when (direction.lowercase()) {
+            "left" -> listOf(rect.right - insetX, rect.exactCenterY(), rect.left + insetX, rect.exactCenterY())
+            "right" -> listOf(rect.left + insetX, rect.exactCenterY(), rect.right - insetX, rect.exactCenterY())
+            "up" -> listOf(rect.exactCenterX(), rect.bottom - insetY, rect.exactCenterX(), rect.top + insetY)
+            "down" -> listOf(rect.exactCenterX(), rect.top + insetY, rect.exactCenterX(), rect.bottom - insetY)
+            else -> return false
+        }
+        val distance = kotlin.math.hypot(x2 - x1, y2 - y1)
+        if (distance < 12f * resources.displayMetrics.density) return false
+        return dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
+    }
+
+    fun dragOcrTarget(expectedFingerprint: String, fromAnchor: String, toAnchor: String, durationMs: Long = 450L): Boolean {
+        val (_, target) = freshSafeOcrTarget(expectedFingerprint) ?: return false
+        val anchors = setOf("left", "right", "top", "bottom", "center")
+        if (fromAnchor.lowercase() !in anchors || toAnchor.lowercase() !in anchors ||
+            fromAnchor.equals(toAnchor, ignoreCase = true)) return false
+        val rect = android.graphics.Rect(target.left, target.top, target.right, target.bottom)
+        fun point(anchor: String): Pair<Float, Float> = when (anchor.lowercase()) {
+            "left" -> (rect.left + rect.width() * 0.12f) to rect.exactCenterY()
+            "right" -> (rect.right - rect.width() * 0.12f) to rect.exactCenterY()
+            "top" -> rect.exactCenterX() to (rect.top + rect.height() * 0.12f)
+            "bottom" -> rect.exactCenterX() to (rect.bottom - rect.height() * 0.12f)
+            else -> rect.exactCenterX() to rect.exactCenterY()
+        }
+        val start = point(fromAnchor)
+        val end = point(toAnchor)
+        if (kotlin.math.hypot(end.first - start.first, end.second - start.second) <
+            12f * resources.displayMetrics.density) return false
+        return dispatchPath(start.first, start.second, end.first, end.second, durationMs.coerceIn(150L, 1200L))
+    }
+
     fun tapOcrTarget(expectedFingerprint: String): Boolean {
         val root = rootInActiveWindow ?: return false
         if (expectedFingerprint.isBlank() || root.packageName?.toString() != lastOcrPackage ||
