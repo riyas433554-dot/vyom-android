@@ -1,0 +1,41 @@
+# Android APK Signing & Update Continuity
+
+## Required release identity
+
+- Android application ID: `com.vyom.assistant` (must not change).
+- Kotlin/Android namespace: `com.hermes.assistant` (must not change).
+- Base version: `0.3.0`, versionCode `3`.
+- Next update version: `0.3.1`, versionCode `4`.
+- Expected signing certificate SHA-256 from the user-supplied 19-page Weakness Audit (build `2459bf1`):
+  `7A:75:64:FC:A9:C2:A3:2B:23:DD:52:03:52:A4:E3:AA:FE:44:56:21:D2:B9:9A:FA:15:40:7D:23:86:69:9F:0A`.
+
+## Independently inspected prior artifact
+
+- GitHub Actions artifact: `13146103223`, workflow run `41455029509`, source commit `7e70370d6d9d134f3fa4ba0878636a3f658f275f`.
+- APK: `vyom-0.3.0-7e70370.apk`.
+- APK SHA-256: `6aa6244ed2a8511234c0103c95a36994ca2df76f514695e19a569f5b03562406`; independently matched the artifact's `.sha256` file.
+- Parsed the APK v2 signing block and extracted the X.509 certificate. Actual certificate SHA-256:
+  `BF:41:32:C9:D3:4A:2F:80:CF:03:77:0C:2D:5A:85:A8:04:AA:A8:6B:D8:DF:9B:62:84:C4:2A:2D:C8:38:6E:95`.
+- This is NOT the required `7A:75…9F:0A` identity. Do not install this APK over the base installation.
+
+## Workflow protections added
+
+- Accepts both secret naming conventions for alias/password: `ANDROID_KEY_ALIAS` or `KEY_ALIAS`; `ANDROID_KEY_PASSWORD` or `KEY_PASSWORD`.
+- Normalizes base64 whitespace/URL-safe characters and validates the keystore/alias/password without printing secret values.
+- Exports all validated signing values to later Gradle steps and separately checks that those values are visible in the Gradle build step.
+- Builds version `0.3.1` / code `4`.
+- Runs `apksigner verify --verbose --print-certs` and fails the release packaging step unless the actual certificate SHA-256 equals the expected `7A75…9F0A`.
+- Writes the actual certificate fingerprint to the release artifact's `build-info.txt` and certificate report. The signed artifact is not uploaded when the fingerprint mismatches.
+
+## Release acceptance
+
+1. Run Debug + full CI on the exact final feature-branch commit.
+2. Download the signed release artifact; verify its SHA-256 against the sidecar.
+3. Independently inspect the downloaded APK certificate; it must equal the expected fingerprint above.
+4. Verify package name and version: `com.vyom.assistant`, `0.3.1`, code `4`.
+5. Only then install as an update over the existing app and confirm user data remains.
+6. Never uninstall the existing app as a workaround. Never provide the debug-signed APK as the final update.
+
+## Current status
+
+**UNVERIFIED / RELEASE BLOCKED.** Workflow and version changes are committed, but no successful exact-head signed artifact, certificate comparison, full CI run, or phone update test has been observed yet. The original `2459bf1` APK bytes were not present in the Library during this session; the expected fingerprint is taken from the supplied audit and must still match the installed APK at release time.
