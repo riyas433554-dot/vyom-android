@@ -683,3 +683,10 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - No local Gradle execution or physical-device test was performed in this environment.
 - Do not mark Android Control verified until exact-head CI, APK artifact and user phone testing are complete.
 - Memory Intelligence implementation/verification remains paused until Android Control verification.
+
+
+### Additional pre-dispatch freshness hardening — 2026-11-02
+- Audit found a narrow race between planner-response validation/owner confirmation and the actual Android action dispatch. Added a final current-window + observed-revision check immediately before dispatch; stale actions, including OPEN_APP, WAIT and DONE, are rejected before execution.
+- Added regression test for revision change and foreground package switch between validation and dispatch. `UiAgentPolicyTest` now contains 43 `@Test` methods.
+- Commits: test `65ad169d567319dee0049027b8d45dcb663a3c73`; policy `723528ccdbcf68595881176372504234ebb64232`; service `45133c45b7bc961577b2a858f80bd692a56c6b1e`; MainActivity `e5651fc41cce4cfc9d07ef93ee07d3c805c637bb`.
+- Exact-head CI/build verification remains pending and will be run against the final documentation head.
