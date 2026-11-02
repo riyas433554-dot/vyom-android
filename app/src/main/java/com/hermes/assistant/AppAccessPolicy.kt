@@ -63,9 +63,17 @@ internal object AppAccessPolicy {
     fun isAllowed(context: Context, packageName: String): Boolean {
         if (isBlocked(context, packageName)) return false
         val state = snapshot(context)
-        return isAllowed(state.masterEnabled, state.enabledPackages, packageName)
+        return isAllowed(state.masterEnabled, state.enabledPackages, packageName, context.packageName)
     }
 
+    internal fun isAllowed(
+        masterEnabled: Boolean,
+        enabledPackages: Set<String>,
+        packageName: String,
+        controllerPackage: String
+    ): Boolean = masterEnabled && packageName.isNotBlank() &&
+        (packageName == controllerPackage || packageName in enabledPackages)
+
     internal fun isAllowed(masterEnabled: Boolean, enabledPackages: Set<String>, packageName: String): Boolean =
-        masterEnabled && packageName.isNotBlank() && packageName in enabledPackages
+        isAllowed(masterEnabled, enabledPackages, packageName, "")
 }
