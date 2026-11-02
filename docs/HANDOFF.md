@@ -988,3 +988,14 @@ Branch: `feature/memory-intelligence`
 - The supplied design separates Live voice from Voice settings. The centre orb remains the Live entry; Drawer `Voice` now opens the Settings panel instead of unexpectedly starting a live listening session (`b2537a3`).
 - The Settings panel is still a combined Profile/Settings surface, not the final dedicated Voice Settings / Voice Picker boards. That remains a design gap; local voice selection and VoiceStudio integration are not complete.
 - Updated `docs/DESIGN_MAP.md` accordingly (`be3aa06`). No CI/device verification is claimed.
+
+## 2026-11-02 — Exact signing certificate gate
+
+- Re-read the 19-page audit's signing instruction. Required base certificate SHA-256 is `7A:75:64:FC:A9:C2:A3:2B:23:DD:52:03:52:A4:E3:AA:FE:44:56:21:D2:B9:9A:FA:15:40:7D:23:86:69:9F:0A` (audit baseline build `2459bf1`).
+- Downloaded prior Actions artifact `13146103223` from run `41455029509`, commit `7e70370d6d9d134f3fa4ba0878636a3f658f275f`. APK SHA-256 `6aa6244ed2a8511234c0103c95a36994ca2df76f514695e19a569f5b03562406` independently matches its sidecar.
+- Parsed its APK v2 signing block and extracted certificate SHA-256 `BF:41:32:C9:D3:4A:2F:80:CF:03:77:0C:2D:5A:85:A8:04:AA:A8:6B:D8:DF:9B:62:84:C4:2A:2D:C8:38:6E:95`. This does not match the audit's expected `7A:75…9F:0A`; this APK is not safe to install over the existing base.
+- The actual `2459bf1` APK bytes were not found in Library; expected fingerprint is sourced from the user's audit. Before release, the signed APK must match this fingerprint and the installed app must still be tested in-place.
+- Updated `.github/workflows/vyom-android-debug.yml` in `4aac05e`: supports both `ANDROID_KEY_ALIAS/ANDROID_KEY_PASSWORD` and `KEY_ALIAS/KEY_PASSWORD`; adds a later-step Gradle environment check; verifies the release certificate with `apksigner`; fails release packaging if the fingerprint differs; records certificate SHA-256 in build-info.
+- Bumped build defaults and workflow to `0.3.1`, versionCode `4` in `806071f`. Application ID `com.vyom.assistant` and namespace `com.hermes.assistant` were not changed.
+- Added `docs/ANDROID_SIGNING.md` and linked it from the checklist; updated S6/S7 acceptance statuses.
+- Current checkpoint before this handoff append: `5be4f0a155093d88ea086291dfb3ab1dbc8d6e6b`. No exact-head Debug/full CI run, signed artifact, certificate comparison or phone update test has been observed after these changes. Release remains BLOCKED/UNVERIFIED; do not deliver an APK.
