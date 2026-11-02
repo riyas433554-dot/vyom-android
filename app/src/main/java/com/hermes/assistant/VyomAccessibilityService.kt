@@ -10,6 +10,9 @@ import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.Display
 import android.view.Gravity
 import android.view.View
@@ -40,6 +43,8 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     @Volatile private var screenRevision = 0L
+    @Volatile private var lastRelevantEventAt = 0L
+    @Volatile private var lastRelevantEventPackage = ""
     @Volatile private var lastObservedRevision = -1L
     @Volatile private var lastObservedPackage = ""
     @Volatile private var lastOcrRevision = -1L
@@ -54,15 +59,61 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Event text is deliberately not forwarded to network or logs.
-        if (event != null && event.packageName?.toString() == lastOcrPackage &&
-            lastOcrPackage.isNotBlank() && lastOcrPackage != packageName &&
-            event.eventType in setOf(
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-                AccessibilityEvent.TYPE_VIEW_SCROLLED,
-                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
-            )) screenRevision++
+        // Track window/content transitions across app switches; never retain or forward event text.
+        if (event == null) return
+        val eventPackage = event.packageName?.toString().orEmpty()
+        val relevantType = event.eventType in setOf(
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_SCROLLED,
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+        )
+        if (relevantType && eventPackage.isNotBlank() && eventPackage != packageName) {
+            screenRevision++
+            lastRelevantEventAt = SystemClock.uptimeMillis()
+            lastRelevantEventPackage = eventPackage
+        }
+    }
+
+    data class ScreenObservation(val revision: Long, val foregroundPackage: String)
+
+    fun screenObservation(): ScreenObservation {
+        val foreground = rootInActiveWindow?.packageName?.toString().orEmpty()
+        return ScreenObservation(screenRevision, foreground)
+    }
+
+    /**
+     * Waits for a post-action accessibility transition to become quiet.
+     * The bounded timeout always releases the caller so it can re-observe; it is not success evidence.
+     */
+    fun awaitScreenSettled(
+        baseline: ScreenObservation,
+        timeoutMs: Long = 1200L,
+        quietMs: Long = 220L,
+        onSettled: (changed: Boolean, timedOut: Boolean, observation: ScreenObservation) -> Unit
+    ) {
+        val handler = Handler(Looper.getMainLooper())
+        val startedAt = SystemClock.uptimeMillis()
+        val deadline = startedAt + timeoutMs.coerceIn(250L, 2500L)
+        val poll = object : Runnable {
+            override fun run() {
+                val observation = screenObservation()
+                val changed = observation.revision > baseline.revision ||
+                    (observation.foregroundPackage.isNotBlank() &&
+                        observation.foregroundPackage != baseline.foregroundPackage)
+                val now = SystemClock.uptimeMillis()
+                val quiet = changed && now - lastRelevantEventAt >= quietMs.coerceIn(80L, 600L)
+                if (quiet) {
+                    onSettled(true, false, observation)
+                } else if (now >= deadline) {
+                    onSettled(changed, true, observation)
+                } else {
+                    handler.postDelayed(this, 50L)
+                }
+            }
+        }
+        handler.post(poll)
     }
 
     override fun onInterrupt() = Unit
