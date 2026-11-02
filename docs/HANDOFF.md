@@ -749,3 +749,10 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Added a regression test for first-run deny-by-default behavior. `AppAccessPolicyTest.kt` now has 5 tests.
 - Commits: regression `4793f64c29722d7d4ff2bd5b6bd5ee4591118699`; safe default policy `36d7c7802698612223c12b4d6a7536758609077c`; MainActivity initialization `d321c0f93d7db02c3fcde702000e904bcb3bd0d7`.
 - This is a fresh-install default change only; already-initialized app permissions remain unchanged. Exact-head test/build verification is pending.
+
+
+### Android Control compile regression correction — 2026-11-02
+- Exact-head CI (`41391832674`) and Debug (`41391832630`) both failed at Kotlin compilation, not at tests: `MainActivity.kt:1139` passed a removed `installedPackages` argument to `AppAccessPolicy.initializeForInstalledApps(context)`.
+- Removed the obsolete launcher-package enumeration and aligned the caller with the deny-by-default initializer. This does not alter existing stored user choices; fresh installs remain MASTER OFF with no packages enabled.
+- Fix commit: `7ea3844d357e3d97a14865c012e1363c1cd6e524`.
+- Must rerun both workflows against the resulting exact branch head. No APK from the failed head is valid.
