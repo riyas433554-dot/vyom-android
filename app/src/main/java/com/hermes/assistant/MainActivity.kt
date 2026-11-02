@@ -1738,9 +1738,7 @@ class MainActivity : Activity() {
         VyomSkillsDialog(this, { label, enabled ->
             logControlAction("Skill: $label", if (enabled) "enabled" else "disabled", "profile")
         }, {
-            showTeachCommandDialog("new taught command", "profile") { message ->
-                AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show()
-            }
+            showTeachLibrary()
         }, ::navigateDrawerItem).show()
     }
 
@@ -3743,10 +3741,16 @@ class MainActivity : Activity() {
         return true
     }
 
-    private fun showTeachCommandDialog(original: String, source: String, onResult: (String) -> Unit) {
-        VyomTeachDialog(this, original, { canonical ->
-            if (canonical.isBlank() || canonical.length > 120) {
-                onResult("Short command likho (1–120 characters).")
+    private fun showTeachCommandDialog(
+        original: String,
+        source: String,
+        onResult: (String) -> Unit,
+        initialCommand: String = "",
+        executeAfterSave: Boolean = true
+    ) {
+        VyomTeachDialog(this, original, initialCommand, { phrase, canonical ->
+            if (phrase.isBlank() || phrase.length > 100 || canonical.isBlank() || canonical.length > 120) {
+                onResult("Phrase 1–100 aur supported command 1–120 characters ka hona chahiye.")
                 return@VyomTeachDialog
             }
             val taught = ActionEngine.classify(canonical)
@@ -3755,16 +3759,52 @@ class MainActivity : Activity() {
                 return@VyomTeachDialog
             }
             if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
-                logControlAction(original, "teaching-blocked-by-kill-switch", source)
-                onResult("STOP CONTROL is ON. Device action blocked; teaching was not run.")
+                logControlAction(phrase, "teaching-blocked-by-kill-switch", source)
+                onResult("STOP CONTROL is ON. Teaching save nahi hui.")
                 return@VyomTeachDialog
             }
-            DeviceCommandConfig.saveTeaching(this, original, canonical)
-            logControlAction("Teach command: $original", "saved-locally-to=$canonical", source)
-            executeClassifiedDeviceAction(taught, source, onResult)
+            DeviceCommandConfig.saveTeaching(this, phrase, canonical)
+            logControlAction("Teach command: $phrase", "saved-locally-to=$canonical", source)
+            if (executeAfterSave) executeClassifiedDeviceAction(taught, source, onResult)
+            else onResult("Saved locally: \"$phrase\" → \"$canonical\". No device action was executed.")
         }, {
             onResult("Okay, command save nahi kiya.")
         }).show()
+    }
+
+    private fun showTeachLibrary() {
+        val entries = DeviceCommandConfig.learnedCommands(this).toList().sortedBy { it.first }
+        val labels = entries.map { "${it.first}  →  ${it.second}" }.toTypedArray()
+        val builder = AlertDialog.Builder(this)
+            .setTitle("Teach library · ${entries.size} phrases")
+            .setMessage(if (entries.isEmpty()) "Abhi koi custom phrase saved nahi hai. Add karke supported action se map karo." else
+                "Saved phrases are local to this phone. Only supported single actions can be taught; safety policy cannot be changed here.")
+            .setItems(labels) { _, index ->
+                val (phrase, command) = entries[index]
+                AlertDialog.Builder(this)
+                    .setTitle(phrase)
+                    .setItems(arrayOf("EDIT PHRASE / ACTION", "DELETE PHRASE")) { _, choice ->
+                        if (choice == 0) {
+                            showTeachCommandDialog(phrase, "profile", { message ->
+                                AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show()
+                            }, initialCommand = command, executeAfterSave = false)
+                        } else {
+                            if (DeviceCommandConfig.deleteTeaching(this, phrase)) {
+                                logControlAction("Teach command: $phrase", "deleted-from-local-library", "profile")
+                                showTeachLibrary()
+                            }
+                        }
+                    }
+                    .setNegativeButton("CANCEL", null)
+                    .show()
+            }
+            .setNeutralButton("ADD PHRASE") { _, _ ->
+                showTeachCommandDialog("", "profile", { message ->
+                    AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK") { _, _ -> showTeachLibrary() }.show()
+                }, executeAfterSave = false)
+            }
+            .setPositiveButton("DONE", null)
+        builder.show()
     }
 
     private fun executeClassifiedDeviceAction(action: ActionEngine.Intent, source: String, onResult: (String) -> Unit) {
