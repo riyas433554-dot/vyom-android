@@ -1264,12 +1264,21 @@ class MainActivity : Activity() {
                 finish("Accessibility service disconnected. Task stopped.")
                 return
             }
+            val planningObservation = service.screenObservation()
             val tree = service.describeVisibleTree(180)
             if (tree.length() == 0) {
                 finish("Screen unavailable or this app is OFF in App access. No action taken.")
                 return
             }
-            val planningObservation = service.screenObservation()
+            val afterTreeObservation = service.screenObservation()
+            if (!UiAgentPolicy.isTreeObservationFresh(
+                    planningObservation.revision, afterTreeObservation.revision,
+                    planningObservation.foregroundPackage, afterTreeObservation.foregroundPackage
+                )) {
+                logControlAction("UI Agent screen observation", "stale-tree-capture-rejected", "ui-agent")
+                finish("Screen changed while Vyom was reading the accessibility tree. Stale observation discarded; no action taken.")
+                return
+            }
             updateProgress("Observing screen • step " + (completedSteps + 1) + "/40")
             service.captureVisibleOcr { ocrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
