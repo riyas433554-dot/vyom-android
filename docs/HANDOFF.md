@@ -982,3 +982,9 @@ Branch: `feature/memory-intelligence`
 - Removed the visible `NEW AUTOMATION` button because it could not persist a schedule and only showed a “not connected” dialog (`50633dc`). It must return only after the scheduler saves, lists and executes a real schedule.
 - Updated `docs/ACCEPTANCE_TESTS.md` statuses U3/U8 and `docs/DESIGN_MAP.md` board mappings. These are source-level fixes; no CI or phone test is claimed.
 - Latest checkpoint before this note: `42731f530d59a7ccccd897a84cf7cbb500c03e5b` on `feature/memory-intelligence`. Expected whole unit test count remains 149 (144 previous + 5 new regression tests); not executed.
+
+## 2026-11-02 — Voice navigation correction
+
+- The supplied design separates Live voice from Voice settings. The centre orb remains the Live entry; Drawer `Voice` now opens the Settings panel instead of unexpectedly starting a live listening session (`b2537a3`).
+- The Settings panel is still a combined Profile/Settings surface, not the final dedicated Voice Settings / Voice Picker boards. That remains a design gap; local voice selection and VoiceStudio integration are not complete.
+- Updated `docs/DESIGN_MAP.md` accordingly (`be3aa06`). No CI/device verification is claimed.
