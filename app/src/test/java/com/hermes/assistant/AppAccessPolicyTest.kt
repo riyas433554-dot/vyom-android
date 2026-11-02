@@ -25,4 +25,11 @@ class AppAccessPolicyTest {
         assertFalse(AppAccessPolicy.isAllowed(true, setOf("com.example.app"), "com.other.app"))
         assertFalse(AppAccessPolicy.isAllowed(true, setOf("com.example.app"), ""))
     }
+    @Test fun firstRunAccessDefaultsToMasterOffAndNoEnabledApps() {
+        val initial = AppAccessPolicy.initialSnapshot()
+        assertFalse(initial.masterEnabled)
+        assertTrue(initial.enabledPackages.isEmpty())
+        assertFalse(AppAccessPolicy.isAllowed(initial.masterEnabled, initial.enabledPackages, "com.example.editor"))
+    }
+
 }
