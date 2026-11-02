@@ -644,3 +644,12 @@ Branch: `feature/memory-intelligence`
 - Implementation commits: policy gates `1b0a62c4858dfc02626cc0770da832dcc7a91614`; AccessibilityService freshness wiring `5b2f0a3c103a8b83133ffb540377d25f9e5373b5`; failed-action gate `94d655f23ea28e4eda790de52b50043c7f7ace96`; regression tests `ba7c5426b6859dee24effef8d9e079d6f57676de`; MainActivity execution-gate wiring `adedfded7d779fe1e841bc6339a34e58ca6ead97` and `b1c2ac1db6d79d0cfdb34b1fa37f652219d3ffac`.
 - Tests/build/CI have NOT been run; Kotlin compilation remains unverified. Physical phone testing remains pending.
 - Scope unchanged: Android feature branch only. No Android `main`, Hermes/Render, backend, production database or deployment changes.
+
+## 2026-11-02 — Reject stale UI Agent planner responses
+
+- Captures the screen revision and foreground package with the accessibility tree before OCR/planner work begins.
+- When the model response returns, MainActivity re-reads the current screen observation and rejects the entire response if either revision or foreground package changed. This applies before policy validation, including DONE completion evidence; no stale action or stale DONE is accepted.
+- Added policy regression tests for revision changes, app switches and unchanged-screen acceptance.
+- Commits: tests `8be3656489efd3d4f0922f0da845b22bda330c56`; policy `a450eaeb77741bd72dfd67e08fa7c72ea93e4196`; MainActivity `f5fef099115ab83327a0bb95f411963882306568`.
+- Test/build/CI have not yet been run for these commits. Phone testing remains pending.
+- Scope: Android feature branch only. No Android `main`, Hermes, Render, backend or production data changes.
