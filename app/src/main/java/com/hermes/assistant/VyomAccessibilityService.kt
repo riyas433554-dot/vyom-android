@@ -410,7 +410,7 @@ class VyomAccessibilityService : AccessibilityService() {
             "down" -> listOf(rect.exactCenterX(), rect.top + insetY, rect.exactCenterX(), rect.bottom - insetY)
             else -> return false
         }
-        val distance = kotlin.math.hypot(x2 - x1, y2 - y1)
+        val distance = kotlin.math.sqrt((x2 - x1).toDouble() * (x2 - x1).toDouble() + (y2 - y1).toDouble() * (y2 - y1))
         if (distance < 12f * resources.displayMetrics.density) return false
         return dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
     }
@@ -430,7 +430,7 @@ class VyomAccessibilityService : AccessibilityService() {
         }
         val start = point(fromAnchor)
         val end = point(toAnchor)
-        if (kotlin.math.hypot(end.first - start.first, end.second - start.second) <
+        if (kotlin.math.sqrt((end.first - start.first).toDouble() * (end.first - start.first).toDouble() + (end.second - start.second).toDouble() * (end.second - start.second).toDouble()) <
             12f * resources.displayMetrics.density) return false
         return dispatchPath(start.first, start.second, end.first, end.second, durationMs.coerceIn(150L, 1200L))
     }
