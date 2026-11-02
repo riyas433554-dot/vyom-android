@@ -756,6 +756,11 @@ class MainActivity : Activity() {
             setOnClickListener { showAppAccessPanel() }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         controlPanel.addView(Button(this).apply {
+            text = "CONTROL READINESS"
+            contentDescription = "Check all prerequisites for Android UI automation"
+            setOnClickListener { showControlReadiness() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        controlPanel.addView(Button(this).apply {
             text = "VYOM APP SETTINGS"
             setOnClickListener { confirmControlAction("Open Vyom app settings", "app-details") }
         }, LinearLayout.LayoutParams(-1, dp(42)))
@@ -1666,6 +1671,35 @@ class MainActivity : Activity() {
         val screenArea = screenWidth.toLong() * screenHeight.toLong()
         return left >= 0 && top >= 0 && right <= screenWidth && bottom <= screenHeight &&
             width >= dp(24) && height >= dp(24) && area > 0 && area <= screenArea * 35L / 100L
+    }
+
+    private fun showControlReadiness() {
+        val service = VyomAccessibilityService.current()
+        val access = AppAccessPolicy.snapshot(this)
+        val stopOn = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
+        val plannerReady = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty().isNotBlank()
+        val skillEnabled = getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean("ui_agent", true)
+        val currentPackage = service?.screenObservation()?.foregroundPackage.orEmpty()
+        val lines = listOf(
+            "Accessibility service: " + if (service != null) "READY" else "NEEDS ANDROID SETTINGS",
+            "STOP CONTROL: " + if (stopOn) "ON — actions blocked" else "OFF",
+            "Master App Access: " + if (access.masterEnabled) "ON" else "OFF",
+            "Allowed apps: ${access.enabledPackages.size}",
+            "Current app: " + (currentPackage.ifBlank { "not observed" }),
+            "Current app allowed: " + if (currentPackage.isNotBlank() && AppAccessPolicy.isAllowed(this, currentPackage)) "YES" else "NO / NOT OBSERVED",
+            "Google Play Store access: " + if (AppAccessPolicy.isAllowed(this, "com.android.vending")) "ON" else "OFF",
+            "NVIDIA UI planner: " + if (plannerReady) "CONFIGURED" else "MISSING KEY",
+            "UI Agent skill: " + if (skillEnabled) "ENABLED" else "DISABLED"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Android control readiness")
+            .setMessage(lines.joinToString("\n"))
+            .setPositiveButton("ACCESSIBILITY SETTINGS") { _, _ ->
+                performControlAction("Open Android accessibility settings", Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            }
+            .setNeutralButton("APP ACCESS") { _, _ -> showAppAccessPanel() }
+            .setNegativeButton("SKILLS") { _, _ -> showSkillsRegistry() }
+            .show()
     }
 
     private fun showAppAccessPanel() {
