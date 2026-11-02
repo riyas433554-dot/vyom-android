@@ -381,4 +381,64 @@ class UiAgentPolicyTest {
         assertTrue(UiAgentPolicy.isActionObservationFresh(70L, 70L, "com.editor", "com.editor"))
     }
 
+
+    @Test fun explicitPlayStoreInstallIntentAllowsOnlyTheExactInstallButtonOnMatchingListing() {
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.TAP_TEXT,
+            target = "Install",
+            screenPackage = "com.android.vending"
+        )
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(
+                action,
+                listOf("Godot Engine 4", "Godot Foundation", "Install"),
+                "Install Godot 4 latest version from Play Store",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+    }
+
+    @Test fun explicitPlayStoreInstallIntentRejectsWrongListingOrWrongButton() {
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.TAP_TEXT,
+            target = "Install",
+            screenPackage = "com.android.vending"
+        )
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                action,
+                listOf("Godot Engine 3", "Godot Foundation", "Install"),
+                "Install Godot 4 latest version from Play Store",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                action.copy(screenPackage = "com.example.fake.store"),
+                listOf("Godot Engine 4", "Godot Foundation", "Install"),
+                "Install Godot 4 latest version from Play Store",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                action.copy(target = "Buy"),
+                listOf("Godot Engine 4", "Godot Foundation", "Buy"),
+                "Install Godot 4 latest version from Play Store",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+    }
+
+    @Test fun requestedInstallModeNeverAuthorizesUnrelatedConsequentialActions() {
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.TAP_TEXT,
+            target = "Delete",
+            screenPackage = "com.android.vending"
+        )
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                action,
+                listOf("Godot Engine 4", "Godot Foundation", "Delete"),
+                "Install Godot 4 from Play Store",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+    }
+
 }
