@@ -12,20 +12,49 @@ internal object ChatContextPolicy {
         val recent = history.trim()
         if (memory.isEmpty() && recent.isEmpty() || maxChars == 0) return ""
 
-        val memoryLabel = if (memory.isEmpty()) "" else "On-device memory facts (user-controlled; newer facts take precedence when preferences conflict within a category):\n$memory"
-        val historyLabel = if (recent.isEmpty()) "" else "Recent conversation context:\n$recent"
-        val complete = listOf(memoryLabel, historyLabel).filter { it.isNotEmpty() }.joinToString("\n\n")
-        if (complete.length <= maxChars) return complete
-        if (memoryLabel.isEmpty()) return historyLabel.takeLast(maxChars)
-        if (historyLabel.isEmpty()) return memoryLabel.takeLast(maxChars)
+        val memoryHeader = "On-device memory (newest preferences first):"
+        val historyHeader = "Recent conversation:"
+        if (memory.isEmpty()) return sectionTail(historyHeader, recent, maxChars)
+        if (recent.isEmpty()) return sectionTail(memoryHeader, memory, maxChars)
 
-        val memoryBudget = (maxChars / 2).coerceAtMost(memoryLabel.length)
-        val historyBudget = maxChars - memoryBudget
+        val fixedChars = memoryHeader.length + historyHeader.length + 3
+        val contentBudget = (maxChars - fixedChars).coerceAtLeast(0)
+        val memoryBudget = minOf(memory.length, contentBudget / 2)
+        val historyBudget = minOf(recent.length, contentBudget - memoryBudget)
+        val remaining = contentBudget - memoryBudget - historyBudget
+        val finalMemoryBudget = minOf(memory.length, memoryBudget + remaining)
+        val finalHistoryBudget = minOf(recent.length, historyBudget + (remaining - (finalMemoryBudget - memoryBudget)))
         return buildString(maxChars) {
-            append(memoryLabel.takeLast(memoryBudget))
-            append("\n")
-            append(historyLabel.takeLast(historyBudget - 1))
+            append(memoryHeader).append('\n').append(tailLines(memory, finalMemoryBudget))
+            append("\n\n").append(historyHeader).append('\n').append(tailLines(recent, finalHistoryBudget))
+        }.take(maxChars)
+    }
+
+    private fun sectionTail(header: String, value: String, maxChars: Int): String {
+        if (maxChars <= header.length) return header.take(maxChars)
+        val bodyBudget = maxChars - header.length - 1
+        return header + "\n" + tailLines(value, bodyBudget)
+    }
+
+    /** Keep complete newest lines; if the newest line alone is too long, keep its suffix. */
+    private fun tailLines(value: String, budget: Int): String {
+        if (budget <= 0) return ""
+        if (value.length <= budget) return value
+        val lines = value.split('\n')
+        val kept = ArrayDeque<String>()
+        var used = 0
+        for (line in lines.asReversed()) {
+            val cost = line.length + if (kept.isEmpty()) 0 else 1
+            if (used + cost <= budget) {
+                kept.addFirst(line)
+                used += cost
+            } else if (kept.isEmpty()) {
+                return line.takeLast(budget)
+            } else {
+                break
+            }
         }
+        return kept.joinToString("\n")
     }
 
     fun shouldRetryWithRaw(statusCode: Int, contextualMessage: String, rawMessage: String): Boolean =
