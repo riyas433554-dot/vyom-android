@@ -180,6 +180,14 @@ internal object UiAgentPolicy {
     fun mayExecute(generationMatches: Boolean, stopControlOn: Boolean, nowMs: Long, grantExpiresAt: Long?): Boolean =
         generationMatches && !stopControlOn && (grantExpiresAt == null || nowMs < grantExpiresAt)
 
+
+    fun mayResumeAfterWait(
+        generationMatches: Boolean, stopControlOn: Boolean, nowMs: Long, grantExpiresAt: Long?,
+        expectedPackage: String, currentPackage: String
+    ): Boolean =
+        mayExecute(generationMatches, stopControlOn, nowMs, grantExpiresAt) &&
+            expectedPackage.isNotBlank() && expectedPackage == currentPackage
+
     fun actionAccepted(actionSucceeded: Boolean): Boolean = actionSucceeded
 
     fun mayContinue(completedSteps: Int, maxSteps: Int = 40): Boolean =
