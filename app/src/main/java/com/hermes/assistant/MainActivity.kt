@@ -3818,7 +3818,8 @@ class MainActivity : Activity() {
                 onResult("Teaching save failed safely: ${error.message ?: "local storage unavailable"}.")
                 return@VyomTeachDialog
             }
-            if (replaceExistingPhrase != null && !phrase.equals(replaceExistingPhrase, ignoreCase = true)) {
+            if (replaceExistingPhrase != null &&
+                DeviceCommandConfig.normalizedPhrase(phrase) != DeviceCommandConfig.normalizedPhrase(replaceExistingPhrase)) {
                 DeviceCommandConfig.deleteTeaching(this, replaceExistingPhrase)
             }
             logControlAction("Teach command: $phrase", "saved-locally-to=$canonical", source)
