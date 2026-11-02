@@ -126,6 +126,9 @@ internal object UiAgentPolicy {
         observedRevision >= 0L && observedRevision == currentRevision &&
             observedPackage.isNotBlank() && observedPackage == currentPackage
 
+    fun isPlannerResponseFresh(observedRevision: Long, currentRevision: Long, observedPackage: String, currentPackage: String): Boolean =
+        isFreshScreen(observedRevision, currentRevision, observedPackage, currentPackage)
+
     fun mayExecute(generationMatches: Boolean, stopControlOn: Boolean, nowMs: Long, grantExpiresAt: Long?): Boolean =
         generationMatches && !stopControlOn && (grantExpiresAt == null || nowMs < grantExpiresAt)
 
