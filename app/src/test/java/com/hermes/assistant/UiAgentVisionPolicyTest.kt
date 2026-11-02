@@ -45,7 +45,7 @@ class UiAgentVisionPolicyTest {
         assertTrue(UiAgentVisionPolicy.hasSensitiveContext(listOf("123456"), false))
         assertTrue(UiAgentVisionPolicy.hasSensitiveContext(listOf("person@example.com"), false))
         assertTrue(UiAgentVisionPolicy.hasSensitiveContext(emptyList(), true))
-        assertFalse(UiAgentVisionPolicy.hasSensitiveContext(listOf("Trim clip", "Export preview"), false))
+        assertFalse(UiAgentVisionPolicy.hasSensitiveContext(listOf("Trim clip", "Preview timeline"), false))
     }
 
     @Test fun visualActionsAlwaysRequireConfirmationEvenWithSessionGrant() {

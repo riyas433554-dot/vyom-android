@@ -1052,3 +1052,5 @@ Branch: `feature/memory-intelligence`
 - Prompt reconciliation: the text-only planner schema explicitly lists Back/Home/Recents/Notifications/Quick Settings; the screenshot VLM schema is restricted to point gestures plus `none` (which falls back to the text planner).
 
 - Screenshot capture now closes the hardware buffer and recycles both hardware/software bitmap handles in a `finally` path, including file-write failures. Additional sensitive-context tests cover destructive labels, numeric OTP-like values and email addresses.
+
+- Final prompt/safety adjustment: the screenshot VLM is instructed to ignore Vyom's own floating progress/STOP overlay; export actions are included in the sensitive-screen deny scan. Marker circles now use the explicit Android oval shape setter.

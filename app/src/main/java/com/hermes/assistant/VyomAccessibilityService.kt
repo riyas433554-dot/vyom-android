@@ -194,7 +194,7 @@ class VyomAccessibilityService : AccessibilityService() {
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
+                setShape(GradientDrawable.OVAL)
                 setColor(0xE622D3EE.toInt())
                 setStroke((2 * density).toInt().coerceAtLeast(1), Color.WHITE)
             }
