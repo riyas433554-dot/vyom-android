@@ -457,4 +457,34 @@ class UiAgentPolicyTest {
             ))
     }
 
+
+    @Test fun requestedInstallModeAllowsSafeLabeledNavigationInsidePlayStoreOnly() {
+        val fingerprint = "com.android.vending|android.view.View|10|20|200|80"
+        val node = UiAgentPolicy.VisibleNode(
+            3, true, false, false, false, fingerprint, true, "Godot Engine 4"
+        )
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.TAP_NODE,
+            nodeIndex = 3,
+            nodeFingerprint = fingerprint,
+            screenPackage = "com.android.vending"
+        )
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(
+                action,
+                listOf("Godot Engine 4", "Godot Foundation"),
+                "Install Godot 4 latest version from Google Play Store",
+                visibleNodes = listOf(node),
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(
+                action.copy(screenPackage = "com.example.other"),
+                listOf("Godot Engine 4", "Godot Foundation"),
+                "Install Godot 4 latest version from Google Play Store",
+                visibleNodes = listOf(node),
+                confirmationMode = UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL
+            ))
+    }
+
 }
