@@ -31,7 +31,7 @@ Current source already has the exact base palette in `VyomDesignSpec` and `VyomT
 | 1 | Design system | `VyomTheme`, `VyomDesignSpec` | Palette exists; glass alpha, font family, component sizing and full-app theme propagation need visual verification. |
 | 2 | Home | `MainActivity.buildHomePanel()`, `showHome()`, `OrbSurfaceView` | Base home/orb exists; compare header, quick actions, task orbit cards, status strip and spacing to board. |
 | 3 | Drawer (3-line menu) | `VyomDrawer`, `VyomDesignSpec.drawerItems` | Drawer exists. Unimplemented entries are now hidden instead of showing SOON; verify sections/search/scroll and one-tap STOP. |
-| 4 | Automations panel | `VyomAutomationsDialog` | Current dialog shows task queue only; convert to a proper screen and add workflow canvas only when its real executor exists. |
+| 4 | Automations panel | `VyomAutomationsDialog` | Current dialog shows task queue only; the non-persistent New Automation button is hidden. Convert to a proper screen and add workflow canvas only when its real executor exists. |
 | 5 | Orb — standby (hero) | `OrbSurfaceView`, `OrbRenderer` | Core renderer exists; match hero scale, transparency, glow and no-black-rectangle acceptance. |
 | 6 | Orb states | `VyomDesignSpec.OrbState`, `orbMode()`, `OrbSurfaceView` | State mapping exists; verify each animation, accent, reduced-motion and Lite Mode state. |
 | 7 | Chat | `MainActivity.renderChatMessages()`, chat composer/layout | Chat exists; supplied + / attachment / lane / mic / dynamic Send-Live composer and long-message behavior remain. |
@@ -43,7 +43,7 @@ Current source already has the exact base palette in `VyomDesignSpec` and `VyomT
 | 13 | Tasks | `MainActivity.createTask()`, `renderTasks()` | Task list/progress/result cards exist; compare clipping, status pills, queue controls and live updates. |
 | 14 | Task detail | `VyomTaskDetailDialog` | Detail dialog exists; convert to full-screen detail with steps, logs, retry/cancel and artifact viewer. |
 | 15 | Animations — VFX | No production Creative Studio screen yet | Build only after the creative pipeline adapters are real; do not show a dead drawer item. |
-| 16 | New automation | `VyomAutomationsDialog` currently explains schedules are not connected | Scheduler-backed editor with trigger/repeat/action/save is pending; never claim a schedule was created until persisted. |
+| 16 | New automation | No active entry point; non-persistent placeholder button removed | Scheduler-backed editor with trigger/repeat/action/save is pending; restore the entry only after schedules persist and can be inspected. |
 | 17 | Skills | `showSkillsRegistry()`, `VyomSkillsDialog` | Registry dialog exists; full-screen searchable skills registry, install/enable/disable and source/licence evidence remain. |
 | 18 | Teach Vyom | `showTeachCommandDialog()`, `showTeachLibrary()`, `VyomTeachDialog` | Phrase mapping exists; parameterised multi-step procedure, preconditions, dry-run and expected-result checks remain. |
 | 19 | Assistant control | `showTab(...showControl=true)`, `showControlReadiness()`, `showUiAgentPanel()` | Control and readiness exist; compare full permission checklist, persistent task lifecycle and overlay to design. |
@@ -70,6 +70,6 @@ Current source already has the exact base palette in `VyomDesignSpec` and `VyomT
 ## Current source reconciliation (2026-11-02)
 
 - Fixed the Profile/Drawer collision: bottom Profile now opens the settings panel; the three-line menu remains the Drawer.
-- Hid unimplemented Drawer entries rather than rendering SOON badges; the dead “not connected in this build” Toast route was removed.
+- Hid unimplemented Drawer entries rather than rendering SOON badges; the dead “not connected in this build” Toast route and non-persistent New Automation button were removed.
 - Added tests for filtering disabled Drawer entries. Exact-head CI and device screenshots are still pending.
 - The 31-board mapping is source inspection, not screenshot acceptance. Add one screenshot/instrumentation test per implemented screen and attach exact-commit artifacts before marking a board FIXED.
