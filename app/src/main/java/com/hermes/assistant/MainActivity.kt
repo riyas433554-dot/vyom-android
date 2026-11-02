@@ -3578,7 +3578,6 @@ class MainActivity : Activity() {
         val requested = Regex("""(?i)\binstall\s+(.+?)\s+from\s+(?:google\s+)?play\s*store\b""")
             .find(goal)?.groupValues?.getOrNull(1) ?: return null
         val ignored = setOf("latest", "newest", "version", "app", "application", "the", "official")
-        val ignored = setOf("latest", "newest", "version", "app", "application", "the", "official")
         val tokens = Regex("""[\p{L}\p{N}]+""").findAll(requested.lowercase())
             .map { it.value }.filter { it !in ignored }.toSet()
         if (tokens.isEmpty()) return null
