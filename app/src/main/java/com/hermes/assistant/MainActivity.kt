@@ -3780,7 +3780,8 @@ class MainActivity : Activity() {
         source: String,
         onResult: (String) -> Unit,
         initialCommand: String = "",
-        executeAfterSave: Boolean = true
+        executeAfterSave: Boolean = true,
+        replaceExistingPhrase: String? = null
     ) {
         VyomTeachDialog(this, original, initialCommand, { phrase, canonical ->
             if (phrase.isBlank() || phrase.length > 100 || canonical.isBlank() || canonical.length > 120) {
@@ -3798,6 +3799,9 @@ class MainActivity : Activity() {
                 return@VyomTeachDialog
             }
             DeviceCommandConfig.saveTeaching(this, phrase, canonical)
+            if (replaceExistingPhrase != null && !phrase.equals(replaceExistingPhrase, ignoreCase = true)) {
+                DeviceCommandConfig.deleteTeaching(this, replaceExistingPhrase)
+            }
             logControlAction("Teach command: $phrase", "saved-locally-to=$canonical", source)
             if (executeAfterSave) executeClassifiedDeviceAction(taught, source, onResult)
             else onResult("Saved locally: \"$phrase\" → \"$canonical\". No device action was executed.")
@@ -3820,8 +3824,8 @@ class MainActivity : Activity() {
                     .setItems(arrayOf("EDIT PHRASE / ACTION", "DELETE PHRASE")) { _, choice ->
                         if (choice == 0) {
                             showTeachCommandDialog(phrase, "profile", { message ->
-                                AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show()
-                            }, initialCommand = command, executeAfterSave = false)
+                                AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK") { _, _ -> showTeachLibrary() }.show()
+                            }, initialCommand = command, executeAfterSave = false, replaceExistingPhrase = phrase)
                         } else {
                             if (DeviceCommandConfig.deleteTeaching(this, phrase)) {
                                 logControlAction("Teach command: $phrase", "deleted-from-local-library", "profile")
