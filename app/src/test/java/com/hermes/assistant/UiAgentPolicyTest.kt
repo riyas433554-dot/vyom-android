@@ -364,4 +364,13 @@ class UiAgentPolicyTest {
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.WAIT, waitMs = 8001), emptyList(), "Wait for upload"))
     }
 
+    @Test fun waitResumeRequiresSameAppLiveGenerationAndUnexpiredGrant() {
+        assertTrue(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, 500L, "com.editor", "com.editor"))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(false, false, 100L, 500L, "com.editor", "com.editor"))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, true, 100L, 500L, "com.editor", "com.editor"))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 500L, 500L, "com.editor", "com.editor"))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "com.editor", "com.settings"))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "", ""))
+    }
+
 }
