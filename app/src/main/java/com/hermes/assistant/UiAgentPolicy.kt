@@ -108,17 +108,6 @@ internal object UiAgentPolicy {
             Regex("""[\p{L}\p{N}]+""").findAll(label.lowercase()).map { it.value }.sorted().joinToString(" ")
         }
         return matchingTitles.size == 1
-        if (expectedTokens.isEmpty()) return false
-
-        val labels = (visibleLabels + visibleOcr.map { it.text } + visibleNodes.map { it.label })
-            .map(String::trim).filter { it.isNotBlank() && !it.equals("Install", true) }
-        val matchingTitles = labels.filter { label ->
-            val tokens = Regex("[\\\\p{L}\\\\p{N}]+").findAll(label.lowercase()).map { it.value }.toSet()
-            expectedTokens.all { it in tokens }
-        }.distinctBy { label ->
-            Regex("[\\\\p{L}\\\\p{N}]+").findAll(label.lowercase()).map { it.value }.sorted().joinToString(" ")
-        }
-        return matchingTitles.size == 1
     }
 
     fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK): Verdict {
