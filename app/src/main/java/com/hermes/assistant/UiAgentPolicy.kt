@@ -122,6 +122,15 @@ internal object UiAgentPolicy {
         mode == ConfirmationMode.SESSION_GRANT &&
             !consequential.containsMatchIn(userGoal) && !consequential.containsMatchIn(targetLabel)
 
+    fun isFreshScreen(observedRevision: Long, currentRevision: Long, observedPackage: String, currentPackage: String): Boolean =
+        observedRevision >= 0L && observedRevision == currentRevision &&
+            observedPackage.isNotBlank() && observedPackage == currentPackage
+
+    fun mayExecute(generationMatches: Boolean, stopControlOn: Boolean, nowMs: Long, grantExpiresAt: Long?): Boolean =
+        generationMatches && !stopControlOn && (grantExpiresAt == null || nowMs < grantExpiresAt)
+
+    fun actionAccepted(actionSucceeded: Boolean): Boolean = actionSucceeded
+
     fun mayContinue(completedSteps: Int, maxSteps: Int = 40): Boolean =
         completedSteps >= 0 && completedSteps < maxSteps
     fun progressMessage(completedSteps: Int): String =
