@@ -1091,3 +1091,5 @@ Branch: `feature/memory-intelligence`
 - System UI tree filtering now redacts all non-allowlisted text/description/hint fields even on an otherwise safe tile node; only the safe tile label and non-text geometry/fingerprint metadata are forwarded. State labels with “is on/off” phrasing are recognized.
 
 - The System UI label matcher also accepts common “is On/Off” state phrasing while keeping the exact allowlist.
+
+- Replaced the System UI state-label regex as a complete block after detecting an escaped-string replacement error; the current Kotlin raw-string pattern is syntactically complete and covers optional “is on/off” status.

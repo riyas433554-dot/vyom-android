@@ -262,7 +262,7 @@ internal object UiAgentPolicy {
 
     // poka-yoke: only a narrow exact label allowlist can be interacted with in System UI [control]
     private val systemUiLabelPattern = Regex(
-        """(?i)^(wi-?fi|internet|bluetooth|airplane mode|do not disturb|battery saver|flashlight|location|auto-rotate|screen record|hotspot|mobile data|brightness)(?:\s*(?:,|:|- )"""
+        """(?i)^(wi-?fi|internet|bluetooth|airplane mode|do not disturb|battery saver|flashlight|location|auto-rotate|screen record|hotspot|mobile data|brightness)(?:\s*(?:,|:|-)?\s*(?:is\s+)?(?:on|off|enabled|disabled|connected|disconnected|available|unavailable))?$"""
     )
 
     fun isSafeSystemUiLabel(label: String): Boolean =
