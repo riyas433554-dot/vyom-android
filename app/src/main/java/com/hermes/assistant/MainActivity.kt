@@ -1437,7 +1437,7 @@ class MainActivity : Activity() {
             return
         }
         val success = when (action.kind) {
-            UiAgentPolicy.Kind.OPEN_APP -> launchUiAgentApp(action.target)
+            UiAgentPolicy.Kind.OPEN_APP -> launchUiAgentApp(action.target, action.screenPackage)
             UiAgentPolicy.Kind.TAP_TEXT -> service.clickVisibleText(action.target, action.screenPackage)
             UiAgentPolicy.Kind.TAP_OCR -> service.tapOcrTarget(action.ocrFingerprint)
             UiAgentPolicy.Kind.LONG_PRESS_OCR -> service.longPressOcrTarget(action.ocrFingerprint)
@@ -1549,8 +1549,11 @@ class MainActivity : Activity() {
             }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
     }
 
-    private fun launchUiAgentApp(packageName: String): Boolean {
-        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false) || !AppAccessPolicy.isAllowed(this, packageName)) return false
+    private fun launchUiAgentApp(packageName: String, expectedScreenPackage: String): Boolean {
+        val service = VyomAccessibilityService.current() ?: return false
+        if (!service.isLatestObservationFresh(expectedScreenPackage) ||
+            controlKillSwitch || controlPrefs.getBoolean("kill_switch", false) ||
+            !AppAccessPolicy.isAllowed(this, packageName)) return false
         val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return false
         return try {
             startActivity(intent)
