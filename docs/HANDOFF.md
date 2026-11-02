@@ -653,3 +653,33 @@ Branch: `feature/memory-intelligence`
 - Commits: tests `8be3656489efd3d4f0922f0da845b22bda330c56`; policy `a450eaeb77741bd72dfd67e08fa7c72ea93e4196`; MainActivity `f5fef099115ab83327a0bb95f411963882306568`.
 - Test/build/CI have not yet been run for these commits. Phone testing remains pending.
 - Scope: Android feature branch only. No Android `main`, Hermes, Render, backend or production data changes.
+
+
+## 2026-11-02 — Android Control diff audit + freshness regression fixes
+
+Branch: `feature/memory-intelligence`
+Base reviewed: `feature/u1-live-orbit-tasks`
+Scope: Android source, tests and Android workflows only. Android `main`, Hermes, Render, backend and production data were not changed.
+
+### Diff audit
+- Reviewed the 108-commit feature-branch delta and its 26 changed-file summary. Focused source audit covered `MainActivity.kt`, `UiAgentPolicy.kt`, `VyomAccessibilityService.kt`, `UiAgentPolicyTest.kt`, `vyom-android-ci.yml`, `vyom-android-debug.yml` and Gradle app configuration.
+- Existing guardrails verified in source: exact observed node/OCR fingerprints, bounded on-screen gesture bounds, OCR sensitive-text filtering, explicit confirmation for OCR swipe/drag, node gesture confirmation, allowlisted app launches, STOP/generation checks, five-minute grant expiry, 40-action cap, and terminal handling of Android action failure.
+- Audit found two freshness gaps:
+  1. The planning revision was captured after accessibility-tree traversal, so a transition during tree capture could make a stale tree appear current. Fixed by snapshotting before traversal and rejecting if revision/package changes during traversal.
+  2. Accessibility events from Vyom's own active app window were ignored together with its overlay events. Fixed by tracking same-package events only when their window ID matches the active target window, while ignoring the separate overlay window.
+- Added regression coverage for tree-capture transitions and own-app target events versus overlay events. `UiAgentPolicyTest` now contains 42 `@Test` methods.
+- OCR tap/long-press/swipe/drag paths retain the current OCR revision/package gate and bounded target checks. Gesture dispatch return values remain terminal action acceptance signals, not proof of semantic task success.
+
+### New commits
+- Tree-capture regression test: `90499b9d4d27da8728282f562b6f35a150c53cc3`
+- Tree freshness policy helper: `409c422ea063c529ab8d5f3e739431d82e168685`
+- Tree capture/revision wiring: `aa17597efe01c9fcf99258c3d93fd31ba39a7b8a`
+- Own-app event regression test: `17c21e246ed17e0d8dad7213ae72e1f0d50f4814`
+- Own-app event policy: `1aeff1a229f7fd17e1d568783124b64a0259e165`
+- Accessibility event window filtering: `9a2e507981b6ea6c7a36405ec563b1cbd06d2eba`
+
+### Verification state at this handoff update
+- Automated test/build runs have been triggered by GitHub Actions for the implementation commits. Exact final-head result and artifact must be recorded after the documentation commit triggers its own runs.
+- No local Gradle execution or physical-device test was performed in this environment.
+- Do not mark Android Control verified until exact-head CI, APK artifact and user phone testing are complete.
+- Memory Intelligence implementation/verification remains paused until Android Control verification.
