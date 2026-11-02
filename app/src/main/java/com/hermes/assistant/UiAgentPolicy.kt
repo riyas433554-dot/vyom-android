@@ -72,6 +72,29 @@ internal object UiAgentPolicy {
         RegexOption.IGNORE_CASE
     )
 
+    private fun requestedInstallTokens(userGoal: String): Set<String> {
+        val requested = Regex("""(?i)\binstall\s+(.+?)\s+from\s+(?:google\s+)?play\s*store\b""")
+            .find(userGoal)?.groupValues?.getOrNull(1) ?: return emptySet()
+        val stopWords = setOf("latest", "newest", "version", "app", "application", "the", "official")
+        return Regex("""[\p{L}\p{N}]+""").findAll(requested.lowercase())
+            .map { it.value }.filter { it !in stopWords }.toSet()
+    }
+
+    private fun isRequestedInstallNavigation(
+        action: Action,
+        targetLabel: String,
+        userGoal: String,
+        confirmationMode: ConfirmationMode
+    ): Boolean {
+        if (confirmationMode != ConfirmationMode.USER_REQUESTED_INSTALL ||
+            action.screenPackage != "com.android.vending" || targetLabel.isBlank() ||
+            consequential.containsMatchIn(targetLabel) || blockedTargets.containsMatchIn(targetLabel)) return false
+        val expectedTokens = requestedInstallTokens(userGoal)
+        if (expectedTokens.isEmpty()) return false
+        val labelTokens = Regex("""[\p{L}\p{N}]+""").findAll(targetLabel.lowercase()).map { it.value }.toSet()
+        return expectedTokens.all { it in labelTokens }
+    }
+
     private fun isExplicitRequestedInstallTap(
         action: Action,
         visibleLabels: Collection<String>,
@@ -125,6 +148,7 @@ internal object UiAgentPolicy {
                 if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
                 else if (action.kind == Kind.TAP_OCR && isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
+                else if (action.kind == Kind.TAP_OCR && isRequestedInstallNavigation(action, action.target, userGoal, confirmationMode)) Verdict.ALLOW
                 else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
@@ -155,6 +179,7 @@ internal object UiAgentPolicy {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
                 else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
+                else if (isRequestedInstallNavigation(action, node.label, userGoal, confirmationMode)) Verdict.ALLOW
                 else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
