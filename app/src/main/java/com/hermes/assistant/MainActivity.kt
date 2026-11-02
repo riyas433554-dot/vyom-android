@@ -1445,7 +1445,7 @@ class MainActivity : Activity() {
             UiAgentPolicy.Kind.SCROLL -> service.scroll(action.direction, action.screenPackage)
             UiAgentPolicy.Kind.TYPE_TEXT -> service.typeIntoNode(action.nodeIndex, action.nodeFingerprint, action.text)
             UiAgentPolicy.Kind.BACK -> service.global("back", action.screenPackage)
-            UiAgentPolicy.Kind.WAIT -> true
+            UiAgentPolicy.Kind.WAIT -> false // handled by the bounded asynchronous wait path above
             UiAgentPolicy.Kind.DONE -> {
                 logControlAction(UiAgentPolicy.auditLabel(action), "visible-completion-evidence-matched; user review required", "ui-agent")
                 finish("Screen par completion label match hua: \"" + action.completionEvidence + "\". Ye success ka final proof nahi hai — app mein result manually verify karo.")
