@@ -5,7 +5,7 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT }
     data class Action(
@@ -22,7 +22,7 @@ internal object UiAgentPolicy {
         val toAnchor: String = ""
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
-    data class VisibleOcr(val index: Int, val text: String, val fingerprint: String)
+    data class VisibleOcr(val index: Int, val text: String, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
 
     private val blockedTargets = Regex(
         """\b(pay|payment|upi|wallet|bank|transfer|security|permissions?|biometric|password|passcode|otp|uninstall)\b""",
@@ -39,7 +39,26 @@ internal object UiAgentPolicy {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
             Kind.TAP_OCR, Kind.LONG_PRESS_OCR -> {
                 val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
-                if (target == null || action.target.isBlank() || target.text != action.target || target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
+                if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
+                    target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
+                else Verdict.CONFIRM
+            }
+            Kind.SWIPE_OCR -> {
+                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
+                if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
+                    target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target) ||
+                    action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
+                else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
+                else Verdict.CONFIRM
+            }
+            Kind.DRAG_OCR -> {
+                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
+                val anchors = setOf("left", "right", "top", "bottom", "center")
+                if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
+                    target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target) ||
+                    action.fromAnchor.lowercase() !in anchors || action.toAnchor.lowercase() !in anchors ||
+                    action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
                 else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
@@ -107,6 +126,7 @@ internal object UiAgentPolicy {
     fun auditLabel(action: Action): String {
         val detail = when (action.kind) {
             Kind.TAP_NODE, Kind.LONG_PRESS_NODE, Kind.SWIPE_NODE, Kind.DRAG_NODE -> " node #" + action.nodeIndex
+            Kind.TAP_OCR, Kind.LONG_PRESS_OCR, Kind.SWIPE_OCR, Kind.DRAG_OCR -> " OCR #" + action.ocrIndex
             Kind.TYPE_TEXT -> " field #" + action.nodeIndex
             else -> ""
         }
