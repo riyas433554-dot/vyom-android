@@ -39,8 +39,8 @@ class ChatContextPolicyTest {
             110
         )
         assertTrue(context.length <= 110)
-        assertTrue(context.contains("On-device memory facts"))
-        assertTrue(context.contains("Recent conversation context"))
+        assertTrue(context.contains("On-device memory (newest preferences first):"))
+        assertTrue(context.contains("Recent conversation:"))
         assertTrue(context.contains("newest-memory-line"))
         assertTrue(context.contains("newest-history-line"))
         assertFalse(context.contains("old-memory-line"))
