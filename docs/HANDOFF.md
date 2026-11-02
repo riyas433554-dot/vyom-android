@@ -733,3 +733,11 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Added regression coverage proving a same-package final state is still rejected after a transient foreground transition. `UiAgentPolicyTest.kt` currently has 49 `@Test` methods.
 - Commits: regression test `eb5fed7656098088c32858dff5d32ab78764a4a8`; policy `d900e186d35ab846253bbd78ec8de33549a1521f`; service epoch `e6d33f46b1fbf0afad9cc001bbb96f0029e13c23`; MainActivity resume gate `760a4496c65dfb7051edb8b5674c8037667254de`.
 - Re-run full unit tests and debug build on the final documentation head before reporting this batch complete.
+
+
+### OPEN_APP final dispatch freshness gate — 2026-11-02
+- The shared UI Agent dispatch gate already checked freshness, but app launch then crossed into ActivityManager through a separate helper that did not repeat the observed-screen check.
+- OPEN_APP now revalidates the original foreground package and screen revision immediately inside the launch helper, alongside STOP CONTROL and per-app access checks. A transition in the narrow gap is rejected before startActivity.
+- Added an explicit OPEN_APP freshness regression case. `UiAgentPolicyTest.kt` currently has 50 `@Test` methods.
+- Commits: regression `a0f9f1543390308e5af79d5d641c63642e30111c`; final launch guard `b7b1bba791bc5797e4941c07c0d9081e624f49a7`.
+- Final exact-head CI and APK build must run after this documentation update.
