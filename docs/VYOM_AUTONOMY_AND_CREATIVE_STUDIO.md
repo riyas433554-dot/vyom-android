@@ -123,3 +123,25 @@ Create a real workspace, not drawer placeholders:
 - VoiceStudio Android is Preview; a callable TTS IPC contract has not yet been established.
 - Higgsfield API/skills require account credentials and provider credits; not a free/offline engine.
 - Android full control and physical device verification remain incomplete.
+
+## 2026-11-02 — Additional repository assessment
+
+### `calesthio/OpenMontage`
+
+- Audited its README, Agent Guide, provider guide, requirements and LICENSE. OpenMontage is an independent agentic video-production system, not the official Higgsfield product. Its architecture is useful: pipeline manifests, stage-director skills, tool discovery, cost/preflight gates, human approvals, asset provenance, render QA and resumable asynchronous jobs.
+- License is AGPL-3.0. Do not copy or embed its source into Vyom without a deliberate licence/compliance review; AGPL network-use obligations may matter if a modified service is exposed to users.
+- Runtime prerequisites include Python 3.10+, FFmpeg, Node.js 18+, Remotion/HyperFrames and multiple optional provider SDKs. Cloud generation requires provider credentials/credits; local video generation needs suitable GPU/weights. The README does not establish Android/Termux support.
+- Decision: use as a knowledge/reference source for Vyom's Creative Studio pipeline and reusable skill-learning tests. Do not add it as an APK dependency, vendor its source, or claim its generators run on the phone. A future Termux/remote-worker feasibility test must first prove the minimal FFmpeg/Python/Node path and memory/storage constraints.
+
+### `h4ckf0r0day`
+
+- The supplied string identifies a GitHub account/profile, not one exact repository. Its profile repository is only a small profile README; the account contains several distinct projects.
+- `h4ckf0r0day/obscura` is a Rust/V8 headless browser with CDP/Puppeteer/Playwright compatibility and built-in stealth/anti-detection features. Published Linux ARM64 binaries target Ubuntu/glibc; Android/Termux (bionic) compatibility is not established. Do not integrate stealth, proxy evasion or anti-detection behavior into Vyom's general browser agent.
+- `h4ckf0r0day/awesome-ai-web-scraping` is a curated link list, not a runtime dependency; it may be ingested later as a reference catalogue.
+- `h4ckf0r0day/reCaptchaV3-Invisible-Solver` is explicitly a CAPTCHA solver. Excluded from Vyom; do not automate CAPTCHA bypass or defeat website access controls.
+- `h4ckf0r0day/zero` describes an experimental agent programming language and is not a production dependency.
+- Decision: no code from these repositories was copied or added. The user should provide an exact repository URL if a different `h4ckf0r0day` project was intended.
+
+### Integration rule
+
+Repository learning must record source URL, commit/tag, licence, platform requirements, external services/costs, security review, extracted skill files and verification evidence. Readme claims are not runtime proof. Skills may teach a workflow; they do not grant permission to bypass app permissions, CAPTCHAs, paywalls, provider quotas, or user approvals.
