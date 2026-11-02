@@ -10,6 +10,12 @@
 - [ ] Final APK requires exact-head Debug + full CI success, artifact download/integrity/SHA verification, and signing-certificate comparison before replacing an installed app.
 - [ ] Physical-device acceptance remains a separate user-side gate.
 
+## Linked source documents
+
+- `docs/ACCEPTANCE_TESTS.md` — full A1–R4 acceptance matrix and phone test guide.
+- `docs/DESIGN_MAP.md` — all 31 supplied HTML boards mapped to native Android screens.
+- User-supplied Library sources remain authoritative for the 19-page fix order and 10-page feature/design brief; these repository documents supplement them.
+
 ## Audit findings (current source evidence)
 
 ### 1. Android UI control
