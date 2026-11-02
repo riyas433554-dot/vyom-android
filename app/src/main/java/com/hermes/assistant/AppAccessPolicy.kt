@@ -31,12 +31,14 @@ internal object AppAccessPolicy {
         return isBlockedIdentifier(packageName, label)
     }
 
-    fun initializeForInstalledApps(context: Context, launchablePackages: Collection<String>) {
+    internal fun initialSnapshot(): Snapshot = Snapshot(masterEnabled = false, enabledPackages = emptySet())
+
+    fun initializeForInstalledApps(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.getBoolean(INITIALIZED, false)) {
-            val safePackages = launchablePackages.filter { it.isNotBlank() && !isBlocked(context, it) }.toMutableSet()
-            prefs.edit().putBoolean(MASTER, true)
-                .putStringSet(PACKAGES, safePackages)
+            val initial = initialSnapshot()
+            prefs.edit().putBoolean(MASTER, initial.masterEnabled)
+                .putStringSet(PACKAGES, initial.enabledPackages)
                 .putBoolean(INITIALIZED, true).apply()
         }
     }
