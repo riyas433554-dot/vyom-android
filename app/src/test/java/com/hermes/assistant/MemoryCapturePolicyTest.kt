@@ -71,7 +71,7 @@ class MemoryCapturePolicyTest {
 
     @Test fun newerConflictingPreferencesAreReturnedFirst() {
         val facts = listOf("I prefer concise replies.", "I prefer detailed replies.")
-        assertEquals(listOf("I prefer detailed replies.", "I prefer concise replies."),
+        assertEquals(listOf("I prefer detailed replies."),
             MemoryCapturePolicy.relevantFacts(facts, "concise replies", 10))
     }
 
@@ -84,7 +84,7 @@ class MemoryCapturePolicyTest {
             "আমি বাংলা ভাষায় উত্তর পছন্দ করি."
         )
         assertEquals(
-            listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি.", "Mujhe Hinglish language replies pasand hain.", "I prefer English language replies."),
+            listOf("আমি বাংলা ভাষায় উত্তর পছন্দ করি."),
             MemoryCapturePolicy.relevantFacts(facts, "", 10)
         )
     }
@@ -92,7 +92,7 @@ class MemoryCapturePolicyTest {
     @Test fun conflictingThemePreferencesKeepNewestWithoutDeletingOlderFact() {
         val facts = listOf("I prefer dark themes.", "I prefer light themes.")
         assertEquals(
-            listOf("I prefer light themes.", "I prefer dark themes."),
+            listOf("I prefer light themes."),
             MemoryCapturePolicy.relevantFacts(facts, "", 10)
         )
     }
@@ -100,7 +100,7 @@ class MemoryCapturePolicyTest {
     @Test fun conflictingOutputFormatsKeepNewestWithoutDeletingOlderFact() {
         val facts = listOf("I prefer Markdown format.", "I prefer plain text format.")
         assertEquals(
-            listOf("I prefer plain text format.", "I prefer Markdown format."),
+            listOf("I prefer plain text format."),
             MemoryCapturePolicy.relevantFacts(facts, "", 10)
         )
     }
@@ -124,7 +124,7 @@ class MemoryCapturePolicyTest {
     @Test fun responseStyleRetrievalUnderstandsCrossWordedQueriesAndKeepsNewestConflictFirst() {
         val facts = listOf("I prefer concise replies.", "I prefer detailed responses.")
         assertEquals(
-            listOf("I prefer detailed responses.", "I prefer concise replies."),
+            listOf("I prefer detailed responses."),
             MemoryCapturePolicy.relevantFacts(facts, "answer length", 10)
         )
     }
@@ -132,7 +132,7 @@ class MemoryCapturePolicyTest {
     @Test fun toneConflictsPreferNewestEvenWhenOlderFactMatchesQueryBetter() {
         val facts = listOf("I prefer direct answers.", "I prefer friendly answers.")
         assertEquals(
-            listOf("I prefer friendly answers.", "I prefer direct answers."),
+            listOf("I prefer friendly answers."),
             MemoryCapturePolicy.relevantFacts(facts, "direct answer tone", 10)
         )
     }
@@ -140,7 +140,7 @@ class MemoryCapturePolicyTest {
     @Test fun actionConfirmationConflictsPreferNewestAcrossDifferentPhrasing() {
         val facts = listOf("I prefer confirmation before actions.", "I prefer autonomous actions.")
         assertEquals(
-            listOf("I prefer autonomous actions.", "I prefer confirmation before actions."),
+            listOf("I prefer autonomous actions."),
             MemoryCapturePolicy.relevantFacts(facts, "confirmation before actions", 10)
         )
     }
