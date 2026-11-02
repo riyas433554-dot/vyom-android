@@ -275,8 +275,14 @@ class VyomAccessibilityService : AccessibilityService() {
         return dispatchPath(rect.centerX().toFloat(), rect.centerY().toFloat(), rect.centerX().toFloat(), rect.centerY().toFloat(), 90L)
     }
 
-    fun longPress(x: Float, y: Float, durationMs: Long = 650L): Boolean =
-        isCurrentAppAllowed() && dispatchPath(x, y, x, y, durationMs.coerceIn(500L, 1500L))
+    fun longPress(x: Float, y: Float, durationMs: Long = 650L): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val packageName = root.packageName?.toString().orEmpty()
+        if (!isCurrentAppAllowed(root) ||
+            !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, packageName) ||
+            !UiAgentPolicy.isGestureWithinDisplay(x, y, x, y, resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)) return false
+        return dispatchPath(x, y, x, y, durationMs.coerceIn(500L, 1500L))
+    }
 
     fun dragNode(index: Int, expectedFingerprint: String, fromAnchor: String, toAnchor: String): Boolean {
         val anchors = setOf("left", "right", "top", "bottom", "center")
@@ -326,8 +332,14 @@ class VyomAccessibilityService : AccessibilityService() {
         return dispatchPath(x1, y1, x2, y2, 350L)
     }
 
-    fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long = 350L): Boolean =
-        isCurrentAppAllowed() && dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
+    fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long = 350L): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val packageName = root.packageName?.toString().orEmpty()
+        if (!isCurrentAppAllowed(root) ||
+            !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, packageName) ||
+            !UiAgentPolicy.isGestureWithinDisplay(x1, y1, x2, y2, resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)) return false
+        return dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
+    }
 
     fun scroll(direction: String, expectedPackage: String = ""): Boolean {
         val root = rootInActiveWindow ?: return false
@@ -355,7 +367,9 @@ class VyomAccessibilityService : AccessibilityService() {
     fun typeIntoFocusedField(text: String): Boolean {
         if (text.length > 2000 || containsCredentialPattern(text)) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root)) return false
+        val packageName = root.packageName?.toString().orEmpty()
+        if (!isCurrentAppAllowed(root) ||
+            !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, packageName)) return false
         val node = findFocusedEditable(root) ?: return false
         if (node.isPassword || !node.isEditable) return false
         val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
