@@ -25,6 +25,32 @@ internal object UiAgentPolicy {
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
 
+    data class ScreenBounds(val left: Int, val top: Int, val right: Int, val bottom: Int)
+
+    /** Maps OCR pixels from the captured screenshot into current display pixels.
+     * Refuses invalid bounds and portrait/landscape mismatches rather than guessing.
+     */
+    fun mapOcrBoundsToScreen(
+        left: Int, top: Int, right: Int, bottom: Int,
+        imageWidth: Int, imageHeight: Int, screenWidth: Int, screenHeight: Int
+    ): ScreenBounds? {
+        if (imageWidth <= 0 || imageHeight <= 0 || screenWidth <= 0 || screenHeight <= 0 ||
+            left < 0 || top < 0 || right <= left || bottom <= top ||
+            right > imageWidth || bottom > imageHeight) return null
+        val imageAspectCross = imageWidth.toLong() * screenHeight.toLong()
+        val screenAspectCross = screenWidth.toLong() * imageHeight.toLong()
+        val aspectDifference = kotlin.math.abs(imageAspectCross - screenAspectCross)
+        val aspectScale = maxOf(imageAspectCross, screenAspectCross)
+        if (aspectScale == 0L || aspectDifference * 100L > aspectScale * 10L) return null
+        val mappedLeft = (left.toLong() * screenWidth / imageWidth).toInt()
+        val mappedTop = (top.toLong() * screenHeight / imageHeight).toInt()
+        val mappedRight = ((right.toLong() * screenWidth + imageWidth - 1L) / imageWidth).toInt()
+        val mappedBottom = ((bottom.toLong() * screenHeight + imageHeight - 1L) / imageHeight).toInt()
+        if (mappedLeft < 0 || mappedTop < 0 || mappedRight > screenWidth || mappedBottom > screenHeight ||
+            mappedRight <= mappedLeft || mappedBottom <= mappedTop) return null
+        return ScreenBounds(mappedLeft, mappedTop, mappedRight, mappedBottom)
+    }
+
     private val blockedTargets = Regex(
         """\b(pay|payment|upi|wallet|bank|transfer|security|permissions?|biometric|password|passcode|otp|uninstall)\b""",
         RegexOption.IGNORE_CASE
