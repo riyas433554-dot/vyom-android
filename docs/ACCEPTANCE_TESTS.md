@@ -54,8 +54,8 @@ Current statuses below are deliberately conservative. They are not release claim
 | S3 | Self-change uses repository analysis + minimal diff + tests; user does not paste entire Kotlin files. | UNVERIFIED |
 | S4 | Request → repo analysis → patch → tests → PR → CI → signed artifact → verified update is one connected pipeline. | UNVERIFIED |
 | S5 | Audit/error logs produce actionable fix suggestions with evidence and safe diff review. | UNVERIFIED |
-| S6 | Four signing secrets are present/validated and the release signing workflow can use them without exposing values. | PARTIAL — workflow environment propagation fix committed; exact-head signed build not verified. |
-| S7 | Candidate APK certificate matches the installed/base APK and can update in place; SHA-256 and package/version are verified. | UNVERIFIED |
+| S6 | Four signing secrets are present/validated and the release signing workflow can use them without exposing values. | PARTIAL — alias/password fallback, Gradle environment propagation and pre-build validation added; exact-head run still unverified. |
+| S7 | Candidate APK certificate matches the installed/base APK and can update in place; SHA-256 and package/version are verified. | UNVERIFIED — required certificate is `7A:75:64:FC:A9:C2:A3:2B:23:DD:52:03:52:A4:E3:AA:FE:44:56:21:D2:B9:9A:FA:15:40:7D:23:86:69:9F:0A`; downloaded `7e70370` artifact is `BF:41:32:C9:…:38:6E:95` and must not be installed over base. Workflow now enforces the expected fingerprint. |
 | T1 | WorkManager/AlarmManager scheduler runs one-time/repeating tasks, survives reboot and displays next run. | UNVERIFIED |
 | T2 | Tasks run real executors and do not finish without verified output/artifact. | UNVERIFIED |
 | T3 | Tapping a task/orbit card opens its detail view with steps, logs, result, retry and cancel. | UNVERIFIED |
