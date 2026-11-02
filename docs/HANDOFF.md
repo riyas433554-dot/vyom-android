@@ -1009,3 +1009,11 @@ Branch: `feature/memory-intelligence`
 - Added `DeviceActionExecutorTest` (2 tests) for status classification, blocked/no-op handling and unknown-result fallback. Expected whole unit suite count is now 151 (144 baseline + 3 UI Agent + 2 design + 2 device-result tests). Tests have not been run.
 - Updated A6 in `docs/ACCEPTANCE_TESTS.md`. Direct app-launch foreground verification, TorchCallback verification and domain-specific postconditions for generic UI actions remain incomplete.
 - Current checkpoint before this handoff append: `955a27714c8f2ef43253bc45ee02c3e3a863e8a2` on `feature/memory-intelligence`. CI, Debug/full CI, signed artifact and phone testing remain UNVERIFIED.
+
+
+## 2026-11-02 — Screenshot vision control (TDD RED checkpoint)
+
+- Full Android Control is the only active implementation scope. Existing Accessibility tree/OCR planner is text-only and cannot target unlabeled Canvas/timeline controls; screenshot capture exists locally but is not connected to visual reasoning.
+- Added `UiAgentVisionPolicyTest.kt` with six regression cases for normalized screenshot coordinates, safe display bounds, bounded gestures, sensitive-screen denial and unknown gesture rejection. Added the policy skeleton in `UiAgentVisionPolicy.kt`.
+- This is the test-first checkpoint. The expected failing assertions have NOT yet been executed in a CI run; do not claim RED observed. Next implement the pure geometry policy, opt-in screenshot upload to NVIDIA's documented VLM endpoint, and confirmation-gated point gestures. Default screenshot upload must remain OFF and existing text/OCR planning must remain available.
+- Branch remains `feature/memory-intelligence` only. No Android `main`, Hermes/backend, Render, production Supabase, secrets or deployment changes.
