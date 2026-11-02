@@ -100,7 +100,7 @@ internal class VyomSkillsDialog(
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val teach = android.widget.Button(activity).apply {
-            text = "TEACH VYOM"
+            text = "TEACH LIBRARY"
             VyomTheme.stylePill(this, activity, "cyan", "primary")
             setOnClickListener {
                 dialog.dismiss()
