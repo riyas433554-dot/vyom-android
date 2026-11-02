@@ -870,3 +870,15 @@ Branch: `feature/memory-intelligence`
 - The matching full CI run `41400726282` was still in progress at the time of this handoff edit; do not mark the checkpoint CI-green until it completes successfully on the exact documentation-updated head.
 - Earlier compile failure on commit `f0e0d2b` was caused by dialog constructor parameters not being retained as properties. Fixed by making `initialPersona`, `initialRole` and `initialRules` constructor properties; exact-head Debug passed on `fd0e25e`, then saved-persona label was corrected and retested on `0e4b582`.
 - Scope unchanged: Android feature branch only; do not touch Android `main`, Hermes/Telegram, Render, backend or production Supabase. Physical device validation remains deferred until implementation phases are complete.
+
+
+## 2026-11-02 — Teach Vyom HUD phrase editor + exact-head APK verification
+
+- Source branch: `feature/memory-intelligence`; source commit: `2459bf1f9da6a672532e14f4d8bc19c2448f185d` (`feat(ui): integrate HUD Teach Vyom phrase editor`).
+- Replaced the basic Teach Vyom AlertDialog with the integrated `VyomTeachDialog` HUD phrase editor. MainActivity still owns the supported-action classification, local teaching persistence, STOP CONTROL check and classified action execution; unsupported/blocked commands and STOP state fail closed. Cancel does not save or execute.
+- Exact-source workflows on this commit: Android Debug run `41401506345` SUCCESS; full Android CI run `41401506346` SUCCESS. Both completed on exact SHA `2459bf1f9da6a672532e14f4d8bc19c2448f185d`. The Debug job completed successfully; the full CI job (including secret scan, Gradle unit tests, debug APK build, packaging/upload) completed successfully.
+- Debug artifact: `vyom-0.3.0-2459bf1f9da6a672532e14f4d8bc19c2448f185d`, artifact ID `13121522180`, 45,890,976 bytes, expires 2026-12-02. Downloaded and extracted APK: `vyom-0.3.0-2459bf1f.apk`; versionName `0.3.0`, versionCode `3`, embedded commit `2459bf1`. APK SHA-256: `b82cc7d62ae4cd0280827068bc827e910f89229aba52899c0cc58aad20a5cd27`; packaged checksum manifest matched the extracted APK. APK archive integrity test passed.
+- Test inventory remains 130 unit-test methods across 14 test files (the Gradle unit-test task passed on this exact head). This is automated build/test evidence, not physical-device runtime validation.
+- Artifact is a debug APK, not a signed production release. Installed-app signature continuity and phone installation/runtime remain unverified; preserve the existing installed app until signature compatibility is checked. Physical phone test is now the user's next acceptance step.
+- Memory Intelligence limitations remain: synonym-aware bounded lexical retrieval, not vector/embedding semantic search; production Supabase migration/staging and cross-device sync remain blocked and untouched.
+- Scope confirmation: Android feature branch only. Android `main`, Hermes/Telegram, Render, backend, production Supabase, secrets and deployment untouched.
