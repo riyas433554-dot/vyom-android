@@ -1067,3 +1067,5 @@ Branch: `feature/memory-intelligence`
 - Visual point actions also fail closed whenever any editable or password input field is present in the active window; text entry continues through the separately validated accessibility-node path.
 
 - Tightened screenshot/window aspect-ratio tolerance to 5% so coordinate mapping fails closed rather than silently shifting targets when the captured window and screen bounds differ. Temporary screenshot files are cleared before a new capture and deleted in the planner `finally` path; OCR hardware buffers are now closed/recycled on both success and failure.
+
+- Enabled `flagRetrieveInteractiveWindows` so API 34+ can resolve the exact active accessibility window and its on-screen bounds before calling `takeScreenshotOfWindow`.
