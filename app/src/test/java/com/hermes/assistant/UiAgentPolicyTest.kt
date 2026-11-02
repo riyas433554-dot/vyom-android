@@ -353,4 +353,15 @@ class UiAgentPolicyTest {
         assertFalse(UiAgentPolicy.isGestureWithinDisplay(Float.NaN, 20f, 30f, 40f, 400, 800))
     }
 
+    @Test fun waitActionsRequireAUsefulBoundedDelay() {
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.WAIT, waitMs = 250), emptyList(), "Wait for upload"))
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.WAIT, waitMs = 8000), emptyList(), "Wait for upload"))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.WAIT, waitMs = 249), emptyList(), "Wait for upload"))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.WAIT, waitMs = 8001), emptyList(), "Wait for upload"))
+    }
+
 }
