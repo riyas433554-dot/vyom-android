@@ -266,7 +266,7 @@ class MainActivity : Activity() {
         }
         chatTab = dockItem("Chat") { showTab(false) }
         tasksTab = dockItem("Tasks") { showTab(true) }
-        settingsTab = dockItem("Profile") { showProfileMenu() }
+        settingsTab = dockItem("Profile") { showTab(false, true) }
         filesTab = dockItem("Files") { showTab(false, false, true) }
         controlTab = dockItem("Control") { showTab(false, false, false, true) }
         val homeDock = dockItem("Home") { showHome() }
@@ -410,6 +410,19 @@ class MainActivity : Activity() {
             setPadding(dp(4), dp(8), dp(4), dp(4))
         }
         settingsContent = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        settingsContent.addView(TextView(this).apply {
+            text = "PROFILE / SETTINGS"
+            textSize = 22f
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+            setPadding(0, dp(4), 0, dp(4))
+        }, LinearLayout.LayoutParams(-1, dp(38)))
+        settingsContent.addView(TextView(this).apply {
+            text = "Account · Voice · Appearance · Updates · Self-change"
+            textSize = 11f
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(0, 0, 0, dp(12))
+        }, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(TextView(this).apply {
             text = "ORB APPEARANCE"
             textSize = 11f
@@ -1062,7 +1075,7 @@ class MainActivity : Activity() {
             "home" -> showHome()
             "chat" -> showTab(false)
             "live" -> toggleVoiceInput()
-            "profile" -> showProfileMenu()
+            "profile" -> showTab(false, true)
             "automations" -> showAutomationsPanel()
             "tasks" -> showTab(true)
             "control", "assistant_control" -> showTab(false, false, false, true)
@@ -1075,8 +1088,6 @@ class MainActivity : Activity() {
             "voice" -> showVoiceMode()
             "system" -> showVoiceDiagnostics()
             "stop_control" -> activateControlKillSwitch()
-            "animations", "videos", "images", "vfx", "cgi", "sfx", "icons" ->
-                android.widget.Toast.makeText(this, "${destination.replace('_', ' ').replaceFirstChar { it.uppercase() }} is not connected in this build yet.", android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
