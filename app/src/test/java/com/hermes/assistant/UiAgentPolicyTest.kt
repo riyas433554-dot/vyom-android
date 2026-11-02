@@ -6,6 +6,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UiAgentPolicyTest {
+    @Test fun rejectsDoneWithoutVisibleCompletionEvidence() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.DONE)
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, listOf("Editing"), "Export video"))
+    }
+
+    @Test fun acceptsDoneOnlyWhenEvidenceExactlyMatchesCurrentVisibleLabel() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.DONE, completionEvidence = "Export complete")
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(action, listOf("Export complete", "Back"), "Export video"))
+    }
+
+    @Test fun rejectsInventedOrParaphrasedCompletionEvidence() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.DONE, completionEvidence = "Your video is ready")
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, listOf("Export complete"), "Export video"))
+    }
+
+    @Test fun rejectsOverlongCompletionEvidence() {
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.DONE, completionEvidence = "x".repeat(121))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, listOf("x".repeat(121)), "Export video"))
+    }
+
     @Test fun refusesToTapTextNotPresentInLatestScreen() {
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Export"),
