@@ -1,7 +1,7 @@
 package com.hermes.assistant
 internal object MemoryCapturePolicy {
     private const val MAX_INPUT_CHARS = 2_000
-    private const val MAX_FACT_CHARS = 140
+    private const val MAX_FACT_CHARS = 300
     private val sensitivePatterns = listOf(
         Regex("(?i)\\b(password|passcode|otp|one[- ]time password|verification code|security code|pin|upi pin|cvv|cvc)\\b"),
         Regex("(?i)\\b(api key|secret key|access token|refresh token|bearer token|private key|recovery phrase|seed phrase)\\b"),
@@ -18,7 +18,7 @@ internal object MemoryCapturePolicy {
     fun isSensitive(text: String): Boolean = sensitivePatterns.any { it.containsMatchIn(text) }
 
     fun relevantFacts(facts: List<String>, query: String, limit: Int = 10): List<String> {
-        val safeLimit = limit.coerceIn(0, 30)
+        val safeLimit = limit.coerceIn(0, 100)
         if (safeLimit == 0) return emptyList()
         val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please", "আমি", "আমার", "পছন্দ", "করি", "হয়", "হবে", "দাও", "দেন", "এবং", "যে", "আমাকে")
         val queryTokens = semanticTokens(query, ignored)
@@ -47,7 +47,8 @@ internal object MemoryCapturePolicy {
             .sortedWith(
                 compareByDescending<Triple<Int, Int, String>> { item ->
                     conflictTopic(item.third)?.let { conflictScores[it] } ?: item.first
-                }.thenByDescending { it.second }
+                }.thenByDescending { if (conflictTopic(it.third) == "project-active-branch") 1 else 0 }
+                    .thenByDescending { it.second }
             )
             .take(safeLimit)
             .map { it.third }
@@ -122,6 +123,8 @@ internal object MemoryCapturePolicy {
 
     private fun conflictTopic(memory: String): String? {
         val value = memory.lowercase()
+        if (Regex("""\\b(active|current|working|development)\\s+(?:working\\s+)?branch\\b""").containsMatchIn(value)) return "project-active-branch"
+        if (Regex("""(?:do not|don't|never|untouched|protect).{0,40}(?:main|master) branch|(?:main|master) branch.{0,40}(?:do not|don't|never|untouched|protect)""").containsMatchIn(value)) return "protected-main-branch"
         if (!Regex("(prefer|like|dislike|preference|pasand|পছন্দ)").containsMatchIn(value)) return null
         if (Regex("(concise|short|brief|detailed|long|verbose|সংক্ষিপ্ত|বিস্তারিত)").containsMatchIn(value) &&
             Regex("(replies?|answers?|responses?|উত্তর)").containsMatchIn(value)) return "response-style"
