@@ -606,3 +606,16 @@ This addendum supersedes prior Android source-head and artifact statements above
 - CI verifies compilation and unit tests only. Physical Android testing remains pending.
 - No backend, Render, production Supabase, migration, deploy or merge was performed.
 - Android `main` remains untouched.
+
+
+## 2026-11-02 — UI Agent event-aware re-observation (implementation step)
+
+Branch: `feature/memory-intelligence`
+
+- Replaced the fixed 300 ms post-action delay with a bounded accessibility-event settle wait (50 ms polling, 220 ms quiet window, maximum 1.2 s).
+- Accessibility revision tracking now includes window-state, windows-changed, content-changed, scrolled and text-changed events from foreground apps, including app switches; event text is never retained or sent.
+- The settle wait always releases on timeout and triggers a fresh observation. A timeout or missing event is explicitly logged as unverified; it is not treated as proof that an action succeeded.
+- STOP/generation state is checked again before the next planner step.
+- This is event-aware re-observation, not deterministic semantic outcome verification. The current `DONE` response still requires manual screen verification; automated goal-success proof remains open.
+- Tests/build/CI and physical device behavior have NOT been run for this step. No CI polling was performed.
+- Scope: Android feature branch only. Android `main`, Hermes/Render, backend and production data were not touched.
