@@ -19,7 +19,8 @@ internal object UiAgentPolicy {
         val ocrFingerprint: String = "",
         val screenPackage: String = "",
         val fromAnchor: String = "",
-        val toAnchor: String = ""
+        val toAnchor: String = "",
+        val completionEvidence: String = ""
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
@@ -107,7 +108,13 @@ internal object UiAgentPolicy {
                     Regex("""\b\d{4,12}\b""").containsMatchIn(text)) Verdict.REJECT
                 else Verdict.ALLOW
             }
-            Kind.BACK, Kind.WAIT, Kind.DONE -> Verdict.ALLOW
+            Kind.DONE -> {
+                val evidence = action.completionEvidence.trim()
+                if (evidence.isBlank() || evidence.length > 120 ||
+                    visibleLabels.none { it.trim().equals(evidence, ignoreCase = true) }) Verdict.REJECT
+                else Verdict.ALLOW
+            }
+            Kind.BACK, Kind.WAIT -> Verdict.ALLOW
         }
     }
 
