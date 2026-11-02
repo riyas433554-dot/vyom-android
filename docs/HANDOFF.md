@@ -1107,3 +1107,5 @@ Branch: `feature/memory-intelligence`
 
 - CI run 41479233768 exposed three Kotlin compile errors: allowedApps was out of scope in policy validation, one no-screenshot path still called the old one-argument planner lambda, and the VLM request's outer try/finally was not returned from the nullable action function.
 - Fixed all three: one immutable allowlist snapshot is shared by validation and planner, the fallback passes (null, null), and the VLM request now returns its try/finally expression. Latest verification must be rerun; no APK is ready from the failed run.
+
+- Follow-up compile correction: the allowlist snapshot is now declared in the OCR callback scope before the planner lambda, so both policy validation and background model planning can access the same list.

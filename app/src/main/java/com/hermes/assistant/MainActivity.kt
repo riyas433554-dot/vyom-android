@@ -1373,6 +1373,7 @@ class MainActivity : Activity() {
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
                 val ocrTargets = if (isSystemUi) emptyList() else rawOcrTargets
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
+                val allowedApps = uiAgentAllowedApps()
                 val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
                         val action = try {
