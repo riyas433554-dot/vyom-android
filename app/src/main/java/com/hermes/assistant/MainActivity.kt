@@ -1256,7 +1256,7 @@ class MainActivity : Activity() {
                             input.error = "UI planner ke liye Settings mein NVIDIA API key configure karo."
                             return@setOnClickListener
                         }
-                        if (uiAgentAllowedApps().none { it != packageName }) {
+                        if (uiAgentAllowedApps().none { it.first != packageName }) {
                             input.error = "App access mein Vyom ke alawa kam se kam ek target app enable karo."
                             return@setOnClickListener
                         }
