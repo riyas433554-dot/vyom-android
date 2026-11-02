@@ -1251,7 +1251,7 @@ class MainActivity : Activity() {
                 finish("5-minute session grant expired. Task stopped.")
                 return
             }
-            if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+            if (!UiAgentPolicy.mayExecute(true, controlKillSwitch || controlPrefs.getBoolean("kill_switch", false), System.currentTimeMillis(), null)) {
                 finish("STOP CONTROL ON — agent stopped.")
                 return
             }
@@ -1369,7 +1369,7 @@ class MainActivity : Activity() {
             finish("STOP CONTROL ON — action blocked.")
             return
         }
-        if (sessionGrantExpiresAt != null && System.currentTimeMillis() >= sessionGrantExpiresAt) {
+        if (!UiAgentPolicy.mayExecute(true, false, System.currentTimeMillis(), sessionGrantExpiresAt)) {
             logControlAction("UI Agent session grant", "expired-before-action", "ui-agent")
             finish("5-minute session grant expired. Action not executed.")
             return
