@@ -91,6 +91,13 @@ internal object UiAgentPolicy {
             else -> ""
         }
         if (!targetLabel.trim().equals("Install", ignoreCase = true)) return false
+        val installTargetCount = when (action.kind) {
+            Kind.TAP_TEXT -> visibleLabels.count { it.trim().equals("Install", ignoreCase = true) }
+            Kind.TAP_OCR -> visibleOcr.count { it.text.trim().equals("Install", ignoreCase = true) }
+            Kind.TAP_NODE -> visibleNodes.count { it.label.trim().equals("Install", ignoreCase = true) }
+            else -> 0
+        }
+        if (installTargetCount != 1) return false
 
         val requested = Regex("""(?i)\binstall\s+(.+?)\s+from\s+(?:google\s+)?play\s*store\b""")
             .find(userGoal)?.groupValues?.getOrNull(1) ?: return false
