@@ -61,7 +61,7 @@ internal class VyomMemoryDialog(
             setTextColor(VyomDesignSpec.TEXT_PRIMARY)
         })
         titleBlock.addView(TextView(activity).apply {
-            text = "ON-DEVICE · ENCRYPTED · USER CONTROLLED"
+            text = "ENCRYPTED ON DEVICE · RELEVANT FACTS MAY BE SENT TO AI"
             textSize = 8f
             typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
@@ -81,7 +81,7 @@ internal class VyomMemoryDialog(
             textSize = 11f
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(10), 0, dp(8))
-            text = "Vyom only stores selected safe facts. Sensitive details are filtered."
+            text = "Selected safe facts are stored locally. Relevant facts may be included in prompts sent to your connected AI model."
         }
         root.addView(status)
 
@@ -198,7 +198,7 @@ internal class VyomMemoryDialog(
         val filtered = facts.mapIndexed { index, fact -> index to fact }
             .filter { query.isBlank() || it.second.contains(query.trim(), true) }
         status.text = if (enabled) {
-            "${facts.size} / 30 safe facts saved · Encrypted on this device"
+            "${facts.size} / 30 safe facts saved · Encrypted locally; relevant facts may be sent with prompts"
         } else {
             "Memory is OFF. New facts will not be captured or used in prompts."
         }
