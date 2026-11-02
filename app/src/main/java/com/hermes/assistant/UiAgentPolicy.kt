@@ -147,6 +147,9 @@ internal object UiAgentPolicy {
     }
 
     fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK, screenWidth: Int = 0, screenHeight: Int = 0, density: Float = 1f, sensitiveScreen: Boolean = false): Verdict {
+        if (action.screenPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE) {
+            return validateSystemUiAction(action, visibleLabels, userGoal, visibleNodes, visibleOcr)
+        }
         return when (action.kind) {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
             Kind.TAP_OCR, Kind.LONG_PRESS_OCR -> {
@@ -253,6 +256,91 @@ internal object UiAgentPolicy {
             }
             Kind.BACK, Kind.HOME, Kind.RECENTS, Kind.NOTIFICATIONS, Kind.QUICK_SETTINGS -> Verdict.ALLOW
             Kind.WAIT -> if (action.waitMs in 250..8000) Verdict.ALLOW else Verdict.REJECT
+        }
+    }
+
+
+    private val systemUiLabelPattern = Regex(
+        """(?i)^(wi-?fi|internet|bluetooth|airplane mode|do not disturb|battery saver|flashlight|location|auto-rotate|screen record|hotspot|mobile data|brightness)(?:\\s*(?:,|:|-)?\\s*(?:on|off|enabled|disabled|connected|disconnected|available|unavailable))?$"""
+    )
+
+    fun isSafeSystemUiLabel(label: String): Boolean =
+        label.trim().replace(Regex("""\\s+"""), " ").let { systemUiLabelPattern.matches(it) }
+
+    fun isSystemUiTargetRequested(label: String, userGoal: String): Boolean {
+        val normalized = label.trim().replace(Regex("""\\s+"""), " ")
+        val base = listOf(
+            "Wi-Fi", "Internet", "Bluetooth", "Airplane mode", "Do Not Disturb",
+            "Battery Saver", "Flashlight", "Location", "Auto-rotate", "Screen record",
+            "Hotspot", "Mobile data", "Brightness"
+        ).firstOrNull { normalized.equals(it, true) || normalized.startsWith(it + ",", true) ||
+            normalized.startsWith(it + " ", true) } ?: return false
+        val intent = when (base.lowercase()) {
+            "wi-fi", "internet" -> Regex("""(?i)\\b(wi[ -]?fi|internet|wireless)\\b""")
+            "bluetooth" -> Regex("""(?i)\\bbluetooth\\b""")
+            "airplane mode" -> Regex("""(?i)\\b(airplane|flight)\\s*mode\\b""")
+            "do not disturb" -> Regex("""(?i)\\b(do not disturb|dnd)\\b""")
+            "battery saver" -> Regex("""(?i)\\b(battery saver|power saving)\\b""")
+            "flashlight" -> Regex("""(?i)\\b(flashlight|torch)\\b""")
+            "location" -> Regex("""(?i)\\blocation\\b""")
+            "auto-rotate" -> Regex("""(?i)\\b(auto.?rotate|rotation|rotate)\\b""")
+            "screen record" -> Regex("""(?i)\\b(screen record|screen recording)\\b""")
+            "hotspot" -> Regex("""(?i)\\bhotspot\\b""")
+            "mobile data" -> Regex("""(?i)\\b(mobile data|cellular data)\\b""")
+            "brightness" -> Regex("""(?i)\\b(brightness|brighter|dimmer|dim screen)\\b""")
+            else -> return false
+        }
+        return intent.containsMatchIn(userGoal)
+    }
+
+    private fun validateSystemUiAction(
+        action: Action, visibleLabels: Collection<String>, userGoal: String,
+        visibleNodes: Collection<VisibleNode>, visibleOcr: Collection<VisibleOcr>
+    ): Verdict {
+        fun allowed(label: String) =
+            isSafeSystemUiLabel(label) && isSystemUiTargetRequested(label, userGoal)
+        return when (action.kind) {
+            Kind.TAP_TEXT ->
+                if (allowed(action.target) && visibleLabels.any { it.trim().equals(action.target.trim(), true) })
+                    Verdict.CONFIRM else Verdict.REJECT
+            Kind.TAP_OCR -> {
+                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
+                if (target != null && target.gestureBoundsSafe && target.text == action.target &&
+                    target.fingerprint == action.ocrFingerprint && allowed(target.text)) Verdict.CONFIRM
+                else Verdict.REJECT
+            }
+            Kind.TAP_NODE -> {
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                if (node != null && node.clickable && !node.password && !node.editable &&
+                    node.gestureBoundsSafe && node.fingerprint.isNotBlank() &&
+                    node.fingerprint == action.nodeFingerprint && allowed(node.label)) Verdict.CONFIRM
+                else Verdict.REJECT
+            }
+            Kind.DRAG_NODE -> {
+                val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
+                val anchors = setOf("left", "right", "top", "bottom", "center")
+                if (node != null && !node.password && !node.editable && node.gestureBoundsSafe &&
+                    node.fingerprint.isNotBlank() && node.fingerprint == action.nodeFingerprint &&
+                    node.label.equals("Brightness", true) && allowed(node.label) &&
+                    action.fromAnchor.lowercase() in anchors && action.toAnchor.lowercase() in anchors &&
+                    !action.fromAnchor.equals(action.toAnchor, true)) Verdict.CONFIRM
+                else Verdict.REJECT
+            }
+            Kind.DRAG_OCR -> {
+                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
+                val anchors = setOf("left", "right", "top", "bottom", "center")
+                if (target != null && target.gestureBoundsSafe && target.fingerprint == action.ocrFingerprint &&
+                    target.text.equals("Brightness", true) && allowed(target.text) &&
+                    action.fromAnchor.lowercase() in anchors && action.toAnchor.lowercase() in anchors &&
+                    !action.fromAnchor.equals(action.toAnchor, true)) Verdict.CONFIRM
+                else Verdict.REJECT
+            }
+            Kind.BACK -> Verdict.ALLOW
+            Kind.WAIT -> if (action.waitMs in 250..8000) Verdict.ALLOW else Verdict.REJECT
+            Kind.DONE -> if (action.completionEvidence.isNotBlank() &&
+                visibleLabels.any { it.trim().equals(action.completionEvidence.trim(), true) } &&
+                isSafeSystemUiLabel(action.completionEvidence)) Verdict.ALLOW else Verdict.REJECT
+            else -> Verdict.REJECT
         }
     }
 

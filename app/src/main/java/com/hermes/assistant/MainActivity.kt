@@ -1352,7 +1352,9 @@ class MainActivity : Activity() {
                 return
             }
             val planningObservation = service.screenObservation()
-            val tree = service.describeVisibleTree(180)
+            val isSystemUi = planningObservation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE
+            val rawTree = service.describeVisibleTree(180)
+            val tree = if (isSystemUi) filterSystemUiTree(rawTree) else rawTree
             if (tree.length() == 0) {
                 finish("Screen unavailable or this app is OFF in App access. No action taken.")
                 return
@@ -1367,8 +1369,9 @@ class MainActivity : Activity() {
                 return
             }
             updateProgress("Observing screen • step " + (completedSteps + 1) + "/40")
-            service.captureVisibleOcr { ocrTargets, ocrError ->
+            service.captureVisibleOcr { rawOcrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
+                val ocrTargets = if (isSystemUi) rawOcrTargets.filter { UiAgentPolicy.isSafeSystemUiLabel(it.text) } else rawOcrTargets
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
                 val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
@@ -1488,7 +1491,7 @@ class MainActivity : Activity() {
                     }
                     }
                 }
-                if (visionEnabled) {
+                if (visionEnabled && !isSystemUi) {
                     service.captureLocalScreenshot { screenshotFile, screenshotBounds, screenshotError ->
                         if (generation != uiAgentGeneration) {
                             screenshotFile?.delete()
@@ -1625,10 +1628,14 @@ class MainActivity : Activity() {
         service.awaitScreenSettled(baselineObservation) { changed, timedOut, observation ->
             val generationMatches = generation == uiAgentGeneration
             val stopRequested = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
-            val foregroundMatches = if (action.kind == UiAgentPolicy.Kind.OPEN_APP) {
-                UiAgentPolicy.isOpenAppOutcomeVerified(action.target, observation.foregroundPackage)
-            } else {
-                UiAgentPolicy.mayResumeAfterAction(
+            val systemUiQuickSettingsTransition = action.kind == UiAgentPolicy.Kind.QUICK_SETTINGS &&
+                observation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
+                AppAccessPolicy.isAllowed(this@MainActivity, observation.foregroundPackage)
+            val foregroundMatches = when {
+                action.kind == UiAgentPolicy.Kind.OPEN_APP ->
+                    UiAgentPolicy.isOpenAppOutcomeVerified(action.target, observation.foregroundPackage)
+                systemUiQuickSettingsTransition -> generationMatches && !stopRequested
+                else -> UiAgentPolicy.mayResumeAfterAction(
                     generationMatches, stopRequested,
                     baselineObservation.foregroundPackage, observation.foregroundPackage,
                     baselineObservation.foregroundEpoch, observation.foregroundEpoch
@@ -1822,6 +1829,18 @@ class MainActivity : Activity() {
         } finally { connection.disconnect() }
     }
 
+
+    /** System UI exposes notification content in the same window; only allowlisted quick-setting labels reach the planner. */
+    private fun filterSystemUiTree(rawTree: JSONArray): JSONArray {
+        val filtered = JSONArray()
+        for (index in 0 until rawTree.length()) {
+            val node = rawTree.optJSONObject(index) ?: continue
+            val label = node.optString("text").ifBlank { node.optString("description") }
+            if (UiAgentPolicy.isSafeSystemUiLabel(label)) filtered.put(node)
+        }
+        return filtered
+    }
+
     private fun uiAgentAllowedApps(): List<Pair<String, String>> {
         val snapshot = AppAccessPolicy.snapshot(this)
         if (!snapshot.masterEnabled) return emptyList()
@@ -1894,7 +1913,8 @@ class MainActivity : Activity() {
             "Current app allowed: " + if (currentPackage.isNotBlank() && AppAccessPolicy.isAllowed(this, currentPackage)) "YES" else "NO / NOT OBSERVED",
             "Google Play Store access: " + if (AppAccessPolicy.isAllowed(this, "com.android.vending")) "ON" else "OFF",
             "NVIDIA UI planner: " + if (plannerReady) "CONFIGURED" else "MISSING KEY",
-            "UI Agent skill: " + if (skillEnabled) "ENABLED" else "DISABLED"
+            "UI Agent skill: " + if (skillEnabled) "ENABLED" else "DISABLED",
+            "System UI / Quick Settings access: " + if (AppAccessPolicy.isAllowed(this, AppAccessPolicy.SYSTEM_UI_PACKAGE)) "ON" else "OFF (manual opt-in)"
         )
         AlertDialog.Builder(this)
             .setTitle("Android control readiness")
@@ -1909,13 +1929,18 @@ class MainActivity : Activity() {
 
     private fun showAppAccessPanel() {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val launchableApps = packageManager.queryIntentActivities(launcherIntent, 0)
+        val regularApps = packageManager.queryIntentActivities(launcherIntent, 0)
             .mapNotNull { resolve ->
                 val pkg = resolve.activityInfo?.packageName ?: return@mapNotNull null
                 val label = resolve.loadLabel(packageManager)?.toString()?.takeIf { it.isNotBlank() } ?: pkg
                 pkg to label
             }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
-        val packages = launchableApps.map { it.first }
+        val systemUiEntry = try {
+            packageManager.getApplicationInfo(AppAccessPolicy.SYSTEM_UI_PACKAGE, 0)
+            AppAccessPolicy.SYSTEM_UI_PACKAGE to "Android System UI · Quick Settings"
+        } catch (_: Exception) { null }
+        val launchableApps = (regularApps + listOfNotNull(systemUiEntry)).distinctBy { it.first }
+        val packages = regularApps.map { it.first }
         AppAccessPolicy.initializeForInstalledApps(this)
         val snapshot = AppAccessPolicy.snapshot(this)
         val content = LinearLayout(this).apply {
@@ -1934,7 +1959,7 @@ class MainActivity : Activity() {
         }
         content.addView(master, LinearLayout.LayoutParams(-1, dp(48)))
         content.addView(TextView(this).apply {
-            text = "Har app ka access alag control karo. OFF app par Vyom screen read, tap, swipe ya type nahi karega. Android Accessibility permission bhi manually ON honi chahiye."
+            text = "Har app ka access alag control karo. Android System UI ko ON karne par Vyom Quick Settings ke sirf Wi-Fi/Bluetooth/brightness jaise safe controls use karega; notification text filter hoga aur System UI screenshots NVIDIA ko kabhi upload nahi honge. Android Accessibility permission bhi manually ON honi chahiye."
             textSize = 12f
             setTextColor(Color.LTGRAY)
             setPadding(0, 0, 0, dp(8))
@@ -1947,6 +1972,7 @@ class MainActivity : Activity() {
                 text = when {
                     blocked -> "$label  ·  BLOCKED (financial/payment)"
                     controllerApp -> "$label  ·  CONTROLLER (master switch required)"
+                    pkg == AppAccessPolicy.SYSTEM_UI_PACKAGE -> "$label  ·  SAFE QUICK SETTINGS ONLY"
                     else -> "$label  ·  $pkg"
                 }
                 textSize = 12f

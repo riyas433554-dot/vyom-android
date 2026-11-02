@@ -1069,3 +1069,11 @@ Branch: `feature/memory-intelligence`
 - Tightened screenshot/window aspect-ratio tolerance to 5% so coordinate mapping fails closed rather than silently shifting targets when the captured window and screen bounds differ. Temporary screenshot files are cleared before a new capture and deleted in the planner `finally` path; OCR hardware buffers are now closed/recycled on both success and failure.
 
 - Enabled `flagRetrieveInteractiveWindows` so API 34+ can resolve the exact active accessibility window and its on-screen bounds before calling `takeScreenshotOfWindow`.
+
+
+## 2026-11-02 — Controlled Android System UI / Quick Settings access
+
+- Added Android System UI (`com.android.systemui`) as a separate manual opt-in in Profile > App access. It is excluded from ENABLE ALL and is not launchable as an ordinary app.
+- After an explicit Quick Settings request, the UI Agent may continue into System UI only when that package is manually enabled. Notification-shade access does not receive this transition exception.
+- System UI observations are filtered to a narrow allowlist of quick-setting labels (Wi-Fi/Internet, Bluetooth, Airplane mode, DND, Battery Saver, Flashlight, Location, Auto-rotate, Screen record, Hotspot, Mobile data, Brightness). Other notification text is never sent to the planner. Screenshot/VLM upload is disabled while System UI is foreground.
+- System UI actions require the user's goal to name the matching setting and always require confirmation; only exact safe tile taps and the Brightness slider drag are permitted. Coordinate gestures, typing, scrolling and arbitrary navigation are rejected. Added policy regression tests for label filtering, goal matching, mandatory confirmation and point-action rejection.

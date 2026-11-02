@@ -5,6 +5,7 @@ import android.content.Context
 /** User-controlled allowlist for accessibility actions. New packages default to OFF. */
 internal object AppAccessPolicy {
     data class Snapshot(val masterEnabled: Boolean, val enabledPackages: Set<String>)
+    const val SYSTEM_UI_PACKAGE = "com.android.systemui"
     private const val PREFS = "vyom_app_access"
     private const val MASTER = "master_enabled"
     private const val INITIALIZED = "initialized"

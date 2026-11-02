@@ -13,6 +13,7 @@
         <package android:name="com.spotify.music" />
         <package android:name="com.google.android.gm" />
         <package android:name="org.telegram.messenger" />
+        <package android:name="com.android.systemui" />
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />

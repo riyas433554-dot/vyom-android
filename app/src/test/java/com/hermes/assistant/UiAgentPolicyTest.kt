@@ -509,6 +509,48 @@ class UiAgentPolicyTest {
         }
     }
 
+
+    @Test fun systemUiOnlyExposesAllowlistedQuickSettingsLabelsAndGoalMatches() {
+        assertTrue(UiAgentPolicy.isSafeSystemUiLabel("Wi-Fi, On"))
+        assertTrue(UiAgentPolicy.isSafeSystemUiLabel("Brightness"))
+        assertFalse(UiAgentPolicy.isSafeSystemUiLabel("Alice sent you a message"))
+        assertFalse(UiAgentPolicy.isSafeSystemUiLabel("Delete"))
+        assertTrue(UiAgentPolicy.isSystemUiTargetRequested("Wi-Fi, On", "Turn on Wi-Fi"))
+        assertTrue(UiAgentPolicy.isSystemUiTargetRequested("Brightness", "Make the screen brighter"))
+        assertFalse(UiAgentPolicy.isSystemUiTargetRequested("Bluetooth", "Turn on Wi-Fi"))
+    }
+
+    @Test fun systemUiTileTapAlwaysRequiresConfirmationAndMustMatchUserGoal() {
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.TAP_TEXT,
+            target = "Wi-Fi",
+            screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE
+        )
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Wi-Fi",
+                confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Bluetooth"))
+    }
+
+    @Test fun systemUiRejectsVisualCoordinatesAndUnapprovedLabels() {
+        val point = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.VISION_TAP,
+            screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE,
+            screenRevision = 4L,
+            foregroundEpoch = 2L,
+            x1 = 400, y1 = 800, x2 = 400, y2 = 800
+        )
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(point, listOf("Wi-Fi"), "Turn on Wi-Fi",
+                screenWidth = 1080, screenHeight = 2400, density = 3f))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Delete", screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE),
+                listOf("Delete"), "Delete this notification"
+            ))
+    }
+
     @Test fun postActionContinuationRequiresSameForegroundPackageAndEpoch() {
         assertTrue(UiAgentPolicy.mayResumeAfterAction(
             generationMatches = true, stopControlOn = false,
