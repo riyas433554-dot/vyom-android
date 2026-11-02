@@ -81,6 +81,14 @@ class VyomAccessibilityService : AccessibilityService() {
 
     data class ScreenObservation(val revision: Long, val foregroundPackage: String)
 
+    fun isLatestObservationFresh(expectedPackage: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val currentPackage = root.packageName?.toString().orEmpty()
+        return UiAgentPolicy.isActionObservationFresh(
+            lastObservedRevision, screenRevision, lastObservedPackage, currentPackage
+        ) && expectedPackage.isNotBlank() && expectedPackage == currentPackage
+    }
+
     fun screenObservation(): ScreenObservation {
         val foreground = rootInActiveWindow?.packageName?.toString().orEmpty()
         return ScreenObservation(screenRevision, foreground)
