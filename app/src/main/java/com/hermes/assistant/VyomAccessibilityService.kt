@@ -247,7 +247,7 @@ class VyomAccessibilityService : AccessibilityService() {
         if (target.isBlank() || target.length > 100) return false
         val root = rootInActiveWindow ?: return false
         if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage) ||
-            root.packageName?.toString() != lastObservedPackage || screenRevision != lastObservedRevision) return false
+            !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         val node = findNode(root, target) ?: return false
         if (node.isPassword || node.isEditable) return false
         var candidate: AccessibilityNodeInfo? = node
@@ -269,8 +269,7 @@ class VyomAccessibilityService : AccessibilityService() {
         if (fromAnchor.lowercase() !in anchors || toAnchor.lowercase() !in anchors ||
             fromAnchor.equals(toAnchor, ignoreCase = true)) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
-            root.packageName?.toString() != lastObservedPackage) return false
+        if (!isCurrentAppAllowed(root) || !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
         val rect = safeGestureBounds(node) ?: return false
@@ -296,8 +295,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun swipeNode(index: Int, expectedFingerprint: String, direction: String): Boolean {
         if (direction.lowercase() !in setOf("left", "right", "up", "down")) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
-            root.packageName?.toString() != lastObservedPackage) return false
+        if (!isCurrentAppAllowed(root) || !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
         val rect = safeGestureBounds(node) ?: return false
@@ -320,7 +318,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun scroll(direction: String, expectedPackage: String = ""): Boolean {
         val root = rootInActiveWindow ?: return false
         if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage) ||
-            root.packageName?.toString() != lastObservedPackage || screenRevision != lastObservedRevision) return false
+            !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         val action = when (direction.lowercase()) {
             "up", "forward", "down-page" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             "down", "backward", "up-page" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
@@ -333,8 +331,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun typeIntoNode(index: Int, expectedFingerprint: String, text: String): Boolean {
         if (index !in 0 until 180 || text.length > 500 || containsCredentialPattern(text)) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
-            root.packageName?.toString() != lastObservedPackage) return false
+        if (!isCurrentAppAllowed(root) || !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (!node.isEditable || node.isPassword || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint) return false
         val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
@@ -354,7 +351,7 @@ class VyomAccessibilityService : AccessibilityService() {
     fun global(action: String, expectedPackage: String = ""): Boolean {
         val root = rootInActiveWindow ?: return false
         if (!isCurrentAppAllowed(root) || (expectedPackage.isNotBlank() && root.packageName?.toString() != expectedPackage) ||
-            root.packageName?.toString() != lastObservedPackage || screenRevision != lastObservedRevision) return false
+            !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         return when (action.lowercase()) {
         "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
         "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
@@ -433,7 +430,7 @@ class VyomAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return null
         val packageName = root.packageName?.toString().orEmpty()
         if (packageName.isBlank() || packageName != lastOcrPackage || !isCurrentAppAllowed(root) ||
-            screenRevision != lastOcrRevision) return null
+            !UiAgentPolicy.isFreshScreen(lastOcrRevision, screenRevision, lastOcrPackage, packageName)) return null
         val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return null
         if (isSensitiveOcrText(target.text)) return null
         val width = resources.displayMetrics.widthPixels
@@ -488,8 +485,8 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun tapOcrTarget(expectedFingerprint: String): Boolean {
         val root = rootInActiveWindow ?: return false
-        if (expectedFingerprint.isBlank() || root.packageName?.toString() != lastOcrPackage ||
-            !isCurrentAppAllowed(root) || screenRevision != lastOcrRevision) return false
+        if (expectedFingerprint.isBlank() || !UiAgentPolicy.isFreshScreen(lastOcrRevision, screenRevision, lastOcrPackage, root.packageName?.toString().orEmpty()) ||
+            !isCurrentAppAllowed(root)) return false
         val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
@@ -508,8 +505,8 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun longPressOcrTarget(expectedFingerprint: String): Boolean {
         val root = rootInActiveWindow ?: return false
-        if (expectedFingerprint.isBlank() || root.packageName?.toString() != lastOcrPackage ||
-            !isCurrentAppAllowed(root) || screenRevision != lastOcrRevision) return false
+        if (expectedFingerprint.isBlank() || !UiAgentPolicy.isFreshScreen(lastOcrRevision, screenRevision, lastOcrPackage, root.packageName?.toString().orEmpty()) ||
+            !isCurrentAppAllowed(root)) return false
         val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
@@ -558,8 +555,7 @@ class VyomAccessibilityService : AccessibilityService() {
     private fun performNodeAction(index: Int, expectedFingerprint: String, action: Int, requireClickable: Boolean = false, requireLongClickable: Boolean = false): Boolean {
         if (index !in 0 until 180 || expectedFingerprint.isBlank()) return false
         val root = rootInActiveWindow ?: return false
-        if (!isCurrentAppAllowed(root) || screenRevision != lastObservedRevision ||
-            root.packageName?.toString() != lastObservedPackage) return false
+        if (!isCurrentAppAllowed(root) || !UiAgentPolicy.isFreshScreen(lastObservedRevision, screenRevision, lastObservedPackage, root.packageName?.toString().orEmpty())) return false
         val node = findNodeByIndex(root, index) ?: return false
         if (node.isPassword || node.isEditable || nodeFingerprint(node, root.packageName?.toString().orEmpty()) != expectedFingerprint || safeGestureBounds(node) == null) return false
         if (requireClickable && !node.isClickable) {
