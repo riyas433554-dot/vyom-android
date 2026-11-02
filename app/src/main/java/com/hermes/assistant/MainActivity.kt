@@ -1526,12 +1526,16 @@ class MainActivity : Activity() {
     private fun isSafeUiOcrBounds(target: VyomAccessibilityService.OcrItem): Boolean {
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
-        val targetWidth = target.right - target.left
-        val targetHeight = target.bottom - target.top
+        val mapped = UiAgentPolicy.mapOcrBoundsToScreen(
+            target.left, target.top, target.right, target.bottom,
+            target.imageWidth, target.imageHeight, width, height
+        ) ?: return false
+        val targetWidth = mapped.right - mapped.left
+        val targetHeight = mapped.bottom - mapped.top
         val area = targetWidth.toLong() * targetHeight.toLong()
         val screenArea = width.toLong() * height.toLong()
-        return target.left >= 0 && target.top >= 0 && target.right <= width && target.bottom <= height &&
-            targetWidth >= dp(8) && targetHeight >= dp(8) && area > 0 && area <= screenArea * 10L / 100L
+        return targetWidth >= dp(8) && targetHeight >= dp(8) &&
+            area > 0 && area <= screenArea * 10L / 100L
     }
 
     private fun isSafeUiGestureBounds(bounds: JSONObject?): Boolean {
