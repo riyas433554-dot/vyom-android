@@ -1419,7 +1419,7 @@ class MainActivity : Activity() {
                                         finish("STOP CONTROL ON — action blocked.")
                                     } else {
                                         if (service.showAgentProgress("Confirmed • executing action…", ::stopAgent)) {
-                                            performUiAgentAction(preparedAction, generation, completedSteps, sessionGrantExpiresAt,
+                                            performUiAgentAction(preparedAction, goal, generation, completedSteps, sessionGrantExpiresAt,
                                                 { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
                                         } else {
                                             finish("STOP overlay unavailable. Action was not executed.")
@@ -1444,6 +1444,7 @@ class MainActivity : Activity() {
 
     private fun performUiAgentAction(
         action: UiAgentPolicy.Action,
+        goal: String,
         generation: Int,
         completedSteps: Int,
         sessionGrantExpiresAt: Long?,
