@@ -1869,7 +1869,7 @@ class MainActivity : Activity() {
         return packageManager.queryIntentActivities(launcherIntent, 0)
             .mapNotNull { resolve ->
                 val pkg = resolve.activityInfo?.packageName ?: return@mapNotNull null
-                if (!AppAccessPolicy.isAllowed(this, pkg)) return@mapNotNull null
+                if (pkg == AppAccessPolicy.SYSTEM_UI_PACKAGE || !AppAccessPolicy.isAllowed(this, pkg)) return@mapNotNull null
                 val label = resolve.loadLabel(packageManager)?.toString()?.takeIf { it.isNotBlank() } ?: pkg
                 pkg to label
             }.distinctBy { it.first }.sortedBy { it.second.lowercase() }

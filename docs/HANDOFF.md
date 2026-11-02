@@ -1111,3 +1111,5 @@ Branch: `feature/memory-intelligence`
 - Follow-up compile correction: the allowlist snapshot is now declared in the OCR callback scope before the planner lambda, so both policy validation and background model planning can access the same list.
 
 - Explicitly excluded com.android.systemui from both the regular launcher-app list and ENABLE ALL, even on OEMs that expose it as a launchable activity; it remains a separate manual opt-in.
+
+- The UI Agent's OPEN_APP candidate list also explicitly excludes System UI; Quick Settings is reachable only through the dedicated global action and opt-in transition.
