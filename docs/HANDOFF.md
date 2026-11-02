@@ -1095,3 +1095,5 @@ Branch: `feature/memory-intelligence`
 - Replaced the System UI state-label regex as a complete block after detecting an escaped-string replacement error; the current Kotlin raw-string pattern is syntactically complete and covers optional “is on/off” status.
 
 - Quick Settings DONE verification now requires every requested toggle category to be visibly in the requested on/off state; mixed-direction requests fail closed rather than claiming partial completion. Opening Quick Settings itself is recognized as a separate visible-panel goal.
+
+- Added an explicit non-null state guard in the multi-toggle verification path so absent accessibility state labels cannot be treated as a valid toggle state.

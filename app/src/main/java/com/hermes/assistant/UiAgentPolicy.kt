@@ -335,7 +335,7 @@ internal object UiAgentPolicy {
         val statePattern = Regex("""(?i)\b(on|off|enabled|disabled|connected|disconnected)\b""")
         val observedCategories = visibleLabels.filter { isSafeSystemUiLabel(it) }.filter { label ->
             val state = statePattern.find(label)?.value?.lowercase()
-            state in requiredStates
+            state != null && state in requiredStates
         }.mapNotNull(::systemUiCategory).toSet()
         return requestedCategories.all { it in observedCategories }
     }
