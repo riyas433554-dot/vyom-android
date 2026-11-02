@@ -115,7 +115,7 @@ internal class SelfModificationClient {
 
     companion object {
         private const val API_ROOT = "https://api.github.com/repos/riyas433554-dot/vyom-android"
-        private const val BASE_BRANCH = "feature/u1-live-orbit-tasks"
+        private const val BASE_BRANCH = SelfModificationPolicy.PROPOSAL_BASE_BRANCH
         private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
     }
 }
