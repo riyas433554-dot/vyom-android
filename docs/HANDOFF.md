@@ -1101,3 +1101,9 @@ Branch: `feature/memory-intelligence`
 - Node-based confirmation now displays the exact visible accessibility label (e.g. Wi-Fi or Brightness) instead of only a numeric node index, so users can judge the target before approving.
 
 - Kept “open notification shade” separate from “open Quick Settings”; only the explicit Quick Settings path receives the controlled System UI continuation exception.
+
+
+## 2026-11-02 — CI compile fixes
+
+- CI run 41479233768 exposed three Kotlin compile errors: allowedApps was out of scope in policy validation, one no-screenshot path still called the old one-argument planner lambda, and the VLM request's outer try/finally was not returned from the nullable action function.
+- Fixed all three: one immutable allowlist snapshot is shared by validation and planner, the fallback passes (null, null), and the VLM request now returns its try/finally expression. Latest verification must be rerun; no APK is ready from the failed run.

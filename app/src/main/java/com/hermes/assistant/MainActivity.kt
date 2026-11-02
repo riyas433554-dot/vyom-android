@@ -1376,7 +1376,6 @@ class MainActivity : Activity() {
                 val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
                         val action = try {
-                            val allowedApps = uiAgentAllowedApps()
                             if (screenshotFile != null) requestUiAgentVisionAction(goal, tree, allowedApps, ocrTargets, screenshotFile, screenshotBounds)
                                 ?: requestUiAgentAction(goal, tree, allowedApps, ocrTargets)
                             else requestUiAgentAction(goal, tree, allowedApps, ocrTargets)
@@ -1508,7 +1507,7 @@ class MainActivity : Activity() {
                         }
                     }
                 } else {
-                    planWithFile(null)
+                    planWithFile(null, null)
                 }
             }
         }
@@ -1711,7 +1710,7 @@ class MainActivity : Activity() {
             source.recycle()
             return null
         }
-        try {
+        return try {
             val bytes = ByteArrayOutputStream().use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 76, output)
                 output.toByteArray()
