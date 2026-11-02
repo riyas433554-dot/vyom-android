@@ -31,4 +31,30 @@ class ChatContextPolicyTest {
         assertEquals(4_000L, ChatContextPolicy.connectionRetryDelayMillis(3))
         assertEquals(4_000L, ChatContextPolicy.connectionRetryDelayMillis(9))
     }
+
+    @Test fun truncationPreservesSectionLabelsAndNewestMemoryAndHistoryLines() {
+        val context = ChatContextPolicy.buildContext(
+            "old-memory-line\nnewest-memory-line",
+            "old-history-line\nnewest-history-line",
+            160
+        )
+        assertTrue(context.length <= 160)
+        assertTrue(context.contains("On-device memory facts"))
+        assertTrue(context.contains("Recent conversation context"))
+        assertTrue(context.contains("newest-memory-line"))
+        assertTrue(context.contains("newest-history-line"))
+        assertFalse(context.contains("old-memory-line"))
+        assertFalse(context.contains("old-history-line"))
+    }
+
+    @Test fun contextRejectsNegativeBudgetAndAllowsZeroBudget() {
+        assertEquals("", ChatContextPolicy.buildContext("memory", "history", 0))
+        try {
+            ChatContextPolicy.buildContext("memory", "history", -1)
+            throw AssertionError("negative budget should be rejected")
+        } catch (_: IllegalArgumentException) {
+            // Expected.
+        }
+    }
+
 }
