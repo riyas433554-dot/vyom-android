@@ -37,4 +37,9 @@ class SelfModificationPolicyTest {
     fun rejectsBlankContent() {
         SelfModificationPolicy.validate("Improve reply formatting", "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt", "  ")
     }
+
+    @Test fun proposalBaseBranchIsTheCurrentMemoryIntelligenceBranch() {
+        assertTrue(SelfModificationPolicy.PROPOSAL_BASE_BRANCH == "feature/memory-intelligence")
+    }
+
 }
