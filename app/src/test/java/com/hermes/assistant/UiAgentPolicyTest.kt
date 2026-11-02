@@ -397,13 +397,13 @@ class UiAgentPolicyTest {
             ))
     }
 
-    @Test fun explicitPlayStoreInstallIntentRejectsWrongListingOrWrongButton() {
+    @Test fun explicitPlayStoreInstallIntentRequiresConfirmationForWrongListingOrWrongButton() {
         val action = UiAgentPolicy.Action(
             UiAgentPolicy.Kind.TAP_TEXT,
             target = "Install",
             screenPackage = "com.android.vending"
         )
-        assertEquals(UiAgentPolicy.Verdict.REJECT,
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(
                 action,
                 listOf("Godot Engine 3", "Godot Foundation", "Install"),
@@ -442,13 +442,13 @@ class UiAgentPolicyTest {
     }
 
 
-    @Test fun requestedInstallRejectsAmbiguousMultipleInstallButtons() {
+    @Test fun requestedInstallRequiresConfirmationForAmbiguousMultipleInstallButtons() {
         val action = UiAgentPolicy.Action(
             UiAgentPolicy.Kind.TAP_TEXT,
             target = "Install",
             screenPackage = "com.android.vending"
         )
-        assertEquals(UiAgentPolicy.Verdict.REJECT,
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(
                 action,
                 listOf("Godot Engine 4", "Godot Foundation", "Install", "Install"),
