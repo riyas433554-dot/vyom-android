@@ -163,4 +163,13 @@ class MemoryCapturePolicyTest {
         )
     }
 
+
+    @Test fun retrievalExcludesOlderConflictingPreferenceInsteadOfSendingBothToModel() {
+        val facts = listOf("I prefer direct answers.", "I prefer friendly answers.")
+        assertEquals(
+            listOf("I prefer friendly answers."),
+            MemoryCapturePolicy.relevantFacts(facts, "answer tone", 10)
+        )
+    }
+
 }
