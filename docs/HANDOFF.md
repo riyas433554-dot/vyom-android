@@ -706,3 +706,13 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - `UiAgentPolicyTest.kt` has 43 test methods. Full Gradle unit-test task passed in both workflows.
 - Physical phone testing is still pending and is the remaining Android Control acceptance gate. Do not resume Memory Intelligence until the user confirms the APK passes real-device testing.
 - This entry is documentation-only; because it advances the branch head, run Android CI and Debug once more against the resulting exact commit before treating its APK as the final handoff.
+
+
+### Android Control follow-up — OCR display mapping + raw-action freshness — 2026-11-02
+- Found a visual-control coordinate assumption: ML Kit OCR boxes were treated as display pixels even though they originate in screenshot-bitmap pixels. OCR actions could be misplaced when screenshot and display dimensions differ.
+- Added screenshot width/height to each OCR observation, a shared coordinate mapper that scales valid bounds and rejects invalid dimensions or portrait/landscape mismatches, and a single fresh-screen-checked mapped-bounds path used by OCR tap, long-press, swipe and drag.
+- MainActivity now applies the same mapped coordinate validation before exposing OCR targets to the planner.
+- Hardened legacy raw accessibility long-press, swipe and focused-field typing helpers: they now require an allowed current app and a fresh observed screen; raw gestures must remain inside display bounds.
+- Added regression tests for scaled OCR coordinates, invalid/out-of-range boxes, orientation mismatch, and raw gesture bounds. `UiAgentPolicyTest.kt` currently has 47 `@Test` methods.
+- Commits: OCR mapping tests `80362c4ce0a6572cf7305b6c3b420953f440915e`; mapping policy `323f8104d249b466c08f1a03aa1019b57ed92f57`; OCR service `c647881c927af9b9173697e6636b8cebd3f2a08a`; planner-bound validation `e8c6b6f7cbc9254e7ac164de864259d6cf724c33`; raw gesture regression `957e61c6fd511fe25b3b326b93600765540fd338`; gesture policy `b8fe447438bea077b720162c7e17682de775cd68`; service freshness hardening `d4c2b6936a86a499fb0789dfac1e523f4099ad6f`.
+- Exact-head CI and debug build are required after this sequence. No phone test has been performed. Memory Intelligence remains paused until Android Control implementation is reported complete.
