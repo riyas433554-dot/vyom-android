@@ -58,12 +58,13 @@ class VyomDesignSpecTest {
     }
 
 
-    @Test fun skillCatalogContainsOnlyImplementedSafeDeviceActions() {
+    @Test fun skillCatalogExposesBoundedUiAutomationAsAConfirmationGatedSkill() {
         assertEquals(
-            listOf("open_app", "volume", "torch", "settings"),
+            listOf("open_app", "volume", "torch", "settings", "ui_agent"),
             VyomDesignSpec.deviceSkills.map { it.id }
         )
-        assertTrue(VyomDesignSpec.deviceSkills.all { it.risk == "SAFE" })
+        assertTrue(VyomDesignSpec.deviceSkills.filter { it.id != "ui_agent" }.all { it.risk == "SAFE" })
+        assertEquals("CONFIRM", VyomDesignSpec.deviceSkills.first { it.id == "ui_agent" }.risk)
     }
 
 
