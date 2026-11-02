@@ -30,6 +30,36 @@ class UiAgentPolicyTest {
             UiAgentPolicy.validate(action, listOf("x".repeat(121)), "Export video"))
     }
 
+    @Test fun rejectsStaleScreenRevision() {
+        assertFalse(UiAgentPolicy.isFreshScreen(7L, 8L, "com.example.editor", "com.example.editor"))
+    }
+
+    @Test fun rejectsForegroundAppSwitchEvenWhenRevisionMatches() {
+        assertFalse(UiAgentPolicy.isFreshScreen(7L, 7L, "com.example.editor", "com.android.settings"))
+    }
+
+    @Test fun acceptsOnlySameFreshRevisionAndForegroundPackage() {
+        assertTrue(UiAgentPolicy.isFreshScreen(7L, 7L, "com.example.editor", "com.example.editor"))
+        assertFalse(UiAgentPolicy.isFreshScreen(-1L, -1L, "com.example.editor", "com.example.editor"))
+    }
+
+    @Test fun stopOrGenerationChangeBlocksExecution() {
+        assertFalse(UiAgentPolicy.mayExecute(false, false, 100L, null))
+        assertFalse(UiAgentPolicy.mayExecute(true, true, 100L, null))
+        assertTrue(UiAgentPolicy.mayExecute(true, false, 100L, null))
+    }
+
+    @Test fun sessionGrantExpiresAtBoundaryAndCannotExecute() {
+        assertTrue(UiAgentPolicy.mayExecute(true, false, 99L, 100L))
+        assertFalse(UiAgentPolicy.mayExecute(true, false, 100L, 100L))
+        assertFalse(UiAgentPolicy.mayExecute(true, false, 101L, 100L))
+    }
+
+    @Test fun failedAndroidActionIsNeverAcceptedForProgress() {
+        assertFalse(UiAgentPolicy.actionAccepted(false))
+        assertTrue(UiAgentPolicy.actionAccepted(true))
+    }
+
     @Test fun refusesToTapTextNotPresentInLatestScreen() {
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Export"),
