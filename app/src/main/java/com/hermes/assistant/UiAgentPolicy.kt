@@ -262,14 +262,29 @@ internal object UiAgentPolicy {
         generationMatches && !stopControlOn && (grantExpiresAt == null || nowMs < grantExpiresAt)
 
 
+    fun mayResumeAfterAction(
+        generationMatches: Boolean, stopControlOn: Boolean,
+        expectedPackage: String, currentPackage: String,
+        expectedForegroundEpoch: Long, currentForegroundEpoch: Long
+    ): Boolean =
+        generationMatches && !stopControlOn &&
+            expectedPackage.isNotBlank() && expectedPackage == currentPackage &&
+            expectedForegroundEpoch == currentForegroundEpoch
+
+    fun isOpenAppOutcomeVerified(requestedPackage: String, foregroundPackage: String): Boolean =
+        requestedPackage.isNotBlank() && requestedPackage == foregroundPackage
+
+    fun invalidateGeneration(currentGeneration: Int): Int =
+        if (currentGeneration == Int.MAX_VALUE) Int.MIN_VALUE else currentGeneration + 1
+
     fun mayResumeAfterWait(
         generationMatches: Boolean, stopControlOn: Boolean, nowMs: Long, grantExpiresAt: Long?,
         expectedPackage: String, currentPackage: String,
         expectedForegroundEpoch: Long, currentForegroundEpoch: Long
     ): Boolean =
         mayExecute(generationMatches, stopControlOn, nowMs, grantExpiresAt) &&
-            expectedPackage.isNotBlank() && expectedPackage == currentPackage &&
-            expectedForegroundEpoch == currentForegroundEpoch
+            mayResumeAfterAction(true, false, expectedPackage, currentPackage,
+                expectedForegroundEpoch, currentForegroundEpoch)
 
     fun actionAccepted(actionSucceeded: Boolean): Boolean = actionSucceeded
 
