@@ -297,4 +297,19 @@ class UiAgentPolicyTest {
         assertTrue(UiAgentPolicy.isTreeObservationFresh(20L, 20L, "com.example.editor", "com.example.editor"))
     }
 
+    @Test fun tracksOwnAppContentEventsButIgnoresVyomOverlayEvents() {
+        assertTrue(UiAgentPolicy.shouldTrackAccessibilityEvent(
+            "com.example.editor", "com.vyom.assistant", 4, 4
+        ))
+        assertTrue(UiAgentPolicy.shouldTrackAccessibilityEvent(
+            "com.vyom.assistant", "com.vyom.assistant", 7, 7
+        ))
+        assertFalse(UiAgentPolicy.shouldTrackAccessibilityEvent(
+            "com.vyom.assistant", "com.vyom.assistant", 8, 7
+        ))
+        assertFalse(UiAgentPolicy.shouldTrackAccessibilityEvent(
+            "", "com.vyom.assistant", 7, 7
+        ))
+    }
+
 }
