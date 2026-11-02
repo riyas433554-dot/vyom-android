@@ -1376,6 +1376,7 @@ class MainActivity : Activity() {
         }
         val service = VyomAccessibilityService.current()
         if (service == null) { finish("Accessibility service disconnected."); return }
+        val baselineObservation = service.screenObservation()
         val success = when (action.kind) {
             UiAgentPolicy.Kind.OPEN_APP -> launchUiAgentApp(action.target)
             UiAgentPolicy.Kind.TAP_TEXT -> service.clickVisibleText(action.target, action.screenPackage)
@@ -1405,12 +1406,22 @@ class MainActivity : Activity() {
         val nextCount = completedSteps + 1
         logControlAction(UiAgentPolicy.auditLabel(action), "action-accepted", "ui-agent")
         updateProgress(UiAgentPolicy.progressMessage(nextCount))
-        mainHandler.postDelayed({
-            if (generation == uiAgentGeneration) {
-                onStepCompleted()
-                nextStep()
+        service.awaitScreenSettled(baselineObservation) { changed, timedOut, observation ->
+            if (generation != uiAgentGeneration || controlKillSwitch ||
+                controlPrefs.getBoolean("kill_switch", false)) {
+                finish("STOP CONTROL ON — next action blocked.")
+                return@awaitScreenSettled
             }
-        }, 300L)
+            val status = when {
+                timedOut && changed -> "Screen transition observed; quiet wait timed out. Re-observing."
+                timedOut -> "No screen event detected before timeout. Re-observing current screen; outcome unverified."
+                changed -> "Screen transition settled. Re-observing."
+                else -> "No transition event; re-observing current screen."
+            }
+            logControlAction(UiAgentPolicy.auditLabel(action), status, "ui-agent")
+            onStepCompleted()
+            nextStep()
+        }
     }
 
     private fun requestUiAgentAction(goal: String, screenTree: JSONArray, allowedApps: List<Pair<String, String>>, ocrTargets: List<VyomAccessibilityService.OcrItem>): UiAgentPolicy.Action? {
