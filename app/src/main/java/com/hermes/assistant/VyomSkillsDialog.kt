@@ -226,7 +226,7 @@ internal class VyomSkillsDialog(
             list.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
         }
         list.addView(TextView(activity).apply {
-            text = "Only these four local actions are registered here. External apps, calls, SMS and editor automation are not exposed as enabled skills."
+            text = "Only capabilities with an implemented local adapter are listed. UI automation is confirmation-gated and works only in apps you explicitly allow; secure system surfaces and protected actions remain unavailable."
             textSize = 10f
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(4), dp(8), dp(4), dp(12))
