@@ -1,3 +1,29 @@
+# CURRENT VERIFIED ADDENDUM — 2026-11-02 09:25 IST
+
+This addendum supersedes earlier Android source-head and artifact claims below.
+
+## Current branch and safety
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Current verified head: `26119c05ce083a3e3776084b61dc2f0d9fca2e60`
+- This latest commit updates only `docs/HANDOFF.md`; Android source code is unchanged from `53ff20954e055027a3d676195573f573317b5904`.
+- Android `main`, Hermes production, Render, production Supabase, signing secrets and releases untouched.
+
+## Latest CI/debug artifact
+- Android CI run `41381678937`: PASS on exact head `26119c05ce083a3e3776084b61dc2f0d9fca2e60`.
+- Debug build run `41381678903`: PASS on the same exact head.
+- Artifact ID: `13113965421`.
+- Artifact: `vyom-0.3.0-26119c05ce083a3e3776084b61dc2f0d9fca2e60`.
+- Artifact is CI/debug-signed. Signing continuity with the installed APK remains unverified; do not overwrite or uninstall until certificate fingerprints are compared or the correct release key is used.
+- Physical-device validation remains pending.
+
+## Design status
+- Supplied HTML board was inspected; Home, Drawer and Automations references were rendered locally.
+- Existing native implementation and its honest limitations remain as documented below. No Android UI source changes were needed in this continuation.
+- Scheduled/repeating automations remain unavailable; the UI does not claim otherwise.
+
+---
+
 # CURRENT VERIFIED ADDENDUM — 2026-11-02 08:48 IST
 
 This addendum supersedes older Android source-head and artifact claims below.
