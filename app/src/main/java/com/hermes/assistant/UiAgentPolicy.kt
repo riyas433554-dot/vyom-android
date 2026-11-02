@@ -132,6 +132,9 @@ internal object UiAgentPolicy {
     fun isTreeObservationFresh(captureRevision: Long, currentRevision: Long, capturePackage: String, currentPackage: String): Boolean =
         isFreshScreen(captureRevision, currentRevision, capturePackage, currentPackage)
 
+    fun isActionObservationFresh(observedRevision: Long, currentRevision: Long, observedPackage: String, currentPackage: String): Boolean =
+        isFreshScreen(observedRevision, currentRevision, observedPackage, currentPackage)
+
     fun shouldTrackAccessibilityEvent(eventPackage: String, ownPackage: String, eventWindowId: Int, activeWindowId: Int): Boolean =
         eventPackage.isNotBlank() &&
             (eventPackage != ownPackage || (activeWindowId >= 0 && eventWindowId == activeWindowId))
