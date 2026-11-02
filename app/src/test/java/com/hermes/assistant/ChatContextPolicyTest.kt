@@ -36,9 +36,9 @@ class ChatContextPolicyTest {
         val context = ChatContextPolicy.buildContext(
             "old-memory-line\nnewest-memory-line",
             "old-history-line\nnewest-history-line",
-            160
+            110
         )
-        assertTrue(context.length <= 160)
+        assertTrue(context.length <= 110)
         assertTrue(context.contains("On-device memory facts"))
         assertTrue(context.contains("Recent conversation context"))
         assertTrue(context.contains("newest-memory-line"))
