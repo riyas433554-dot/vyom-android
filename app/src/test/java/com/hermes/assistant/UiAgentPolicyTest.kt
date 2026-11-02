@@ -375,4 +375,10 @@ class UiAgentPolicyTest {
         assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "com.editor", "com.editor", 4L, 5L))
     }
 
+    @Test fun openAppDispatchRequiresTheOriginalFreshScreenObservation() {
+        assertFalse(UiAgentPolicy.isActionObservationFresh(70L, 71L, "com.editor", "com.editor"))
+        assertFalse(UiAgentPolicy.isActionObservationFresh(70L, 70L, "com.editor", "com.launcher"))
+        assertTrue(UiAgentPolicy.isActionObservationFresh(70L, 70L, "com.editor", "com.editor"))
+    }
+
 }
