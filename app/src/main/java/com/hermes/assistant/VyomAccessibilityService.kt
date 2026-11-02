@@ -48,6 +48,7 @@ class VyomAccessibilityService : AccessibilityService() {
     @Volatile private var screenRevision = 0L
     @Volatile private var lastRelevantEventAt = 0L
     @Volatile private var lastRelevantEventPackage = ""
+    @Volatile private var foregroundTransitionEpoch = 0L
     @Volatile private var lastObservedRevision = -1L
     @Volatile private var lastObservedPackage = ""
     @Volatile private var lastOcrRevision = -1L
@@ -76,13 +77,16 @@ class VyomAccessibilityService : AccessibilityService() {
         if (relevantType && UiAgentPolicy.shouldTrackAccessibilityEvent(
                 eventPackage, packageName, event.windowId, activeWindowId
             )) {
+            if (lastRelevantEventPackage.isNotBlank() && lastRelevantEventPackage != eventPackage) {
+                foregroundTransitionEpoch++
+            }
             screenRevision++
             lastRelevantEventAt = SystemClock.uptimeMillis()
             lastRelevantEventPackage = eventPackage
         }
     }
 
-    data class ScreenObservation(val revision: Long, val foregroundPackage: String)
+    data class ScreenObservation(val revision: Long, val foregroundPackage: String, val foregroundEpoch: Long)
 
     fun isLatestObservationFresh(expectedPackage: String): Boolean {
         val root = rootInActiveWindow ?: return false
@@ -94,7 +98,7 @@ class VyomAccessibilityService : AccessibilityService() {
 
     fun screenObservation(): ScreenObservation {
         val foreground = rootInActiveWindow?.packageName?.toString().orEmpty()
-        return ScreenObservation(screenRevision, foreground)
+        return ScreenObservation(screenRevision, foreground, foregroundTransitionEpoch)
     }
 
     /**
