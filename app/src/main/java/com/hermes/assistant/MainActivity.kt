@@ -1448,7 +1448,7 @@ class MainActivity : Activity() {
                                         "Visual AI selected a screenshot coordinate for a control not exposed clearly by Android. Check the screen behind this prompt. This point action always requires confirmation."
                                     else -> "Vyom wants to tap: " + action.target + ". Ye consequential action hai."
                                 }
-                                val shown = service.showAgentConfirmation(message, {
+                                val confirmAction = {
                                     if (generation != uiAgentGeneration || controlPrefs.getBoolean("kill_switch", false)) {
                                         logControlAction(UiAgentPolicy.auditLabel(preparedAction), "blocked-by-stop-control", "ui-agent")
                                         finish("STOP CONTROL ON — action blocked.")
@@ -1460,10 +1460,24 @@ class MainActivity : Activity() {
                                             finish("STOP overlay unavailable. Action was not executed.")
                                         }
                                     }
-                                }, {
+                                }
+                                val cancelAction = {
                                     logControlAction(UiAgentPolicy.auditLabel(preparedAction), "cancelled", "ui-agent")
                                     finish("Cancelled.")
-                                })
+                                }
+                                val visualPointAction = preparedAction.kind in setOf(
+                                    UiAgentPolicy.Kind.VISION_TAP, UiAgentPolicy.Kind.VISION_LONG_PRESS,
+                                    UiAgentPolicy.Kind.VISION_SWIPE, UiAgentPolicy.Kind.VISION_DRAG
+                                )
+                                val points = if (preparedAction.kind in setOf(
+                                        UiAgentPolicy.Kind.VISION_SWIPE, UiAgentPolicy.Kind.VISION_DRAG
+                                    )) listOf(preparedAction.x1 to preparedAction.y1, preparedAction.x2 to preparedAction.y2)
+                                    else listOf(preparedAction.x1 to preparedAction.y1)
+                                val shown = if (visualPointAction) {
+                                    service.showAgentConfirmationWithPoints(message, points, confirmAction, cancelAction)
+                                } else {
+                                    service.showAgentConfirmation(message, confirmAction, cancelAction)
+                                }
                                 if (!shown) finish("Confirmation overlay unavailable. Action not executed.")
                             }
                             UiAgentPolicy.Verdict.ALLOW ->

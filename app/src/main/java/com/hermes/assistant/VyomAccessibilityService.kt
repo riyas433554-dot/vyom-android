@@ -56,6 +56,7 @@ class VyomAccessibilityService : AccessibilityService() {
     @Volatile private var lastOcrTargets: List<OcrItem> = emptyList()
     private var agentOverlayRoot: LinearLayout? = null
     private var agentOverlayStatus: TextView? = null
+    private val agentOverlayTargetMarkers = mutableListOf<View>()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -152,14 +153,69 @@ class VyomAccessibilityService : AccessibilityService() {
     fun showAgentConfirmation(message: String, onConfirm: () -> Unit, onCancel: () -> Unit): Boolean =
         showAgentOverlay(message, listOf("CANCEL" to onCancel, "CONFIRM" to onConfirm))
 
+    /** Draws a non-touchable target marker so the user can inspect the exact point before approval. */
+    fun showAgentConfirmationWithPoints(
+        message: String, points: List<Pair<Int, Int>>, onConfirm: () -> Unit, onCancel: () -> Unit
+    ): Boolean {
+        if (points.isEmpty() || points.size > 2 || !showAgentConfirmation(message, onConfirm, onCancel)) return false
+        val labels = if (points.size == 1) listOf("•") else listOf("A", "B")
+        points.forEachIndexed { index, point ->
+            if (!addAgentTargetMarker(point.first, point.second, labels[index])) {
+                hideAgentOverlay()
+                return false
+            }
+        }
+        return true
+    }
+
     fun showAgentFinished(message: String): Boolean =
         showAgentOverlay(message, listOf("CLOSE" to { hideAgentOverlay() }))
 
     fun hideAgentOverlay() {
-        val root = agentOverlayRoot ?: return
-        try { (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(root) } catch (_: Exception) { }
+        val manager = getSystemService(WINDOW_SERVICE) as WindowManager
+        agentOverlayTargetMarkers.toList().forEach { marker ->
+            try { manager.removeView(marker) } catch (_: Exception) { }
+        }
+        agentOverlayTargetMarkers.clear()
+        val root = agentOverlayRoot
+        if (root != null) {
+            try { manager.removeView(root) } catch (_: Exception) { }
+        }
         agentOverlayRoot = null
         agentOverlayStatus = null
+    }
+
+    private fun addAgentTargetMarker(x: Int, y: Int, label: String): Boolean {
+        val density = resources.displayMetrics.density
+        val size = (34 * density).toInt().coerceAtLeast(24)
+        val marker = TextView(this).apply {
+            text = label
+            textSize = if (label == "•") 24f else 14f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xE622D3EE.toInt())
+                setStroke((2 * density).toInt().coerceAtLeast(1), Color.WHITE)
+            }
+            elevation = 12 * density
+        }
+        val params = WindowManager.LayoutParams(
+            size, size, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            this.x = (x - size / 2).coerceAtLeast(0)
+            this.y = (y - size / 2).coerceAtLeast(0)
+        }
+        return try {
+            (getSystemService(WINDOW_SERVICE) as WindowManager).addView(marker, params)
+            agentOverlayTargetMarkers.add(marker)
+            true
+        } catch (_: Exception) { false }
     }
 
     private fun showAgentOverlay(message: String, actions: List<Pair<String, () -> Unit>>): Boolean {

@@ -1041,3 +1041,10 @@ Branch: `feature/memory-intelligence`
 - Extended the UI Agent planner/action policy with Android global Back, Home, Recents, Notifications shade and Quick Settings actions. These use AccessibilityService global actions and still require a fresh allowed foreground app, active STOP check and post-action foreground/revision re-observation.
 - If a global action transitions into an unapproved System UI/launcher surface, the task stops rather than continuing blindly in a new package. Added a policy regression test for the allowed global-action set.
 - Latest source remains on `feature/memory-intelligence`; verification for the resulting commit is pending. This does not bypass Android protected surfaces or OEM restrictions.
+
+
+## 2026-11-02 — Visual target confirmation markers
+
+- Screenshot-derived point actions now show a non-touchable on-screen marker at the exact proposed tap/long-press point; swipe/drag shows labelled start/end markers. The user can inspect the actual target before pressing CONFIRM.
+- Marker overlays are removed together with the confirmation/progress overlay and do not receive touch events. If a marker cannot be displayed, the confirmation step fails closed and the gesture is not dispatched.
+- Narrowed the VLM prompt to visual point actions only; normal text/OCR planner owns app launch, labeled controls and Android global navigation.
