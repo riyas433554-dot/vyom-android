@@ -120,8 +120,7 @@ class MainActivity : Activity() {
                 VoiceForegroundService.ACTION_SESSION_STOP -> if (voiceLoopEnabled) toggleVoiceInput()
                 VoiceForegroundService.ACTION_SESSION_MUTE -> if (voiceLoopEnabled) toggleVoiceMuteFromNotification()
                 VoiceForegroundService.ACTION_SESSION_CONTROL_STOP -> {
-                    controlKillSwitch = true
-                    if (::controlNotice.isInitialized) controlNotice.text = "STOP CONTROL is ON. Device actions are disabled."
+                    engageControlKillSwitch("notification", recordAudit = false)
                 }
             }
         }
@@ -728,20 +727,7 @@ class MainActivity : Activity() {
             contentDescription = "Emergency stop for all Vyom device actions"
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.rgb(170, 25, 35))
-            setOnClickListener {
-                controlKillSwitch = true
-                controlPrefs.edit().putBoolean("kill_switch", true).apply()
-                logControlAction("STOP CONTROL", "enabled", "app")
-                controlNotice.text = "STOP CONTROL is ON. Device actions are disabled until resumed."
-                AlertDialog.Builder(this@MainActivity).setTitle("Control stopped")
-                    .setMessage("All device actions are disabled. Resume only when safe.")
-                    .setPositiveButton("RESUME CONTROL") { _, _ ->
-                        controlKillSwitch = false
-                        controlPrefs.edit().putBoolean("kill_switch", false).apply()
-                        logControlAction("RESUME CONTROL", "enabled", "app")
-                        controlNotice.text = "Device actions resumed."
-                    }.setNegativeButton("Keep stopped", null).show()
-            }
+            setOnClickListener { activateControlKillSwitch() }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         controlPanel.addView(controlNotice, LinearLayout.LayoutParams(-1, -2))
         controlPanel.addView(controlButtons, LinearLayout.LayoutParams(-1, dp(48)))
@@ -1094,18 +1080,25 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun activateControlKillSwitch() {
+    private fun engageControlKillSwitch(source: String, recordAudit: Boolean = true) {
         controlKillSwitch = true
         controlPrefs.edit().putBoolean("kill_switch", true).apply()
+        uiAgentGeneration = UiAgentPolicy.invalidateGeneration(uiAgentGeneration)
+        VyomAccessibilityService.current()?.hideAgentOverlay()
         updateHomeOrbState()
-        logControlAction("STOP CONTROL", "enabled", "app")
+        if (recordAudit) logControlAction("STOP CONTROL", "enabled", source)
         if (::controlNotice.isInitialized) controlNotice.text = "STOP CONTROL is ON. Device actions are disabled until resumed."
+    }
+
+    private fun activateControlKillSwitch() {
+        engageControlKillSwitch("app")
         AlertDialog.Builder(this).setTitle("Control stopped")
             .setMessage("All device actions are disabled. Resume only when safe.")
             .setPositiveButton("RESUME CONTROL") { _, _ ->
                 controlKillSwitch = false
                 controlPrefs.edit().putBoolean("kill_switch", false).apply()
                 logControlAction("RESUME CONTROL", "enabled", "app")
+                updateHomeOrbState()
                 if (::controlNotice.isInitialized) controlNotice.text = "Device actions resumed."
             }
             .setNegativeButton("Keep stopped", null)
@@ -1290,7 +1283,9 @@ class MainActivity : Activity() {
         val initialService = VyomAccessibilityService.current() ?: return
 
         fun stopAgent() {
-            if (generation == uiAgentGeneration) uiAgentGeneration++
+            if (generation == uiAgentGeneration) {
+                uiAgentGeneration = UiAgentPolicy.invalidateGeneration(uiAgentGeneration)
+            }
             logControlAction("UI Agent task", "stopped-by-user", "ui-agent")
             if (sessionGrantExpiresAt != null) logControlAction("UI Agent session grant", "revoked-by-user-stop", "ui-agent")
             initialService.hideAgentOverlay()
@@ -1548,9 +1543,30 @@ class MainActivity : Activity() {
         logControlAction(UiAgentPolicy.auditLabel(action), "action-accepted", "ui-agent")
         updateProgress(UiAgentPolicy.progressMessage(nextCount))
         service.awaitScreenSettled(baselineObservation) { changed, timedOut, observation ->
-            if (generation != uiAgentGeneration || controlKillSwitch ||
-                controlPrefs.getBoolean("kill_switch", false)) {
-                finish("STOP CONTROL ON — next action blocked.")
+            val generationMatches = generation == uiAgentGeneration
+            val stopRequested = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
+            val foregroundMatches = if (action.kind == UiAgentPolicy.Kind.OPEN_APP) {
+                UiAgentPolicy.isOpenAppOutcomeVerified(action.target, observation.foregroundPackage)
+            } else {
+                UiAgentPolicy.mayResumeAfterAction(
+                    generationMatches, stopRequested,
+                    baselineObservation.foregroundPackage, observation.foregroundPackage,
+                    baselineObservation.foregroundEpoch, observation.foregroundEpoch
+                )
+            }
+            if (!generationMatches || stopRequested || !foregroundMatches) {
+                when {
+                    !generationMatches -> finish("UI Agent task was cancelled. No further action was taken.")
+                    stopRequested -> finish("STOP CONTROL ON — next action blocked.")
+                    action.kind == UiAgentPolicy.Kind.OPEN_APP -> {
+                        logControlAction(UiAgentPolicy.auditLabel(action), "target-app-not-foreground-after-launch", "ui-agent")
+                        finish("Android accepted the app launch, but the requested app did not become foreground. Task stopped; no action was taken on another app.")
+                    }
+                    else -> {
+                        logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-after-action", "ui-agent")
+                        finish("Foreground app changed or became unavailable after the action. Task stopped; no further action was taken on another app.")
+                    }
+                }
                 return@awaitScreenSettled
             }
             val status = when {
