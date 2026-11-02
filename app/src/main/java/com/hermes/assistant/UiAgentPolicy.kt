@@ -316,7 +316,7 @@ internal object UiAgentPolicy {
 
     fun isQuickSettingsOpenGoal(userGoal: String): Boolean =
         Regex("""(?i)\b(open|show|expand|pull down)\b""").containsMatchIn(userGoal) &&
-            Regex("""(?i)\b(quick settings|notification shade)\b""").containsMatchIn(userGoal)
+            Regex("""(?i)\bquick settings\b""").containsMatchIn(userGoal)
 
     fun isSystemUiGoalVerified(visibleLabels: Collection<String>, userGoal: String): Boolean {
         if (isQuickSettingsOpenGoal(userGoal)) return visibleLabels.any { isSafeSystemUiLabel(it) }

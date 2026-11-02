@@ -1099,3 +1099,5 @@ Branch: `feature/memory-intelligence`
 - Added an explicit non-null state guard in the multi-toggle verification path so absent accessibility state labels cannot be treated as a valid toggle state.
 
 - Node-based confirmation now displays the exact visible accessibility label (e.g. Wi-Fi or Brightness) instead of only a numeric node index, so users can judge the target before approving.
+
+- Kept “open notification shade” separate from “open Quick Settings”; only the explicit Quick Settings path receives the controlled System UI continuation exception.
