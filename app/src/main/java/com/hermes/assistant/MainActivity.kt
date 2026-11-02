@@ -1432,7 +1432,7 @@ class MainActivity : Activity() {
                                 if (!shown) finish("Confirmation overlay unavailable. Action not executed.")
                             }
                             UiAgentPolicy.Verdict.ALLOW ->
-                                performUiAgentAction(preparedAction, generation, completedSteps, sessionGrantExpiresAt,
+                                performUiAgentAction(preparedAction, goal, generation, completedSteps, sessionGrantExpiresAt,
                                     { completedSteps++ }, ::updateProgress, ::nextStep, ::finish)
                         }
                     }
