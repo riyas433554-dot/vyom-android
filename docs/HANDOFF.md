@@ -1,3 +1,44 @@
+# CURRENT MEMORY INTELLIGENCE CHECKPOINT — 2026-11-02 11:20 IST
+
+This addendum supersedes older milestone-order and Memory Intelligence status statements below.
+
+## Active branch and exact-head verification
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Verified source head before this documentation-only update: `9a01558889fe63a32df58e3b9e7f8d60e32aaba8`.
+- Android CI run `41394477563`: SUCCESS on that exact SHA. Secret scan, Gradle unit tests + debug APK build, checksum packaging and artifact upload all passed.
+- CI artifact: `vyom-phase6-9a01558889fe63a32df58e3b9e7f8d60e32aaba8`, artifact ID `13119016261`, 45,875,108 bytes, expires 2026-12-02.
+- Separate Debug run `41394477654`: SUCCESS on the same exact SHA. Unit tests, unsigned debug APK build, versioned packaging and upload all passed.
+- Debug artifact: `vyom-0.3.0-9a01558889fe63a32df58e3b9e7f8d60e32aaba8`, artifact ID `13118304535`, 45,875,115 bytes, expires 2026-12-02. ZIP SHA-256: `52253d9019d69671aaf01622ba712e7526633040494c2da908d8ce4c6eff8faf`.
+- The branch ref was re-read and still pointed to `9a01558889fe63a32df58e3b9e7f8d60e32aaba8` before this documentation update.
+- These are debug artifacts, not a signed release. Device install/signature continuity and physical runtime remain unverified.
+
+## Memory Intelligence implementation now present
+- `MemoryCapturePolicy.kt` now canonicalizes common synonym groups for response length/detail, response/answer/reply, list/bullet formats, Bangla/Bengali, execution consent and action/task/change phrasing before lexical retrieval scoring.
+- Conflict topics include tone and execution-consent; newest facts win for these conflicts even if an older fact has a higher lexical overlap with the query.
+- Three regression tests were added for cross-worded response-style retrieval, newest tone conflict and newest action-confirmation conflict. RED evidence: test-only commit `488ab96dc7724a8293076f3c8264fe2884b6f257`, Debug run `41394222326`, 121 tests with exactly 3 expected failures exposing those gaps.
+- Fix commit: `f3c9946ae1ccf3d089600f3612a661657331fce8`.
+- Memory prompt data-flow disclosure was updated in `VyomMemoryDialog.kt` so users are told that selected safe facts are stored locally and relevant facts may be included in prompts sent to the connected AI model. Commit/current source head: `9a01558889fe63a32df58e3b9e7f8d60e32aaba8`.
+- GREEN verification: exact-head CI and Debug runs listed above both passed. The Debug job ran the Gradle unit-test task and APK build successfully.
+- Important precision: retrieval is synonym-aware lexical matching, NOT vector/embedding semantic search. Do not describe it as full semantic/vector memory.
+
+## Supabase boundary — read-only inspection only
+- Inspected project `Vyom-Hermes` (`kjsxsswgzyoezjuzpfqm`) read-only.
+- Only one project was available; no staging branch was returned.
+- Existing `public.memory` schema has `chat_id`, `memory`, `created_at`; no Android identity mapping/user_id was found.
+- Vector extension is listed but has no installed version. No schema, extension, migration or data writes were performed.
+- Do NOT sync Android-local memory into Telegram's `chat_id` memory table without an approved identity/isolation design.
+- Production vector migration and staging validation remain BLOCKED until an isolated staging environment and identity/data-isolation design are approved. No approval or production mutation is implied by this work.
+
+## Current honest status and next order
+- Local synonym-aware retrieval, conflict preference and prompt-data disclosure are implemented and exact-head CI/Debug green.
+- Memory Intelligence is NOT fully complete: embedding/vector retrieval, production-safe sync/migration, isolated staging validation and broader conflict-resolution category tests remain open.
+- User's current agreed sequence supersedes older handoff ordering: (1) finish Android Control implementation, (2) finish Memory Intelligence implementation within safe approved boundaries, (3) implement the supplied Vyom design, (4) provide the final exact-head APK for the user's physical phone testing. Do not require phone testing before Memory Intelligence/design implementation unless the user changes this order.
+- Android Control automated source/build checkpoint has passed previously, but full real-device acceptance remains pending. Do not claim Android framework behavior or cross-app control fully validated.
+- Continue only on `feature/memory-intelligence`. Never touch Android `main`, Hermes/Telegram, Render, production Supabase, secrets or deployment.
+
+---
+
 # FULL ANDROID CONTROL — IMPLEMENTATION STEP 1 — 2026-11-02
 
 ## Fixed milestone order (do not reorder)
