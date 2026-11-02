@@ -1413,10 +1413,12 @@ class MainActivity : Activity() {
                 val stopRequested = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
                 if (!UiAgentPolicy.mayResumeAfterWait(
                         generation == uiAgentGeneration, stopRequested, System.currentTimeMillis(),
-                        sessionGrantExpiresAt, baselineObservation.foregroundPackage, afterWait.foregroundPackage
+                        sessionGrantExpiresAt, baselineObservation.foregroundPackage, afterWait.foregroundPackage,
+                        baselineObservation.foregroundEpoch, afterWait.foregroundEpoch
                     )) {
                     when {
-                        afterWait.foregroundPackage != baselineObservation.foregroundPackage -> {
+                        afterWait.foregroundPackage != baselineObservation.foregroundPackage ||
+                            afterWait.foregroundEpoch != baselineObservation.foregroundEpoch -> {
                             logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-during-wait", "ui-agent")
                             finish("Foreground app changed while waiting. Task stopped; no action was taken on the new app.")
                         }
