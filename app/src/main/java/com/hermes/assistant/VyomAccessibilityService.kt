@@ -411,7 +411,7 @@ class VyomAccessibilityService : AccessibilityService() {
             else -> return false
         }
         val distance = kotlin.math.sqrt((x2 - x1).toDouble() * (x2 - x1).toDouble() + (y2 - y1).toDouble() * (y2 - y1))
-        if (distance < 12f * resources.displayMetrics.density) return false
+        if (distance < (12f * resources.displayMetrics.density).toDouble() return false
         return dispatchPath(x1, y1, x2, y2, durationMs.coerceIn(100L, 1200L))
     }
 
@@ -431,7 +431,7 @@ class VyomAccessibilityService : AccessibilityService() {
         val start = point(fromAnchor)
         val end = point(toAnchor)
         if (kotlin.math.sqrt((end.first - start.first).toDouble() * (end.first - start.first).toDouble() + (end.second - start.second).toDouble() * (end.second - start.second).toDouble()) <
-            12f * resources.displayMetrics.density) return false
+            (12f * resources.displayMetrics.density).toDouble()) return false
         return dispatchPath(start.first, start.second, end.first, end.second, durationMs.coerceIn(150L, 1200L))
     }
 
