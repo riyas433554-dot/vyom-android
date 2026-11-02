@@ -853,6 +853,20 @@ Branch: `feature/memory-intelligence`
 
 ### Design handoff
 - Retrieved the supplied `Vyom — Design System, Home, Drawer, Automations (1).html` prototype (8,009,167 bytes) for the next phase. It contains the app-wide visual/system reference and screens including Home, Drawer, Automations, Chat, Tasks, Skills, Teach Vyom, Assistant control, Audit log, Permissions, Memory, Instructions, Voice, Connections, Model picker, System and Self-update.
-- Design implementation has NOT started in this checkpoint. Preserve the supplied dark HUD/liquid-glass direction and its documented color/type tokens; inspect the embedded screen assets and map each screen to the existing Android navigation/components before implementation.
+- Design implementation is now IN PROGRESS. The branch contains the shared `VyomDesignSpec`/`VyomTheme` tokens, an integrated searchable drawer, Automations and Task Detail dialogs, and the newly added editable Instructions screen. This is not yet a complete port of the supplied prototype; each route must be audited against the HTML reference and the existing navigation before claiming completion. Preserve the dark HUD/liquid-glass direction, exact palette and typography tokens, and never present planned destinations as working features.
 - Agreed order remains: Android Control implementation → Memory Intelligence local implementation → supplied app design implementation → final exact-head APK for user phone testing. Physical phone testing remains user-side and is deferred until the requested implementation phases are complete.
 - Scope: Android repository feature branch only. Android `main`, Hermes/Telegram, Render, backend and production Supabase were not touched.
+
+
+## 2026-11-02 — Design implementation checkpoint: Instructions screen
+
+Branch: `feature/memory-intelligence`
+- Added `VyomInstructionsPolicy`: persona language/tone instructions for Hinglish, English, Hindi, Formal and Fun; custom rules are normalized, capped at 1,000 characters and rejected if the sensitive-data detector flags them.
+- Added `VyomInstructionsDialog`: editable persona chips, Jarvis/Ultron orb-role cards, custom rules editor, safety disclosure, SAVE validation and bottom navigation. Settings persist in the existing local preferences; custom rules are appended to the model prompt with an explicit safety-priority qualifier.
+- Persona button now restores the saved persona label at activity launch (not only after opening/saving the dialog).
+- Unit tests added in `VyomInstructionsPolicyTest.kt` for whitespace/line normalization, sensitive and oversized rule rejection, prompt-budget cap, and explicit persona instructions.
+- Test inventory at commit `0e4b5826c4d12c4bab6c8ccb9dca1f2cbab9432c`: 130 `@Test` methods across 14 test files.
+- Debug workflow `41400726323` on exact head `0e4b5826c4d12c4bab6c8ccb9dca1f2cbab9432c`: SUCCESS. Logs show `:app:testDebugUnitTest`, `:app:assembleDebug`, `BUILD SUCCESSFUL in 2m 33s`. Debug artifact ID `13120974209`, name `vyom-0.3.0-0e4b5826c4d12c4bab6c8ccb9dca1f2cbab9432c`, size 45,890,576 bytes, expires 2026-12-02; ZIP SHA-256 `6194fa3bd9d67038930e3576a41e1ff0e42ecd5d7c660b7e8a220ce3f12c0ff5`.
+- The matching full CI run `41400726282` was still in progress at the time of this handoff edit; do not mark the checkpoint CI-green until it completes successfully on the exact documentation-updated head.
+- Earlier compile failure on commit `f0e0d2b` was caused by dialog constructor parameters not being retained as properties. Fixed by making `initialPersona`, `initialRole` and `initialRules` constructor properties; exact-head Debug passed on `fd0e25e`, then saved-persona label was corrected and retested on `0e4b582`.
+- Scope unchanged: Android feature branch only; do not touch Android `main`, Hermes/Telegram, Render, backend or production Supabase. Physical device validation remains deferred until implementation phases are complete.
