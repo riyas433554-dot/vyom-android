@@ -3618,18 +3618,27 @@ class MainActivity : Activity() {
         }
         try {
             val uri = Uri.parse("https://play.google.com/store/search?q=" + Uri.encode(query) + "&c=apps")
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
+            startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage("com.android.vending"))
             logControlAction("Play Store search: $query", "opened; UI agent follow-through scheduled", source)
-            callback("Play Store opened. Vyom ab matching app listing locate karega, Install action attempt karega, aur installed package verify kiye bina success nahi bolega.")
-            mainHandler.postDelayed({
-                if (VyomAccessibilityService.current() == null ||
-                    !AppAccessPolicy.isAllowed(this, "com.android.vending") ||
+            callback("Play Store opened. Vyom matching app listing locate karega, requested Install action attempt karega, aur package manager se verify kiye bina success nahi bolega.")
+            fun startWhenPlayStoreReady(attempt: Int) {
+                val activeService = VyomAccessibilityService.current()
+                if (activeService == null || !AppAccessPolicy.isAllowed(this, "com.android.vending") ||
                     controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
                     logControlAction("Play Store install: $query", "stopped; readiness changed before control", source)
-                    return@postDelayed
+                    callback("UI control start nahi hua: Accessibility, Play Store allowlist ya STOP state badal gayi.")
+                    return
                 }
-                startUiAgentTask("Install $query from Google Play Store", UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL)
-            }, 900L)
+                if (activeService.screenObservation().foregroundPackage == "com.android.vending") {
+                    startUiAgentTask("Install $query from Google Play Store", UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL)
+                } else if (attempt < 10) {
+                    mainHandler.postDelayed({ startWhenPlayStoreReady(attempt + 1) }, 400L)
+                } else {
+                    logControlAction("Play Store install: $query", "not-started; Play Store did not become foreground", source)
+                    callback("Play Store foreground screen detect nahi hui. Vyom ne blind tap nahi kiya; app open karke command repeat karo.")
+                }
+            }
+            mainHandler.postDelayed({ startWhenPlayStoreReady(0) }, 500L)
         } catch (error: Exception) {
             logControlAction("Play Store search: $query", "open-failed", source)
             callback("Play Store search open nahi ho saka: " + (error.message ?: "Android activity unavailable"))
