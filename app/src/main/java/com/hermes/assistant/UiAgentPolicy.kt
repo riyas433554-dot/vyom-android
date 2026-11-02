@@ -183,10 +183,12 @@ internal object UiAgentPolicy {
 
     fun mayResumeAfterWait(
         generationMatches: Boolean, stopControlOn: Boolean, nowMs: Long, grantExpiresAt: Long?,
-        expectedPackage: String, currentPackage: String
+        expectedPackage: String, currentPackage: String,
+        expectedForegroundEpoch: Long, currentForegroundEpoch: Long
     ): Boolean =
         mayExecute(generationMatches, stopControlOn, nowMs, grantExpiresAt) &&
-            expectedPackage.isNotBlank() && expectedPackage == currentPackage
+            expectedPackage.isNotBlank() && expectedPackage == currentPackage &&
+            expectedForegroundEpoch == currentForegroundEpoch
 
     fun actionAccepted(actionSucceeded: Boolean): Boolean = actionSucceeded
 
