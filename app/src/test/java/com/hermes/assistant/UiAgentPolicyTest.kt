@@ -38,6 +38,15 @@ class UiAgentPolicyTest {
         assertFalse(UiAgentPolicy.isFreshScreen(7L, 7L, "com.example.editor", "com.android.settings"))
     }
 
+    @Test fun rejectsPlannerResponseWhenScreenChangesDuringPlanning() {
+        assertFalse(UiAgentPolicy.isPlannerResponseFresh(12L, 13L, "com.example.editor", "com.example.editor"))
+        assertFalse(UiAgentPolicy.isPlannerResponseFresh(12L, 12L, "com.example.editor", "com.android.settings"))
+    }
+
+    @Test fun acceptsPlannerResponseOnlyForSameObservedScreen() {
+        assertTrue(UiAgentPolicy.isPlannerResponseFresh(12L, 12L, "com.example.editor", "com.example.editor"))
+    }
+
     @Test fun acceptsOnlySameFreshRevisionAndForegroundPackage() {
         assertTrue(UiAgentPolicy.isFreshScreen(7L, 7L, "com.example.editor", "com.example.editor"))
         assertFalse(UiAgentPolicy.isFreshScreen(-1L, -1L, "com.example.editor", "com.example.editor"))
