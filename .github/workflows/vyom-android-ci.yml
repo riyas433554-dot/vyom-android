@@ -93,7 +93,7 @@ jobs:
         run: |
           mkdir -p output
           cp app/build/outputs/apk/debug/app-debug.apk "output/vyom-phase6-${GITHUB_SHA}.apk"
-          sha256sum "output/vyom-phase6-${GITHUB_SHA}.apk" > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
+          (cd output && sha256sum "vyom-phase6-${GITHUB_SHA}.apk") > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
