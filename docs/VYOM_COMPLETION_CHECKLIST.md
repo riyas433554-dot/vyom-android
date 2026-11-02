@@ -13,6 +13,7 @@
 ## Linked source documents
 
 - `docs/ACCEPTANCE_TESTS.md` — full A1–R4 acceptance matrix and phone test guide.
+- `docs/ANDROID_SIGNING.md` — required certificate fingerprint, artifact mismatch evidence and release gate.
 - `docs/DESIGN_MAP.md` — all 31 supplied HTML boards mapped to native Android screens.
 - User-supplied Library sources remain authoritative for the 19-page fix order and 10-page feature/design brief; these repository documents supplement them.
 
