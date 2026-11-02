@@ -1224,6 +1224,10 @@ class MainActivity : Activity() {
                             input.error = "Task 1–500 characters ka hona chahiye."
                             return@setOnClickListener
                         }
+                        if (!getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean("ui_agent", true)) {
+                            input.error = "Profile > Skills mein App UI automation skill enable karo."
+                            return@setOnClickListener
+                        }
                         val service = VyomAccessibilityService.current()
                         if (service == null) {
                             input.error = "Android Settings > Accessibility mein Vyom service ON karo."
@@ -1766,6 +1770,7 @@ class MainActivity : Activity() {
             ActionEngine.Operation.VOLUME_MUTE, ActionEngine.Operation.VOLUME_UNMUTE -> "volume"
             ActionEngine.Operation.TORCH -> "torch"
             ActionEngine.Operation.OPEN_SETTINGS -> "settings"
+            ActionEngine.Operation.INSTALL_PLAY_STORE -> "ui_agent"
             else -> return true
         }
         return getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean(id, true)
