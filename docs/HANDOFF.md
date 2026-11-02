@@ -1021,7 +1021,7 @@ Branch: `feature/memory-intelligence`
 
 ## 2026-11-02 — Screenshot-based visual Android control implementation
 
-- Added `UiAgentVisionPolicy` with normalized-coordinate mapping, screenshot/display aspect-ratio guard, 24dp edge exclusion, bounded swipe/drag geometry, and whole-screen sensitive-content denial. Added 9 focused policy tests (coordinate mapping, invalid values, aspect ratio, bounds, movement, sensitive content, unknown gesture).
+- Added `UiAgentVisionPolicy` with normalized-coordinate mapping, screenshot/display aspect-ratio guard, 24dp edge exclusion, bounded swipe/drag geometry, and whole-screen sensitive-content denial. Added 10 focused policy tests (coordinate mapping, invalid values, aspect ratio, bounds, movement, sensitive content, unknown gesture).
 - Added screenshot-based NVIDIA Vision planner using the documented OpenAI-compatible multimodal chat format and model `nvidia/nemotron-nano-12b-v2-vl`. It can propose tap/long-press/swipe/drag points for custom Canvas/timeline controls that do not expose accessibility nodes or OCR labels.
 - Screenshot upload is explicitly opt-in in the UI Agent dialog and OFF by default. When enabled, a resized JPEG is uploaded to NVIDIA; the temporary local screenshot is deleted after planning. The existing text/OCR planner remains the fallback if screenshot capture or VLM planning fails.
 - Visual point actions are never auto-approved by session grant: they always require explicit confirmation, fresh package/revision/foreground-epoch checks at dispatch, current per-app access + STOP checks, and a second sensitive-screen scan. No password/OTP/payment/security/permission screen may receive coordinate gestures.
