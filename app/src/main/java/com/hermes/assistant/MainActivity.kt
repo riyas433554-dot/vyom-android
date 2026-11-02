@@ -1841,12 +1841,19 @@ class MainActivity : Activity() {
         val filtered = JSONArray()
         for (index in 0 until rawTree.length()) {
             val node = rawTree.optJSONObject(index) ?: continue
-            val label = node.optString("text").ifBlank { node.optString("description") }
+            val textLabel = node.optString("text")
+            val descriptionLabel = node.optString("description")
+            val safeText = textLabel.takeIf { UiAgentPolicy.isSafeSystemUiLabel(it) }.orEmpty()
+            val safeDescription = descriptionLabel.takeIf { UiAgentPolicy.isSafeSystemUiLabel(it) }.orEmpty()
+            val label = safeText.ifBlank { safeDescription }
             val isBrightnessSlider = label.equals("Brightness", true) &&
                 node.optString("class").contains("SeekBar", true)
             if (node.optString("package") == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
-                UiAgentPolicy.isSafeSystemUiLabel(label) && (node.optBoolean("clickable") || isBrightnessSlider)) {
-                filtered.put(node)
+                label.isNotBlank() && (node.optBoolean("clickable") || isBrightnessSlider)) {
+                filtered.put(JSONObject(node.toString())
+                    .put("text", safeText)
+                    .put("description", safeDescription)
+                    .put("hint", ""))
             }
         }
         return filtered

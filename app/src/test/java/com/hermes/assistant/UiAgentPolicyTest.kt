@@ -512,6 +512,7 @@ class UiAgentPolicyTest {
 
     @Test fun systemUiOnlyExposesAllowlistedQuickSettingsLabelsAndGoalMatches() {
         assertTrue(UiAgentPolicy.isSafeSystemUiLabel("Wi-Fi, On"))
+        assertTrue(UiAgentPolicy.isSafeSystemUiLabel("Bluetooth is Off"))
         assertTrue(UiAgentPolicy.isSafeSystemUiLabel("Brightness"))
         assertFalse(UiAgentPolicy.isSafeSystemUiLabel("Alice sent you a message"))
         assertFalse(UiAgentPolicy.isSafeSystemUiLabel("Delete"))

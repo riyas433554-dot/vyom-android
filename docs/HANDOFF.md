@@ -1087,3 +1087,5 @@ Branch: `feature/memory-intelligence`
 - Quick Settings completion now requires a visible state matching the requested direction (e.g. Wi-Fi On for “turn on Wi-Fi”, Off for “turn off Wi-Fi”); merely seeing the tile no longer satisfies DONE. If System UI opt-in is missing after opening Quick Settings, the user receives the exact Profile > App access instruction.
 
 - Accessibility tree entries now retain each node's actual package name (while the screen observation still uses the active root package). This lets the System UI filter exclude notification RemoteViews owned by other apps rather than treating every child as `com.android.systemui`.
+
+- System UI tree filtering now redacts all non-allowlisted text/description/hint fields even on an otherwise safe tile node; only the safe tile label and non-text geometry/fingerprint metadata are forwarded. State labels with “is on/off” phrasing are recognized.
