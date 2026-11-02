@@ -1269,6 +1269,7 @@ class MainActivity : Activity() {
                 finish("Screen unavailable or this app is OFF in App access. No action taken.")
                 return
             }
+            val planningObservation = service.screenObservation()
             updateProgress("Observing screen • step " + (completedSteps + 1) + "/40")
             service.captureVisibleOcr { ocrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
@@ -1280,6 +1281,15 @@ class MainActivity : Activity() {
                         if (generation != uiAgentGeneration) return@runOnUiThread
                         if (action == null) {
                             finish("Vyom could not produce a valid next action. Task stopped safely.")
+                            return@runOnUiThread
+                        }
+                        val currentObservation = service.screenObservation()
+                        if (!UiAgentPolicy.isPlannerResponseFresh(
+                                planningObservation.revision, currentObservation.revision,
+                                planningObservation.foregroundPackage, currentObservation.foregroundPackage
+                            )) {
+                            logControlAction("UI Agent planner response", "stale-observation-rejected", "ui-agent")
+                            finish("Screen changed while Vyom was planning. Stale response discarded; no action taken.")
                             return@runOnUiThread
                         }
                         val labels = mutableListOf<String>()
