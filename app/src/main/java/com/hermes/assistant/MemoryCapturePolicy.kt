@@ -123,7 +123,7 @@ internal object MemoryCapturePolicy {
 
     private fun conflictTopic(memory: String): String? {
         val value = memory.lowercase()
-        if (Regex("""\\b(active|current|working|development)\\s+(?:working\\s+)?branch\\b""").containsMatchIn(value)) return "project-active-branch"
+        if (Regex("""\b(active|current|working|development)\s+(?:working\s+)?branch\b""").containsMatchIn(value)) return "project-active-branch"
         if (Regex("""(?:do not|don't|never|untouched|protect).{0,40}(?:main|master) branch|(?:main|master) branch.{0,40}(?:do not|don't|never|untouched|protect)""").containsMatchIn(value)) return "protected-main-branch"
         if (!Regex("(prefer|like|dislike|preference|pasand|পছন্দ)").containsMatchIn(value)) return null
         if (Regex("(concise|short|brief|detailed|long|verbose|সংক্ষিপ্ত|বিস্তারিত)").containsMatchIn(value) &&
