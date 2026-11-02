@@ -172,4 +172,24 @@ class MemoryCapturePolicyTest {
         )
     }
 
+
+    @Test fun longerProjectFactsArePreservedBeyondTheOld140CharacterLimit() {
+        val detail = "Remember that the active working branch for the Vyom Android project is feature/memory-intelligence and all Android-only changes must leave Render, Hermes backend and production Supabase untouched."
+        val stored = MemoryCapturePolicy.extract(detail).single()
+        assertTrue(stored.length > 140)
+        assertTrue(stored.length <= 300)
+    }
+
+    @Test fun newestActiveProjectBranchWinsWithoutDroppingProtectedMainConstraint() {
+        val facts = listOf(
+            "The active working branch is feature/old.",
+            "The active working branch is feature/memory-intelligence.",
+            "Do not modify the Android main branch."
+        )
+        assertEquals(
+            listOf("The active working branch is feature/memory-intelligence.", "Do not modify the Android main branch."),
+            MemoryCapturePolicy.relevantFacts(facts, "Which branch should be used?", 10)
+        )
+    }
+
 }
