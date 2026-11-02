@@ -1601,7 +1601,7 @@ class MainActivity : Activity() {
                 pkg to label
             }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
         val packages = launchableApps.map { it.first }
-        AppAccessPolicy.initializeForInstalledApps(this, packages)
+        AppAccessPolicy.initializeForInstalledApps(this)
         val snapshot = AppAccessPolicy.snapshot(this)
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
