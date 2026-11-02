@@ -634,3 +634,13 @@ Branch: `feature/memory-intelligence`
 - Limitation: exact label matching is a conservative evidence gate, not semantic verification. A visible toast/status label may be stale or unrelated; phone validation and stronger task-specific outcome checks remain open.
 - Next fixed work: add deterministic regression coverage for stale-screen/app-switch rejection, STOP, grant expiry and Android action failure; inspect/implement any missing enforcement. Then run the agreed automated verification before physical phone testing. Memory Intelligence stays paused until Android Control is verified.
 - Scope: Android feature branch only. No Android `main`, Hermes/Render, backend, production DB or deployment changes.
+
+## 2026-11-02 — UI Agent stale-screen and execution-gate regression hardening
+
+- Centralized freshness comparison in `UiAgentPolicy.isFreshScreen`: the observed revision must be nonnegative and unchanged, and the observed foreground package must exactly match the current foreground package. Accessibility text/node/gesture and OCR execution paths now use this check.
+- Centralized execution gating in `UiAgentPolicy.mayExecute`: generation must still match, STOP CONTROL must be OFF, and any session grant must be strictly unexpired (`now < expiry`). MainActivity uses this gate for task completion display, STOP/generation checks and grant-expiry checks.
+- Android action success is now passed through `UiAgentPolicy.actionAccepted`; a false result remains terminal and cannot increment progress or trigger a blind retry.
+- Added six tests for stale revisions, foreground app switches, exact fresh screen matching, STOP/generation invalidation, grant expiry boundary, and failed Android action handling. `UiAgentPolicyTest` now contains 38 `@Test` methods.
+- Implementation commits: policy gates `1b0a62c4858dfc02626cc0770da832dcc7a91614`; AccessibilityService freshness wiring `5b2f0a3c103a8b83133ffb540377d25f9e5373b5`; failed-action gate `94d655f23ea28e4eda790de52b50043c7f7ace96`; regression tests `ba7c5426b6859dee24effef8d9e079d6f57676de`; MainActivity execution-gate wiring `adedfded7d779fe1e841bc6339a34e58ca6ead97` and `b1c2ac1db6d79d0cfdb34b1fa37f652219d3ffac`.
+- Tests/build/CI have NOT been run; Kotlin compilation remains unverified. Physical phone testing remains pending.
+- Scope unchanged: Android feature branch only. No Android `main`, Hermes/Render, backend, production database or deployment changes.
