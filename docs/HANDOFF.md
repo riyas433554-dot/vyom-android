@@ -1,3 +1,41 @@
+# ANDROID CONTROL RECONCILIATION — 2026-11-02
+
+This entry corrects the milestone status before further implementation. It is based on source inspection at parent head `26119c05ce083a3e3776084b61dc2f0d9fca2e60`.
+
+## What is already implemented in source (not yet phone-verified)
+- Per-app allowlist + master switch, STOP CONTROL check, financial/payment package and label deny rules.
+- Accessibility tree observation (up to 180 nodes), fresh-screen revision/package checks and redaction of editable/password values.
+- Local Android 11+ screenshot OCR; filtered OCR labels and node metadata are supplied to the configured NVIDIA planner. Screenshot pixels are not uploaded.
+- UI Agent one-action planner loop: observe → plan → policy validate → optional user confirmation → act → re-observe. 40-action ceiling; user STOP, service loss, invalid plan or rejected Android action stops the run.
+- Actions currently wired: launch allowlisted app, exact visible-text tap, OCR text tap/long-press, indexed node tap/long-press/swipe/drag, scroll, exact-goal text entry, Back, wait and done.
+- Confirmation modes: Always Ask, Risky Asks and a temporary task-only session grant. The grant does not override consequential-action confirmation or protected deny rules.
+- Local action audit omits typed text and visible labels.
+
+## Important limits — do not call this unrestricted/full Android control
+- Android Accessibility cannot operate every protected/secure OS surface; secure screenshots are blocked by Android.
+- Custom Canvas/timeline controls may expose no Accessibility node and may have no OCR text target. There is no general screenshot-understanding vision planner or arbitrary coordinate-action API in this implementation.
+- OCR currently supports tap and long-press only; it does not provide OCR-target swipe/drag.
+- The fixed 300 ms pause is only a re-observation delay, not proof that the target app finished its animation or that the intended outcome occurred.
+- `DONE` is model-reported; the code explicitly tells the user to manually verify the screen.
+- Service methods and policy tests have source-level coverage, but no physical-device task has been validated. CI success is not Android runtime proof.
+
+## Next implementation sequence
+1. Add regression tests for the next bounded visual-interaction capability before changing behavior.
+2. Extend safe OCR-target gestures for swipe/drag only when bounds are fresh, on-screen, size-limited and tied to the same foreground package/revision; keep sensitive labels blocked and require confirmation.
+3. Replace the fixed-delay assumption with bounded, event/revision-aware re-observation and explicit outcome checks; never report model `DONE` as verified success.
+4. Add explicit test coverage for stale screen, foreground app switch, STOP during confirmation, grant expiry and action failure.
+5. Keep custom-canvas screenshot reasoning as a separately gated capability; do not pretend OCR alone solves it.
+6. Update this HANDOFF after each implementation step/commit with exact source SHA, tests actually run, CI status only when checked once, and device status.
+
+## Scope and safety
+- Android repo only, branch `feature/memory-intelligence`.
+- Do not touch Android `main`, Hermes/Telegram/connectors, Render, production Supabase, signing secrets or deployment.
+- Do not poll CI. Any later CI check must be a single check for that exact commit, respecting the existing maximum of two checks.
+- Phone tests remain deferred until the implementation phases are complete.
+- No source-code changes are included in this reconciliation entry.
+
+---
+
 # CURRENT VERIFIED ADDENDUM — 2026-11-02 09:25 IST
 
 This addendum supersedes earlier Android source-head and artifact claims below.
