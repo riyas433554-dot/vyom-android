@@ -1,7 +1,6 @@
 package com.hermes.assistant
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Dialog
 import android.graphics.Color
 import android.graphics.Typeface
@@ -9,7 +8,6 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -150,24 +148,6 @@ internal class VyomAutomationsDialog(
         scroll.addView(list, android.widget.FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         renderTasks()
-
-        val newAutomation = Button(activity).apply {
-            text = "＋  NEW AUTOMATION"
-            VyomTheme.stylePill(this, activity, "cyan", "primary")
-            setOnClickListener {
-                AlertDialog.Builder(activity)
-                    .setTitle("Scheduled automations aren't connected yet")
-                    .setMessage("This build can submit immediate tasks, but it cannot save time-based or repeating schedules. Nothing has been scheduled. Use Tasks to start a task now.")
-                    .setNegativeButton("CLOSE", null)
-                    .setPositiveButton("OPEN TASKS") { _, _ ->
-                        dialog.dismiss()
-                        onNavigate("tasks")
-                    }.show()
-            }
-        }
-        root.addView(newAutomation, LinearLayout.LayoutParams(-1, dp(48)).apply {
-            topMargin = dp(10)
-        })
 
         val bottom = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
