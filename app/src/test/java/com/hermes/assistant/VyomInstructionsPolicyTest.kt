@@ -23,4 +23,11 @@ class VyomInstructionsPolicyTest {
     @Test fun normalizedRulesStayWithinThePromptBudget() {
         assertTrue(VyomInstructionsPolicy.normalizeRules("a ".repeat(700)).length <= 1_000)
     }
+    @Test fun personaModesHaveExplicitLanguageAndToneInstructions() {
+        assertTrue(VyomInstructionsPolicy.personaInstruction("Hinglish").contains("Latin script"))
+        assertTrue(VyomInstructionsPolicy.personaInstruction("Hindi").contains("Devanagari"))
+        assertTrue(VyomInstructionsPolicy.personaInstruction("Formal").contains("professional"))
+        assertTrue(VyomInstructionsPolicy.personaInstruction("Fun").contains("playful"))
+        assertTrue(VyomInstructionsPolicy.personaInstruction("English").contains("clear English"))
+    }
 }

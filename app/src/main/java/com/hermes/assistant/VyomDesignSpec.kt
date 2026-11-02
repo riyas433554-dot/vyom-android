@@ -62,7 +62,7 @@ internal object VyomDesignSpec {
         NavItem("audit", "Audit log", "Assistant"),
         NavItem("permissions", "Setup permissions", "Assistant"),
         NavItem("memory", "Memory", "Brain"),
-        NavItem("instructions", "Instructions", "Brain", false),
+        NavItem("instructions", "Instructions", "Brain"),
         NavItem("voice", "Voice", "Brain"),
         NavItem("system", "System", "System"),
         NavItem("icons", "Icons", "System", false),

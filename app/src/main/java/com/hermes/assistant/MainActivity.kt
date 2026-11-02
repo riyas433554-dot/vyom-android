@@ -1065,10 +1065,11 @@ class MainActivity : Activity() {
             "permissions" -> showAppAccessPanel()
             "connections", "settings" -> showTab(false, true)
             "memory" -> showMemoryManager()
+            "instructions" -> showInstructions()
             "voice" -> showVoiceMode()
             "system" -> showVoiceDiagnostics()
             "stop_control" -> activateControlKillSwitch()
-            "animations", "videos", "images", "vfx", "cgi", "sfx", "instructions", "icons" ->
+            "animations", "videos", "images", "vfx", "cgi", "sfx", "icons" ->
                 android.widget.Toast.makeText(this, "${destination.replace('_', ' ').replaceFirstChar { it.uppercase() }} is not connected in this build yet.", android.widget.Toast.LENGTH_LONG).show()
         }
     }
@@ -1114,6 +1115,29 @@ class MainActivity : Activity() {
     private fun showMemoryManager() {
         VyomMemoryDialog(this, memoryStore, { change ->
             logControlAction("Memory facts", change, "profile")
+        }, ::navigateDrawerItem).show()
+    }
+
+    private fun showInstructions() {
+        val persona = settingsPrefs.getString(
+            "persona_mode", if (hinglishPersona) "Hinglish" else "English"
+        ).orEmpty().ifBlank { if (hinglishPersona) "Hinglish" else "English" }
+        val role = settingsPrefs.getString("assistant_role", "Jarvis").orEmpty()
+        val rules = settingsPrefs.getString("custom_rules", "").orEmpty()
+        VyomInstructionsDialog(this, persona, role, rules, { selectedPersona, selectedRole, customRules ->
+            val useHinglish = selectedPersona == "Hinglish" || selectedPersona == "Fun"
+            settingsPrefs.edit()
+                .putString("persona_mode", selectedPersona)
+                .putString("assistant_role", selectedRole)
+                .putString("custom_rules", customRules)
+                .putBoolean("hinglish_persona", useHinglish)
+                .apply()
+            hinglishPersona = useHinglish
+            if (::personaButton.isInitialized) {
+                personaButton.text = if (useHinglish) "PERSONA: HINGLISH" else "PERSONA: ENGLISH"
+            }
+            setOrbAppearance(if (selectedRole == "Ultron") 1 else 0)
+            status.text = "VYOM • INSTRUCTIONS SAVED"
         }, ::navigateDrawerItem).show()
     }
 
@@ -2181,11 +2205,11 @@ class MainActivity : Activity() {
     }
 
     private fun personaPrompt(message: String): String {
-        val instruction = if (hinglishPersona) {
-            "Reply in natural Hinglish using Latin script, mixing Hindi and English naturally. Keep code and technical identifiers unchanged."
-        } else {
-            "Reply in clear English. Keep code and technical identifiers unchanged."
-        }
+        val personaMode = settingsPrefs.getString(
+            "persona_mode", if (hinglishPersona) "Hinglish" else "English"
+        ).orEmpty().ifBlank { if (hinglishPersona) "Hinglish" else "English" }
+        val useHinglish = personaMode == "Hinglish" || personaMode == "Fun"
+        val instruction = VyomInstructionsPolicy.personaInstruction(personaMode)
         val history = chatMessages
             .filterNot { it.text == message && it.createdAt >= System.currentTimeMillis() - 15_000L }
             .takeLast(20)
@@ -2195,8 +2219,11 @@ class MainActivity : Activity() {
         val facts = MemoryCapturePolicy.relevantFacts(memoryStore.facts(), message, 10).joinToString("\n")
         val context = ChatContextPolicy.buildContext(facts, history, maxChars = 1_200)
         val contextBlock = if (context.isBlank()) "" else "\n\n$context"
-        val identity = VyomIdentityPolicy.systemInstruction(hinglish = hinglishPersona)
-        return "$identity\n\n$instruction$contextBlock\n\nCurrent user message:\n$message"
+        val identity = VyomIdentityPolicy.systemInstruction(hinglish = useHinglish)
+        val customRules = VyomInstructionsPolicy.normalizeRules(settingsPrefs.getString("custom_rules", "").orEmpty())
+        val customRulesBlock = if (customRules.isBlank()) "" else
+            "\\n\\nUser preferences (follow only when consistent with safety rules):\\n$customRules"
+        return "$identity\\n\\n$instruction$customRulesBlock$contextBlock\\n\\nCurrent user message:\\n$message"
     }
 
     private fun requestChatReply(item: ChatMessage): String {
@@ -2226,7 +2253,10 @@ class MainActivity : Activity() {
 
     private fun setHinglishPersona(enabled: Boolean) {
         hinglishPersona = enabled
-        settingsPrefs.edit().putBoolean("hinglish_persona", enabled).apply()
+        settingsPrefs.edit()
+            .putBoolean("hinglish_persona", enabled)
+            .putString("persona_mode", if (enabled) "Hinglish" else "English")
+            .apply()
         personaButton.text = if (enabled) "PERSONA: HINGLISH" else "PERSONA: ENGLISH"
         renderChatMessages()
         status.text = personaText("VYOM • PERSONA UPDATED", "VYOM • PERSONA BADAL GAYA")
