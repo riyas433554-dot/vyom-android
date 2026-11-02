@@ -1738,11 +1738,16 @@ class MainActivity : Activity() {
         for ((pkg, label) in launchableApps) {
             val blocked = AppAccessPolicy.isBlocked(this, pkg)
             val row = CheckBox(this).apply {
-                text = if (blocked) "$label  ·  BLOCKED (financial/payment)" else "$label  ·  $pkg"
+                val controllerApp = pkg == packageName
+                text = when {
+                    blocked -> "$label  ·  BLOCKED (financial/payment)"
+                    controllerApp -> "$label  ·  CONTROLLER (master switch required)"
+                    else -> "$label  ·  $pkg"
+                }
                 textSize = 12f
                 setTextColor(if (blocked) Color.GRAY else Color.WHITE)
-                isEnabled = !blocked
-                isChecked = !blocked && pkg in snapshot.enabledPackages
+                isEnabled = !blocked && !controllerApp
+                isChecked = !blocked && (controllerApp || pkg in snapshot.enabledPackages)
                 setOnCheckedChangeListener { _, checked ->
                     AppAccessPolicy.setPackageEnabled(this@MainActivity, pkg, checked)
                     logControlAction("App access: $label", if (checked) "enabled" else "disabled", "profile")
