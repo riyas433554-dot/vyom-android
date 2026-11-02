@@ -1371,9 +1371,35 @@ class MainActivity : Activity() {
             updateProgress("Observing screen • step " + (completedSteps + 1) + "/40")
             service.captureVisibleOcr { rawOcrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
-                val ocrTargets = if (isSystemUi) emptyList() else rawOcrTargets
+                val visibleNodes = mutableListOf<UiAgentPolicy.VisibleNode>()
+                val labels = mutableListOf<String>()
+                for (i in 0 until tree.length()) {
+                    val node = tree.optJSONObject(i) ?: continue
+                    node.optString("text").takeIf { it.isNotBlank() }?.let(labels::add)
+                    node.optString("description").takeIf { it.isNotBlank() && !it.startsWith("[REDACTED") }?.let(labels::add)
+                    visibleNodes.add(UiAgentPolicy.VisibleNode(
+                        node.optInt("index", -1), node.optBoolean("clickable"),
+                        node.optBoolean("longClickable"), node.optBoolean("password"),
+                        node.optBoolean("editable"), node.optString("fingerprint"),
+                        isSafeUiGestureBounds(node.optJSONObject("bounds")),
+                        if (node.optBoolean("editable")) node.optString("hint")
+                        else node.optString("text").ifBlank { node.optString("description") }
+                    ))
+                }
+                val hasEditableField = visibleNodes.any { it.editable }
+                val ocrTargets = if (isSystemUi || hasEditableField) emptyList() else rawOcrTargets
+                val sensitiveContent = UiAgentVisionPolicy.hasSensitiveContext(
+                    labels + ocrTargets.map { it.text }, visibleNodes.any { it.password }
+                )
+                if (sensitiveContent) {
+                    logControlAction("UI Agent preflight", "sensitive-screen-blocked-before-planning", "ui-agent")
+                    finish("Sensitive or credential-like screen detected. Vyom did not send screen content to the planner and took no action.")
+                    return@captureVisibleOcr
+                }
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
+                if (hasEditableField && visionEnabled) updateProgress("Text input is open • screenshot/OCR sharing disabled; using accessibility controls.")
                 val allowedApps = uiAgentAllowedApps()
+                val canUseVision = visionEnabled && !isSystemUi && !hasEditableField
                 val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
                         val action = try {
@@ -1397,21 +1423,6 @@ class MainActivity : Activity() {
                             logControlAction("UI Agent planner response", "stale-observation-rejected", "ui-agent")
                             finish("Screen changed while Vyom was planning. Stale response discarded; no action taken.")
                             return@runOnUiThread
-                        }
-                        val labels = mutableListOf<String>()
-                        val visibleNodes = mutableListOf<UiAgentPolicy.VisibleNode>()
-                        for (i in 0 until tree.length()) {
-                            val node = tree.optJSONObject(i) ?: continue
-                            node.optString("text").takeIf { it.isNotBlank() }?.let(labels::add)
-                            node.optString("description").takeIf { it.isNotBlank() && !it.startsWith("[REDACTED") }?.let(labels::add)
-                            visibleNodes.add(UiAgentPolicy.VisibleNode(
-                                node.optInt("index", -1), node.optBoolean("clickable"),
-                                node.optBoolean("longClickable"), node.optBoolean("password"),
-                                node.optBoolean("editable"), node.optString("fingerprint"),
-                                isSafeUiGestureBounds(node.optJSONObject("bounds")),
-                                if (node.optBoolean("editable")) node.optString("hint")
-                                else node.optString("text").ifBlank { node.optString("description") }
-                            ))
                         }
                         val visibleOcr = ocrTargets.map { UiAgentPolicy.VisibleOcr(it.index, it.text, it.fingerprint, isSafeUiOcrBounds(it)) }
                         val observedPackage = planningObservation.foregroundPackage
@@ -1494,7 +1505,7 @@ class MainActivity : Activity() {
                     }
                     }
                 }
-                if (visionEnabled && !isSystemUi) {
+                if (canUseVision) {
                     service.captureLocalScreenshot { screenshotFile, screenshotBounds, screenshotError ->
                         if (generation != uiAgentGeneration) {
                             screenshotFile?.delete()

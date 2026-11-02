@@ -1115,3 +1115,9 @@ Branch: `feature/memory-intelligence`
 - The UI Agent's OPEN_APP candidate list also explicitly excludes System UI; Quick Settings is reachable only through the dedicated global action and opt-in transition.
 
 - Added System UI direction guards: a tile already in the requested On/Off state cannot be tapped again, ambiguous/mixed-direction toggle goals are rejected, and Brightness drags must move in the requested direction (left-to-right for brighter, right-to-left for dimmer).
+
+
+## 2026-11-02 — Sensitive-screen preflight
+
+- Moved accessibility-label/node extraction ahead of the model request. Credential-like or sensitive screens now stop before any screen tree/OCR is sent to the planner.
+- When an editable field is present, Vyom keeps text-entry via the redacted accessibility tree but disables OCR and screenshot/VLM sharing for that step. System UI remains OCR- and screenshot-free.
