@@ -20,7 +20,7 @@ internal object MemoryCapturePolicy {
     fun relevantFacts(facts: List<String>, query: String, limit: Int = 10): List<String> {
         val safeLimit = limit.coerceIn(0, 100)
         if (safeLimit == 0) return emptyList()
-        val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please", "আমি", "আমার", "পছন্দ", "করি", "হয়", "হবে", "দাও", "দেন", "এবং", "যে", "আমাকে")
+        val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "which", "what", "where", "when", "who", "why", "how", "is", "are", "was", "were", "be", "do", "does", "did", "should", "can", "could", "would", "will", "we", "i", "me", "my", "our", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please", "আমি", "আমার", "পছন্দ", "করি", "হয়", "হবে", "দাও", "দেন", "এবং", "যে", "আমাকে")
         val queryTokens = semanticTokens(query, ignored)
         val safeFacts = facts.filter { it.isNotBlank() && !isSensitive(it) }
         val scored = safeFacts.withIndex().map { indexed ->
