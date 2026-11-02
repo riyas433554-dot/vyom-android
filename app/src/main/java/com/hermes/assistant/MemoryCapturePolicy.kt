@@ -30,14 +30,19 @@ internal object MemoryCapturePolicy {
         }
         // Score every fact before applying the limit. Otherwise an older, better lexical
         // match can crowd the newest conflicting preference out of a small result window.
-        val conflictScores = scored.mapNotNull { item ->
-            conflictTopic(item.third)?.let { topic -> topic to item.first }
+        val conflictGroups = scored.mapNotNull { item ->
+            conflictTopic(item.third)?.let { topic -> topic to item }
         }.groupBy({ it.first }, { it.second })
-            .mapValues { (_, scores) -> scores.maxOrNull() ?: 0 }
+        val conflictScores = conflictGroups.mapValues { (_, items) -> items.maxOfOrNull { it.first } ?: 0 }
+        val latestConflictIndexes = conflictGroups.mapValues { (_, items) -> items.maxByOrNull { it.second }?.second }
         return scored.asSequence()
             .filter { item ->
+                val topic = conflictTopic(item.third)
+                // Keep only the newest fact in a conflict category. Older facts remain
+                // editable in storage, but are not both injected into the model prompt.
+                if (topic != null && latestConflictIndexes[topic] != item.second) return@filter false
                 queryTokens.isEmpty() || item.first > 0 ||
-                    (conflictTopic(item.third)?.let { (conflictScores[it] ?: 0) > 0 } == true)
+                    (topic?.let { (conflictScores[it] ?: 0) > 0 } == true)
             }
             .sortedWith(
                 compareByDescending<Triple<Int, Int, String>> { item ->
