@@ -42,4 +42,31 @@ class SelfModificationPolicyTest {
         assertTrue(SelfModificationPolicy.PROPOSAL_BASE_BRANCH == "feature/memory-intelligence")
     }
 
+
+    @Test fun acceptsBoundedSelfUpdateTaskForAnAllowedSourceFile() {
+        SelfModificationPolicy.validateTask(
+            "Improve reply formatting",
+            "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+            "Improve Markdown list rendering and preserve existing public APIs."
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsBlankSelfUpdateTask() {
+        SelfModificationPolicy.validateTask(
+            "Improve reply formatting",
+            "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+            "   "
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsSensitiveSelfUpdateTaskText() {
+        SelfModificationPolicy.validateTask(
+            "Improve reply formatting",
+            "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+            "Hardcode this API key: sk-12345678901234567890"
+        )
+    }
+
 }
