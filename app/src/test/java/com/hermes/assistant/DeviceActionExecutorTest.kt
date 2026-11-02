@@ -14,8 +14,9 @@ class DeviceActionExecutorTest {
 
     @Test fun blockedAndUnperformedActionsNeverReportSuccess() {
         assertEquals("blocked", DeviceActionExecutor.auditState("Blocked: Delete is not performed automatically."))
+        assertEquals("blocked", DeviceActionExecutor.auditState("Blocked: Vyom safety policy."))
         assertEquals("blocked", DeviceActionExecutor.auditState("Delete is not performed automatically."))
         assertEquals("blocked", DeviceActionExecutor.auditState("Only a SHA-256 and signing-certificate verified Vyom update can be installed."))
-        assertEquals("executed", DeviceActionExecutor.auditState("Legacy result without a verification marker."))
+        assertEquals("unverified", DeviceActionExecutor.auditState("Legacy result without a verification marker."))
     }
 }
