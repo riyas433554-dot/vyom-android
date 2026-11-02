@@ -15,19 +15,20 @@
 ### 1. Android UI control
 - [x] Accessibility service exists: `VyomAccessibilityService`; it is opt-in and user-enabled in Android Settings.
 - [x] App access is fail-closed by default: `AppAccessPolicy.initialSnapshot()` sets master OFF and enabled package set empty; new packages default OFF.
-- [x] UI agent loop exists in `MainActivity.startUiAgentTask()`: observe accessibility tree + local OCR, plan one action, validate, execute, wait for event settle, re-observe; 40-action ceiling and STOP checks.
-- [ ] **Critical wiring defect:** `showUiAgentPanel()` is defined but has no call site in `MainActivity.kt`; the UI-agent entry point is unreachable from the current navigation.
-- [ ] **Critical routing defect:** `INSTALL_PLAY_STORE` routes to `openPlayStoreSearch()`, which only opens search and tells the user to tap Install. It never invokes the UI agent.
-- [ ] Capability preflight is incomplete: the user needs Accessibility enabled, app-access master ON, the target app allowed, and an NVIDIA planner key; no unified setup/diagnostic screen reports all blockers.
-- [ ] Play Store install flow must verify the exact listing (app title/developer) before tapping Install, observe download/install progress, then verify installed package/version with PackageManager. Never infer success from a tap or Play Store navigation.
-- [ ] Explicit user intent may authorize the requested in-app Install tap only when the exact app listing is verified; retain separate Android/Play Store system confirmations if they appear. Never bypass Play Protect, payments, parental controls, or OS confirmation.
-- [ ] General UI agent must be reachable from Control and from eligible direct device commands, with visible STOP/progress and exact failure reasons.
+- [x] UI agent loop exists in `MainActivity.startUiAgentTask()`: accessibility tree + local OCR observation, one-action planning, policy validation, bounded execution, event settle and re-observation; 40-action ceiling remains.
+- [x] UI Agent is wired: drawer destinations `control` and `assistant_control` open the Control panel; its START UI AGENT button calls `showUiAgentPanel()`.
+- [x] Basic capability/readiness report exists: Accessibility, STOP, master app access, current foreground package/allowlist, Play Store allowlist, NVIDIA planner key and UI Agent skill state are shown with setup shortcuts.
+- [x] Explicit `INSTALL_PLAY_STORE` now opens Play Store search, waits for `com.android.vending` to become foreground, then starts `startUiAgentTask()` in `USER_REQUESTED_INSTALL` mode.
+- [ ] Play Store publisher/developer identity is not independently verified, and the selected listing's package ID is not captured as the install postcondition. The current policy checks one matching title and a unique exact Install control; keep this limitation visible and do not claim a verified publisher.
+- [x] Requested-install policy is constrained to a unique exact `Install` control on the Play Store screen; unrelated Buy/payment/delete/send/share actions remain blocked or require confirmation. Android system prompts and Play Protect are not bypassed.
+- [x] General UI Agent is reachable from Control. Direct device-command follow-through is currently implemented for the Play Store install intent, not every device command.
 - [ ] Current planner requires the configured NVIDIA API key; missing key safely returns no action. Add capability-aware fallback/clear diagnosis rather than silently claiming the task is impossible.
 - [ ] Custom Canvas/timeline controls are not reliably exposed by accessibility/OCR. Add a separately gated visual-understanding capability; do not invent coordinates or bypass protected surfaces.
 - [ ] UI-agent loop is Activity-owned, not a dedicated foreground task service. Background continuity/process-death recovery is not proven; add a user-visible foreground execution lifecycle and persistent task state before claiming reliable background control.
-- [x] Event/revision-aware observation and bounded settle wait exist in current source.
-- [ ] Semantic outcome verification is incomplete: current `DONE` requires an exact visible label but still tells the user to manually verify; add per-action expected postconditions and independent final verification.
-- [ ] Regression matrix: stale screen, app switch, STOP during planner/confirmation/action/wait, grant expiry, service disconnect, API timeout, action rejected, no visible target, ambiguous target, screen lock, secure window, rotation, process death, and successful install verification.
+- [x] Event/revision-aware observation and bounded settle wait exist. Tree capture, planner response and pre-dispatch reject stale revisions/foreground changes.
+- [x] Post-action foreground guard added in `3aa20eb`: ordinary actions stop if the foreground package or foreground epoch changes; `OPEN_APP` continues only if the requested package is actually foreground. Regression tests were added; CI execution is still pending.
+- [ ] Semantic outcome verification remains incomplete: `OPEN_APP` verifies the exact foreground package and Play Store install checks PackageManager for one matching installed label/version, but generic `DONE` only proves an exact visible label, not the requested real-world effect.
+- [ ] Regression matrix still needs CI/device evidence for stale screen, app switch, STOP during planner/confirmation/action/wait, grant expiry, service disconnect, API timeout, rejected action, no visible target, ambiguous target, screen lock, secure window, rotation, process death, and successful install verification.
 
 ### 2. Tasks and automations
 - [x] Immediate tasks are submitted through the existing task API and displayed with status/details/cancel.
@@ -84,14 +85,16 @@
 - [ ] Compare installed and candidate APK signing certificates before in-place update. If they differ, do not uninstall or overwrite the existing app.
 - [ ] Final handoff must include exact source SHA, CI/debug run IDs, test count/results, APK artifact ID/name/size/SHA-256, certificate status, known OS limitations, and phone acceptance checklist.
 
-## Implementation order (locked)
-1. [ ] Wire UI Agent into Control navigation and add a capability/readiness report.
-2. [ ] Route explicit Play Store install intent through verified UI automation; verify the installed package/version and report only observed outcomes.
-3. [ ] Complete outcome verification, background lifecycle, STOP/app-switch/grant-expiry/action-failure regression tests.
-4. [ ] Finish durable task queue and local scheduled automations without backend changes.
-5. [ ] Upgrade Teach Vyom and executable skill catalogue.
-6. [ ] Upgrade Memory Intelligence: typed/provenance memory, summaries, hybrid semantic retrieval, local knowledge library, conflict/migration tests.
-7. [ ] Build guarded AI-generated self-update PR workflow and signed update/rollback verification.
+## Implementation order (locked — 2026-11-02)
+1. [ ] Stable APK signing and update continuity: exact-head signed build, artifact SHA-256, certificate fingerprint comparison with the installed/base APK. Never uninstall to work around a mismatch.
+2. [ ] Full Android Control: finish UI Agent, app-switch guards, post-action outcome checks, STOP invalidation, foreground lifecycle and regression tests.
+3. [ ] VoiceStudio companion automation and local/on-device voice pipeline; ElevenLabs remains optional fallback.
+4. [ ] GitHub URL/ZIP/documentation skill learning: inspect, licence/security audit, extract knowledge, create reusable skills, run tests and verify results.
+5. [ ] Higgsfield/Creative Studio pipeline: storyboard, scenes, animation, VFX, CGI, sound and export through guarded provider adapters; never embed provider secrets in APK.
+6. [ ] Persistent task engine, local automation scheduler, retries, cancellation, background execution and artifact management.
+7. [ ] Controlled self-update: reviewable patch/PR, signed update, health check and tested rollback; no autonomous policy/permission changes.
+8. [ ] Implement remaining HUD screens and the supplied design system; no screen marked complete until its real action path works.
+9. [ ] Full acceptance: Memory Intelligence conflict/migration/semantic validation, all Android Control and creative/voice/task acceptance tests, exact-head Debug + full CI, signed APK integrity/certificate checks, and final phone test checklist.
 8. [ ] Finish remaining real design screens and UI regression.
 9. [ ] Run full verification, produce exact-head APK, then hand off for physical phone acceptance.
 
