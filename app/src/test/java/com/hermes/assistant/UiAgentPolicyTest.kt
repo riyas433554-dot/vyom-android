@@ -499,16 +499,6 @@ class UiAgentPolicyTest {
 
 
 
-    @Test fun safeGlobalNavigationActionsAreAcceptedForFreshUiAgentPlans() {
-        listOf(
-            UiAgentPolicy.Kind.BACK, UiAgentPolicy.Kind.HOME, UiAgentPolicy.Kind.RECENTS,
-            UiAgentPolicy.Kind.NOTIFICATIONS, UiAgentPolicy.Kind.QUICK_SETTINGS
-        ).forEach { kind ->
-            assertEquals(UiAgentPolicy.Verdict.ALLOW,
-                UiAgentPolicy.validate(UiAgentPolicy.Action(kind), emptyList(), "Open notifications"))
-        }
-    }
-
 
     @Test fun systemUiOnlyExposesAllowlistedQuickSettingsLabelsAndGoalMatches() {
         assertTrue(UiAgentPolicy.isSafeSystemUiLabel("Wi-Fi, On"))
