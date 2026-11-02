@@ -1079,3 +1079,5 @@ Branch: `feature/memory-intelligence`
 - System UI actions require the user's goal to name the matching setting and always require confirmation; only exact safe tile taps and the Brightness slider drag are permitted. Coordinate gestures, typing, scrolling and arbitrary navigation are rejected. Added policy regression tests for label filtering, goal matching, mandatory confirmation and point-action rejection.
 
 - Corrected System UI label/goal regexes to use Kotlin raw-string regex escapes (word boundaries and whitespace). The quick-settings allowlist now matches actual labels instead of literal backslash sequences.
+
+- Tightened System UI isolation further: only nodes whose package is exactly `com.android.systemui` survive the filter; OCR text is never sent to the planner for System UI, and screenshot/VLM remains disabled there. If System UI access is off, the agent explains the required manual opt-in instead of silently stopping.

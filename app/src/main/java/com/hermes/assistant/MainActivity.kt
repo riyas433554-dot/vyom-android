@@ -1371,7 +1371,7 @@ class MainActivity : Activity() {
             updateProgress("Observing screen • step " + (completedSteps + 1) + "/40")
             service.captureVisibleOcr { rawOcrTargets, ocrError ->
                 if (generation != uiAgentGeneration) return@captureVisibleOcr
-                val ocrTargets = if (isSystemUi) rawOcrTargets.filter { UiAgentPolicy.isSafeSystemUiLabel(it.text) } else rawOcrTargets
+                val ocrTargets = if (isSystemUi) emptyList() else rawOcrTargets
                 if (!ocrError.isNullOrBlank()) updateProgress("OCR unavailable; using accessibility tree • " + ocrError.take(90))
                 val planWithFile: (File?, android.graphics.Rect?) -> Unit = { screenshotFile, screenshotBounds ->
                     io.execute {
@@ -1836,7 +1836,8 @@ class MainActivity : Activity() {
         for (index in 0 until rawTree.length()) {
             val node = rawTree.optJSONObject(index) ?: continue
             val label = node.optString("text").ifBlank { node.optString("description") }
-            if (UiAgentPolicy.isSafeSystemUiLabel(label)) filtered.put(node)
+            if (node.optString("package") == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
+                UiAgentPolicy.isSafeSystemUiLabel(label)) filtered.put(node)
         }
         return filtered
     }
