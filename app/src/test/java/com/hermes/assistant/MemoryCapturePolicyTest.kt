@@ -192,4 +192,16 @@ class MemoryCapturePolicyTest {
         )
     }
 
+
+    @Test fun persistentProjectBoundariesAreRememberedWithoutTheRememberKeyword() {
+        assertEquals(
+            listOf("Never modify the Android main branch."),
+            MemoryCapturePolicy.extract("Never modify the Android main branch.")
+        )
+        assertEquals(
+            listOf("Do not touch production Supabase."),
+            MemoryCapturePolicy.extract("Do not touch production Supabase.")
+        )
+    }
+
 }
