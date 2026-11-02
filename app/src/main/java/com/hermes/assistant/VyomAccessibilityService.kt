@@ -69,7 +69,10 @@ class VyomAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_VIEW_SCROLLED,
             AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
         )
-        if (relevantType && eventPackage.isNotBlank() && eventPackage != packageName) {
+        val activeWindowId = rootInActiveWindow?.windowId ?: -1
+        if (relevantType && UiAgentPolicy.shouldTrackAccessibilityEvent(
+                eventPackage, packageName, event.windowId, activeWindowId
+            )) {
             screenRevision++
             lastRelevantEventAt = SystemClock.uptimeMillis()
             lastRelevantEventPackage = eventPackage
