@@ -291,4 +291,10 @@ class UiAgentPolicyTest {
             visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
     }
 
+    @Test fun rejectsAccessibilityTreeCapturedAcrossScreenTransition() {
+        assertFalse(UiAgentPolicy.isTreeObservationFresh(20L, 21L, "com.example.editor", "com.example.editor"))
+        assertFalse(UiAgentPolicy.isTreeObservationFresh(20L, 20L, "com.example.editor", "com.android.settings"))
+        assertTrue(UiAgentPolicy.isTreeObservationFresh(20L, 20L, "com.example.editor", "com.example.editor"))
+    }
+
 }
