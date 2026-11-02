@@ -1,3 +1,38 @@
+# FULL ANDROID CONTROL — IMPLEMENTATION STEP 1 — 2026-11-02
+
+## Fixed milestone order (do not reorder)
+1. Full Android Control implementation.
+2. Android verification (automated + exact-head CI + physical phone testing).
+3. Memory Intelligence integration/verification.
+Memory Intelligence work is paused until steps 1 and 2 are completed. No Telegram/connectors/backend/deployment work.
+
+## Step 1 — OCR-target swipe/drag
+- Source commits on `feature/memory-intelligence`:
+  - policy + action types: `2c6886e`, confirmation hardening: `05bcd31`
+  - Accessibility OCR gesture executor: `74edc49`, float-distance guard fix: `aaec31a`, syntax guard fix: `ccb0860`
+  - MainActivity planner/confirmation/executor wiring: `4225a9f`
+  - regression tests: `1a2357b`, fixture update: `3f99eaa`, explicit-confirmation test: `dd0c473`
+- Added `swipe_ocr` (left/right/up/down) and `drag_ocr` (left/right/top/bottom/center anchors).
+- Policy requires an exact OCR index + text + fingerprint from the current observation, bounded on-screen geometry, valid direction/anchors, and explicit confirmation. Session grants do not bypass OCR swipe/drag confirmation.
+- Runtime executor rechecks active foreground package, per-app allowlist/master/STOP state, OCR revision/fingerprint, sensitive-text filter, bounds (minimum 8dp, maximum 10% screen area), and gesture length/duration limits before dispatch.
+- Planner JSON schema, action parsing, confirmation UI, execution routing and privacy-safe audit labels are wired.
+- OCR capture remains local; sensitive OCR lines are filtered before being sent as planner context.
+
+## Verification truth
+- Regression tests added: `UiAgentPolicyTest.kt` now contains 28 tests, including OCR swipe/drag freshness, invalid direction/anchors, unsafe bounds, sensitive targets and session-grant confirmation.
+- Tests have NOT been executed in this environment. No CI run was triggered or polled. No compile/build success is claimed.
+- Physical Android test: NOT RUN.
+- This step adds OCR gestures only. It does NOT solve canvas-only/timeline controls with no OCR text, general screenshot-based vision control, or the CapCut end-to-end workflow.
+- Existing 300ms re-observation and model-reported DONE limitation remain open for the next reliability step.
+
+## Next fixed step
+Implement event/revision-aware re-observation and explicit outcome verification, then add tests for stale screens, foreground app switches, STOP during confirmation, grant expiry and Android action failures. After that, address screenshot-derived visual-only controls as a separately gated capability and build a CapCut workflow test plan. Do not mark Full Android Control complete until physical-device verification passes.
+
+## Safety
+Android `main`, Hermes, Render, production Supabase, secrets, releases and deployment untouched. No CI polling.
+
+---
+
 # ANDROID CONTROL RECONCILIATION — 2026-11-02
 
 This entry corrects the milestone status before further implementation. It is based on source inspection at parent head `26119c05ce083a3e3776084b61dc2f0d9fca2e60`.
