@@ -17,7 +17,8 @@ import android.widget.TextView
 internal class VyomTeachDialog(
     private val activity: Activity,
     private val originalPhrase: String,
-    private val onSave: (String) -> Unit,
+    private val initialCommand: String,
+    private val onSave: (String, String) -> Unit,
     private val onCancel: () -> Unit
 ) {
     private val density = activity.resources.displayMetrics.density
@@ -74,14 +75,18 @@ internal class VyomTeachDialog(
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(20), 0, dp(7))
         })
-        root.addView(TextView(activity).apply {
-            text = "“${originalPhrase.take(140)}”"
-            textSize = 15f
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setTextColor(VyomDesignSpec.CYAN)
+        val phrase = EditText(activity).apply {
+            hint = "e.g. focus mode start karo"
+            setText(originalPhrase.take(100))
+            setSingleLine(true)
+            textSize = 14f
+            setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+            setHintTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(14), dp(12), dp(14), dp(12))
             background = VyomTheme.glass(activity, 14, accent)
-        })
+            contentDescription = "Phrase Vyom should recognize"
+        }
+        root.addView(phrase, LinearLayout.LayoutParams(-1, dp(50)))
 
         root.addView(TextView(activity).apply {
             text = "TAB YE KARO"
@@ -101,6 +106,7 @@ internal class VyomTeachDialog(
             background = VyomTheme.glass(activity, 14, accent)
             contentDescription = "Supported device action to associate with this phrase"
         }
+        answer.setText(initialCommand)
         root.addView(answer, LinearLayout.LayoutParams(-1, dp(50)))
 
         root.addView(TextView(activity).apply {
@@ -149,13 +155,18 @@ internal class VyomTeachDialog(
             text = "SAVE PHRASE"
             VyomTheme.stylePill(this, activity, "cyan", "primary")
             setOnClickListener {
+                val spokenPhrase = phrase.text.toString().trim()
                 val command = answer.text.toString().trim()
+                if (spokenPhrase.isBlank() || spokenPhrase.length > 100) {
+                    phrase.error = "Phrase 1–100 characters ki honi chahiye."
+                    return@setOnClickListener
+                }
                 if (command.isBlank() || command.length > 120) {
-                    answer.error = "Enter a supported command (1–120 characters)."
+                    answer.error = "Supported command 1–120 characters ka hona chahiye."
                     return@setOnClickListener
                 }
                 dialog.dismiss()
-                onSave(command)
+                onSave(spokenPhrase, command)
             }
         }
         buttons.addView(cancel, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
