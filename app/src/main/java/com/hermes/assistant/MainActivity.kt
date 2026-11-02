@@ -1576,6 +1576,10 @@ class MainActivity : Activity() {
             UiAgentPolicy.Kind.SCROLL -> service.scroll(action.direction, action.screenPackage)
             UiAgentPolicy.Kind.TYPE_TEXT -> service.typeIntoNode(action.nodeIndex, action.nodeFingerprint, action.text)
             UiAgentPolicy.Kind.BACK -> service.global("back", action.screenPackage)
+            UiAgentPolicy.Kind.HOME -> service.global("home", action.screenPackage)
+            UiAgentPolicy.Kind.RECENTS -> service.global("recents", action.screenPackage)
+            UiAgentPolicy.Kind.NOTIFICATIONS -> service.global("notifications", action.screenPackage)
+            UiAgentPolicy.Kind.QUICK_SETTINGS -> service.global("quick_settings", action.screenPackage)
             UiAgentPolicy.Kind.WAIT -> false // handled by the bounded asynchronous wait path above
             UiAgentPolicy.Kind.DONE -> {
                 if (goal.contains("from Google Play Store", ignoreCase = true) &&
@@ -1784,6 +1788,10 @@ class MainActivity : Activity() {
                 "scroll" -> UiAgentPolicy.Kind.SCROLL
                 "type_text" -> UiAgentPolicy.Kind.TYPE_TEXT
                 "back" -> UiAgentPolicy.Kind.BACK
+                "home" -> UiAgentPolicy.Kind.HOME
+                "recents" -> UiAgentPolicy.Kind.RECENTS
+                "notifications" -> UiAgentPolicy.Kind.NOTIFICATIONS
+                "quick_settings" -> UiAgentPolicy.Kind.QUICK_SETTINGS
                 "wait" -> UiAgentPolicy.Kind.WAIT
                 "done" -> UiAgentPolicy.Kind.DONE
                 else -> return null

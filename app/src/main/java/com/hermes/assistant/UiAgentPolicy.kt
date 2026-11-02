@@ -5,7 +5,7 @@ package com.hermes.assistant
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, TYPE_TEXT, BACK, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, TYPE_TEXT, BACK, HOME, RECENTS, NOTIFICATIONS, QUICK_SETTINGS, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
     data class Action(
@@ -251,7 +251,7 @@ internal object UiAgentPolicy {
                     visibleLabels.none { it.trim().equals(evidence, ignoreCase = true) }) Verdict.REJECT
                 else Verdict.ALLOW
             }
-            Kind.BACK -> Verdict.ALLOW
+            Kind.BACK, Kind.HOME, Kind.RECENTS, Kind.NOTIFICATIONS, Kind.QUICK_SETTINGS -> Verdict.ALLOW
             Kind.WAIT -> if (action.waitMs in 250..8000) Verdict.ALLOW else Verdict.REJECT
         }
     }

@@ -1034,3 +1034,10 @@ Branch: `feature/memory-intelligence`
 - Added regression coverage proving screenshot point actions always require confirmation even under a temporary session grant, and reject stale observations or sensitive-screen context.
 - Fixed temporary screenshot bitmap cleanup on incompatible aspect ratios, decode/resize errors and successful image preparation; fixed the screenshot-copy bitmap cleanup in the local capture method.
 - Verification remains pending for the latest commit. Do not claim the screenshot VLM path or Android gestures runtime-tested until exact-head CI and physical-device checks complete.
+
+
+## 2026-11-02 — Global Android navigation actions
+
+- Extended the UI Agent planner/action policy with Android global Back, Home, Recents, Notifications shade and Quick Settings actions. These use AccessibilityService global actions and still require a fresh allowed foreground app, active STOP check and post-action foreground/revision re-observation.
+- If a global action transitions into an unapproved System UI/launcher surface, the task stops rather than continuing blindly in a new package. Added a policy regression test for the allowed global-action set.
+- Latest source remains on `feature/memory-intelligence`; verification for the resulting commit is pending. This does not bypass Android protected surfaces or OEM restrictions.

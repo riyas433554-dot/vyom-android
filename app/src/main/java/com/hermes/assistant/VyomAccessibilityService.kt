@@ -389,6 +389,7 @@ class VyomAccessibilityService : AccessibilityService() {
         "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
         "recents" -> performGlobalAction(GLOBAL_ACTION_RECENTS)
         "notifications" -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+        "quick_settings" -> performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
         else -> false
         }
     }

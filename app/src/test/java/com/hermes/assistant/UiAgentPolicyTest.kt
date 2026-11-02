@@ -365,6 +365,16 @@ class UiAgentPolicyTest {
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.WAIT, waitMs = 8001), emptyList(), "Wait for upload"))
     }
 
+    @Test fun safeGlobalNavigationActionsAreAcceptedForFreshUiAgentPlans() {
+        listOf(
+            UiAgentPolicy.Kind.BACK, UiAgentPolicy.Kind.HOME, UiAgentPolicy.Kind.RECENTS,
+            UiAgentPolicy.Kind.NOTIFICATIONS, UiAgentPolicy.Kind.QUICK_SETTINGS
+        ).forEach { kind ->
+            assertEquals(UiAgentPolicy.Verdict.ALLOW,
+                UiAgentPolicy.validate(UiAgentPolicy.Action(kind), emptyList(), "Open notifications"))
+        }
+    }
+
     @Test fun waitResumeRequiresSameAppLiveGenerationAndUnexpiredGrant() {
         assertTrue(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, 500L, "com.editor", "com.editor", 4L, 4L))
         assertFalse(UiAgentPolicy.mayResumeAfterWait(false, false, 100L, 500L, "com.editor", "com.editor", 4L, 4L))
