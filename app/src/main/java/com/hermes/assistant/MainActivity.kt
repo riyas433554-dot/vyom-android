@@ -1404,25 +1404,28 @@ class MainActivity : Activity() {
         if (action.kind == UiAgentPolicy.Kind.WAIT) {
             updateProgress("Waiting " + action.waitMs + " ms • then re-observing")
             Handler(Looper.getMainLooper()).postDelayed({
-                if (generation != uiAgentGeneration || controlKillSwitch ||
-                    controlPrefs.getBoolean("kill_switch", false)) {
-                    finish("STOP CONTROL ON — wait cancelled; no next action.")
-                    return@postDelayed
-                }
-                if (!UiAgentPolicy.mayExecute(true, false, System.currentTimeMillis(), sessionGrantExpiresAt)) {
-                    logControlAction("UI Agent session grant", "expired-during-wait", "ui-agent")
-                    finish("5-minute session grant expired during wait. Task stopped.")
-                    return@postDelayed
-                }
                 val currentService = VyomAccessibilityService.current()
                 if (currentService == null) {
                     finish("Accessibility service disconnected during wait. Task stopped.")
                     return@postDelayed
                 }
                 val afterWait = currentService.screenObservation()
-                if (afterWait.foregroundPackage != baselineObservation.foregroundPackage) {
-                    logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-during-wait", "ui-agent")
-                    finish("Foreground app changed while waiting. Task stopped; no action was taken on the new app.")
+                val stopRequested = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
+                if (!UiAgentPolicy.mayResumeAfterWait(
+                        generation == uiAgentGeneration, stopRequested, System.currentTimeMillis(),
+                        sessionGrantExpiresAt, baselineObservation.foregroundPackage, afterWait.foregroundPackage
+                    )) {
+                    when {
+                        afterWait.foregroundPackage != baselineObservation.foregroundPackage -> {
+                            logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-during-wait", "ui-agent")
+                            finish("Foreground app changed while waiting. Task stopped; no action was taken on the new app.")
+                        }
+                        sessionGrantExpiresAt != null && System.currentTimeMillis() >= sessionGrantExpiresAt -> {
+                            logControlAction("UI Agent session grant", "expired-during-wait", "ui-agent")
+                            finish("5-minute session grant expired during wait. Task stopped.")
+                        }
+                        else -> finish("STOP CONTROL ON or task cancelled — wait ended without another action.")
+                    }
                     return@postDelayed
                 }
                 logControlAction(UiAgentPolicy.auditLabel(action), "wait-finished; screen will be re-observed", "ui-agent")
