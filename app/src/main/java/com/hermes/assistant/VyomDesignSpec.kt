@@ -46,6 +46,15 @@ internal object VyomDesignSpec {
         SkillItem("ui_agent", "App UI automation", "Bounded Accessibility/OCR interaction in apps you explicitly allow. Requires Android Accessibility and a configured planner.", "CONFIRM")
     )
 
+    fun visibleDrawerItems(query: String = ""): List<NavItem> {
+        val normalized = query.trim()
+        return drawerItems.filter { it.enabled }.filter { item ->
+            normalized.isBlank() ||
+                item.label.contains(normalized, ignoreCase = true) ||
+                item.section.contains(normalized, ignoreCase = true)
+        }
+    }
+
     val drawerItems = listOf(
         NavItem("home", "Home", "Workspace"),
         NavItem("automations", "Automations", "Workspace"),
