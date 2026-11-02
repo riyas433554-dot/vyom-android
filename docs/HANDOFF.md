@@ -1077,3 +1077,5 @@ Branch: `feature/memory-intelligence`
 - After an explicit Quick Settings request, the UI Agent may continue into System UI only when that package is manually enabled. Notification-shade access does not receive this transition exception.
 - System UI observations are filtered to a narrow allowlist of quick-setting labels (Wi-Fi/Internet, Bluetooth, Airplane mode, DND, Battery Saver, Flashlight, Location, Auto-rotate, Screen record, Hotspot, Mobile data, Brightness). Other notification text is never sent to the planner. Screenshot/VLM upload is disabled while System UI is foreground.
 - System UI actions require the user's goal to name the matching setting and always require confirmation; only exact safe tile taps and the Brightness slider drag are permitted. Coordinate gestures, typing, scrolling and arbitrary navigation are rejected. Added policy regression tests for label filtering, goal matching, mandatory confirmation and point-action rejection.
+
+- Corrected System UI label/goal regexes to use Kotlin raw-string regex escapes (word boundaries and whitespace). The quick-settings allowlist now matches actual labels instead of literal backslash sequences.

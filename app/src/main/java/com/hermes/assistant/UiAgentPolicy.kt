@@ -261,14 +261,14 @@ internal object UiAgentPolicy {
 
 
     private val systemUiLabelPattern = Regex(
-        """(?i)^(wi-?fi|internet|bluetooth|airplane mode|do not disturb|battery saver|flashlight|location|auto-rotate|screen record|hotspot|mobile data|brightness)(?:\\s*(?:,|:|-)?\\s*(?:on|off|enabled|disabled|connected|disconnected|available|unavailable))?$"""
+        """(?i)^(wi-?fi|internet|bluetooth|airplane mode|do not disturb|battery saver|flashlight|location|auto-rotate|screen record|hotspot|mobile data|brightness)(?:\s*(?:,|:|-)?\s*(?:on|off|enabled|disabled|connected|disconnected|available|unavailable))?$"""
     )
 
     fun isSafeSystemUiLabel(label: String): Boolean =
-        label.trim().replace(Regex("""\\s+"""), " ").let { systemUiLabelPattern.matches(it) }
+        label.trim().replace(Regex("""\s+"""), " ").let { systemUiLabelPattern.matches(it) }
 
     fun isSystemUiTargetRequested(label: String, userGoal: String): Boolean {
-        val normalized = label.trim().replace(Regex("""\\s+"""), " ")
+        val normalized = label.trim().replace(Regex("""\s+"""), " ")
         val base = listOf(
             "Wi-Fi", "Internet", "Bluetooth", "Airplane mode", "Do Not Disturb",
             "Battery Saver", "Flashlight", "Location", "Auto-rotate", "Screen record",
@@ -276,23 +276,24 @@ internal object UiAgentPolicy {
         ).firstOrNull { normalized.equals(it, true) || normalized.startsWith(it + ",", true) ||
             normalized.startsWith(it + " ", true) } ?: return false
         val intent = when (base.lowercase()) {
-            "wi-fi", "internet" -> Regex("""(?i)\\b(wi[ -]?fi|internet|wireless)\\b""")
-            "bluetooth" -> Regex("""(?i)\\bbluetooth\\b""")
-            "airplane mode" -> Regex("""(?i)\\b(airplane|flight)\\s*mode\\b""")
-            "do not disturb" -> Regex("""(?i)\\b(do not disturb|dnd)\\b""")
-            "battery saver" -> Regex("""(?i)\\b(battery saver|power saving)\\b""")
-            "flashlight" -> Regex("""(?i)\\b(flashlight|torch)\\b""")
-            "location" -> Regex("""(?i)\\blocation\\b""")
-            "auto-rotate" -> Regex("""(?i)\\b(auto.?rotate|rotation|rotate)\\b""")
-            "screen record" -> Regex("""(?i)\\b(screen record|screen recording)\\b""")
-            "hotspot" -> Regex("""(?i)\\bhotspot\\b""")
-            "mobile data" -> Regex("""(?i)\\b(mobile data|cellular data)\\b""")
-            "brightness" -> Regex("""(?i)\\b(brightness|brighter|dimmer|dim screen)\\b""")
+            "wi-fi", "internet" -> Regex("""(?i)\b(wi[ -]?fi|internet|wireless)\b""")
+            "bluetooth" -> Regex("""(?i)\bbluetooth\b""")
+            "airplane mode" -> Regex("""(?i)\b(airplane|flight)\s*mode\b""")
+            "do not disturb" -> Regex("""(?i)\b(do not disturb|dnd)\b""")
+            "battery saver" -> Regex("""(?i)\b(battery saver|power saving)\b""")
+            "flashlight" -> Regex("""(?i)\b(flashlight|torch)\b""")
+            "location" -> Regex("""(?i)\blocation\b""")
+            "auto-rotate" -> Regex("""(?i)\b(auto.?rotate|rotation|rotate)\b""")
+            "screen record" -> Regex("""(?i)\b(screen record|screen recording)\b""")
+            "hotspot" -> Regex("""(?i)\bhotspot\b""")
+            "mobile data" -> Regex("""(?i)\b(mobile data|cellular data)\b""")
+            "brightness" -> Regex("""(?i)\b(brightness|brighter|dimmer|dim screen)\b""")
             else -> return false
         }
         return intent.containsMatchIn(userGoal)
     }
 
+    /** System UI can show private notifications; only explicitly requested quick-setting controls pass. */
     private fun validateSystemUiAction(
         action: Action, visibleLabels: Collection<String>, userGoal: String,
         visibleNodes: Collection<VisibleNode>, visibleOcr: Collection<VisibleOcr>
