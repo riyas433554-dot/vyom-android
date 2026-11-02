@@ -1081,3 +1081,5 @@ Branch: `feature/memory-intelligence`
 - Corrected System UI label/goal regexes to use Kotlin raw-string regex escapes (word boundaries and whitespace). The quick-settings allowlist now matches actual labels instead of literal backslash sequences.
 
 - Tightened System UI isolation further: only nodes whose package is exactly `com.android.systemui` survive the filter; OCR text is never sent to the planner for System UI, and screenshot/VLM remains disabled there. If System UI access is off, the agent explains the required manual opt-in instead of silently stopping.
+
+- Tightened System UI interaction from text/OCR targets to exact clickable accessibility-node IDs/fingerprints only; the only non-clickable exception is the labelled Brightness SeekBar, which permits a confirmed drag. Notification text cannot become a tappable target merely because it resembles a safe label.

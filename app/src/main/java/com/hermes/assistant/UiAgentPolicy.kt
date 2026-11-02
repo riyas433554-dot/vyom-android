@@ -302,15 +302,6 @@ internal object UiAgentPolicy {
         fun allowed(label: String) =
             isSafeSystemUiLabel(label) && isSystemUiTargetRequested(label, userGoal)
         return when (action.kind) {
-            Kind.TAP_TEXT ->
-                if (allowed(action.target) && visibleLabels.any { it.trim().equals(action.target.trim(), true) })
-                    Verdict.CONFIRM else Verdict.REJECT
-            Kind.TAP_OCR -> {
-                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
-                if (target != null && target.gestureBoundsSafe && target.text == action.target &&
-                    target.fingerprint == action.ocrFingerprint && allowed(target.text)) Verdict.CONFIRM
-                else Verdict.REJECT
-            }
             Kind.TAP_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node != null && node.clickable && !node.password && !node.editable &&
@@ -324,15 +315,6 @@ internal object UiAgentPolicy {
                 if (node != null && !node.password && !node.editable && node.gestureBoundsSafe &&
                     node.fingerprint.isNotBlank() && node.fingerprint == action.nodeFingerprint &&
                     node.label.equals("Brightness", true) && allowed(node.label) &&
-                    action.fromAnchor.lowercase() in anchors && action.toAnchor.lowercase() in anchors &&
-                    !action.fromAnchor.equals(action.toAnchor, true)) Verdict.CONFIRM
-                else Verdict.REJECT
-            }
-            Kind.DRAG_OCR -> {
-                val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
-                val anchors = setOf("left", "right", "top", "bottom", "center")
-                if (target != null && target.gestureBoundsSafe && target.fingerprint == action.ocrFingerprint &&
-                    target.text.equals("Brightness", true) && allowed(target.text) &&
                     action.fromAnchor.lowercase() in anchors && action.toAnchor.lowercase() in anchors &&
                     !action.fromAnchor.equals(action.toAnchor, true)) Verdict.CONFIRM
                 else Verdict.REJECT

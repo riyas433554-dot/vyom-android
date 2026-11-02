@@ -520,17 +520,40 @@ class UiAgentPolicyTest {
         assertFalse(UiAgentPolicy.isSystemUiTargetRequested("Bluetooth", "Turn on Wi-Fi"))
     }
 
-    @Test fun systemUiTileTapAlwaysRequiresConfirmationAndMustMatchUserGoal() {
+    @Test fun systemUiTileTapRequiresExactClickableNodeAndAlwaysConfirms() {
+        val node = UiAgentPolicy.VisibleNode(
+            index = 3, clickable = true, longClickable = false, password = false,
+            editable = false, fingerprint = "tile-fp", gestureBoundsSafe = true, label = "Wi-Fi"
+        )
         val action = UiAgentPolicy.Action(
-            UiAgentPolicy.Kind.TAP_TEXT,
-            target = "Wi-Fi",
+            UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 3, nodeFingerprint = "tile-fp",
             screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE
         )
         assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Wi-Fi",
-                confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+                visibleNodes = listOf(node), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
         assertEquals(UiAgentPolicy.Verdict.REJECT,
-            UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Bluetooth"))
+            UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Bluetooth",
+                visibleNodes = listOf(node)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(
+                UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Wi-Fi", screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE),
+                listOf("Wi-Fi"), "Turn on Wi-Fi"
+            ))
+    }
+
+    @Test fun systemUiBrightnessSliderRequiresGoalMatchedDragAndConfirmation() {
+        val node = UiAgentPolicy.VisibleNode(
+            index = 5, clickable = false, longClickable = false, password = false,
+            editable = false, fingerprint = "brightness-fp", gestureBoundsSafe = true, label = "Brightness"
+        )
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.DRAG_NODE, nodeIndex = 5, nodeFingerprint = "brightness-fp",
+            screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE, fromAnchor = "left", toAnchor = "right"
+        )
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(action, listOf("Brightness"), "Make the screen brighter",
+                visibleNodes = listOf(node)))
     }
 
     @Test fun systemUiRejectsVisualCoordinatesAndUnapprovedLabels() {

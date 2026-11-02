@@ -1836,8 +1836,12 @@ class MainActivity : Activity() {
         for (index in 0 until rawTree.length()) {
             val node = rawTree.optJSONObject(index) ?: continue
             val label = node.optString("text").ifBlank { node.optString("description") }
+            val isBrightnessSlider = label.equals("Brightness", true) &&
+                node.optString("class").contains("SeekBar", true)
             if (node.optString("package") == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
-                UiAgentPolicy.isSafeSystemUiLabel(label)) filtered.put(node)
+                UiAgentPolicy.isSafeSystemUiLabel(label) && (node.optBoolean("clickable") || isBrightnessSlider)) {
+                filtered.put(node)
+            }
         }
         return filtered
     }
