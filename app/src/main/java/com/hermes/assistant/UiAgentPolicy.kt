@@ -49,7 +49,6 @@ internal object UiAgentPolicy {
                 if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target) ||
                     action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
-                else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.DRAG_OCR -> {
@@ -59,7 +58,6 @@ internal object UiAgentPolicy {
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target) ||
                     action.fromAnchor.lowercase() !in anchors || action.toAnchor.lowercase() !in anchors ||
                     action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
-                else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.TAP_TEXT -> {
