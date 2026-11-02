@@ -366,12 +366,13 @@ class UiAgentPolicyTest {
     }
 
     @Test fun waitResumeRequiresSameAppLiveGenerationAndUnexpiredGrant() {
-        assertTrue(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, 500L, "com.editor", "com.editor"))
-        assertFalse(UiAgentPolicy.mayResumeAfterWait(false, false, 100L, 500L, "com.editor", "com.editor"))
-        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, true, 100L, 500L, "com.editor", "com.editor"))
-        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 500L, 500L, "com.editor", "com.editor"))
-        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "com.editor", "com.settings"))
-        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "", ""))
+        assertTrue(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, 500L, "com.editor", "com.editor", 4L, 4L))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(false, false, 100L, 500L, "com.editor", "com.editor", 4L, 4L))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, true, 100L, 500L, "com.editor", "com.editor", 4L, 4L))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 500L, 500L, "com.editor", "com.editor", 4L, 4L))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "com.editor", "com.settings", 4L, 4L))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "", "", 4L, 4L))
+        assertFalse(UiAgentPolicy.mayResumeAfterWait(true, false, 100L, null, "com.editor", "com.editor", 4L, 5L))
     }
 
 }
