@@ -925,3 +925,17 @@ Branch: `feature/memory-intelligence`
 - Debug/full CI pair on `1968498`: `41454866085` and `41454866090` were running at handoff time. New documentation commits followed; run results for the exact current HEAD `53f63351f42c77892a60262525b9cd9d643e74e4` are not yet verified. No APK artifact is claimed.
 - No third-party application source has been copied into the APK in this checkpoint. No Android main, Hermes backend, Render, production Supabase, secrets or deployment changes were made.
 - Next: verify latest exact-head Debug + full CI; fix any remaining failures; then implement UI Agent readiness/Control wiring and install verification before moving into repository learning and VoiceStudio/Creative Studio adapters. Physical-device testing remains pending.
+
+
+## 2026-11-02 — Exact-head CI, APK checksum and persistent signing investigation
+
+- Android source branch remains `feature/memory-intelligence`. Latest source/workflow commit before this handoff note: `266009e3cd8a0957b66722ffd99b67ae672bc00e`.
+- Exact-head Debug + full CI at `7e70370d6d9d134f3fa4ba0878636a3f658f275f`: Debug `41455029509` SUCCESS; CI `41455029497` SUCCESS. 144-test suite and unsigned debug APK packaging succeeded.
+- Downloaded artifact `13146103223`; ZIP digest matched GitHub's SHA-256 `b8b3a1ac6c067b41f4d5edaa5a073641be6d03daafc4569096b6435199243c23`. Embedded APK SHA-256 independently matched `6aa6244ed2a8511234c0103c95a36994ca2df76f514695e19a569f5b03562406`. APK version `0.3.0`, versionCode `3`, commit `7e70370`.
+- APK signing cert comparison against the earlier `2459bf1` debug APK found different cert fingerprints (`8ebde42b...` vs `bf4132c9...`). The `7e70370` debug APK is therefore not a safe in-place update for that prior installation. Do not advise uninstalling before local-data backup/migration.
+- Added optional persistent release signing to `.github/workflows/vyom-android-debug.yml` at `54ff5b6`. First run failed because the Base64 secret contained formatting/URL-safe encoding; normalization was added at `4b9ecad`. That run decoded and listed the keystore but `assembleRelease` failed because the configured key password did not unlock the selected alias.
+- Added key-password validation and safe fallback to the store password only when a CSR operation proves it unlocks the alias (`1874875`, repeatability correction `266009e`). No secret values are logged or exposed.
+- At the time of this note, exact-head Debug run `41457214306` and full CI run `41457214252` on `266009e` were in progress/pending. Signing configuration step succeeded, but the APK packaging and certificate output are not yet verified. No signed APK artifact is claimed.
+- New integration specification and expanded acceptance checklist are recorded in `docs/VYOM_AUTONOMY_AND_CREATIVE_STUDIO.md` and `docs/VYOM_COMPLETION_CHECKLIST.md`. They are specifications, not completed runtime features.
+- The supplied video repositories were audited; no third-party source has yet been copied into the app. VoiceStudio companion automation, Higgsfield provider execution, repository/ZIP learning, Creative Studio, background task orchestration and self-update remain implementation work.
+- Scope unchanged: do not touch Android `main`, Hermes/Telegram, Render, backend, production Supabase, secrets or deployments. Do not deliver an APK until exact-head Debug + CI, artifact checksum and stable signing certificate are verified.
