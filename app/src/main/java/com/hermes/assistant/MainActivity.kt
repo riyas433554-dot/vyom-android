@@ -1901,8 +1901,8 @@ class MainActivity : Activity() {
                 return
             }
             startActivity(intent)
-            logControlAction(label, "opened")
-            controlNotice.text = "$label opened."
+            logControlAction(label, "verification-pending")
+            controlNotice.text = "Android accepted the request to open $label. Foreground state has not been independently verified."
         } catch (_: Exception) {
             logControlAction(label, "failed")
             controlNotice.text = "Could not open that settings screen."
