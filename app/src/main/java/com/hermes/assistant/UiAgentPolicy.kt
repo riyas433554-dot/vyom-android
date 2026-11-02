@@ -178,7 +178,7 @@ internal object UiAgentPolicy {
                     else Verdict.CONFIRM
                 }
                 else if (confirmationMode == ConfirmationMode.USER_REQUESTED_INSTALL &&
-                    consequential.containsMatchIn(action.target)) Verdict.REJECT
+                    action.target.trim().equals("Buy", ignoreCase = true)) Verdict.REJECT
                 else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (confirmationMode == ConfirmationMode.ALWAYS_ASK || consequential.containsMatchIn(action.target)) Verdict.CONFIRM
                 else Verdict.ALLOW
