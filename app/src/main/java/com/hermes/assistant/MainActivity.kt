@@ -1256,8 +1256,8 @@ class MainActivity : Activity() {
                             input.error = "UI planner ke liye Settings mein NVIDIA API key configure karo."
                             return@setOnClickListener
                         }
-                        if (uiAgentAllowedApps().isEmpty()) {
-                            input.error = "App access mein kam se kam ek target app enable karo."
+                        if (uiAgentAllowedApps().none { it != packageName }) {
+                            input.error = "App access mein Vyom ke alawa kam se kam ek target app enable karo."
                             return@setOnClickListener
                         }
                         val selectedMode = modeGroup.findViewById<android.widget.RadioButton>(modeGroup.checkedRadioButtonId)
