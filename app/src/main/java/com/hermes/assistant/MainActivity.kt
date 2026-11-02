@@ -3575,18 +3575,18 @@ class MainActivity : Activity() {
     }
 
     private fun verifyInstalledPlayStoreApp(goal: String): String? {
-        val requested = Regex(
-            """(?i)\\binstall\\s+(.+?)\\s+from\\s+(?:google\\s+)?play\\s*store\\b"""
-        ).find(goal)?.groupValues?.getOrNull(1) ?: return null
+        val requested = Regex("""(?i)\binstall\s+(.+?)\s+from\s+(?:google\s+)?play\s*store\b""")
+            .find(goal)?.groupValues?.getOrNull(1) ?: return null
         val ignored = setOf("latest", "newest", "version", "app", "application", "the", "official")
-        val tokens = Regex("""[\\p{L}\\p{N}]+""").findAll(requested.lowercase())
+        val ignored = setOf("latest", "newest", "version", "app", "application", "the", "official")
+        val tokens = Regex("""[\p{L}\p{N}]+""").findAll(requested.lowercase())
             .map { it.value }.filter { it !in ignored }.toSet()
         if (tokens.isEmpty()) return null
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val matches = packageManager.queryIntentActivities(launcherIntent, 0).mapNotNull { resolve ->
             val info = resolve.activityInfo ?: return@mapNotNull null
             val label = resolve.loadLabel(packageManager)?.toString().orEmpty()
-            val labelTokens = Regex("""[\\p{L}\\p{N}]+""").findAll(label.lowercase()).map { it.value }.toSet()
+            val labelTokens = Regex("""[\p{L}\p{N}]+""").findAll(label.lowercase()).map { it.value }.toSet()
             if (tokens.all { it in labelTokens }) info.packageName to label else null
         }.distinctBy { it.first }
         val match = matches.singleOrNull() ?: return null
