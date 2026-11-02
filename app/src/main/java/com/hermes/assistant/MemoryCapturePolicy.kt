@@ -104,7 +104,10 @@ internal object MemoryCapturePolicy {
         "short", "brief", "concise", "compact", "detailed", "detail", "long", "verbose",
         "thorough", "comprehensive", "length", "verbosity", "depth" -> "response-style"
         "answer", "answers", "reply", "replies", "response", "responses" -> "response"
-        "bangla" -> "bengali"
+        "bangla", "বাংলা" -> "bengali"
+        "ভাষা", "ভাষায়" -> "language"
+        "হিন্দি" -> "hindi"
+        "ইংরেজি" -> "english"
         "bullet", "bullets", "list", "lists" -> "list-format"
         "confirm", "confirmation", "approve", "approval", "autonomous", "automatic",
         "automatically", "ask" -> "execution-consent"
