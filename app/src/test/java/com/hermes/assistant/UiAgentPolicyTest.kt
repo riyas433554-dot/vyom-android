@@ -518,6 +518,8 @@ class UiAgentPolicyTest {
         assertFalse(UiAgentPolicy.isSafeSystemUiLabel("Delete"))
         assertTrue(UiAgentPolicy.isSystemUiTargetRequested("Wi-Fi, On", "Turn on Wi-Fi"))
         assertTrue(UiAgentPolicy.isSystemUiTargetRequested("Brightness", "Make the screen brighter"))
+        assertTrue(UiAgentPolicy.isSystemUiTargetSatisfied("Wi-Fi, On", "Turn on Wi-Fi"))
+        assertFalse(UiAgentPolicy.isSystemUiTargetSatisfied("Wi-Fi, Off", "Turn on Wi-Fi"))
         assertFalse(UiAgentPolicy.isSystemUiTargetRequested("Bluetooth", "Turn on Wi-Fi"))
     }
 
@@ -536,6 +538,13 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Bluetooth",
                 visibleNodes = listOf(node)))
+        val alreadyOn = UiAgentPolicy.VisibleNode(
+            index = 3, clickable = true, longClickable = false, password = false,
+            editable = false, fingerprint = "tile-fp", gestureBoundsSafe = true, label = "Wi-Fi, On"
+        )
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, listOf("Wi-Fi, On"), "Turn on Wi-Fi",
+                visibleNodes = listOf(alreadyOn)))
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(
                 UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Wi-Fi", screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE),
@@ -554,6 +563,10 @@ class UiAgentPolicyTest {
         )
         assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(action, listOf("Brightness"), "Make the screen brighter",
+                visibleNodes = listOf(node)))
+        val wrongDirection = action.copy(fromAnchor = "right", toAnchor = "left")
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(wrongDirection, listOf("Brightness"), "Make the screen brighter",
                 visibleNodes = listOf(node)))
     }
 

@@ -1113,3 +1113,5 @@ Branch: `feature/memory-intelligence`
 - Explicitly excluded com.android.systemui from both the regular launcher-app list and ENABLE ALL, even on OEMs that expose it as a launchable activity; it remains a separate manual opt-in.
 
 - The UI Agent's OPEN_APP candidate list also explicitly excludes System UI; Quick Settings is reachable only through the dedicated global action and opt-in transition.
+
+- Added System UI direction guards: a tile already in the requested On/Off state cannot be tapped again, ambiguous/mixed-direction toggle goals are rejected, and Brightness drags must move in the requested direction (left-to-right for brighter, right-to-left for dimmer).

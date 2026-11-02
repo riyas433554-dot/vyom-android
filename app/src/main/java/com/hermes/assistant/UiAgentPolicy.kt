@@ -295,6 +295,36 @@ internal object UiAgentPolicy {
     }
 
     /** System UI can show private notifications; only explicitly requested quick-setting controls pass. */
+    private fun systemUiToggleDirection(userGoal: String): Int {
+        val wantsOn = Regex("""(?i)\b(turn on|enable|activate|connect|on)\b""").containsMatchIn(userGoal)
+        val wantsOff = Regex("""(?i)\b(turn off|disable|deactivate|disconnect|off)\b""").containsMatchIn(userGoal)
+        return when {
+            wantsOn && !wantsOff -> 1
+            wantsOff && !wantsOn -> -1
+            else -> 0
+        }
+    }
+
+    private fun brightnessDirection(userGoal: String): Int {
+        val increase = Regex("""(?i)\b(brighter|increase|raise|higher|up)\b""").containsMatchIn(userGoal)
+        val decrease = Regex("""(?i)\b(dimmer|decrease|lower|reduce|dim)\b""").containsMatchIn(userGoal)
+        return when {
+            increase && !decrease -> 1
+            decrease && !increase -> -1
+            else -> 0
+        }
+    }
+
+    fun isSystemUiTargetSatisfied(label: String, userGoal: String): Boolean {
+        if (!isSafeSystemUiLabel(label) || !isSystemUiTargetRequested(label, userGoal)) return false
+        val direction = systemUiToggleDirection(userGoal)
+        if (direction == 0) return false
+        val state = Regex("""(?i)\b(on|off|enabled|disabled|connected|disconnected)\b""")
+            .find(label)?.value?.lowercase() ?: return false
+        return if (direction > 0) state in setOf("on", "enabled", "connected")
+            else state in setOf("off", "disabled", "disconnected")
+    }
+
     private fun systemUiCategory(label: String): String? {
         val normalized = label.trim().lowercase()
         return when {
@@ -355,17 +385,24 @@ internal object UiAgentPolicy {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node != null && node.clickable && !node.password && !node.editable &&
                     node.gestureBoundsSafe && node.fingerprint.isNotBlank() &&
-                    node.fingerprint == action.nodeFingerprint && allowed(node.label)) Verdict.CONFIRM
+                    node.fingerprint == action.nodeFingerprint && allowed(node.label) &&
+                    !node.label.equals("Brightness", true) &&
+                    systemUiToggleDirection(userGoal) != 0 &&
+                    !isSystemUiTargetSatisfied(node.label, userGoal)) Verdict.CONFIRM
                 else Verdict.REJECT
             }
             Kind.DRAG_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
-                val anchors = setOf("left", "right", "top", "bottom", "center")
+                val anchors = setOf("left", "center", "right")
+                val positions = mapOf("left" to 0, "center" to 1, "right" to 2)
+                val direction = brightnessDirection(userGoal)
+                val delta = (positions[action.toAnchor.lowercase()] ?: 0) -
+                    (positions[action.fromAnchor.lowercase()] ?: 0)
                 if (node != null && !node.password && !node.editable && node.gestureBoundsSafe &&
                     node.fingerprint.isNotBlank() && node.fingerprint == action.nodeFingerprint &&
                     node.label.equals("Brightness", true) && allowed(node.label) &&
                     action.fromAnchor.lowercase() in anchors && action.toAnchor.lowercase() in anchors &&
-                    !action.fromAnchor.equals(action.toAnchor, true)) Verdict.CONFIRM
+                    delta != 0 && direction != 0 && delta * direction > 0) Verdict.CONFIRM
                 else Verdict.REJECT
             }
             Kind.BACK -> Verdict.ALLOW
