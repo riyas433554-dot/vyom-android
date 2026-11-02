@@ -487,4 +487,45 @@ class UiAgentPolicyTest {
             ))
     }
 
+
+
+    @Test fun postActionContinuationRequiresSameForegroundPackageAndEpoch() {
+        assertTrue(UiAgentPolicy.mayResumeAfterAction(
+            generationMatches = true, stopControlOn = false,
+            expectedPackage = "com.example.editor", currentPackage = "com.example.editor",
+            expectedForegroundEpoch = 12L, currentForegroundEpoch = 12L
+        ))
+        assertFalse(UiAgentPolicy.mayResumeAfterAction(
+            true, false, "com.example.editor", "com.android.settings", 12L, 13L
+        ))
+        assertFalse(UiAgentPolicy.mayResumeAfterAction(
+            true, false, "com.example.editor", "com.example.editor", 12L, 14L
+        ))
+        assertFalse(UiAgentPolicy.mayResumeAfterAction(
+            true, false, "com.example.editor", "", 12L, 12L
+        ))
+        assertFalse(UiAgentPolicy.mayResumeAfterAction(
+            false, false, "com.example.editor", "com.example.editor", 12L, 12L
+        ))
+        assertFalse(UiAgentPolicy.mayResumeAfterAction(
+            true, true, "com.example.editor", "com.example.editor", 12L, 12L
+        ))
+    }
+
+    @Test fun openAppOutcomeRequiresTheRequestedPackageToBeForeground() {
+        assertTrue(UiAgentPolicy.isOpenAppOutcomeVerified("com.example.editor", "com.example.editor"))
+        assertFalse(UiAgentPolicy.isOpenAppOutcomeVerified("com.example.editor", "com.android.settings"))
+        assertFalse(UiAgentPolicy.isOpenAppOutcomeVerified("", "com.example.editor"))
+        assertFalse(UiAgentPolicy.isOpenAppOutcomeVerified("com.example.editor", ""))
+    }
+
+    @Test fun invalidatingGenerationCancelsOutstandingAgentCallbacks() {
+        val activeGeneration = 41
+        val stoppedGeneration = UiAgentPolicy.invalidateGeneration(activeGeneration)
+        assertTrue(stoppedGeneration != activeGeneration)
+        assertFalse(UiAgentPolicy.mayExecute(
+            activeGeneration == stoppedGeneration, false, 1_000L, null
+        ))
+    }
+
 }
