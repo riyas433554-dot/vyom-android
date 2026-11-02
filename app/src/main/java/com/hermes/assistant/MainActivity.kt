@@ -1955,7 +1955,8 @@ class MainActivity : Activity() {
                 val pkg = resolve.activityInfo?.packageName ?: return@mapNotNull null
                 val label = resolve.loadLabel(packageManager)?.toString()?.takeIf { it.isNotBlank() } ?: pkg
                 pkg to label
-            }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+            }.filter { it.first != AppAccessPolicy.SYSTEM_UI_PACKAGE }
+            .distinctBy { it.first }.sortedBy { it.second.lowercase() }
         val systemUiEntry = try {
             packageManager.getApplicationInfo(AppAccessPolicy.SYSTEM_UI_PACKAGE, 0)
             AppAccessPolicy.SYSTEM_UI_PACKAGE to "Android System UI · Quick Settings"

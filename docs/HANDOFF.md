@@ -1109,3 +1109,5 @@ Branch: `feature/memory-intelligence`
 - Fixed all three: one immutable allowlist snapshot is shared by validation and planner, the fallback passes (null, null), and the VLM request now returns its try/finally expression. Latest verification must be rerun; no APK is ready from the failed run.
 
 - Follow-up compile correction: the allowlist snapshot is now declared in the OCR callback scope before the planner lambda, so both policy validation and background model planning can access the same list.
+
+- Explicitly excluded com.android.systemui from both the regular launcher-app list and ENABLE ALL, even on OEMs that expose it as a launchable activity; it remains a separate manual opt-in.
