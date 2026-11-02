@@ -92,12 +92,22 @@ internal object UiAgentPolicy {
         }
         if (!targetLabel.trim().equals("Install", ignoreCase = true)) return false
 
-        val requested = Regex(
-            """(?i)\\binstall\\s+(.+?)\\s+from\\s+(?:google\\s+)?play\\s*store\\b"""
-        ).find(userGoal)?.groupValues?.getOrNull(1) ?: return false
+        val requested = Regex("""(?i)\binstall\s+(.+?)\s+from\s+(?:google\s+)?play\s*store\b""")
+            .find(userGoal)?.groupValues?.getOrNull(1) ?: return false
         val stopWords = setOf("latest", "newest", "version", "app", "application", "the", "official")
-        val expectedTokens = Regex("[\\\\p{L}\\\\p{N}]+").findAll(requested.lowercase())
+        val expectedTokens = Regex("""[\p{L}\p{N}]+""").findAll(requested.lowercase())
             .map { it.value }.filter { it !in stopWords }.toSet()
+        if (expectedTokens.isEmpty()) return false
+
+        val labels = (visibleLabels + visibleOcr.map { it.text } + visibleNodes.map { it.label })
+            .map(String::trim).filter { it.isNotBlank() && !it.equals("Install", true) }
+        val matchingTitles = labels.filter { label ->
+            val tokens = Regex("""[\p{L}\p{N}]+""").findAll(label.lowercase()).map { it.value }.toSet()
+            expectedTokens.all { it in tokens }
+        }.distinctBy { label ->
+            Regex("""[\p{L}\p{N}]+""").findAll(label.lowercase()).map { it.value }.sorted().joinToString(" ")
+        }
+        return matchingTitles.size == 1
         if (expectedTokens.isEmpty()) return false
 
         val labels = (visibleLabels + visibleOcr.map { it.text } + visibleNodes.map { it.label })
