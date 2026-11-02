@@ -312,4 +312,10 @@ class UiAgentPolicyTest {
         ))
     }
 
+    @Test fun rejectsScreenChangesBetweenPlannerValidationAndActionDispatch() {
+        assertFalse(UiAgentPolicy.isActionObservationFresh(30L, 31L, "com.example.editor", "com.example.editor"))
+        assertFalse(UiAgentPolicy.isActionObservationFresh(30L, 30L, "com.example.editor", "com.android.settings"))
+        assertTrue(UiAgentPolicy.isActionObservationFresh(30L, 30L, "com.example.editor", "com.example.editor"))
+    }
+
 }
