@@ -102,7 +102,7 @@ object DeviceCommandConfig {
             Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         } catch (_: Exception) {
             temp.delete()
-            throw IllegalStateException("Could not safely update local command config")
+            return false
         }
         return true
     }
