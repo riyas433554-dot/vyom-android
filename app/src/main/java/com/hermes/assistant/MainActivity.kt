@@ -516,8 +516,11 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(ttsConfigStatus, LinearLayout.LayoutParams(-1, -2))
         personaButton = Button(this).apply {
-            text = if (hinglishPersona) "PERSONA: HINGLISH" else "PERSONA: ENGLISH"
-            contentDescription = "Switch Vyom response persona language"
+            val savedPersona = settingsPrefs.getString(
+                "persona_mode", if (hinglishPersona) "Hinglish" else "English"
+            ).orEmpty().ifBlank { if (hinglishPersona) "Hinglish" else "English" }
+            text = "PERSONA: ${savedPersona.uppercase()}"
+            contentDescription = "Open Vyom response instructions and persona settings"
             setOnClickListener { setHinglishPersona(!hinglishPersona) }
         }
         settingsContent.addView(personaButton, LinearLayout.LayoutParams(-1, dp(44)))
