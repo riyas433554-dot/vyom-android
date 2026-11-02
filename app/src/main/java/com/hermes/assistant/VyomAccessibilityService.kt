@@ -38,8 +38,11 @@ import java.util.concurrent.Executor
  * Screenshots are processed locally and never uploaded. Filtered OCR labels may be sent to the configured planner by the app.
  */
 class VyomAccessibilityService : AccessibilityService() {
-    data class OcrItem(val index: Int, val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int) {
-        val fingerprint: String get() = listOf(text, left, top, right, bottom).joinToString("|")
+    data class OcrItem(
+        val index: Int, val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int,
+        val imageWidth: Int, val imageHeight: Int
+    ) {
+        val fingerprint: String get() = listOf(text, left, top, right, bottom, imageWidth, imageHeight).joinToString("|")
     }
 
     @Volatile private var screenRevision = 0L
@@ -405,7 +408,7 @@ class VyomAccessibilityService : AccessibilityService() {
                                 val rect = line.boundingBox ?: continue
                                 if (value.length !in 2..64 || isSensitiveOcrText(value)) continue
                                 if (rect.left < 0 || rect.top < 0 || rect.right > bitmap.width || rect.bottom > bitmap.height) continue
-                                targets.add(OcrItem(targets.size, value, rect.left, rect.top, rect.right, rect.bottom))
+                                targets.add(OcrItem(targets.size, value, rect.left, rect.top, rect.right, rect.bottom, bitmap.width, bitmap.height))
                                 if (targets.size >= 80) break
                             }
                             if (targets.size >= 80) break
@@ -436,7 +439,7 @@ class VyomAccessibilityService : AccessibilityService() {
         })
     }
 
-    private fun freshSafeOcrTarget(expectedFingerprint: String): Pair<AccessibilityNodeInfo, OcrItem>? {
+    private fun freshSafeOcrBounds(expectedFingerprint: String): android.graphics.Rect? {
         if (expectedFingerprint.isBlank()) return null
         val root = rootInActiveWindow ?: return null
         val packageName = root.packageName?.toString().orEmpty()
@@ -446,20 +449,21 @@ class VyomAccessibilityService : AccessibilityService() {
         if (isSensitiveOcrText(target.text)) return null
         val width = resources.displayMetrics.widthPixels
         val height = resources.displayMetrics.heightPixels
-        val targetWidth = target.right - target.left
-        val targetHeight = target.bottom - target.top
-        val area = targetWidth.toLong() * targetHeight.toLong()
+        val mapped = UiAgentPolicy.mapOcrBoundsToScreen(
+            target.left, target.top, target.right, target.bottom,
+            target.imageWidth, target.imageHeight, width, height
+        ) ?: return null
+        val rect = android.graphics.Rect(mapped.left, mapped.top, mapped.right, mapped.bottom)
+        val area = rect.width().toLong() * rect.height().toLong()
         val screenArea = width.toLong() * height.toLong()
-        if (target.left < 0 || target.top < 0 || target.right > width || target.bottom > height ||
-            targetWidth < (8 * resources.displayMetrics.density).toInt() ||
-            targetHeight < (8 * resources.displayMetrics.density).toInt() ||
+        if (rect.width() < (8 * resources.displayMetrics.density).toInt() ||
+            rect.height() < (8 * resources.displayMetrics.density).toInt() ||
             area <= 0 || area > screenArea * 10L / 100L) return null
-        return root to target
+        return rect
     }
 
     fun swipeOcrTarget(expectedFingerprint: String, direction: String, durationMs: Long = 350L): Boolean {
-        val (_, target) = freshSafeOcrTarget(expectedFingerprint) ?: return false
-        val rect = android.graphics.Rect(target.left, target.top, target.right, target.bottom)
+        val rect = freshSafeOcrBounds(expectedFingerprint) ?: return false
         val insetX = rect.width() * 0.12f
         val insetY = rect.height() * 0.12f
         val (x1, y1, x2, y2) = when (direction.lowercase()) {
@@ -475,11 +479,10 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     fun dragOcrTarget(expectedFingerprint: String, fromAnchor: String, toAnchor: String, durationMs: Long = 450L): Boolean {
-        val (_, target) = freshSafeOcrTarget(expectedFingerprint) ?: return false
+        val rect = freshSafeOcrBounds(expectedFingerprint) ?: return false
         val anchors = setOf("left", "right", "top", "bottom", "center")
         if (fromAnchor.lowercase() !in anchors || toAnchor.lowercase() !in anchors ||
             fromAnchor.equals(toAnchor, ignoreCase = true)) return false
-        val rect = android.graphics.Rect(target.left, target.top, target.right, target.bottom)
         fun point(anchor: String): Pair<Float, Float> = when (anchor.lowercase()) {
             "left" -> (rect.left + rect.width() * 0.12f) to rect.exactCenterY()
             "right" -> (rect.right - rect.width() * 0.12f) to rect.exactCenterY()
@@ -495,43 +498,13 @@ class VyomAccessibilityService : AccessibilityService() {
     }
 
     fun tapOcrTarget(expectedFingerprint: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        if (expectedFingerprint.isBlank() || !UiAgentPolicy.isFreshScreen(lastOcrRevision, screenRevision, lastOcrPackage, root.packageName?.toString().orEmpty()) ||
-            !isCurrentAppAllowed(root)) return false
-        val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
-        val width = resources.displayMetrics.widthPixels
-        val height = resources.displayMetrics.heightPixels
-        val targetWidth = target.right - target.left
-        val targetHeight = target.bottom - target.top
-        val area = targetWidth.toLong() * targetHeight.toLong()
-        val screenArea = width.toLong() * height.toLong()
-        if (target.left < 0 || target.top < 0 || target.right > width || target.bottom > height ||
-            targetWidth < (8 * resources.displayMetrics.density).toInt() ||
-            targetHeight < (8 * resources.displayMetrics.density).toInt() ||
-            area <= 0 || area > screenArea * 10L / 100L) return false
-        val x = (target.left + target.right) / 2f
-        val y = (target.top + target.bottom) / 2f
-        return dispatchPath(x, y, x, y, 90L)
+        val rect = freshSafeOcrBounds(expectedFingerprint) ?: return false
+        return dispatchPath(rect.exactCenterX(), rect.exactCenterY(), rect.exactCenterX(), rect.exactCenterY(), 90L)
     }
 
     fun longPressOcrTarget(expectedFingerprint: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        if (expectedFingerprint.isBlank() || !UiAgentPolicy.isFreshScreen(lastOcrRevision, screenRevision, lastOcrPackage, root.packageName?.toString().orEmpty()) ||
-            !isCurrentAppAllowed(root)) return false
-        val target = lastOcrTargets.firstOrNull { it.fingerprint == expectedFingerprint } ?: return false
-        val width = resources.displayMetrics.widthPixels
-        val height = resources.displayMetrics.heightPixels
-        val targetWidth = target.right - target.left
-        val targetHeight = target.bottom - target.top
-        val area = targetWidth.toLong() * targetHeight.toLong()
-        val screenArea = width.toLong() * height.toLong()
-        if (target.left < 0 || target.top < 0 || target.right > width || target.bottom > height ||
-            targetWidth < (8 * resources.displayMetrics.density).toInt() ||
-            targetHeight < (8 * resources.displayMetrics.density).toInt() ||
-            area <= 0 || area > screenArea * 10L / 100L) return false
-        val x = (target.left + target.right) / 2f
-        val y = (target.top + target.bottom) / 2f
-        return dispatchPath(x, y, x, y, 650L)
+        val rect = freshSafeOcrBounds(expectedFingerprint) ?: return false
+        return dispatchPath(rect.exactCenterX(), rect.exactCenterY(), rect.exactCenterX(), rect.exactCenterY(), 650L)
     }
 
     private fun isSensitiveOcrText(value: String): Boolean =
