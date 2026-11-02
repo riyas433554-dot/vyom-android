@@ -89,7 +89,7 @@ internal object MemoryCapturePolicy {
         val hinglishDirective = Regex("(?i)^(?:aage se\\s+)?mujhe\\s+(.+?)\\s+(?:dena|do)[.!]?$").matchEntire(text)
         if (hinglishDirective != null) return safeFact("Mujhe ${hinglishDirective.groupValues[1]} pasand hain")
         val projectBoundary = Regex(
-            """(?i)^(?:never|always|do not|don't|must not|avoid|leave|keep|preserve|from now on|going forward)\\b.{1,180}\\b(?:project|android|main|master|branch|repo|repository|backend|render|supabase|apk|commit|code)\\b.*$"""
+            """(?i)^(?:never|always|do not|don't|must not|avoid|leave|keep|preserve|from now on|going forward)\b.{1,180}\b(?:project|android|main|master|branch|repo|repository|backend|render|supabase|apk|commit|code)\b.*$"""
         )
         if (projectBoundary.matches(text)) return safeFact(text)
         val names = listOf(
