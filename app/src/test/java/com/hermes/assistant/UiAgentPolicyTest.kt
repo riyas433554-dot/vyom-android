@@ -175,4 +175,44 @@ class UiAgentPolicyTest {
                 visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
     }
 
+
+    @Test fun OCRSwipeRequiresFreshExactSafeTargetAndConfirmation() {
+        val observed = UiAgentPolicy.VisibleOcr(4, "Timeline", "Timeline|10|20|110|70", true)
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_OCR, target = "Timeline",
+            direction = "left", ocrIndex = 4, ocrFingerprint = observed.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(action, emptyList(), "Swipe timeline left", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(direction = "diagonal"), emptyList(), "Swipe timeline", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(ocrFingerprint = "stale"), emptyList(), "Swipe timeline", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, emptyList(), "Swipe timeline",
+                visibleOcr = listOf(observed.copy(gestureBoundsSafe = false))))
+    }
+
+    @Test fun OCRDragRequiresFreshExactSafeTargetAndDifferentValidAnchors() {
+        val observed = UiAgentPolicy.VisibleOcr(5, "Clip", "Clip|10|20|110|70", true)
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.DRAG_OCR, target = "Clip",
+            ocrIndex = 5, ocrFingerprint = observed.fingerprint, fromAnchor = "left", toAnchor = "right")
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+            UiAgentPolicy.validate(action, emptyList(), "Move clip", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(toAnchor = "left"), emptyList(), "Move clip", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(toAnchor = "outside"), emptyList(), "Move clip", visibleOcr = listOf(observed)))
+    }
+
+    @Test fun OCRSwipeAndDragNeverAllowSensitiveTargetsEvenWithSessionGrant() {
+        val observed = UiAgentPolicy.VisibleOcr(6, "Payment", "Payment|10|20|110|70", true)
+        val swipe = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_OCR, target = "Payment",
+            direction = "left", ocrIndex = 6, ocrFingerprint = observed.fingerprint)
+        val drag = UiAgentPolicy.Action(UiAgentPolicy.Kind.DRAG_OCR, target = "Payment",
+            ocrIndex = 6, ocrFingerprint = observed.fingerprint, fromAnchor = "left", toAnchor = "right")
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(swipe, emptyList(), "Edit clip",
+            visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(drag, emptyList(), "Edit clip",
+            visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+    }
+
 }
