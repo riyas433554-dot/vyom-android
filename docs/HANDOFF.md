@@ -756,3 +756,15 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Removed the obsolete launcher-package enumeration and aligned the caller with the deny-by-default initializer. This does not alter existing stored user choices; fresh installs remain MASTER OFF with no packages enabled.
 - Fix commit: `7ea3844d357e3d97a14865c012e1363c1cd6e524`.
 - Must rerun both workflows against the resulting exact branch head. No APK from the failed head is valid.
+
+
+### Exact-head CI and debug artifact verification — 2026-11-02
+- Final branch head at this checkpoint: `0d3d22f1c9975a3ce45fe6bbcb343f471a0f2550` (`feature/memory-intelligence`).
+- CI run `41392493967`: SUCCESS on this exact SHA. Secret scan passed; `:app:testDebugUnitTest` passed; `:app:assembleDebug` passed; packaging and artifact upload passed.
+- Debug run `41392493977`: SUCCESS on this exact SHA. `:app:testDebugUnitTest` and unsigned debug APK build passed; versioned APK, checksum file and build-info were packaged and uploaded.
+- Debug artifact: `vyom-0.3.0-0d3d22f1c9975a3ce45fe6bbcb343f471a0f2550`, artifact ID `13117953700`, 45,874,886 bytes, expires 2026-12-02. Artifact ZIP SHA-256: `80d4b08c61b6663fcb95addc7bbf732225935ec48e2e8f46fcf87b23471774c7`. This is the ZIP digest, not the APK's internal checksum.
+- CI artifact: `vyom-phase6-0d3d22f1c9975a3ce45fe6bbcb343f471a0f2550`, artifact ID `13117758385`, 45,874,875 bytes, expires 2026-12-02.
+- Current Android policy unit-test source has 50 UI Agent test methods and 5 AppAccessPolicy test methods. The CI job ran the Gradle unit-test task successfully.
+- Scope audit performed in this pass: first-run app access is deny-by-default; existing stored choices are preserved; blocked finance/payment identifiers remain denied; STOP CONTROL is checked in the accessibility service and action loop; accessibility gestures require fresh observations and bounded screen regions; OCR actions require matching fresh OCR fingerprints and safe mapped bounds; WAIT and OPEN_APP have dedicated freshness/continuation gates.
+- Remaining audit limits: this is source review plus automated unit-test/build evidence, not physical-device proof. Android framework gesture behavior, overlay visibility, OCR coordinate alignment across device-specific display modes, and app-switch/permission-revocation behavior still require device validation. Do not claim Full Android Control production-complete until these limitations and remaining cross-file audit are closed.
+- The earlier compile-fix entry above is historical; its rerun requirement is satisfied by the two green exact-head workflows listed here.
