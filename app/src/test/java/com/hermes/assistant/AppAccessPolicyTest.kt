@@ -32,4 +32,11 @@ class AppAccessPolicyTest {
         assertFalse(AppAccessPolicy.isAllowed(initial.masterEnabled, initial.enabledPackages, "com.example.editor"))
     }
 
+
+    @Test fun controllerAppIsAllowedOnlyWhenMasterControlIsOn() {
+        assertTrue(AppAccessPolicy.isAllowed(true, emptySet(), "com.vyom.assistant", "com.vyom.assistant"))
+        assertFalse(AppAccessPolicy.isAllowed(false, emptySet(), "com.vyom.assistant", "com.vyom.assistant"))
+        assertFalse(AppAccessPolicy.isAllowed(true, emptySet(), "com.android.vending", "com.vyom.assistant"))
+    }
+
 }
