@@ -690,3 +690,9 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Added regression test for revision change and foreground package switch between validation and dispatch. `UiAgentPolicyTest` now contains 43 `@Test` methods.
 - Commits: test `65ad169d567319dee0049027b8d45dcb663a3c73`; policy `723528ccdbcf68595881176372504234ebb64232`; service `45133c45b7bc961577b2a858f80bd692a56c6b1e`; MainActivity `e5651fc41cce4cfc9d07ef93ee07d3c805c637bb`.
 - Exact-head CI/build verification remains pending and will be run against the final documentation head.
+
+
+### APK artifact checksum-manifest correction — 2026-11-02
+- Inspected debug artifact from pre-dispatch-gate commit `a973043` and confirmed APK ZIP integrity; the APK's SHA-256 matched the checksum value, but the manifest referenced `output/<apk>` even though GitHub artifact extraction places files at archive root.
+- Corrected both Android CI and Android Debug workflow checksum generation to write a basename-relative manifest from inside the `output` directory. This makes `sha256sum -c` work directly after artifact extraction.
+- The inspected `a973043` artifact is diagnostic only and is NOT the final deliverable because it predates the pre-dispatch freshness gate. Final artifact must come from the latest exact-head debug run.
