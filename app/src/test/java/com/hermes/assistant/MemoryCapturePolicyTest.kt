@@ -120,4 +120,29 @@ class MemoryCapturePolicyTest {
         )
     }
 
+
+    @Test fun responseStyleRetrievalUnderstandsCrossWordedQueriesAndKeepsNewestConflictFirst() {
+        val facts = listOf("I prefer concise replies.", "I prefer detailed responses.")
+        assertEquals(
+            listOf("I prefer detailed responses.", "I prefer concise replies."),
+            MemoryCapturePolicy.relevantFacts(facts, "answer length", 10)
+        )
+    }
+
+    @Test fun toneConflictsPreferNewestEvenWhenOlderFactMatchesQueryBetter() {
+        val facts = listOf("I prefer direct answers.", "I prefer friendly answers.")
+        assertEquals(
+            listOf("I prefer friendly answers.", "I prefer direct answers."),
+            MemoryCapturePolicy.relevantFacts(facts, "direct answer tone", 10)
+        )
+    }
+
+    @Test fun actionConfirmationConflictsPreferNewestAcrossDifferentPhrasing() {
+        val facts = listOf("I prefer confirmation before actions.", "I prefer autonomous actions.")
+        assertEquals(
+            listOf("I prefer autonomous actions.", "I prefer confirmation before actions."),
+            MemoryCapturePolicy.relevantFacts(facts, "confirmation before actions", 10)
+        )
+    }
+
 }
