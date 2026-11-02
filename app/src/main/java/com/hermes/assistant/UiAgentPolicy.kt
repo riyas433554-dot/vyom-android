@@ -72,6 +72,45 @@ internal object UiAgentPolicy {
         RegexOption.IGNORE_CASE
     )
 
+    private fun isExplicitRequestedInstallTap(
+        action: Action,
+        visibleLabels: Collection<String>,
+        userGoal: String,
+        visibleNodes: Collection<VisibleNode>,
+        visibleOcr: Collection<VisibleOcr>,
+        confirmationMode: ConfirmationMode
+    ): Boolean {
+        if (confirmationMode != ConfirmationMode.USER_REQUESTED_INSTALL ||
+            action.screenPackage != "com.android.vending" ||
+            action.kind !in setOf(Kind.TAP_TEXT, Kind.TAP_OCR, Kind.TAP_NODE)) return false
+
+        val targetLabel = when (action.kind) {
+            Kind.TAP_TEXT -> action.target
+            Kind.TAP_OCR -> visibleOcr.firstOrNull { it.index == action.ocrIndex }?.text.orEmpty()
+            Kind.TAP_NODE -> visibleNodes.firstOrNull { it.index == action.nodeIndex }?.label.orEmpty()
+            else -> ""
+        }
+        if (!targetLabel.trim().equals("Install", ignoreCase = true)) return false
+
+        val requested = Regex(
+            """(?i)\\binstall\\s+(.+?)\\s+from\\s+(?:google\\s+)?play\\s*store\\b"""
+        ).find(userGoal)?.groupValues?.getOrNull(1) ?: return false
+        val stopWords = setOf("latest", "newest", "version", "app", "application", "the", "official")
+        val expectedTokens = Regex("[\\\\p{L}\\\\p{N}]+").findAll(requested.lowercase())
+            .map { it.value }.filter { it !in stopWords }.toSet()
+        if (expectedTokens.isEmpty()) return false
+
+        val labels = (visibleLabels + visibleOcr.map { it.text } + visibleNodes.map { it.label })
+            .map(String::trim).filter { it.isNotBlank() && !it.equals("Install", true) }
+        val matchingTitles = labels.filter { label ->
+            val tokens = Regex("[\\\\p{L}\\\\p{N}]+").findAll(label.lowercase()).map { it.value }.toSet()
+            expectedTokens.all { it in tokens }
+        }.distinctBy { label ->
+            Regex("[\\\\p{L}\\\\p{N}]+").findAll(label.lowercase()).map { it.value }.sorted().joinToString(" ")
+        }
+        return matchingTitles.size == 1
+    }
+
     fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK): Verdict {
         return when (action.kind) {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
@@ -79,6 +118,7 @@ internal object UiAgentPolicy {
                 val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
                 if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
+                else if (action.kind == Kind.TAP_OCR && isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
@@ -101,12 +141,14 @@ internal object UiAgentPolicy {
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 || blockedTargets.containsMatchIn(action.target) ||
                     visibleLabels.none { it.equals(action.target, ignoreCase = true) }) Verdict.REJECT
+                else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (confirmationMode == ConfirmationMode.ALWAYS_ASK || consequential.containsMatchIn(action.target)) Verdict.CONFIRM
                 else Verdict.ALLOW
             }
             Kind.TAP_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
+                else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
