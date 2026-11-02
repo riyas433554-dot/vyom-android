@@ -716,3 +716,12 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Added regression tests for scaled OCR coordinates, invalid/out-of-range boxes, orientation mismatch, and raw gesture bounds. `UiAgentPolicyTest.kt` currently has 47 `@Test` methods.
 - Commits: OCR mapping tests `80362c4ce0a6572cf7305b6c3b420953f440915e`; mapping policy `323f8104d249b466c08f1a03aa1019b57ed92f57`; OCR service `c647881c927af9b9173697e6636b8cebd3f2a08a`; planner-bound validation `e8c6b6f7cbc9254e7ac164de864259d6cf724c33`; raw gesture regression `957e61c6fd511fe25b3b326b93600765540fd338`; gesture policy `b8fe447438bea077b720162c7e17682de775cd68`; service freshness hardening `d4c2b6936a86a499fb0789dfac1e523f4099ad6f`.
 - Exact-head CI and debug build are required after this sequence. No phone test has been performed. Memory Intelligence remains paused until Android Control implementation is reported complete.
+
+
+### Android Control agent-loop wait lifecycle — 2026-11-02
+- Found that planner `wait` actions were previously treated as immediate success and fell through the generic screen-settle timeout (at most 1.2 seconds), so asynchronous UI operations had no intentional bounded wait contract.
+- Added planner `wait_ms` with a strict 250–8000 ms range. The UI Agent now waits asynchronously on the main handler, then re-observes rather than blocking the UI thread.
+- Wait resumption is gated by generation/cancellation, STOP CONTROL, session-grant expiry, accessibility-service availability and unchanged foreground package. If the user switches apps during the wait, the agent stops and does not act on the new app.
+- Added regression tests for valid/invalid wait durations and resume denial on cancellation, STOP, grant expiry, app switch and missing package identity. `UiAgentPolicyTest.kt` currently has 49 `@Test` methods.
+- Commits: bounded wait test `bdf088d16667e83c88ceff982ca5cd16eb06f3ef`; wait policy `d816afa1d603024089485ea0665a06013ee72e28`; async loop `0402b889a57088ae38939d7d05ad272e403853c3`; fail-closed fallback `08ff5c60808e42bd205f7bb75752f4bb8c0eda6d`; wait resume tests `7697922e0224f01e7edc901d8a0ef9cb670e91a1`; resume policy `358a237ea795d2331ca57eb84b7705f6a186107a`; loop gate `00ede7b9b7a598fce69488b2f9aaf80f669d7d48`.
+- Exact-head CI and APK build remain required after the documentation update. Physical phone testing remains intentionally deferred until Memory Intelligence and the supplied design are integrated.
