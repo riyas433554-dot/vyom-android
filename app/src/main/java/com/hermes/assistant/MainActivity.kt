@@ -3524,15 +3524,41 @@ class MainActivity : Activity() {
             callback("App ka naam missing hai. Example: install YouTube from Play Store.")
             return
         }
+        if (VyomAccessibilityService.current() == null) {
+            try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } catch (_: Exception) { }
+            logControlAction("Play Store install: $query", "blocked; accessibility setup required", source)
+            callback("Auto-install control ke liye one-time setup required hai: Android Settings > Accessibility mein Vyom service ON karo, phir command repeat karo. Android ki system confirmation ko Vyom bypass nahi karega.")
+            return
+        }
+        val access = AppAccessPolicy.snapshot(this)
+        if (!access.masterEnabled || !AppAccessPolicy.isAllowed(this, "com.android.vending")) {
+            logControlAction("Play Store install: $query", "blocked; Play Store app access not enabled", source)
+            showAppAccessPanel()
+            callback("One-time setup: MASTER APP CONTROL ON karo aur Google Play Store ko App access mein enable karo. Uske baad command repeat karna; Vyom listing identify karke Install tap karne ki koshish karega.")
+            return
+        }
+        if (secureVoicePrefs().getString("nvidia_api_key", "").orEmpty().isBlank()) {
+            logControlAction("Play Store install: $query", "blocked; UI planner key missing", source)
+            callback("UI automation planner configured nahi hai. Settings mein NVIDIA API key add karo; bina planner ke Vyom blind tap nahi karega.")
+            return
+        }
         try {
             val uri = Uri.parse("https://play.google.com/store/search?q=" + Uri.encode(query) + "&c=apps")
-            val intent = Intent(Intent.ACTION_VIEW, uri)
-            startActivity(intent)
-            logControlAction("Play Store search: $query", "opened-after-confirmation", source)
-            callback("Play Store search opened for $query. App select karke Install tap tumhe khud karna hoga.")
-        } catch (_: Exception) {
+            startActivity(Intent(Intent.ACTION_VIEW, uri))
+            logControlAction("Play Store search: $query", "opened; UI agent follow-through scheduled", source)
+            callback("Play Store opened. Vyom ab matching app listing locate karega, Install action attempt karega, aur installed package verify kiye bina success nahi bolega.")
+            mainHandler.postDelayed({
+                if (VyomAccessibilityService.current() == null ||
+                    !AppAccessPolicy.isAllowed(this, "com.android.vending") ||
+                    controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
+                    logControlAction("Play Store install: $query", "stopped; readiness changed before control", source)
+                    return@postDelayed
+                }
+                startUiAgentTask("Install $query from Google Play Store", UiAgentPolicy.ConfirmationMode.USER_REQUESTED_INSTALL)
+            }, 900L)
+        } catch (error: Exception) {
             logControlAction("Play Store search: $query", "open-failed", source)
-            callback("Play Store search open nahi ho saka. Play Store manually kholkar $query search karo.")
+            callback("Play Store search open nahi ho saka: " + (error.message ?: "Android activity unavailable"))
         }
     }
 
