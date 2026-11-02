@@ -99,3 +99,34 @@
 - Android may still require the user to enable Accessibility, grant app-specific access, approve Android's package installer/system prompts, or authenticate for protected actions.
 - Vyom must not bypass Play Protect, payment/financial security, secure-window restrictions, biometric prompts, or Android permission boundaries.
 - "Action accepted", "screen changed", "download started", "installed", and "update healthy" are different states. Only report the state independently verified.
+
+
+## 8. Autonomous repository learning and creative integrations
+- [ ] Chat accepts GitHub repository URLs, ZIP files, documentation, images and videos with attachment previews and processing status.
+- [ ] Public GitHub repository learning reads metadata, README, tree, licence, dependency manifests, security policy and relevant skill files; private repositories use encrypted least-privilege credentials.
+- [ ] ZIP import is protected against path traversal, archive bombs, excessive file counts/sizes, secret leakage and build-output noise.
+- [ ] Knowledge notes and executable skills are stored separately. Every learned item keeps source URL, commit/version, licence, path/line provenance, confidence and refresh state.
+- [ ] Skill import validates metadata, triggers, parameters, preconditions, required capabilities, action steps, expected result, failure recovery, risk class, dependencies and licence.
+- [ ] Third-party code and install scripts are treated as untrusted; static inspection, dependency/license/security review and isolated Termux/worker execution precede running code.
+- [ ] Learned card reports inspected files, saved knowledge, proposed/installed skills and rejected/skipped items with reasons.
+- [ ] Support skill version pinning, refresh/diff, disable, uninstall, conflict resolution and rollback.
+- [ ] Implement the video-reel repo inventory in `docs/VYOM_AUTONOMY_AND_CREATIVE_STUDIO.md`; do not embed whole desktop/web products in the Android APK.
+- [ ] OpenHiggsfield story workflow and official Higgsfield skills/SDK are optional cloud-provider adapters; credentials and generation costs are explicit. No false claim of free/local Higgsfield generation.
+- [ ] VoiceStudio Android Preview is evaluated on the actual phone; document and test a real callable TTS/IPC path before claiming it speaks inside Vyom. Android TTS stays the offline fallback; ElevenLabs is not mandatory.
+- [ ] Creative Studio accepts reference photo/video, builds storyboard/scene/character plans, renders via available adapters, assembles media, and verifies decoded output/checksum before DONE.
+- [ ] Optional Termux worker has loopback-only auth, durable task IDs, progress, cancellation/STOP propagation and background/Doze limitations documented.
+- [ ] Other reel repositories are only integrated where their role is useful: OpenSEO (SEO research), AppFlowy (workspace), OpenProject (project management), Cal.diy (scheduling), Chatwoot (support inbox), Cap (screen recording reference), OpenWhisper (desktop transcription reference).
+
+## 9. Brain, task engine and media acceptance
+- [ ] One structured planner routes CHAT / THINK / TASK / DEVICE_CONTROL / RESEARCH / REPO_LEARN / MEDIA_CREATE / FILE_OPERATION / AUTOMATION / SELF_UPDATE.
+- [ ] Every model call receives a truthful capability manifest with current permissions/services/skills/models/storage and configured-provider presence (never secret values).
+- [ ] All tool calls execute through local typed adapters; raw JSON never appears in user chat.
+- [ ] Task stack supports pause/resume, dependencies, idempotency, retry, cancel and recovery without deleting unrelated tasks.
+- [ ] Every action and media job has requested/executed/verified/evidence states and a verified result artifact.
+- [ ] Creative Studio has Projects, Storyboard, Characters/References, Animations, Video, Voice, Assets, Render Queue and Export destinations, only enabled when backed by real adapters.
+- [ ] Voice path tests Hindi/Hinglish/English, long replies, chunking, audio focus, STOP/barge-in, background playback and offline fallback.
+- [ ] Media path tests reference ingest, keyframe extraction, scene continuity, render failures, retry, cancellation, file decode, duration/resolution/audio track and checksum.
+- [ ] Self-update pipeline uses current branch context, protected-file guard, tests/CI, diff review, signed artifact, certificate continuity, installer handoff and rollback.
+
+## 10. Repo/ZIP/Creative Studio lock
+Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_STUDIO.md`. This specification is not proof of implementation. Do not mark any new item complete until source code, tests and exact-head CI evidence exist.
