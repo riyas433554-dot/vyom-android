@@ -72,12 +72,12 @@ Current statuses below are deliberately conservative. They are not release claim
 | V8 | Language auto-detection handles Hindi, Hinglish and English; “hello/hi” gets an immediate greeting. | UNVERIFIED |
 | U1 | Orb has no black rectangle on Home, Chat, Live, Tasks, Profile or overlay. | UNVERIFIED |
 | U2 | Jump-to-latest and caption/status pills never overlap the header or each other. | UNVERIFIED |
-| U3 | No dead “SOON” destinations; hide unfinished screens until they work. | UNVERIFIED |
+| U3 | No dead “SOON” destinations; hide unfinished screens until they work. | PARTIAL — disabled Drawer entries, dead Toast routes and the non-persistent New Automation button are hidden; CI/device acceptance pending. |
 | U4 | Supplied design palette, glass, typography, spacing and components are followed. | UNVERIFIED |
 | U5 | Self-change proposal is mobile-usable: readable title/path/diff, no tiny full-file paste field. | UNVERIFIED |
 | U6 | Theme changes recolor the whole interface, not only the orb. | UNVERIFIED |
 | U7 | Long chat messages, errors and code render fully without clipping/overflow. | UNVERIFIED |
-| U8 | Profile tab and three-line Drawer are distinct; each destination opens its own designed screen. | UNVERIFIED |
+| U8 | Profile tab and three-line Drawer are distinct; each destination opens its own designed screen. | PARTIAL — Profile now opens the Settings panel and hamburger opens Drawer; several other destinations still open dialogs rather than dedicated full screens. |
 | U9 | Chat composer follows the supplied single rounded composer with +, mic, model/lane pill and dynamic Send/Live action. | UNVERIFIED |
 | U10 | Automations includes the specified node canvas, configuration, live run highlighting and JSON save/load/export. | UNVERIFIED |
 | U11 | Supplied design HTML/boards are mapped to actual screens; screenshot tests/artifacts compare implementation to source design. | UNVERIFIED |
