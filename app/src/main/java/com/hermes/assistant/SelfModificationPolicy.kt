@@ -32,6 +32,14 @@ internal object SelfModificationPolicy {
         return true
     }
 
+    fun validateTask(title: String, path: String, task: String) {
+        require(title.trim().length in 8..MAX_TITLE_LENGTH) { "Proposal title must be 8–120 characters" }
+        require(isAllowedPath(path)) { "This file is protected or outside the allowed Kotlin source area" }
+        require(task.isNotBlank()) { "Describe the code change before generating a proposal" }
+        require(task.length <= 2_000) { "Self-update task description exceeds 2,000 characters" }
+        require(!MemoryCapturePolicy.isSensitive(task)) { "Sensitive credentials or personal data cannot be sent to the code-generation model" }
+    }
+
     fun validate(title: String, path: String, content: String) {
         require(title.trim().length in 8..MAX_TITLE_LENGTH) { "Proposal title must be 8–120 characters" }
         require(isAllowedPath(path)) { "This file is protected or outside the allowed Kotlin source area" }
