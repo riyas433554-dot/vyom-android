@@ -741,3 +741,11 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Added an explicit OPEN_APP freshness regression case. `UiAgentPolicyTest.kt` currently has 50 `@Test` methods.
 - Commits: regression `a0f9f1543390308e5af79d5d641c63642e30111c`; final launch guard `b7b1bba791bc5797e4941c07c0d9081e624f49a7`.
 - Final exact-head CI and APK build must run after this documentation update.
+
+
+### App access least-privilege defaults — 2026-11-02
+- Diff audit found first-run setup automatically enabled accessibility access for every installed non-financial app and turned the master switch ON. That contradicted the stated per-app permission model and was too broad by default.
+- Fresh installs now start with MASTER APP CONTROL OFF and an empty enabled-app set. Users must explicitly enable the master switch and selected apps; the existing explicit ENABLE ALL action remains available. Existing initialized user choices are preserved and are not silently reset.
+- Added a regression test for first-run deny-by-default behavior. `AppAccessPolicyTest.kt` now has 5 tests.
+- Commits: regression `4793f64c29722d7d4ff2bd5b6bd5ee4591118699`; safe default policy `36d7c7802698612223c12b4d6a7536758609077c`; MainActivity initialization `d321c0f93d7db02c3fcde702000e904bcb3bd0d7`.
+- This is a fresh-install default change only; already-initialized app permissions remain unchanged. Exact-head test/build verification is pending.
