@@ -88,6 +88,10 @@ internal object MemoryCapturePolicy {
         if (englishDirective != null) return safeFact("I prefer ${englishDirective.groupValues[1].lowercase()} replies")
         val hinglishDirective = Regex("(?i)^(?:aage se\\s+)?mujhe\\s+(.+?)\\s+(?:dena|do)[.!]?$").matchEntire(text)
         if (hinglishDirective != null) return safeFact("Mujhe ${hinglishDirective.groupValues[1]} pasand hain")
+        val projectBoundary = Regex(
+            """(?i)^(?:never|always|do not|don't|must not|avoid|leave|keep|preserve|from now on|going forward)\\b.{1,180}\\b(?:project|android|main|master|branch|repo|repository|backend|render|supabase|apk|commit|code)\\b.*$"""
+        )
+        if (projectBoundary.matches(text)) return safeFact(text)
         val names = listOf(
             Regex("(?i)^my name is ([a-z][a-z .'-]{1,48})[.!]?$"),
             Regex("(?i)^mera naam ([a-z][a-z .'-]{1,48}) hai[.!]?$")
@@ -125,6 +129,9 @@ internal object MemoryCapturePolicy {
         val value = memory.lowercase()
         if (Regex("""\b(active|current|working|development)\s+(?:working\s+)?branch\b""").containsMatchIn(value)) return "project-active-branch"
         if (Regex("""(?:do not|don't|never|untouched|protect).{0,40}(?:main|master) branch|(?:main|master) branch.{0,40}(?:do not|don't|never|untouched|protect)""").containsMatchIn(value)) return "protected-main-branch"
+        if (Regex("""(?:do not|don't|never|untouched|protect|avoid).{0,40}supabase|supabase.{0,40}(?:do not|don't|never|untouched|protect|avoid)""").containsMatchIn(value)) return "protected-supabase"
+        if (Regex("""(?:do not|don't|never|untouched|protect|avoid).{0,40}render|render.{0,40}(?:do not|don't|never|untouched|protect|avoid)""").containsMatchIn(value)) return "protected-render"
+        if (Regex("""(?:do not|don't|never|untouched|protect|avoid).{0,40}backend|backend.{0,40}(?:do not|don't|never|untouched|protect|avoid)""").containsMatchIn(value)) return "protected-backend"
         if (!Regex("(prefer|like|dislike|preference|pasand|পছন্দ)").containsMatchIn(value)) return null
         if (Regex("(concise|short|brief|detailed|long|verbose|সংক্ষিপ্ত|বিস্তারিত)").containsMatchIn(value) &&
             Regex("(replies?|answers?|responses?|উত্তর)").containsMatchIn(value)) return "response-style"
