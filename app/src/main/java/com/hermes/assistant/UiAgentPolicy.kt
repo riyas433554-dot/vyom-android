@@ -20,7 +20,8 @@ internal object UiAgentPolicy {
         val screenPackage: String = "",
         val fromAnchor: String = "",
         val toAnchor: String = "",
-        val completionEvidence: String = ""
+        val completionEvidence: String = "",
+        val waitMs: Int = 1000
     )
     data class VisibleNode(val index: Int, val clickable: Boolean, val longClickable: Boolean, val password: Boolean, val editable: Boolean, val fingerprint: String, val gestureBoundsSafe: Boolean = false, val label: String = "")
     data class VisibleOcr(val index: Int, val text: String, val fingerprint: String, val gestureBoundsSafe: Boolean = false)
@@ -150,7 +151,8 @@ internal object UiAgentPolicy {
                     visibleLabels.none { it.trim().equals(evidence, ignoreCase = true) }) Verdict.REJECT
                 else Verdict.ALLOW
             }
-            Kind.BACK, Kind.WAIT -> Verdict.ALLOW
+            Kind.BACK -> Verdict.ALLOW
+            Kind.WAIT -> if (action.waitMs in 250..8000) Verdict.ALLOW else Verdict.REJECT
         }
     }
 
