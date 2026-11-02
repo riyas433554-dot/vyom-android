@@ -696,3 +696,13 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Inspected debug artifact from pre-dispatch-gate commit `a973043` and confirmed APK ZIP integrity; the APK's SHA-256 matched the checksum value, but the manifest referenced `output/<apk>` even though GitHub artifact extraction places files at archive root.
 - Corrected both Android CI and Android Debug workflow checksum generation to write a basename-relative manifest from inside the `output` directory. This makes `sha256sum -c` work directly after artifact extraction.
 - The inspected `a973043` artifact is diagnostic only and is NOT the final deliverable because it predates the pre-dispatch freshness gate. Final artifact must come from the latest exact-head debug run.
+
+
+### Exact-head CI + APK artifact verification — 2026-11-02
+- Verified branch head before this handoff entry: `e23cd526f92f0b4d4697e6f14c0c59363c4d710e`.
+- Android CI run `41389700998`: SUCCESS; secret scan, `gradle testDebugUnitTest assembleDebug --no-daemon`, packaging and artifact upload all passed.
+- Android Debug run `41389700994`: SUCCESS; `gradle testDebugUnitTest assembleDebug --no-daemon`, packaging and upload all passed.
+- Downloaded artifact `vyom-0.3.0-e23cd526f92f0b4d4697e6f14c0c59363c4d710e` (artifact ID `13115894853`). Extracted APK is a valid Android package, versionName `0.3.0`, versionCode `3`, commit `e23cd52`, 94,965,425 bytes. Checksum manifest verified successfully: `dbfea320cd8871c1a41745073f959a5956995f854b24dd27dfd223c1509e15df`.
+- `UiAgentPolicyTest.kt` has 43 test methods. Full Gradle unit-test task passed in both workflows.
+- Physical phone testing is still pending and is the remaining Android Control acceptance gate. Do not resume Memory Intelligence until the user confirms the APK passes real-device testing.
+- This entry is documentation-only; because it advances the branch head, run Android CI and Debug once more against the resulting exact commit before treating its APK as the final handoff.
