@@ -1395,6 +1395,11 @@ class MainActivity : Activity() {
         }
         val service = VyomAccessibilityService.current()
         if (service == null) { finish("Accessibility service disconnected."); return }
+        if (!service.isLatestObservationFresh(action.screenPackage)) {
+            logControlAction(UiAgentPolicy.auditLabel(action), "stale-observation-before-dispatch", "ui-agent")
+            finish("Screen changed before action dispatch. Stale action discarded; no action taken.")
+            return
+        }
         val baselineObservation = service.screenObservation()
         val success = when (action.kind) {
             UiAgentPolicy.Kind.OPEN_APP -> launchUiAgentApp(action.target)
