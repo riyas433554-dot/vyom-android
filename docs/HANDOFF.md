@@ -1,3 +1,40 @@
+# CURRENT VERIFIED ADDENDUM — 2026-11-02 08:48 IST
+
+This addendum supersedes older Android source-head and artifact claims below.
+
+## Active branch and safety
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Verified Android source head: `53ff20954e055027a3d676195573f573317b5904`
+- Android `main`, Hermes production, Render, production Supabase, signing secrets and releases untouched.
+- No Android source changes were made during the 2026-11-02 continuation; this was a design/source review only.
+
+## Exact-head CI and artifact
+- Android CI run `41322665760`: PASS on `53ff20954e055027a3d676195573f573317b5904`.
+- Debug build run `41322665691`: PASS on the same exact head.
+- Artifact ID: `13088999925`.
+- Artifact: `vyom-0.3.0-53ff20954e055027a3d676195573f573317b5904`.
+- Artifact is CI/debug-signed. Signing continuity with the installed APK remains unverified; do not overwrite or uninstall the installed app until certificate fingerprints are compared or the correct release key is used.
+- Physical-device validation remains pending.
+
+## Supplied design artifact review
+- Source: Library file `Vyom — Design System, Home, Drawer, Automations (1).html`, containing 31 embedded page bundles.
+- The first four pages are Design System, Home, Drawer and Automations. The supplied board was unpacked and the Home, Drawer and Automations reference screens were rendered locally for inspection.
+- Existing native implementation is present in `VyomDesignSpec.kt`, `VyomTheme.kt`, `OrbitHomeView.kt`, `VyomDrawer.kt`, `VyomAutomationsDialog.kt` and `MainActivity.buildHomePanel()`.
+- Home already contains the HUD/orbit backdrop, live task context, greeting, prompt composer, quick-access actions, router/persona indicator and STOP CONTROL.
+- Drawer already has searchable Workspace/Assistant/Brain/System destinations and marks unsupported destinations as SOON.
+- Automations already uses live task records, pending/working/done counts, status filters and task cards. It explicitly warns that scheduled/repeating automations are not connected and does not create fake schedules.
+- No design implementation changes were needed in this continuation because these native components and their design-token tests were already present. Physical rendering on the user's Android phone remains unverified.
+
+## Honest UI boundaries
+- The 31-page board is a design reference, not proof that every destination is implemented.
+- Animations, Videos, Images, VFX, CGI, SFX, Instructions and Icons remain unavailable/marked SOON where no real executor/screen is connected.
+- Connections still routes to existing Settings; it is not a complete OAuth connector manager.
+- Scheduled automations are not implemented. New Automation presents the limitation and routes to immediate Tasks.
+- Do not claim physical-device validation or release-signature continuity.
+
+---
+
 # CURRENT VERIFIED ADDENDUM — 2026-11-01 15:44 UTC
 
 This addendum supersedes older Android source-head and design-status notes below.
