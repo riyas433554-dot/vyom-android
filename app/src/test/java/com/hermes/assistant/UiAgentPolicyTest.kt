@@ -160,7 +160,7 @@ class UiAgentPolicyTest {
     }
 
     @Test fun sessionGrantStillConfirmsConsequentialOcrTargets() {
-        val observed = UiAgentPolicy.VisibleOcr(2, "Send", "Send|10|20|80|50")
+        val observed = UiAgentPolicy.VisibleOcr(2, "Send", "Send|10|20|80|50", true)
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "Send", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
         assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(action, emptyList(), "Send video to contact",
@@ -212,6 +212,19 @@ class UiAgentPolicyTest {
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(swipe, emptyList(), "Edit clip",
             visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(drag, emptyList(), "Edit clip",
+            visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+    }
+
+
+    @Test fun OCRSwipeAndDragAlwaysRequireExplicitConfirmationEvenWithSessionGrant() {
+        val observed = UiAgentPolicy.VisibleOcr(8, "Timeline", "Timeline|10|20|110|70", true)
+        val swipe = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_OCR, target = "Timeline",
+            direction = "left", ocrIndex = 8, ocrFingerprint = observed.fingerprint)
+        val drag = UiAgentPolicy.Action(UiAgentPolicy.Kind.DRAG_OCR, target = "Timeline",
+            ocrIndex = 8, ocrFingerprint = observed.fingerprint, fromAnchor = "left", toAnchor = "right")
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(swipe, emptyList(), "Move timeline",
+            visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(drag, emptyList(), "Move timeline",
             visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
     }
 
