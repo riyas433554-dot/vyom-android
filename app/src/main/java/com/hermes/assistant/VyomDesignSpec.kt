@@ -42,7 +42,8 @@ internal object VyomDesignSpec {
         SkillItem("open_app", "Open apps", "Launch an installed app from the Android launcher."),
         SkillItem("volume", "Media volume", "Raise, lower, mute or set media volume."),
         SkillItem("torch", "Torch", "Turn the device flashlight on or off."),
-        SkillItem("settings", "System settings panels", "Open Android settings screens; changes remain user-controlled.")
+        SkillItem("settings", "System settings panels", "Open Android settings screens; changes remain user-controlled."),
+        SkillItem("ui_agent", "App UI automation", "Bounded Accessibility/OCR interaction in apps you explicitly allow. Requires Android Accessibility and a configured planner.", "CONFIRM")
     )
 
     val drawerItems = listOf(
