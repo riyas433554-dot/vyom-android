@@ -346,4 +346,11 @@ class UiAgentPolicyTest {
         ))
     }
 
+    @Test fun rawGestureCoordinatesMustStayInsideTheObservedDisplay() {
+        assertTrue(UiAgentPolicy.isGestureWithinDisplay(10f, 20f, 300f, 400f, 400, 800))
+        assertFalse(UiAgentPolicy.isGestureWithinDisplay(-1f, 20f, 300f, 400f, 400, 800))
+        assertFalse(UiAgentPolicy.isGestureWithinDisplay(10f, 20f, 400f, 400f, 400, 800))
+        assertFalse(UiAgentPolicy.isGestureWithinDisplay(Float.NaN, 20f, 30f, 40f, 400, 800))
+    }
+
 }
