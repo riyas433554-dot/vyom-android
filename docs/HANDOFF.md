@@ -725,3 +725,11 @@ Scope: Android source, tests and Android workflows only. Android `main`, Hermes,
 - Added regression tests for valid/invalid wait durations and resume denial on cancellation, STOP, grant expiry, app switch and missing package identity. `UiAgentPolicyTest.kt` currently has 49 `@Test` methods.
 - Commits: bounded wait test `bdf088d16667e83c88ceff982ca5cd16eb06f3ef`; wait policy `d816afa1d603024089485ea0665a06013ee72e28`; async loop `0402b889a57088ae38939d7d05ad272e403853c3`; fail-closed fallback `08ff5c60808e42bd205f7bb75752f4bb8c0eda6d`; wait resume tests `7697922e0224f01e7edc901d8a0ef9cb670e91a1`; resume policy `358a237ea795d2331ca57eb84b7705f6a186107a`; loop gate `00ede7b9b7a598fce69488b2f9aaf80f669d7d48`.
 - Exact-head CI and APK build remain required after the documentation update. Physical phone testing remains intentionally deferred until Memory Intelligence and the supplied design are integrated.
+
+
+### Wait-window foreground transition protection — 2026-11-02
+- Closed an app-switch-away-and-back race during a bounded WAIT: checking only the final foreground package could miss a transient switch if the user returned to the original app before the timer expired.
+- Accessibility service now increments a foreground transition epoch whenever tracked accessibility events move between packages. Screen observations carry that epoch; wait continuation requires both the original package and original epoch to remain unchanged.
+- Added regression coverage proving a same-package final state is still rejected after a transient foreground transition. `UiAgentPolicyTest.kt` currently has 49 `@Test` methods.
+- Commits: regression test `eb5fed7656098088c32858dff5d32ab78764a4a8`; policy `d900e186d35ab846253bbd78ec8de33549a1521f`; service epoch `e6d33f46b1fbf0afad9cc001bbb96f0029e13c23`; MainActivity resume gate `760a4496c65dfb7051edb8b5674c8037667254de`.
+- Re-run full unit tests and debug build on the final documentation head before reporting this batch complete.
