@@ -1048,3 +1048,5 @@ Branch: `feature/memory-intelligence`
 - Screenshot-derived point actions now show a non-touchable on-screen marker at the exact proposed tap/long-press point; swipe/drag shows labelled start/end markers. The user can inspect the actual target before pressing CONFIRM.
 - Marker overlays are removed together with the confirmation/progress overlay and do not receive touch events. If a marker cannot be displayed, the confirmation step fails closed and the gesture is not dispatched.
 - Narrowed the VLM prompt to visual point actions only; normal text/OCR planner owns app launch, labeled controls and Android global navigation.
+
+- Prompt reconciliation: the text-only planner schema explicitly lists Back/Home/Recents/Notifications/Quick Settings; the screenshot VLM schema is restricted to point gestures plus `none` (which falls back to the text planner).
