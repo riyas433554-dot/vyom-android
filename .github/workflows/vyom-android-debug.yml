@@ -29,25 +29,63 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
-      - name: Build and test unsigned debug APK
+      - name: Configure persistent release signing when repository secrets are available
+        id: signing
         env:
-          ANDROID_VERSION_NAME: "0.3.0"
-          ANDROID_VERSION_CODE: "3"
-        run: gradle testDebugUnitTest assembleDebug --no-daemon
-      - name: Package versioned APK and checksums
+          ANDROID_KEYSTORE_BASE64: \${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: \${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: \${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: \${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA::7}"
-          APK="vyom-0.3.0-${SHORT_SHA}.apk"
+          if [[ -z "\${ANDROID_KEYSTORE_BASE64:-}" && -z "\${ANDROID_KEYSTORE_PASSWORD:-}" && -z "\${ANDROID_KEY_ALIAS:-}" && -z "\${ANDROID_KEY_PASSWORD:-}" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Persistent signing secrets are not configured; only the ephemeral debug APK will be built."
+            exit 0
+          fi
+          test -n "\${ANDROID_KEYSTORE_BASE64:-}" || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "\${ANDROID_KEYSTORE_PASSWORD:-}" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "\${ANDROID_KEY_ALIAS:-}" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "\${ANDROID_KEY_PASSWORD:-}" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/vyom-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/vyom-release.jks" >> "$GITHUB_ENV"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      - name: Build and test APKs
+        env:
+          ANDROID_VERSION_NAME: "0.3.0"
+          ANDROID_VERSION_CODE: "3"
+        run: |
+          set -euo pipefail
+          gradle testDebugUnitTest assembleDebug --no-daemon
+          if [[ "\${{ steps.signing.outputs.available }}" == "true" ]]; then
+            gradle assembleRelease --no-daemon
+          fi
+      - name: Package versioned APKs and checksums
+        shell: bash
+        env:
+          SIGNING_AVAILABLE: \${{ steps.signing.outputs.available }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="\${GITHUB_SHA::7}"
           mkdir -p output
-          cp app/build/outputs/apk/debug/app-debug.apk "output/${APK}"
-          (cd output && sha256sum "${APK}") > "output/${APK}.sha256"
-          printf 'versionName=0.3.0\nversionCode=3\ncommit=%s\n' "$SHORT_SHA" > output/build-info.txt
-      - name: Upload unsigned debug APK
+          DEBUG_APK="vyom-0.3.0-\${SHORT_SHA}-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "output/\${DEBUG_APK}"
+          (cd output && sha256sum "\${DEBUG_APK}") > "output/\${DEBUG_APK}.sha256"
+          if [[ "$SIGNING_AVAILABLE" == "true" ]]; then
+            RELEASE_APK="vyom-0.3.0-\${SHORT_SHA}-signed.apk"
+            cp app/build/outputs/apk/release/app-release.apk "output/\${RELEASE_APK}"
+            (cd output && sha256sum "\${RELEASE_APK}") > "output/\${RELEASE_APK}.sha256"
+            SDK_ROOT="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-}}"
+            APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+            test -n "$APKSIGNER" || { echo "apksigner not found in Android SDK build-tools"; exit 1; }
+            "$APKSIGNER" verify --verbose --print-certs "output/\${RELEASE_APK}" > "output/\${RELEASE_APK}.certs.txt"
+          fi
+          printf 'versionName=0.3.0\nversionCode=3\ncommit=%s\nreleaseSigning=%s\n' "$SHORT_SHA" "\${SIGNING_AVAILABLE:-false}" > output/build-info.txt
+      - name: Upload debug and signed APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vyom-0.3.0-${{ github.sha }}
+          name: vyom-0.3.0-\${{ github.sha }}
           path: output/*
           if-no-files-found: error
           retention-days: 30
