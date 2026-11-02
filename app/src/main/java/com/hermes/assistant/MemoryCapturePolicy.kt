@@ -23,22 +23,30 @@ internal object MemoryCapturePolicy {
         val ignored = setOf("the", "and", "for", "with", "that", "this", "you", "your", "mujhe", "meri", "mera", "hai", "hain", "pasand", "please", "আমি", "আমার", "পছন্দ", "করি", "হয়", "হবে", "দাও", "দেন", "এবং", "যে", "আমাকে")
         val queryTokens = semanticTokens(query, ignored)
         val safeFacts = facts.filter { it.isNotBlank() && !isSensitive(it) }
-        return safeFacts.withIndex().map { indexed ->
+        val scored = safeFacts.withIndex().map { indexed ->
             val tokens = semanticTokens(indexed.value, ignored)
             val score = queryTokens.count { it in tokens }
             Triple(score, indexed.index, indexed.value)
-        }.sortedWith(compareByDescending<Triple<Int, Int, String>> { it.first }.thenByDescending { it.second })
-            .filter { queryTokens.isEmpty() || it.first > 0 }
-            .take(safeLimit).toMutableList().also { selected ->
-                val conflictGroups = selected.indices.groupBy { conflictTopic(selected[it].third) }
-                    .filterKeys { it != null }.values
-                conflictGroups.forEach { positions ->
-                    if (positions.size > 1) {
-                        val newestFirst = positions.map { selected[it] }.sortedByDescending { it.second }
-                        positions.forEachIndexed { index, position -> selected[position] = newestFirst[index] }
-                    }
-                }
-            }.map { it.third }
+        }
+        // Score every fact before applying the limit. Otherwise an older, better lexical
+        // match can crowd the newest conflicting preference out of a small result window.
+        val conflictScores = scored.mapNotNull { item ->
+            conflictTopic(item.third)?.let { topic -> topic to item.first }
+        }.groupBy({ it.first }, { it.second })
+            .mapValues { (_, scores) -> scores.maxOrNull() ?: 0 }
+        return scored.asSequence()
+            .filter { item ->
+                queryTokens.isEmpty() || item.first > 0 ||
+                    (conflictTopic(item.third)?.let { (conflictScores[it] ?: 0) > 0 } == true)
+            }
+            .sortedWith(
+                compareByDescending<Triple<Int, Int, String>> { item ->
+                    conflictTopic(item.third)?.let { conflictScores[it] } ?: item.first
+                }.thenByDescending { it.second }
+            )
+            .take(safeLimit)
+            .map { it.third }
+            .toList()
     }
     fun extract(message: String): List<String> {
         val text = message.trim()
