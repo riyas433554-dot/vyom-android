@@ -3812,7 +3812,12 @@ class MainActivity : Activity() {
                 onResult("STOP CONTROL is ON. Teaching save nahi hui.")
                 return@VyomTeachDialog
             }
-            DeviceCommandConfig.saveTeaching(this, phrase, canonical)
+            try {
+                DeviceCommandConfig.saveTeaching(this, phrase, canonical)
+            } catch (error: Exception) {
+                onResult("Teaching save failed safely: ${error.message ?: "local storage unavailable"}.")
+                return@VyomTeachDialog
+            }
             if (replaceExistingPhrase != null && !phrase.equals(replaceExistingPhrase, ignoreCase = true)) {
                 DeviceCommandConfig.deleteTeaching(this, replaceExistingPhrase)
             }
