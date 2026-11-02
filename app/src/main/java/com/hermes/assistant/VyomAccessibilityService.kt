@@ -289,7 +289,7 @@ class VyomAccessibilityService : AccessibilityService() {
             val password = node.isPassword
             val row = JSONObject()
                 .put("index", index)
-                .put("package", root.packageName?.toString().orEmpty())
+                .put("package", node.packageName?.toString().orEmpty())
                 .put("parent", parentIndex)
                 .put("class", node.className?.toString().orEmpty().take(100))
                 .put("clickable", node.isClickable)

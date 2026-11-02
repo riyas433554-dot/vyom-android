@@ -1232,7 +1232,7 @@ class MainActivity : Activity() {
         content.addView(modeGroup, LinearLayout.LayoutParams(-1, -2))
         AlertDialog.Builder(this)
             .setTitle("Vyom UI Agent")
-            .setMessage("Profile > App access mein target app ON rakho. Default mode mein accessibility labels + filtered OCR text hi NVIDIA text planner ko jaate hain. Visual AI checkbox ON karne par current screen screenshot NVIDIA Vision model ko upload hoga; screenshot processing ke baad local temporary file delete hoti hai. Private, payment, credential ya secure screens par use mat karo. Visual point actions always require confirmation; STOP CONTROL and app allowlist remain active.")
+            .setMessage("Profile > App access mein target app ON rakho. Default mode mein accessibility labels + filtered OCR text hi NVIDIA text planner ko jaate hain. Visual AI checkbox ON karne par current screen screenshot NVIDIA Vision model ko upload hoga; screenshot processing ke baad local temporary file delete hoti hai. Private, payment, credential ya secure screens par use mat karo. Quick Settings control ke liye Profile > App access mein Android System UI ko alag se ON karna hoga; notification text planner ko nahi bheja jayega. Visual point actions always require confirmation; STOP CONTROL and app allowlist remain active.")
             .setView(content)
             .setNegativeButton("CANCEL", null)
             .setPositiveButton("START", null)
@@ -1414,7 +1414,7 @@ class MainActivity : Activity() {
                             ))
                         }
                         val visibleOcr = ocrTargets.map { UiAgentPolicy.VisibleOcr(it.index, it.text, it.fingerprint, isSafeUiOcrBounds(it)) }
-                        val observedPackage = tree.optJSONObject(0)?.optString("package").orEmpty()
+                        val observedPackage = planningObservation.foregroundPackage
                         val baseAction = action.copy(
                             screenPackage = observedPackage,
                             screenRevision = planningObservation.revision,

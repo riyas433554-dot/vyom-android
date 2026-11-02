@@ -1085,3 +1085,5 @@ Branch: `feature/memory-intelligence`
 - Tightened System UI interaction from text/OCR targets to exact clickable accessibility-node IDs/fingerprints only; the only non-clickable exception is the labelled Brightness SeekBar, which permits a confirmed drag. Notification text cannot become a tappable target merely because it resembles a safe label.
 
 - Quick Settings completion now requires a visible state matching the requested direction (e.g. Wi-Fi On for “turn on Wi-Fi”, Off for “turn off Wi-Fi”); merely seeing the tile no longer satisfies DONE. If System UI opt-in is missing after opening Quick Settings, the user receives the exact Profile > App access instruction.
+
+- Accessibility tree entries now retain each node's actual package name (while the screen observation still uses the active root package). This lets the System UI filter exclude notification RemoteViews owned by other apps rather than treating every child as `com.android.systemui`.
