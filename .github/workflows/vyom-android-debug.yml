@@ -63,6 +63,16 @@ jobs:
           printf '%s' "$ENCODED_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/vyom-release.jks"
           test -s "$RUNNER_TEMP/vyom-release.jks" || { echo "Decoded keystore is empty"; exit 1; }
           keytool -list -keystore "$RUNNER_TEMP/vyom-release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          if keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$RUNNER_TEMP/vyom-release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" >/dev/null 2>&1; then
+            echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "Signing key password validated."
+          elif keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$RUNNER_TEMP/vyom-release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "ANDROID_KEY_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "Key password matches store password; using the verified store password for signing."
+          else
+            echo "ANDROID_KEY_PASSWORD does not unlock the selected keystore alias; update that repository secret."
+            exit 1
+          fi
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/vyom-release.jks" >> "$GITHUB_ENV"
           echo "available=true" >> "$GITHUB_OUTPUT"
       - name: Build and test APKs
