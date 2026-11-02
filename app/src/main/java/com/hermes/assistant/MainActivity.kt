@@ -1398,7 +1398,7 @@ class MainActivity : Activity() {
                 return
             }
         }
-        if (!success) {
+        if (!UiAgentPolicy.actionAccepted(success)) {
             logControlAction(UiAgentPolicy.auditLabel(action), "rejected-by-android-or-stale-screen", "ui-agent")
             finish("Android ne action accept nahi kiya ya screen badal gayi. Task stopped; koi blind retry nahi hua.")
             return
