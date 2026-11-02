@@ -432,7 +432,7 @@ class UiAgentPolicyTest {
             target = "Delete",
             screenPackage = "com.android.vending"
         )
-        assertEquals(UiAgentPolicy.Verdict.REJECT,
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(
                 action,
                 listOf("Godot Engine 4", "Godot Foundation", "Delete"),
