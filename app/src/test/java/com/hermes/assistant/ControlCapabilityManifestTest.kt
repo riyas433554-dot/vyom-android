@@ -38,10 +38,12 @@ class ControlCapabilityManifestTest {
         )
     }
 
-    @Test fun ShizukuLevelTwoDoesNotClaimGenericShellUiInputUntilAdapterExists() {
+    @Test fun ShizukuLevelTwoAdvertisesOnlyTheImplementedCoordinateGestureSubset() {
         val state = snapshot().copy(powerModeLevel2 = true, shellExecutorUiReady = false)
         assertEquals(ControlCapabilityManifest.Adapter.ACCESSIBILITY, ControlCapabilityManifest.selectAdapter(state))
-        assertTrue(ControlCapabilityManifest.promptContext(state).contains("generic ShellExecutor UI input is not yet implemented"))
+        val context = ControlCapabilityManifest.promptContext(state)
+        assertTrue(context.contains("allowlisted coordinate gestures"))
+        assertTrue(context.contains("Accessibility remains the fallback for tree/OCR actions"))
     }
 
     @Test fun refusesControlWhenAccessibilityOrAppAccessIsMissing() {
