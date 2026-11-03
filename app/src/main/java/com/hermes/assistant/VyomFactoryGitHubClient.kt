@@ -66,7 +66,8 @@ internal class VyomFactoryGitHubClient(
 
     fun updateTask(current: Task, newTitle: String = current.title,
                    newPriority: String = current.metadata.priority,
-                   newStatus: String = current.metadata.status): Task {
+                   newStatus: String = current.metadata.status,
+                   newDescription: String? = null): Task {
         require(newPriority in PRIORITIES) { "Unknown task priority" }
         require(VyomFactoryStatus.canTransition(current.metadata.status, newStatus) ||
             current.metadata.status == newStatus) { "Invalid task state transition" }
@@ -75,7 +76,9 @@ internal class VyomFactoryGitHubClient(
         require(cleanTitle.length in 4..120) { "Title must contain 4–120 characters" }
         val metadata = current.metadata.copy(priority = newPriority, status = newStatus,
             events = (current.metadata.events + "updated:$newStatus:$newPriority").takeLast(500))
-        val body = VyomFactoryStatus.withMetadata(current.body, metadata)
+        val description = newDescription ?: current.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+        require(description.isNotBlank() && description.length <= 12000) { "Description must contain 1–12,000 characters" }
+        val body = VyomFactoryStatus.withMetadata(description, metadata)
         val closed = newStatus == "completed" || newStatus == "cancelled"
         val updated = JSONObject(execute("PATCH", "/issues/" + current.number,
             JSONObject().put("title", "[VYOM FACTORY][$newPriority] $cleanTitle")
