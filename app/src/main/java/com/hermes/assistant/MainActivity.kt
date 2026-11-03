@@ -561,6 +561,21 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
         }
         settingsContent.addView(updateNotice, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(TextView(this).apply {
+            text = "UPDATE SYSTEM DIAGNOSTICS"
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, dp(24)))
+        val updateDiagnosticsNotice = TextView(this).apply {
+            text = "Run checks for installed signing identity, signed update discovery and self-change guardrails."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(Button(this).apply {
+            text = "RUN ALL CHECKS"
+            setOnClickListener { runUpdateDiagnostics(updateDiagnosticsNotice, this) }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(updateDiagnosticsNotice, LinearLayout.LayoutParams(-1, -2))
 
         settingsContent.addView(TextView(this).apply {
             text = "CONTROLLED SELF-MODIFICATION"
@@ -3515,6 +3530,58 @@ class MainActivity : Activity() {
             else {
                 micIndicator.text = "MIC PERMISSION DENIED"
                 micIndicator.contentDescription = "Microphone permission denied"
+            }
+        }
+    }
+
+    private fun runUpdateDiagnostics(resultView: TextView, runButton: Button) {
+        runButton.isEnabled = false
+        resultView.text = "Running update-system checks…"
+        io.execute {
+            val rows = mutableListOf<String>()
+            try {
+                val installedInfo = packageManager.getPackageInfo(packageName, packageInfoFlags())
+                val installedCertificates = signerFingerprintSet(installedInfo)
+                val expectedCertificate = "7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a"
+                if (installedCertificates.isEmpty()) {
+                    rows += "FAIL · Installed signing certificate · PackageManager returned no signer"
+                } else {
+                    rows += "PASS · Installed signing certificate · SHA-256 ${installedCertificates.joinToString()}"
+                    rows += if (expectedCertificate in installedCertificates) {
+                        "PASS · Stable release identity · Installed certificate matches the configured release identity"
+                    } else {
+                        "FAIL · Stable release identity · Installed certificate differs from the required release identity; updates will be rejected"
+                    }
+                }
+                val manifest = fetchLatestUpdateManifest()
+                val versionCode = manifest.optInt("versionCode", 0)
+                if (versionCode > BuildConfig.VERSION_CODE) {
+                    val checksumValid = manifest.optString("sha256").matches(Regex("(?i)^[a-f0-9]{64}$"))
+                    val certificateValid = manifest.optString("certificateSha256").matches(Regex("(?i)^[a-f0-9]{64}$"))
+                    val commitValid = manifest.optString("commit").matches(Regex("^[a-f0-9]{40}$"))
+                    rows += if (checksumValid && certificateValid && commitValid) {
+                        "PASS · Update manifest · Newer v${manifest.optString("versionName")} has SHA-256, certificate and source commit fields"
+                    } else {
+                        "FAIL · Update manifest · Missing or malformed checksum/certificate/commit metadata"
+                    }
+                } else {
+                    rows += "PASS · GitHub update discovery · API reachable; no newer signed release is published"
+                }
+                rows += if (SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/ReplyFormatter.kt") &&
+                    !SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/UpdateVerifier.kt")) {
+                    "PASS · Self-change guard · Ordinary Kotlin files allowed; update verifier remains protected"
+                } else {
+                    "FAIL · Self-change guard · Protected-file allowlist is not enforcing expected boundaries"
+                }
+                rows += "PARTIAL · In-app patch flow · Minimal diff preview and PR creation are wired; CI wait and signed artifact handoff remain unfinished"
+                rows += "PARTIAL · External update flow · Signed-release discovery and certificate gate are wired; end-to-end release publication is awaiting CI verification"
+                rows += "PARTIAL · Hot-swappable UI bundle · Runtime loader, JS bridge and rollback are not implemented yet"
+            } catch (error: Exception) {
+                rows += "FAIL · Update diagnostics · ${error.message ?: "Unknown verification error"}"
+            }
+            runOnUiThread {
+                resultView.text = rows.joinToString("\n")
+                runButton.isEnabled = true
             }
         }
     }
