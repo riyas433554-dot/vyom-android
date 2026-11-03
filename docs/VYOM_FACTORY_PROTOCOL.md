@@ -38,8 +38,8 @@ ChatGPT's connected GitHub action is an assistant-invoked operation. It does not
 ## Task state rules
 
 Allowed transitions:
-- open → in_progress / blocked / paused / cancelled
-- in_progress → open / blocked / paused / completed / cancelled
+- open → blocked / paused / cancelled (manual controls cannot claim a worker run)
+- in_progress → open / blocked / paused / completed / cancelled. Only a verified worker claim may set in_progress; UI/Termux/ChatGPT manual state edits must not do so.
 - blocked → open / in_progress / cancelled
 - paused → open / in_progress / cancelled
 - completed and cancelled are terminal.
