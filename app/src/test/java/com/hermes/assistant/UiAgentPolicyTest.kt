@@ -644,8 +644,6 @@ class UiAgentPolicyTest {
         assertFalse(UiAgentPolicy.isRelevantAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED))
     }
 
-}
-
     @Test fun scrollUntilFoundRequiresAnAbsentVisibleTargetAndBoundedDirection() {
         val action = UiAgentPolicy.Action(
             UiAgentPolicy.Kind.SCROLL_UNTIL_FOUND,
@@ -674,3 +672,4 @@ class UiAgentPolicyTest {
             UiAgentPolicy.validate(action.copy(maxScrolls = 9), emptyList(), "Find Downloads")
         )
     }
+}
