@@ -33,6 +33,7 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START -> return "cancelled: STOP arrived before execution"
             ShizukuRequestRegistry.Begin.DUPLICATE -> return "rejected: duplicate or previously completed request id"
             ShizukuRequestRegistry.Begin.CAPACITY_REACHED -> return "rejected: Shizuku request capacity reached"
+            ShizukuRequestRegistry.Begin.SERVICE_STOPPED -> return "rejected: Shizuku service is shutting down"
             ShizukuRequestRegistry.Begin.ACCEPTED -> Unit
         }
         val boundedTimeout = timeoutMs.coerceIn(100L, command.timeoutMs)
@@ -125,7 +126,9 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
     }
 
     override fun destroy() {
-        running.keys.toList().forEach(::cancel)
+        // Close request admission and mark STARTING/RUNNING requests cancelled in
+        // the same critical section before taking the process-termination snapshot.
+        requests.shutdown().forEach(::cancel)
         System.exit(0)
     }
 

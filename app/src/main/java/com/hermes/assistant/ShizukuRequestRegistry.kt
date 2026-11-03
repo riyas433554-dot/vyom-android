@@ -6,11 +6,13 @@ package com.hermes.assistant
  */
 internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
     enum class State { CANCELLED_BEFORE_START, STARTING, RUNNING, CANCEL_REQUESTED, COMPLETED }
-    enum class Begin { ACCEPTED, CANCELLED_BEFORE_START, DUPLICATE, CAPACITY_REACHED }
+    enum class Begin { ACCEPTED, CANCELLED_BEFORE_START, DUPLICATE, CAPACITY_REACHED, SERVICE_STOPPED }
 
     private val states = LinkedHashMap<String, State>()
+    private var closed = false
 
     @Synchronized fun begin(id: String): Begin {
+        if (closed) return Begin.SERVICE_STOPPED
         when (states[id]) {
             State.CANCELLED_BEFORE_START -> { states[id] = State.COMPLETED; return Begin.CANCELLED_BEFORE_START }
             State.STARTING, State.RUNNING, State.CANCEL_REQUESTED, State.COMPLETED -> return Begin.DUPLICATE
@@ -20,6 +22,21 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
         if (states.size >= maxEntries) return Begin.CAPACITY_REACHED
         states[id] = State.STARTING
         return Begin.ACCEPTED
+    }
+
+    /**
+     * Atomically closes admission and marks every in-flight request for cancellation.
+     * The returned IDs are the work that teardown must terminate at the process boundary.
+     */
+    @Synchronized fun shutdown(): Set<String> {
+        if (closed) return emptySet()
+        closed = true
+        val active = states.entries
+            .filter { it.value == State.STARTING || it.value == State.RUNNING }
+            .map { it.key }
+            .toSet()
+        active.forEach { states[it] = State.CANCEL_REQUESTED }
+        return active
     }
 
     @Synchronized fun markRunning(id: String): Boolean {
@@ -36,6 +53,7 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
             State.CANCEL_REQUESTED, State.CANCELLED_BEFORE_START -> true
             State.STARTING, State.RUNNING -> { states[id] = State.CANCEL_REQUESTED; true }
             null -> {
+                if (closed) return false
                 trimForInsert()
                 if (states.size >= maxEntries) false
                 else { states[id] = State.CANCELLED_BEFORE_START; true }

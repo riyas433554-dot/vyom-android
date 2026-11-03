@@ -1623,3 +1623,11 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Added regression tests requiring atomic shutdown to cancel STARTING/RUNNING requests, preserve completed history, be idempotent, and reject every new/replayed request after shutdown.
 - Test-only commit is expected to fail until `ShizukuRequestRegistry.shutdown()` and a terminal `SERVICE_STOPPED` begin result are implemented. No acceptance IDs changed; P1 remains PARTIAL.
 - Next: inspect exact-head RED CI logs, implement registry/service teardown integration, then run exact-head Debug and Full CI. No APK.
+
+
+### P1 Shizuku UserService teardown admission race — RED evidence and implementation — 2026-11-03
+- Test-only head `bc62e7597f6b3b08744b9422a88d103954950e29`: Debug run `41583947297` and Full CI run `41583947422` both FAILED as expected in `:app:compileDebugUnitTestKotlin`. Real logs showed unresolved `shutdown()` and `SERVICE_STOPPED` references in the new registry regression tests.
+- Added an atomic closed gate to `ShizukuRequestRegistry`: shutdown closes admission and marks every STARTING/RUNNING request CANCEL_REQUESTED in the same synchronized operation; returns their IDs for process termination. Repeated shutdown is idempotent. New and replayed execute attempts after shutdown return SERVICE_STOPPED.
+- Integrated shutdown into `VyomShizukuUserService.destroy()` before process termination. Startup racing teardown cannot transition to RUNNING after the registry has closed.
+- Unit tests cover STARTING and RUNNING cancellation, completed-history preservation, idempotent teardown and rejection after shutdown. This proves registry semantics, not OEM Shizuku process-death timing. P1 remains PARTIAL; no acceptance IDs changed.
+- Next: exact-head Debug and Full CI; then permission-revocation invalidation and owner STOP/process termination lifecycle. No APK.

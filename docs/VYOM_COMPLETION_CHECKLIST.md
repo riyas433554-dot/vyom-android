@@ -191,3 +191,11 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [x] Capability read-back clears stale UserService state and falls back to the actually effective lower level when authorization or service liveness is lost.
 - [ ] Exact-head Debug and Full CI green after this change.
 - [ ] Physical Shizuku disconnect/revocation/STOP acceptance remains pending; P1 remains PARTIAL.
+
+
+### P1 Shizuku UserService teardown admission gate — 2026-11-03
+- [x] Atomic registry shutdown closes request admission and marks in-flight STARTING/RUNNING requests cancelled.
+- [x] UserService destroy invokes the registry shutdown gate before process termination.
+- [x] Unit tests cover teardown idempotence, in-flight cancellation and post-shutdown rejection.
+- [ ] Exact-head Debug and Full CI green.
+- [ ] Physical Shizuku service teardown and STOP process-death timing remain pending; P1 remains PARTIAL.
