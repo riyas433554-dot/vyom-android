@@ -77,9 +77,9 @@ gh() {
   cat "$fixture"
 }
 existing="$(find_task_by_idempotency_key "termux:test-41")"
-[[ "$existing" == 
-41\thttps://github.com/example/repo/issues/41' ]] || {
-  printf 'Idempotency lookup mismatch: %s\n' "$existing" >&2
+expected_existing=$'41\thttps://github.com/example/repo/issues/41'
+[[ "$existing" == "$expected_existing" ]] || {
+  printf 'Idempotency lookup mismatch: %s\\n' "$existing" >&2
   exit 1
 }
 echo "Factory Termux idempotency preflight test PASS"
