@@ -2,6 +2,26 @@
 
 This is the newest owner instruction and supersedes all conflicting milestone sequencing below. Repository and safety boundaries remain unchanged.
 
+## M0 IMPLEMENTATION CHECKPOINT — SOURCE PRESENT, ACCEPTANCE OPEN (2026-11-03)
+
+### Implemented in source
+- Native Workspace drawer destination **Vyom Factory**.
+- GitHub Issues task client using the existing encrypted `github_proposal_token` preference; no token is hard-coded or logged. Settings now states the additional repository Issues read/write requirement.
+- Native Factory screen lists only issues carrying the validated Factory metadata marker; supports create, edit title/description, priority changes, bounded state transitions, issue-comment history, and 15-second refresh while open.
+- Normal Vyom chat supports explicit `complaint:`, `factory:`, `factory complaint:`, `register complaint:`, `report bug:` and `issue:` intake. Chat message UUID is the source identity; queued Factory complaints resume through Factory intake after process restart.
+- Task metadata policy validates schema/version, allowed source/priority/status, idempotency key and bounded state transitions. Retries find and update the existing issue rather than intentionally creating a duplicate.
+- Termux adapter `scripts/vyom-factory.sh` supports create/list/edit/priority/status/comment through GitHub CLI. Full CLI syntax is checked by the Android CI workflow.
+- `docs/VYOM_FACTORY_PROTOCOL.md` defines the shared metadata contract. ChatGPT can create/update the same issues through the connected GitHub integration when the owner explicitly asks; this is assistant-invoked, not silent automatic monitoring of every chat.
+- Diagnostics now attempts a live Factory issue read and reports PASS/FAIL/SKIP based on the actual response.
+
+### Current acceptance state — NOT COMPLETE
+- Exact-head Debug + Full CI must both pass after this checkpoint; named Factory policy tests and Termux `bash -n` step must be green.
+- Owner phone test still required: token with Issues read/write, Factory screen load/create/edit/priority/status/history, 15-second external-change refresh, normal-chat intake and app-restart recovery.
+- Termux CLI must be exercised with the owner's authenticated `gh` session. If needed, install `gh` and `jq` once and authenticate with `gh auth login`; never paste credentials into chat.
+- ChatGPT issue create/edit is available through the connected GitHub integration, but has not yet been exercised against a real owner complaint.
+- Parallel code workers, live worker heartbeat, durable execution/restart, skills/repository install, schedules, cross-source semantic duplicate detection, full runner/CI orchestration and true 24/7 operation remain unfinished. A GitHub Issue is a task record, not proof a worker is running.
+- No APK delivered. Do not deliver M0 APK until Factory acceptance, exact-head CI and signing/certificate gates are satisfied.
+
 ## M0 — VYOM FACTORY (FIRST IMPLEMENTATION PRIORITY)
 Owner explicitly approved building Vyom Factory before receiving the next APK. Do not deliver an APK until the Factory milestone is implemented and exact-head CI is green.
 
