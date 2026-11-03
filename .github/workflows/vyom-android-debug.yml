@@ -18,6 +18,8 @@ permissions:
 
 jobs:
   debug:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -172,7 +174,7 @@ jobs:
         if: github.event_name == 'push' && steps.signing.outputs.available == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.VYOM_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: vyom-ci-${{ github.sha }}
           target_commitish: ${{ github.sha }}
           name: Vyom CI update ${{ github.run_number }}
