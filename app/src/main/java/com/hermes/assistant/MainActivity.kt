@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.ComponentName
 import android.content.Context
 import android.content.ContentValues
 import android.content.BroadcastReceiver
@@ -1936,26 +1937,91 @@ class MainActivity : Activity() {
         val plannerReady = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty().isNotBlank()
         val skillEnabled = getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean("ui_agent", true)
         val currentPackage = service?.screenObservation()?.foregroundPackage.orEmpty()
+        val accessibilityComponent = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
+        val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+        val accessibilityEnabled = enabledServices.split(':').any { it.equals(accessibilityComponent, true) }
+        val microphoneGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val cameraGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val notificationsGranted = Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val overlayGranted = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
+        val writeSettingsGranted = Build.VERSION.SDK_INT < 23 || Settings.System.canWrite(this)
+        val baseReadiness = AndroidPermissionPolicy.readiness(
+            accessibilityEnabled, access.masterEnabled,
+            access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE }
+        )
         val lines = listOf(
-            "Accessibility service: " + if (service != null) "READY" else "NEEDS ANDROID SETTINGS",
+            "Accessibility setting: " + if (accessibilityEnabled) "GRANTED" else "NEEDS SYSTEM APPROVAL",
+            "Accessibility service connection: " + if (service != null) "CONNECTED" else "NOT CONNECTED",
+            "Owner App Access: " + if (access.masterEnabled) "ON" else "OFF",
+            "Allowed target apps: ${access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE }}",
+            "Core UI-control readiness: " + if (baseReadiness.ready && service != null && !stopOn) "READY" else "NOT READY",
             "STOP CONTROL: " + if (stopOn) "ON — actions blocked" else "OFF",
-            "Master App Access: " + if (access.masterEnabled) "ON" else "OFF",
-            "Allowed apps: ${access.enabledPackages.size}",
+            "Microphone: " + if (microphoneGranted) "GRANTED" else "NOT GRANTED (voice tasks only)",
+            "Camera: " + if (cameraGranted) "GRANTED" else "NOT GRANTED (camera tasks only)",
+            "Notifications: " + if (notificationsGranted) "GRANTED" else "NOT GRANTED (background notice tasks only)",
+            "Floating overlay: " + if (overlayGranted) "GRANTED" else "NEEDS SYSTEM APPROVAL",
+            "Modify system settings: " + if (writeSettingsGranted) "GRANTED" else "NEEDS SYSTEM APPROVAL",
             "Current app: " + (currentPackage.ifBlank { "not observed" }),
             "Current app allowed: " + if (currentPackage.isNotBlank() && AppAccessPolicy.isAllowed(this, currentPackage)) "YES" else "NO / NOT OBSERVED",
-            "Google Play Store access: " + if (AppAccessPolicy.isAllowed(this, "com.android.vending")) "ON" else "OFF",
             "NVIDIA UI planner: " + if (plannerReady) "CONFIGURED" else "MISSING KEY",
             "UI Agent skill: " + if (skillEnabled) "ENABLED" else "DISABLED",
-            "System UI / Quick Settings access: " + if (AppAccessPolicy.isAllowed(this, AppAccessPolicy.SYSTEM_UI_PACKAGE)) "ON" else "OFF (manual opt-in)"
+            "System UI / Quick Settings: " + if (AppAccessPolicy.isAllowed(this, AppAccessPolicy.SYSTEM_UI_PACKAGE)) "MANUALLY ENABLED" else "OFF (separate manual opt-in)",
+            "Protected financial, credential, biometric and secure Android surfaces remain blocked."
         )
         AlertDialog.Builder(this)
             .setTitle("Android control readiness")
             .setMessage(lines.joinToString("\n"))
-            .setPositiveButton("ACCESSIBILITY SETTINGS") { _, _ ->
-                performControlAction("Open Android accessibility settings", Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            }
+            .setPositiveButton("SET UP PERMISSIONS") { _, _ -> showControlPermissionSetup() }
             .setNeutralButton("APP ACCESS") { _, _ -> showAppAccessPanel() }
             .setNegativeButton("SKILLS") { _, _ -> showSkillsRegistry() }
+            .show()
+    }
+
+    private fun showControlPermissionSetup() {
+        val options = arrayOf(
+            "Enable Vyom Accessibility service",
+            "Enable all safe installed apps",
+            "Allow floating overlay",
+            "Allow modify system settings",
+            "Allow microphone",
+            "Allow camera",
+            "Allow notifications",
+            "Enable Android System UI / Quick Settings (separate opt-in)"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Owner-authorized Android capabilities")
+            .setMessage("Vyom will use each capability only when a task needs it. Android owns the special-permission approval screens. Financial/payment apps, credentials, biometrics and secure system surfaces remain protected.")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> performControlAction("Open Android accessibility settings", Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    1 -> showAppAccessPanel()
+                    2 -> if (Build.VERSION.SDK_INT >= 23) performControlAction(
+                        "Open Vyom overlay permission", Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    ) else showControlReadiness()
+                    3 -> if (Build.VERSION.SDK_INT >= 23) performControlAction(
+                        "Open Vyom modify system settings permission", Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:$packageName")
+                    ) else showControlReadiness()
+                    4 -> requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CONTROL_MICROPHONE)
+                    5 -> requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CONTROL_CAMERA)
+                    6 -> if (Build.VERSION.SDK_INT >= 33) requestPermissions(
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_CONTROL_NOTIFICATIONS
+                    ) else performControlAction("Open Vyom notification settings", Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    7 -> showSystemUiAccessConfirmation()
+                }
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
+    private fun showSystemUiAccessConfirmation() {
+        AlertDialog.Builder(this)
+            .setTitle("Android System UI access")
+            .setMessage("This is a separate opt-in. Vyom will only use the existing allowlisted Quick Settings controls. It will not read notification content or upload System UI screenshots.")
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("OPEN APP ACCESS") { _, _ -> showAppAccessPanel() }
             .show()
     }
 
@@ -1992,7 +2058,7 @@ class MainActivity : Activity() {
         }
         content.addView(master, LinearLayout.LayoutParams(-1, dp(48)))
         content.addView(TextView(this).apply {
-            text = "Har app ka access alag control karo. Task ke dauran visible UI text configured AI planner ko bheja ja sakta hai; screenshot sirf Visual AI checkbox ON karne par upload hota hai. Android System UI ko ON karne par Vyom Quick Settings ke sirf Wi-Fi/Bluetooth/brightness jaise safe controls use karega; notification text filter hoga aur System UI screenshots NVIDIA ko kabhi upload nahi honge. Android Accessibility permission bhi manually ON honi chahiye."
+            text = "Owner-authorized full control: ENABLE ALL SAFE APPS turns on the master switch and allowlists every visible non-financial launcher app. Payment/financial apps stay blocked. Android System UI is separate opt-in and limited to safe Quick Settings. Accessibility must be enabled manually. Visible UI labels may be sent to the configured planner; screenshots upload only when Visual AI is enabled."
             textSize = 12f
             setTextColor(Color.LTGRAY)
             setPadding(0, 0, 0, dp(8))
@@ -2028,9 +2094,10 @@ class MainActivity : Activity() {
             .setTitle("App access • ${launchableApps.size} apps")
             .setView(content)
             .setPositiveButton("DONE", null)
-            .setNeutralButton("ENABLE ALL") { _, _ ->
+            .setNeutralButton("ENABLE ALL SAFE APPS") { _, _ ->
                 AppAccessPolicy.setMasterEnabled(this, true)
                 packages.forEach { AppAccessPolicy.setPackageEnabled(this, it, true) }
+                logControlAction("Owner full control: safe app allowlist", "enabled", "profile")
                 showAppAccessPanel()
             }
             .setNegativeButton("CLOSE", null)
