@@ -209,13 +209,15 @@ internal object UiAgentPolicy {
             Kind.LONG_PRESS_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
-                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
+                else if (confirmationMode == ConfirmationMode.TRUSTED ||
+                    sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.SWIPE_NODE -> {
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint || action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
-                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
+                else if (confirmationMode == ConfirmationMode.TRUSTED ||
+                    sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.DRAG_NODE -> {
@@ -225,7 +227,8 @@ internal object UiAgentPolicy {
                     node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint ||
                     action.fromAnchor.lowercase() !in anchors || action.toAnchor.lowercase() !in anchors ||
                     action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
-                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
+                else if (confirmationMode == ConfirmationMode.TRUSTED ||
+                    sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.VISION_TAP, Kind.VISION_LONG_PRESS, Kind.VISION_SWIPE, Kind.VISION_DRAG -> {
