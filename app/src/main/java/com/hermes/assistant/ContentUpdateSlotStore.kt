@@ -151,6 +151,17 @@ internal class ContentUpdateSlotStore(private val root: File) {
         }
     }
 
+    /** Called when the newly active page or skill fails its first real load. */
+    fun rollbackAfterLoadFailure(failedVersion: String): Boolean {
+        if (failedVersion.isBlank() || activeVersion() != failedVersion) return false
+        val restored = rollback()
+        if (restored) {
+            appendHistory(ContentUpdateResult(failedVersion, false, emptyList(), null,
+                "Automatic rollback after page/skill load failure"))
+        }
+        return restored
+    }
+
     fun rollback(): Boolean {
         val previous = previousPointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
         if (!previous.matches(Regex("^[A-Za-z0-9._-]{1,64}$"))) return false

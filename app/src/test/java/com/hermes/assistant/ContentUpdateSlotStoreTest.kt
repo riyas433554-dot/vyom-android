@@ -121,6 +121,24 @@ class ContentUpdateSlotStoreTest {
         } finally { root.deleteRecursively() }
     }
 
+
+    @Test fun pageOrSkillLoadFailureAutomaticallyRestoresPreviousSlot() {
+        val root = Files.createTempDirectory("vyom-slots").toFile()
+        try {
+            val store = ContentUpdateSlotStore(root)
+            listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
+                val bytes = version.toByteArray()
+                apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes), bytes) { p, _ ->
+                    ContentProbeResult(p.id, true, 1L, "staging probe passed")
+                }
+            }
+            assertFalse(store.rollbackAfterLoadFailure("1.0.0"))
+            assertTrue(store.rollbackAfterLoadFailure("1.1.0"))
+            assertEquals("1.0.0", store.activeVersion())
+            assertTrue(store.history().any { it.contains("Automatic rollback after page/skill load failure") })
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun twoCrashesWithinSixtySecondsRollbackActiveContent() {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
