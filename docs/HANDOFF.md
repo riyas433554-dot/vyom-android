@@ -2383,3 +2383,12 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 - Test suite now covers: duplicate retry is read-only, new task creation issues one issue POST plus one audit comment POST, invalid source identity fails before network, and duplicate discovery on page 2.
 - CI runs for the previous test head 9e0450bac89c8f48f51b5052576d0f4f0c42490a were 41665773529 (Full CI) and 41665773431 (Debug CI), both in progress at last check. Current feature branch HEAD 0649f7228b4fbde05beb59631c04fb7c4f32de5b runs 41665284058 (Full CI) and 41665283308 (Debug CI), both in progress at last check. The pagination-test commit will trigger new PR-branch checks; do not treat earlier runs as verification of it.
 - Read-before-create remains non-atomic under concurrent clients. No worker/executor is implemented by this test work; GitHub Issues remains only the shared registry. Backend/Render/production Supabase remain untouched.
+
+
+## 2026-11-03 — PR #12 assertion failure diagnosis
+
+- Retrieved the real Debug CI log for run 41665233369, job 126018641402. The failing assertion was line 45 in the duplicate retry test: it expected the description prefix to equal a trimmed string exactly.
+- The client correctly returned the original issue body unchanged (the preceding full-body equality assertion passed); the description extraction assertion was too strict about the metadata separator formatting produced by VyomFactoryStatus.withMetadata. This was a test assertion defect, not a duplicate-retry mutation.
+- Updated the assertion to verify the original description prefix while retaining the stronger exact body equality check. Test branch commit: ad405dbb448b5444070432dab48511070232502e.
+- New PR branch CI must pass on this exact commit before accepting the test. Existing runs on older PR heads do not validate this change.
+- Factory background execution remains unimplemented: this code is registry/intake only, not a persistent worker. Do not advertise app-closed task execution until a durable worker/lease/heartbeat/retry/recovery design is implemented and verified.
