@@ -113,4 +113,41 @@ class VyomFactoryGitHubClientTest {
         }
     }
 
+
+    @Test fun duplicateOnSecondIssuePageIsFoundWithoutCreatingAnotherTask() {
+        val server = MockWebServer()
+        val firstPage = JSONArray()
+        repeat(100) { index -> firstPage.put(JSONObject().put("number", index + 1).put("title", "Unrelated issue")) }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(firstPage.toString()))
+        val source = "termux"
+        val sourceId = "second-page-task"
+        val key = VyomFactoryStatus.idempotencyKey(source, sourceId)!!
+        val metadata = VyomFactoryStatus.Metadata("P3", "open", source, sourceId, key, listOf("created"))
+        val existing = JSONObject()
+            .put("number", 999).put("title", "[VYOM FACTORY][P3] Existing second page")
+            .put("body", VyomFactoryStatus.withMetadata("Already registered", metadata))
+            .put("state", "open").put("html_url", "https://github.com/example/repo/issues/999")
+            .put("updated_at", "2026-11-03T00:00:00Z")
+        server.enqueue(MockResponse().setResponseCode(200).setBody(JSONArray().put(existing).toString()))
+        server.start()
+        try {
+            val client = VyomFactoryGitHubClient(
+                token = "test-token", repository = "example/repo", http = OkHttpClient(),
+                apiBaseUrl = server.url("/").toString().trimEnd('/')
+            )
+            val result = client.createTask(
+                title = "Retry second page task", description = "Must remain unchanged",
+                priority = "P0", source = source, sourceId = sourceId
+            )
+            assertEquals(999, result.number)
+            assertEquals("P3", result.metadata.priority)
+            assertEquals("Already registered", result.body.substringBefore("<!-- VYOM_FACTORY_META:").trim())
+            assertTrue(server.takeRequest().path!!.contains("page=1"))
+            assertTrue(server.takeRequest().path!!.contains("page=2"))
+            assertFalse(server.takeRequest(100, TimeUnit.MILLISECONDS) != null)
+        } finally {
+            server.shutdown()
+        }
+    }
+
 }
