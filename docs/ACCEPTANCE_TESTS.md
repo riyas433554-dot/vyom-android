@@ -93,6 +93,37 @@ Current statuses below are deliberately conservative. They are not release claim
 | R3 | Application ID and Kotlin package naming remain unchanged; no migration-breaking rename. | UNVERIFIED — assert against manifest/build output at release. |
 | R4 | User receives a repeatable phone-test guide with exact phrases, expected result and evidence location. | PARTIAL — phone checklist below; final guide must be refreshed against the release APK. |
 
+| A17 | Generic app-agnostic Android control: observe (Accessibility + local screenshot/vision/OCR fallback) → plan → act → verify post-condition → recover; ShellExecutor/Power Mode when authorized, Accessibility fallback; live capability manifest; Learn Anywhere for unknown apps/screens; Control Suite and 20 coverage rows. A1 and whatsapp_send are acceptance probes only. | PARTIAL — UI Agent provides a bounded generic tree/OCR/optional vision loop, but generic action coverage, ShellExecutor fallback integration, runtime capability manifest, Learn Anywhere loop, 20 Diagnostics checks and real-device suite are not complete. |
+
+### A17 coverage matrix (all rows require implementation + automated test + Diagnostics check)
+
+| # | Coverage | Required proof |
+|---:|---|---|
+| 1 | Open/close/force-stop/clear/uninstall/install any app | Package/app lifecycle post-condition |
+| 2 | Any app UI: forms, lists, search, dialogs, pickers, web | Cross-app tree/OCR/vision action test |
+| 3 | Wi-Fi/Bluetooth/mobile data/hotspot/brightness/volume/DND/rotation/flashlight/airplane mode where allowed | Per-toggle capability + read-back |
+| 4 | Read/filter/act/dismiss notifications | Notification access and action outcome |
+| 5 | Calls/SMS/contacts | Correct composer/contact/dialer state; no false send claim |
+| 6 | Camera/photos/videos/screenshots/screen recording | Capture/open/share result evidence |
+| 7 | File manager browse/create/move/delete/zip/share | File existence/content post-condition |
+| 8 | Alarms/timers/calendar/reminders | System app or provider state read-back |
+| 9 | WhatsApp/Instagram/Telegram/email | Generic UI flow; per-app scripts not required |
+| 10 | Browser search/open/fill/download | URL/page/download post-condition |
+| 11 | Clipboard and text in any field | Clipboard/text read-back without exposing secrets |
+| 12 | Per-app permission grant/revoke via Power Mode where Android allows | Permission state read-back; never bypass Android confirmation |
+| 13 | Battery/storage/app info/settings pages | Correct system page/state read-back |
+| 14 | Termux commands via bridge | Owner-enabled bridge + command result evidence |
+| 15 | Location and maps | Permission-aware map/location result |
+| 16 | Music/video/media/volume | Playback/transport/volume read-back |
+| 17 | Pinch/drag/multi-step gestures | Gesture dispatch and resulting screen state |
+| 18 | Popups/ads/permission dialogs in normal apps | Wait, re-observe, classify and safe handling |
+| 19 | Multi-app data handoff | Source/destination evidence and content match |
+| 20 | Schedule any supported task above | Persisted schedule, execution and result evidence |
+
+**A17 hard limits:** FLAG_SECURE, biometrics/lock-screen credentials, Play Protect, payments/banking/OTP/Authenticator apps, Vyom kill-switch and protected files. Never bypass; report the exact limit and any required permission/settings action.
+
+**Control Suite acceptance:** Diagnostics runs 20 varied, safe tasks across different apps/domains; each row emits PASS/FAIL/SKIP plus evidence. Default suite must not send messages, place calls, delete user data, grant/revoke permissions or change sensitive settings. M1 requires automated coverage for all 20 rows plus a real-device subset the owner can launch and pass on the installed phone. A green CI build is not device proof.
+
 ## Phone acceptance run
 
 Run only after a verified signed APK is available and its certificate matches the installed app. Do not uninstall the current app to bypass signing mismatch.
