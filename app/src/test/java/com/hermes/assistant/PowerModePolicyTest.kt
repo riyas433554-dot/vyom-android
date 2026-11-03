@@ -58,10 +58,49 @@ class PowerModePolicyTest {
         assertFalse(ops.contains("MANAGE_EXTERNAL_STORAGE"))
     }
 
-    @Test fun levelTwoDoesNotMeanRootOrProtectedSurfaceBypass() {
+    @Test fun shizukuBinderWithoutOwnerAuthorizationDoesNotGrantLevelTwo() {
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_1,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = false,
+                accessibilityEnabled = true
+            )
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_0,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = false,
+                accessibilityEnabled = false
+            )
+        )
+    }
+
+    @Test fun levelTwoRequiresLiveBinderAndExplicitOwnerAuthorization() {
         assertEquals(
             PowerModePolicy.CapabilityLevel.LEVEL_2,
-            PowerModePolicy.capabilityLevel(shizukuRunning = true, accessibilityEnabled = true)
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = true,
+                accessibilityEnabled = true
+            )
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_2,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = true,
+                accessibilityEnabled = false
+            )
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_1,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = false,
+                shizukuAuthorized = true,
+                accessibilityEnabled = true
+            )
         )
         assertFalse(PowerModePolicy.levelTwoAllowsProtectedSurfaces())
     }
