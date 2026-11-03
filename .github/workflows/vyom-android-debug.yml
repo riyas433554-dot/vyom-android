@@ -166,10 +166,9 @@ jobs:
       - name: Build and sign no-APK content update demo package
         if: steps.signing.outputs.available == 'true'
         shell: bash
-        env:
-          CONTENT_VERSION: 1.0.${{ github.run_number }}
         run: |
           set -euo pipefail
+          CONTENT_VERSION="1.0.$(date +%s%3N)"
           python3 tools/build_content_demo.py prepare --output output/content-update-demo --version "$CONTENT_VERSION"
           mkdir -p "$RUNNER_TEMP/vyom-content-signer"
           javac -d "$RUNNER_TEMP/vyom-content-signer" tools/ContentUpdateSigner.java tools/ContentUpdateResultCard.java
