@@ -2098,7 +2098,7 @@ class MainActivity : Activity() {
         val powerModeLevel2 = shizukuShellClient?.capabilityLevel(accessibilityEnabled) ==
             PowerModePolicy.CapabilityLevel.LEVEL_2
         return ControlCapabilityManifest.Snapshot(
-            shellExecutorUiReady = false,
+            shellExecutorUiReady = powerModeLevel2,
             accessibilityEnabled = accessibilityEnabled,
             accessibilityConnected = VyomAccessibilityService.current() != null,
             appAccessMasterEnabled = appAccess.masterEnabled,
