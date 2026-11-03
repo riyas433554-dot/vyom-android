@@ -161,10 +161,18 @@ jobs:
             VERSION_SHA256="$(sha256sum "output/$RELEASE_APK" | cut -d ' ' -f 1)"
             VERSION_CERT="$CERT_SHA256" VERSION_SHA256="$VERSION_SHA256" APK_URL="$APK_URL" VERSION_NAME="$VERSION_NAME" VERSION_CODE="$VERSION_CODE" COMMIT="$GITHUB_SHA" python3 -c 'import json,os; d={"version":os.environ["VERSION_NAME"],"versionName":os.environ["VERSION_NAME"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["VERSION_CERT"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
           fi
+      - name: Upload debug and signed APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyom-0.3.1-${{ github.sha }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 30
       - name: Publish signed CI update release
         if: github.event_name == 'push' && steps.signing.outputs.available == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.VYOM_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           tag_name: vyom-ci-${{ github.sha }}
           target_commitish: ${{ github.sha }}
           name: Vyom CI update ${{ github.run_number }}
@@ -176,10 +184,3 @@ jobs:
             output/${{ steps.package.outputs.release_apk }}.certs.txt
             output/vyom-update.json
             output/build-info.txt
-      - name: Upload debug and signed APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: vyom-0.3.1-${{ github.sha }}
-          path: output/*
-          if-no-files-found: error
-          retention-days: 30

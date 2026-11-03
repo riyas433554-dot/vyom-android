@@ -147,6 +147,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/vyom-v')
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.VYOM_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           files: |
             output/${{ steps.meta.outputs.apk }}
             output/${{ steps.meta.outputs.apk }}.sha256

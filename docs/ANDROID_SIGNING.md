@@ -48,3 +48,14 @@
 - CI branch and tagged stable-release version codes now derive from the repository-wide unique GitHub Actions run ID modulo 2,000,000,000. This keeps version codes ordered across separate workflows and within Android's signed 32-bit versionCode limit. Local Gradle defaults remain debug/dev values only.
 - Repository secrets were present and keytool validated the keystore, alias and key password in Debug run `41597804231` (steps “Configure persistent release signing when repository secrets are available” and “Verify release signing environment for Gradle”). That run then failed at `UiBundleIntegrityTest.computesStableSha256ForUtf8BundleContent` due to a test assertion comparing a full SHA-256 with a truncated 32-character value. The test was corrected in commit `705a0c162529b216547f63c9ffc444de41d0c481`; later exact-head CI is required to verify it.
 - Expected signing certificate identity remains `7A:75:64:FC:A9:C2:A3:2B:23:DD:52:03:52:A4:E3:AA:FE:44:56:21:D2:B9:9A:FA:15:40:7D:23:86:69:9F:0A`. No successful signed artifact or owner-device certificate match is claimed yet.
+
+
+## GitHub release publishing permission — 2026-11-03
+
+The signed release build and certificate fingerprint gate passed in Debug run `41598643026` (source SHA `3387385b76d03aa3d43a0e657458182c2c20cb3f`), but the release creation step failed with HTTP 403 `Resource not accessible by integration`. This is a GitHub Actions token permission issue, not a keystore/certificate failure.
+
+The workflows now prefer repository secret `VYOM_RELEASE_TOKEN` and fall back to `GITHUB_TOKEN`. Configure one of these before expecting a published update:
+1. In repository Settings → Actions → General → Workflow permissions, enable **Read and write permissions** for `GITHUB_TOKEN`; or
+2. Add a fine-grained PAT as Actions secret `VYOM_RELEASE_TOKEN`, restricted to this repository with **Contents: Read and write**.
+
+The Debug workflow uploads the CI artifact before attempting GitHub Release creation, so the signed APK/checksum/certificate report remain available even if release publication is still denied. Do not expose the token in logs or chat.
