@@ -124,9 +124,9 @@ jobs:
             SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
             APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
             test -n "$APKSIGNER" || { echo "apksigner not found in Android SDK build-tools"; exit 1; }
-            "$APKSIGNER" verify --verbose --print-certs "output/${RELEASE_APK}" > "output/${RELEASE_APK}.certs.txt"
+            "$APKSIGNER" verify --verbose --print-certs "output/${RELEASE_APK}" > "output/${RELEASE_APK}.certs.txt" 2>&1
             EXPECTED_CERT_SHA256="7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a"
-            ACTUAL_CERT_SHA256="$(awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print tolower($2); exit}' "output/${RELEASE_APK}.certs.txt" | tr -d '[:space:]:')"
+            ACTUAL_CERT_SHA256="$(grep -i 'SHA-256' "output/${RELEASE_APK}.certs.txt" | grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
             if [[ ! "$ACTUAL_CERT_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
               echo "Could not extract a valid SHA-256 signing certificate fingerprint."
               exit 1
