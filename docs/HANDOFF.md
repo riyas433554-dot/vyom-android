@@ -1184,3 +1184,10 @@ Branch: `feature/memory-intelligence`
 - Owner-tapped Android Settings navigation is no longer blocked by STOP CONTROL. This allows the owner to open Accessibility/special-permission settings and repair grants while the UI Agent remains stopped; automated device actions remain blocked by STOP.
 - Corrected allowed-target count and ENABLE ALL SAFE APPS to exclude Vyom's own controller package. Readiness can no longer appear ready merely because the controller itself is listed.
 - These are source changes only. Build/CI/device verification remains pending for the latest branch head.
+
+## 2026-11-03 — Encrypted memory seed for learn-before-act
+
+- Added `VyomMemoryStore.ensureCorePrinciples()`. On app startup, when encrypted memory is enabled, it additively seeds the user's explicit preference: if Vyom lacks knowledge/skill, learn from trusted docs/repos, review license/source/dependencies/security, test safely, then act and report only verified results.
+- Existing memory facts are preserved; the principle is deduplicated and stored through the existing EncryptedSharedPreferences store. If memory is disabled, no seed is written; the permanent identity instruction still carries the operating rule in chat/live prompts.
+- Added `VyomMemoryPrincipleTest` to verify the seeded rule contains the expected process and is not classified as sensitive.
+- This persists the preference but does not itself implement GitHub/ZIP ingestion or a learned-skill registry; those remain explicitly pending.
