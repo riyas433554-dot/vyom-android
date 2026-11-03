@@ -144,3 +144,15 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - `docs/ANDROID_CONTROL_CAPABILITY_MATRIX.md` — owner-authorized Android permissions, implemented capability inventory, platform boundaries and acceptance gates.
 - `docs/skills/JARVIS_AGENT_ARCHITECTURE.md` — JARVIS brain/hands/capability-probe/tool-gate patterns adapted as Android learning guidance.
 - `docs/skills/CONTINUOUS_LEARNING_AND_VERIFICATION.md` — learn-before-guess protocol, provenance, skill validation and eval workflow.
+
+
+## P1 Power Mode owner-led reconnect and audit — 2026-11-03
+- [x] Add policy tests for secure-settings grant gating, component validation, preserving other enabled Accessibility services and idempotent reconnect merge.
+- [x] Accessibility reconnect is available only behind an explicit owner tap; no startup/resume auto-enable path exists.
+- [x] Verify the app's live WRITE_SECURE_SETTINGS grant before writing; verify ENABLED_ACCESSIBILITY_SERVICES and ACCESSIBILITY_ENABLED by read-back.
+- [x] Report live Accessibility global-enabled/component state and WRITE_SECURE_SETTINGS grant in Power Mode/Control readiness.
+- [x] Redact Shizuku audit events to validated request ID, allowlisted command ID, outcome and optional exit code; distinguish success, nonzero exit, timeout, STOP cancellation, interruption and failure.
+- [x] Clear stale Shizuku binder/service state on binder death/disconnect.
+- [ ] Exact-head CI for this implementation and the remaining P1 lifecycle test matrix.
+- [ ] Physical Galaxy A06 verification of Wireless ADB/Shizuku authorization, service bind/disconnect, STOP process termination, secure-settings revocation and owner-disabled behavior. This remains deferred until implementation phases are complete.
+- P1 remains PARTIAL; do not advance to P2 until the remaining lifecycle/runtime acceptance is met.

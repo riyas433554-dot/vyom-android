@@ -1553,3 +1553,12 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - This is a behavior correction against two existing regression tests; no test was weakened or removed. GREEN is not yet claimed: exact-head Full CI run `41563816253` is queued for this source SHA. Re-check its head and result, and require the Debug workflow on the same exact head before accepting.
 - No feature ID changed. P1 remains PARTIAL. After exact-head CI passes, continue P1 UserService lifecycle/STOP/audit and live permission/app-op read-back plus owner-opt-in Accessibility reconnect; do not start P2.
 - No APK produced or delivered.
+
+
+### P1 owner-led reconnect and Shizuku audit hardening — 2026-11-03
+- RED test commit: `13d428e0e197c31685261768317f68e977b2ad2c`. Added `AccessibilityReconnectPolicyTest` (grant gate, preserve-other-services merge, idempotence, malformed component rejection) and `ShizukuAuditTest` (outcome/exit recording, redaction, nonzero exit). Exact-head Debug run `41575898510` and Full CI run `41575898508` were started on that test-only head; inspect their completed logs for the expected missing-policy RED result before accepting the implementation commit.
+- Implementation correction: owner-only reconnect button checks the live app `WRITE_SECURE_SETTINGS` grant, preserves other enabled Accessibility services, writes only after explicit tap, and verifies both Settings.Secure values by read-back. There is no automatic reconnect on app launch/resume; owner-disabled state remains disabled until another explicit tap.
+- Capability status now includes live secure-settings grant and Accessibility global-enabled + component read-back. Control readiness uses the same two-part Accessibility check.
+- UserService audit now distinguishes success, nonzero exit, timeout, STOP cancellation, startup cancellation, interruption and failure. Audit records contain only validated request ID, allowlisted command ID, outcome and optional exit code; no command output, arguments or secret values.
+- Shizuku binder death/disconnect clears stale remote/bound/request state so a dead binder is not treated as a live UserService connection.
+- P1 remains PARTIAL: these source/policy tests do not prove a physical Shizuku binder, Galaxy A06 Settings.Secure write/read-back, OEM behavior, or runtime STOP process-kill timing. Continue the mandatory P1 lifecycle/runtime matrix before P2. No APK.

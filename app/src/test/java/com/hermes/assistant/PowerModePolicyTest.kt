@@ -93,6 +93,21 @@ class PowerModePolicyTest {
         }
     }
 
+    @Test fun capabilityMatrixReportsOnlyVerifiedHighestLevel() {
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_0,
+            PowerModePolicy.capabilityLevel(false, false, -1, false)
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_1,
+            PowerModePolicy.capabilityLevel(false, false, -1, true)
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_2,
+            PowerModePolicy.capabilityLevel(true, true, 2000, false)
+        )
+    }
+
     @Test fun levelTwoRequiresLiveBinderExplicitAuthorizationAndAdbShellUid() {
         assertEquals(
             PowerModePolicy.CapabilityLevel.LEVEL_2,

@@ -2026,7 +2026,7 @@ class MainActivity : Activity() {
         paragraph("4. After pairing succeeds, run adb connect using the separate Wireless debugging port. Confirm adb devices shows the phone as device before running any grant command.")
         paragraph("5. WRITE_SECURE_SETTINGS is a powerful development permission. The grant command targets this installed app ID: $packageName. Run it only if you intentionally want Power Mode. Then run the check-permission read-back; Vyom must not assume the grant worked.")
         paragraph("6. Overlay is requested only for the floating assistant feature. All-files access is NOT requested: this build uses Android's document picker/SAF, so MANAGE_EXTERNAL_STORAGE is unnecessary.")
-        paragraph("7. Accessibility reconnect is allowed only after WRITE_SECURE_SETTINGS is verified. Android still owns the Accessibility toggle; Vyom will never silently enable it.")
+        paragraph("7. Accessibility reconnect is NEVER automatic. Only the explicit OWNER REQUEST button below can write the enabled-service list, and only after the app's WRITE_SECURE_SETTINGS grant is checked. The wizard preserves other enabled services and verifies Settings.Secure read-back. If you disable Vyom again in Android Settings, Vyom will not turn it back on in the background.")
         paragraph("Samsung Auto Blocker: Wireless ADB is not the same as USB debugging and should not require turning Auto Blocker off. If you deliberately use a USB cable and USB commands are blocked, check Settings > Security and privacy > Auto Blocker and temporarily disable only the blocking feature that caused the failure. For an APK blocked as an unauthorized source, the same screen has the unauthorized-app blocking setting. Re-enable protection immediately after the owner-authorized step.")
         paragraph("Shizuku: install it from the official source and start it yourself through Wireless debugging. Vyom checks the live binder AND Shizuku's explicit per-app authorization; a connected binder without your approval does not grant LEVEL 2. Non-root Shizuku normally runs as shell (UID 2000), not root, and usually needs restarting after reboot. The current executor exposes only fixed read-back command IDs; mutations require a separate owner-confirmed allowlist path. No arbitrary shell text is accepted.")
         val shizukuStatus = TextView(this).apply {
@@ -2041,12 +2041,18 @@ class MainActivity : Activity() {
             lateinit var client: VyomShizukuShellClient
             client = VyomShizukuShellClient(this) { message ->
                 val component = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
-                val enabled = Settings.Secure.getString(
+                val enabled = Settings.Secure.getInt(
                     contentResolver,
-                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-                ).orEmpty().split(':').any { it.equals(component, true) }
+                    Settings.Secure.ACCESSIBILITY_ENABLED,
+                    0
+                ) == 1 && AccessibilityReconnectPolicy.isEnabled(
+                    Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+                    component
+                )
+                val secureSettingsGranted =
+                    checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
                 val level = client.capabilityLevel(enabled)
-                shizukuStatus.text = "$message\\nEffective capability: $level"
+                shizukuStatus.text = "$message\\nWRITE_SECURE_SETTINGS: ${if (secureSettingsGranted) "GRANTED" else "NOT GRANTED"}\\nAccessibility: ${if (enabled) "ENABLED" else "DISABLED"}\\nEffective capability: $level"
             }
             shizukuShellClient = client
             return client
@@ -2058,6 +2064,67 @@ class MainActivity : Activity() {
         content.addView(Button(this).apply {
             text = "AUTHORIZE VYOM IN SHIZUKU"
             setOnClickListener { shizukuClient().requestOwnerAuthorization(this@MainActivity) }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        content.addView(Button(this).apply {
+            text = "CHECK WRITE_SECURE_SETTINGS GRANT"
+            setOnClickListener {
+                val granted = checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
+                    PackageManager.PERMISSION_GRANTED
+                shizukuStatus.text = "WRITE_SECURE_SETTINGS: ${if (granted) "GRANTED" else "NOT GRANTED — run the owner-reviewed ADB grant command first"}"
+            }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        content.addView(Button(this).apply {
+            text = "OWNER REQUEST: RECONNECT ACCESSIBILITY"
+            setOnClickListener {
+                val component = ComponentName(this@MainActivity, VyomAccessibilityService::class.java).flattenToString()
+                val granted = checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
+                    PackageManager.PERMISSION_GRANTED
+                if (!AccessibilityReconnectPolicy.canReconnect(granted, component)) {
+                    shizukuStatus.text = "Reconnect blocked: WRITE_SECURE_SETTINGS is not granted or the service component is invalid. No settings were changed."
+                    return@setOnClickListener
+                }
+                val current = Settings.Secure.getString(
+                    contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                )
+                val merged = AccessibilityReconnectPolicy.mergeEnabledServices(current, component)
+                if (merged == null) {
+                    shizukuStatus.text = "Reconnect blocked: invalid Accessibility component. No settings were changed."
+                    return@setOnClickListener
+                }
+                try {
+                    val servicesWritten = Settings.Secure.putString(
+                        contentResolver,
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                        merged
+                    )
+                    val enabledWritten = servicesWritten && Settings.Secure.putInt(
+                        contentResolver,
+                        Settings.Secure.ACCESSIBILITY_ENABLED,
+                        1
+                    )
+                    val servicesReadBack = Settings.Secure.getString(
+                        contentResolver,
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                    )
+                    val enabledReadBack = Settings.Secure.getInt(
+                        contentResolver,
+                        Settings.Secure.ACCESSIBILITY_ENABLED,
+                        0
+                    ) == 1
+                    val verified = enabledWritten && enabledReadBack &&
+                        AccessibilityReconnectPolicy.isEnabled(servicesReadBack, component)
+                    shizukuStatus.text = if (verified) {
+                        "Owner-requested Accessibility reconnect verified by Settings.Secure read-back. Service connection may take a moment."
+                    } else {
+                        "Accessibility reconnect was not verified. Settings.Secure write/read-back did not confirm the requested state; check Android Settings."
+                    }
+                } catch (e: SecurityException) {
+                    shizukuStatus.text = "Reconnect blocked by Android: WRITE_SECURE_SETTINGS is unavailable or revoked. No success is claimed."
+                } catch (e: Exception) {
+                    shizukuStatus.text = "Reconnect failed: ${e.javaClass.simpleName}. Check Android Settings."
+                }
+            }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         fun readBackButton(label: String, commandId: String) {
             content.addView(Button(this).apply {
@@ -2099,8 +2166,12 @@ class MainActivity : Activity() {
         val skillEnabled = getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean("ui_agent", true)
         val currentPackage = service?.screenObservation()?.foregroundPackage.orEmpty()
         val accessibilityComponent = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
-        val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-        val accessibilityEnabled = enabledServices.split(':').any { it.equals(accessibilityComponent, true) }
+        val accessibilityEnabled = Settings.Secure.getInt(
+            contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0
+        ) == 1 && AccessibilityReconnectPolicy.isEnabled(
+            Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+            accessibilityComponent
+        )
         val microphoneGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val cameraGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         val notificationsGranted = Build.VERSION.SDK_INT < 33 ||
@@ -2117,7 +2188,8 @@ class MainActivity : Activity() {
             stopControlOn = stopOn
         )
         val lines = listOf(
-            "Accessibility setting: " + if (accessibilityEnabled) "GRANTED" else "NEEDS SYSTEM APPROVAL",
+            "Accessibility setting: " + if (accessibilityEnabled) "ENABLED" else "DISABLED / NOT VERIFIED",
+            "WRITE_SECURE_SETTINGS: " + if (checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) "GRANTED" else "NOT GRANTED",
             "Accessibility service connection: " + if (service != null) "CONNECTED" else "NOT CONNECTED",
             "Owner App Access: " + if (access.masterEnabled) "ON" else "OFF",
             "Allowed target apps: ${access.enabledPackages.count {

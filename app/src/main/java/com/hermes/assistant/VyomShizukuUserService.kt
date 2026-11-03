@@ -36,13 +36,17 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             ShizukuRequestRegistry.Begin.ACCEPTED -> Unit
         }
         val boundedTimeout = timeoutMs.coerceIn(100L, command.timeoutMs)
+        var auditOutcome = "failed"
+        var exitCode: Int? = null
         return try {
             val process = ProcessBuilder(command.argv).redirectErrorStream(true).start()
             if (running.putIfAbsent(requestId, process) != null) {
+                auditOutcome = "rejected_duplicate"
                 process.destroyForcibly()
                 return "rejected: duplicate request id"
             }
             if (!requests.markRunning(requestId)) {
+                auditOutcome = "cancelled_startup"
                 process.destroyForcibly()
                 return "cancelled: STOP interrupted command startup"
             }
@@ -70,27 +74,37 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             if (!finished) {
                 process.destroyForcibly()
                 process.waitFor(300, TimeUnit.MILLISECONDS)
-                if (requests.isCancelled(requestId)) "cancelled: STOP interrupted the command"
-                else "timeout: command exceeded ${boundedTimeout}ms"
+                if (requests.isCancelled(requestId)) {
+                    auditOutcome = "cancelled"
+                    "cancelled: STOP interrupted the command"
+                } else {
+                    auditOutcome = "timeout"
+                    "timeout: command exceeded ${boundedTimeout}ms"
+                }
             } else {
                 reader.join(300)
-                if (requests.isCancelled(requestId)) "cancelled: STOP interrupted the command"
-                else "exit=${process.exitValue()}; output=${output.get().take(MAX_OUTPUT_BYTES)}"
+                if (requests.isCancelled(requestId)) {
+                    auditOutcome = "cancelled"
+                    "cancelled: STOP interrupted the command"
+                } else {
+                    exitCode = process.exitValue()
+                    auditOutcome = if (exitCode == 0) "success" else "nonzero_exit"
+                    "exit=$exitCode; output=${output.get().take(MAX_OUTPUT_BYTES)}"
+                }
             }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
+            auditOutcome = if (requests.isCancelled(requestId)) "cancelled" else "interrupted"
             "cancelled: executor thread interrupted"
         } catch (e: Exception) {
+            auditOutcome = "failed"
             "failed: ${e.javaClass.simpleName}"
         } finally {
             running.remove(requestId)?.let { child ->
                 if (child.isAlive) child.destroyForcibly()
             }
-            if (requests.isCancelled(requestId)) {
-                Log.i(TAG, "request=$requestId command=$commandId outcome=cancelled")
-            } else {
-                Log.i(TAG, "request=$requestId command=$commandId outcome=completed")
-            }
+            if (requests.isCancelled(requestId)) auditOutcome = "cancelled"
+            Log.i(TAG, ShizukuAudit.format(requestId, commandId, auditOutcome, exitCode))
             requests.complete(requestId)
         }
     }

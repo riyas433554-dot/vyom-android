@@ -28,7 +28,9 @@ internal class VyomShizukuShellClient(
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener { refreshStatus() }
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
         remote = null
-        emit("Shizuku disconnected. Restart it from its app after reboot, then reconnect.")
+        bound = false
+        activeRequests.clear()
+        emit("Shizuku disconnected. Active shell requests are no longer available. Restart it from its app, then explicitly reconnect.")
     }
     private val permissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (requestCode == REQUEST_CODE) {
@@ -135,13 +137,15 @@ internal class VyomShizukuShellClient(
 
     override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
         remote = if (service?.pingBinder() == true) IVyomShellService.Stub.asInterface(service) else null
+        bound = remote != null
         emit(if (remote != null) "Shizuku shell service connected. Only allowlisted commands are available." else "Invalid Shizuku service binder.")
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
         remote = null
         bound = false
-        emit("Shizuku shell service disconnected.")
+        activeRequests.clear()
+        emit("Shizuku shell service disconnected. Pending requests must be retried after an explicit reconnect.")
     }
 
     fun capabilityLevel(accessibilityEnabled: Boolean): PowerModePolicy.CapabilityLevel {
