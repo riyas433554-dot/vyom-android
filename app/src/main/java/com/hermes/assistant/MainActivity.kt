@@ -1948,7 +1948,9 @@ class MainActivity : Activity() {
         val baseReadiness = AndroidPermissionPolicy.readiness(
             accessibilityEnabled = accessibilityEnabled,
             masterAppAccess = access.masterEnabled,
-            allowedTargetApps = access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE },
+            allowedTargetApps = access.enabledPackages.count {
+                it != AppAccessPolicy.SYSTEM_UI_PACKAGE && it != packageName
+            },
             plannerReady = plannerReady,
             uiAgentEnabled = skillEnabled,
             stopControlOn = stopOn
@@ -1957,7 +1959,9 @@ class MainActivity : Activity() {
             "Accessibility setting: " + if (accessibilityEnabled) "GRANTED" else "NEEDS SYSTEM APPROVAL",
             "Accessibility service connection: " + if (service != null) "CONNECTED" else "NOT CONNECTED",
             "Owner App Access: " + if (access.masterEnabled) "ON" else "OFF",
-            "Allowed target apps: ${access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE }}",
+            "Allowed target apps: ${access.enabledPackages.count {
+                it != AppAccessPolicy.SYSTEM_UI_PACKAGE && it != packageName
+            }}",
             "Core UI-control readiness: " + if (baseReadiness.ready && service != null) "READY" else "NOT READY",
             "STOP CONTROL: " + if (stopOn) "ON — actions blocked" else "OFF",
             "Microphone: " + if (microphoneGranted) "GRANTED" else "NOT GRANTED (voice tasks only)",
@@ -2040,7 +2044,7 @@ class MainActivity : Activity() {
             AppAccessPolicy.SYSTEM_UI_PACKAGE to "Android System UI · Quick Settings"
         } catch (_: Exception) { null }
         val launchableApps = (regularApps + listOfNotNull(systemUiEntry)).distinctBy { it.first }
-        val packages = regularApps.map { it.first }
+        val packages = regularApps.map { it.first }.filter { it != packageName }
         AppAccessPolicy.initializeForInstalledApps(this)
         val snapshot = AppAccessPolicy.snapshot(this)
         val content = LinearLayout(this).apply {
