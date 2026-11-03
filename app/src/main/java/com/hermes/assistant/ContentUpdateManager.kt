@@ -126,11 +126,11 @@ internal class ContentUpdateManager(private val context: Context) {
     }
 
     private fun nextContentVersion(): String {
-        val parts = activeVersion().split('.').mapNotNull { it.toIntOrNull() }
-        val major = parts.getOrNull(0) ?: 1
-        val minor = parts.getOrNull(1) ?: 0
-        val patch = parts.getOrNull(2) ?: 0
-        val nextPatch = maxOf(patch.toLong() + 1L, System.currentTimeMillis())
+        val parts = activeVersion().split('.')
+        val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
+        val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val patch = parts.getOrNull(2)?.toLongOrNull() ?: 0L
+        val nextPatch = maxOf(patch + 1L, System.currentTimeMillis())
         return "$major.$minor.$nextPatch"
     }
 
