@@ -79,6 +79,7 @@ class MainActivity : Activity() {
     private var preserveOlderScroll = false
     private var chatWasAtBottom = true
     private lateinit var memoryStore: VyomMemoryStore
+    private val contentUpdateManager by lazy { ContentUpdateManager(applicationContext) }
     private lateinit var taskInput: EditText
     private lateinit var taskList: LinearLayout
     private lateinit var taskScroll: ScrollView
@@ -204,6 +205,13 @@ class MainActivity : Activity() {
         api = VyomApiClient(applicationContext)
         memoryStore = VyomMemoryStore(applicationContext)
         memoryStore.ensureCorePrinciples()
+        try {
+            contentUpdateManager.ensureSeeded()
+            contentUpdateManager.installCrashRollbackHandler()
+            mainHandler.postDelayed({ contentUpdateManager.markStableLaunch() }, 60_000L)
+        } catch (error: Exception) {
+            android.util.Log.e("VyomContentUpdate", "Content slot recovery unavailable", error)
+        }
         controlKillSwitch = controlPrefs.getBoolean("kill_switch", false)
         sanitizeControlAuditHistory()
         voiceStateMachine = VoiceStateMachine()
@@ -582,6 +590,53 @@ class MainActivity : Activity() {
             setOnClickListener { runUpdateDiagnostics(updateDiagnosticsNotice, this) }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(updateDiagnosticsNotice, LinearLayout.LayoutParams(-1, -2))
+
+        val contentUpdateResult = TextView(this).apply {
+            text = "No-APK content channel: signed GitHub packages, staged probes and rollback"
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(Button(this).apply {
+            text = "CHECK NO-APK CONTENT UPDATES"
+            setOnClickListener { view ->
+                val button = view as Button
+                button.isEnabled = false
+                contentUpdateResult.text = "Downloading and verifying signed content package…"
+                io.execute {
+                    val result = contentUpdateManager.applyLatestRelease()
+                    runOnUiThread {
+                        button.isEnabled = true
+                        val probes = result.probeResults.joinToString("\n") {
+                            "${if (it.passed) "PASS" else "FAIL"} · ${it.id} · ${it.detail} · ${it.durationMs} ms"
+                        }
+                        contentUpdateResult.text = "CONTENT UPDATE ${if (result.passed) "PASS" else "FAIL"}\nVersion: ${result.version}\nTiming: ${result.timingSummary()}\n${probes.ifBlank { result.message }}"
+                        contentUpdateHistory.text = contentUpdateManager.history().takeLast(8).asReversed().joinToString("\n")
+                        if (result.passed) openUpdateCenter()
+                    }
+                }
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(contentUpdateResult, LinearLayout.LayoutParams(-1, -2))
+        val contentUpdateHistory = TextView(this).apply {
+            text = "Content update history will appear here."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(contentUpdateHistory, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "ROLL BACK CONTENT UPDATE"
+            setOnClickListener {
+                val restored = runCatching { contentUpdateManager.rollback() }.getOrDefault(false)
+                contentUpdateResult.text = if (restored) {
+                    "CONTENT ROLLBACK PASS · Active version ${contentUpdateManager.activeVersion()}"
+                } else {
+                    "CONTENT ROLLBACK FAIL · No verified previous content slot is available"
+                }
+                contentUpdateHistory.text = contentUpdateManager.history().takeLast(8).asReversed().joinToString("\n")
+                if (restored) openUpdateCenter()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+
         settingsContent.addView(Button(this).apply {
             text = "OPEN HOT-SWAPPABLE UPDATE CENTER"
             setOnClickListener { openUpdateCenter() }
@@ -3805,7 +3860,14 @@ class MainActivity : Activity() {
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (!request.isForMainFrame) return
                     store.recordPageLoadFailure()
-                    val fallback = store.rollbackAfterPageLoadFailure()
+                    val contentVersion = contentUpdateManager.activeVersion()
+                    val contentRolledBack = contentVersion.isNotBlank() &&
+                        contentUpdateManager.rollbackAfterPageLoadFailure(contentVersion)
+                    val fallback = if (contentRolledBack) {
+                        runCatching { store.activeIndexFile() }.getOrNull()
+                    } else {
+                        store.rollbackAfterPageLoadFailure()
+                    }
                     if (fallback != null) {
                         view.loadUrl(fallback.toURI().toString())
                         updateNotice.text = "UI bundle failed to load; rolled back to v${store.activeVersion()}."
