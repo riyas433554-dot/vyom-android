@@ -33,7 +33,14 @@ class ActionEngineTest {
   assertEquals(true, ActionEngine.looksLikeDeviceAction("get WhatsApp from playstore"))
   assertEquals(ActionEngine.Operation.INSTALL, ActionEngine.classify("install this APK")?.operation)
  }
- @Test fun blockedPolicyWins(){ assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open my bank app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("read my OTP")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("send my OTP to someone")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("uninstall the app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open security settings")?.risk) }
+ @Test fun blockedPolicyWins(){ assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open my bank app")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("read my OTP")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("send my OTP to someone")?.risk); assertEquals(ActionEngine.Operation.UNINSTALL,ActionEngine.classify("uninstall Instagram")?.operation); assertEquals(ActionEngine.Risk.CONFIRM,ActionEngine.classify("uninstall Instagram")?.risk); assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("open security settings")?.risk) }
+ @Test fun uninstallIsOwnerRequestedButProtectedAppsRemainBlocked(){
+  val action=ActionEngine.classify("uninstall Instagram")
+  assertEquals(ActionEngine.Operation.UNINSTALL,action?.operation)
+  assertEquals("Instagram",action?.target)
+  assertEquals(ActionEngine.Risk.CONFIRM,action?.risk)
+  assertEquals(ActionEngine.Risk.BLOCKED,ActionEngine.classify("uninstall my bank app")?.risk)
+ }
  @Test fun unknownDirectActionMustFallbackAndCannotExecuteDirectly(){ assertEquals(true,ActionEngine.looksLikeDeviceAction("please enable airplane mode")); assertNull(ActionEngine.classify("please enable airplane mode")) }
  @Test fun modelFallbackCannotChangeRequestedIntent(){ assertFalse(ActionEngine.fallbackMatchesIntent("please enable silent mode","open silent mode")); assertEquals(true,ActionEngine.fallbackMatchesIntent("increase sound","volume up")); assertEquals(true,ActionEngine.fallbackMatchesIntent("turn off bluetooth","open Bluetooth settings")) }
 }
