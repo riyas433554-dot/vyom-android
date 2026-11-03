@@ -38,12 +38,12 @@ class AndroidPermissionPolicyTest {
         assertTrue(AndroidPermissionPolicy.missingForTask(
             AndroidPermissionPolicy.TaskCapability.SPEECH_INPUT,
             microphoneGranted = false, cameraGranted = false, notificationsGranted = false,
-            overlayGranted = false, writeSettingsGranted = false
+            writeSettingsGranted = false
         ).contains(AndroidPermissionPolicy.Requirement.MICROPHONE))
         assertFalse(AndroidPermissionPolicy.missingForTask(
             AndroidPermissionPolicy.TaskCapability.APP_SWITCH,
             microphoneGranted = false, cameraGranted = false, notificationsGranted = false,
-            overlayGranted = false, writeSettingsGranted = false
+            writeSettingsGranted = false
         ).contains(AndroidPermissionPolicy.Requirement.MICROPHONE))
         assertTrue(AndroidPermissionPolicy.missingForTask(
             AndroidPermissionPolicy.TaskCapability.FLOATING_PROGRESS,
