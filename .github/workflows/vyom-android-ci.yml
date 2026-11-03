@@ -29,6 +29,8 @@ jobs:
           fetch-depth: 0
       - name: Validate Termux Factory adapter syntax
         run: bash -n scripts/vyom-factory.sh
+      - name: Test Termux Factory status and priority rendering
+        run: bash scripts/test-vyom-factory-list.sh
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
