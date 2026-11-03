@@ -16,7 +16,7 @@ internal object ControlCapabilityManifest {
     )
 
     fun selectAdapter(snapshot: Snapshot): Adapter = when {
-        snapshot.stopControlEnabled -> Adapter.UNAVAILABLE
+        snapshot.stopControlEnabled || !snapshot.plannerConfigured -> Adapter.UNAVAILABLE
         snapshot.shellExecutorUiReady -> Adapter.SHELL_EXECUTOR
         snapshot.accessibilityEnabled && snapshot.accessibilityConnected &&
             snapshot.appAccessMasterEnabled -> Adapter.ACCESSIBILITY
@@ -24,17 +24,17 @@ internal object ControlCapabilityManifest {
     }
 
     fun missingGuidance(snapshot: Snapshot): List<String> = buildList {
+        if (snapshot.stopControlEnabled) {
+            add("STOP CONTROL is ON. Turn it off from the Control panel before starting another task.")
+        }
+        if (!snapshot.plannerConfigured) {
+            add("UI planner is not configured. One-tap fix: Profile > Model settings > configure the NVIDIA planner key.")
+        }
         if (!snapshot.accessibilityEnabled || !snapshot.accessibilityConnected) {
             add("Missing Android Accessibility service. One-tap fix: Settings > Accessibility > Installed apps > Vyom > turn on Accessibility, then return to Vyom.")
         }
         if (!snapshot.appAccessMasterEnabled) {
             add("Missing app-control grant. One-tap fix: Profile > App access > Enable Master App Control, then enable the target app.")
-        }
-        if (!snapshot.plannerConfigured) {
-            add("UI planner is not configured. One-tap fix: Profile > Model settings > configure the NVIDIA planner key.")
-        }
-        if (snapshot.stopControlEnabled) {
-            add("STOP CONTROL is ON. Turn it off from the Control panel before starting another task.")
         }
     }
 

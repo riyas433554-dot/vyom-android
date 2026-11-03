@@ -1384,6 +1384,25 @@ class MainActivity : Activity() {
         val sessionGrantExpiresAt = if (confirmationMode == UiAgentPolicy.ConfirmationMode.SESSION_GRANT) System.currentTimeMillis() + 5 * 60 * 1000L else null
         logControlAction("UI Agent task", "started; mode=${confirmationMode.name}", "ui-agent")
         if (sessionGrantExpiresAt != null) logControlAction("UI Agent session grant", "granted for up to 5 minutes / 40 actions", "ui-agent")
+        val capabilitySnapshot = currentControlCapabilitySnapshot()
+        if (ControlCapabilityManifest.selectAdapter(capabilitySnapshot) == ControlCapabilityManifest.Adapter.UNAVAILABLE) {
+            val guidance = ControlCapabilityManifest.missingGuidance(capabilitySnapshot).firstOrNull()
+                ?: "No supported Android control adapter is currently available."
+            val dialog = AlertDialog.Builder(this)
+                .setTitle("Phone control unavailable")
+                .setMessage(guidance)
+                .setNegativeButton("CLOSE", null)
+            when {
+                !capabilitySnapshot.accessibilityEnabled -> dialog.setPositiveButton("OPEN ACCESSIBILITY SETTINGS") { _, _ ->
+                    try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } catch (_: Exception) { }
+                }
+                !capabilitySnapshot.appAccessMasterEnabled -> dialog.setPositiveButton("OPEN APP ACCESS") { _, _ -> showAppAccessPanel() }
+                else -> dialog.setPositiveButton("OK", null)
+            }
+            dialog.show()
+            logControlAction("Generic control preflight", "blocked: capability manifest unavailable", "ui-agent")
+            return
+        }
         val initialService = VyomAccessibilityService.current()
         if (initialService == null) {
             val snapshot = currentControlCapabilitySnapshot()
