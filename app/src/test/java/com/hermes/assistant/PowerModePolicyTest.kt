@@ -20,11 +20,13 @@ class PowerModePolicyTest {
     }
 
     @Test fun generatedTermuxCommandsUseTheRealApplicationIdAndNeverRunAutomatically() {
-        val commands = PowerModePolicy.termuxCommands(
+        val generated = PowerModePolicy.termuxCommands(
             packageName = "com.vyom.assistant",
             pairingEndpoint = "192.168.1.12:37123",
             debugEndpoint = "192.168.1.12:41231"
         )
+        assertNotNull(generated)
+        val commands = requireNotNull(generated)
         assertEquals("adb pair 192.168.1.12:37123", commands.pair)
         assertEquals("adb connect 192.168.1.12:41231", commands.connect)
         assertEquals(
