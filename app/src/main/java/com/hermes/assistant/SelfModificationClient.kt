@@ -15,15 +15,23 @@ import java.net.URLEncoder
  */
 internal class SelfModificationClient {
     data class Proposal(val branch: String, val pullRequestUrl: String)
+    data class Draft(
+        val title: String,
+        val path: String,
+        val baseSha: String,
+        val proposedContent: String,
+        val preview: String,
+        val requestSummary: String
+    )
 
-    fun createGeneratedProposal(
+    fun generatePatchDraft(
         token: String,
         nvidiaApiKey: String,
         title: String,
         path: String,
         task: String,
         model: String
-    ): Proposal {
+    ): Draft {
         SelfModificationPolicy.validateTask(title, path, task)
         require(nvidiaApiKey.trim().length >= 20) { "Configure the NVIDIA API key before generating a code proposal" }
         require(model.isNotBlank() && model.length <= 120) { "Choose a supported code-generation model" }
@@ -90,7 +98,10 @@ internal class SelfModificationClient {
             require(latestBaseSha == initialBaseSha) {
                 "The working branch changed during code generation. No PR was created; generate again from the latest source."
             }
-            return createProposal(token, title, path, proposedContent, task, initialBaseSha)
+            val preview = operations.joinToString("\n\n") { operation ->
+                "- " + operation.find.take(800) + "\n+ " + operation.replace.take(800)
+            }
+            return Draft(title, path, initialBaseSha, proposedContent, preview, task)
         } finally {
             connection.disconnect()
         }
@@ -110,6 +121,9 @@ internal class SelfModificationClient {
         if (encoded.isBlank()) return ""
         return String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8)
     }
+
+    fun createProposal(token: String, draft: Draft): Proposal =
+        createProposal(token, draft.title, draft.path, draft.proposedContent, draft.requestSummary, draft.baseSha)
 
     fun createProposal(
         token: String,

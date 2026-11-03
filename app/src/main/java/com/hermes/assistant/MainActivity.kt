@@ -616,7 +616,7 @@ class MainActivity : Activity() {
                 form.addView(proposalTask, LinearLayout.LayoutParams(-1, dp(150)))
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Create review-only proposal")
-                    .setMessage("Vyom reads the current source and asks the configured NVIDIA model to generate one complete Kotlin file. Only non-policy Kotlin files are allowed. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
+                    .setMessage("Vyom reads the current source and asks the configured NVIDIA model for exact minimal edits and shows a diff before creating a PR. Only non-policy Kotlin files are allowed. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
                     .setView(form)
                     .setNegativeButton("CANCEL", null)
                     .setPositiveButton("CREATE PR") { _, _ ->
@@ -629,11 +629,36 @@ class MainActivity : Activity() {
                         selfChangeNotice.text = "Reading current source and generating a guarded one-file proposal…"
                         io.execute {
                             try {
-                                val proposal = SelfModificationClient().createGeneratedProposal(token, nvidiaKey, title, path, task, model)
+                                val draft = SelfModificationClient().generatePatchDraft(token, nvidiaKey, title, path, task, model)
                                 runOnUiThread {
-                                    logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
-                                    selfChangeNotice.text = "PR created; waiting for CI and your manual review: ${proposal.pullRequestUrl}"
-                                    try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
+                                    val preview = TextView(this@MainActivity).apply {
+                                        text = "File: ${draft.path}\nBase: ${draft.baseSha}\n\nMINIMAL PATCH PREVIEW\n\n${draft.preview}"
+                                        setTextColor(Color.WHITE)
+                                        textSize = 12f
+                                        setPadding(dp(14), dp(12), dp(14), dp(12))
+                                        typeface = Typeface.MONOSPACE
+                                    }
+                                    val previewScroll = ScrollView(this@MainActivity).apply { addView(preview) }
+                                    AlertDialog.Builder(this@MainActivity)
+                                        .setTitle("Review proposed diff")
+                                        .setView(previewScroll)
+                                        .setNegativeButton("CANCEL", null)
+                                        .setPositiveButton("OPEN PR") { _, _ ->
+                                            selfChangeNotice.text = "Creating PR from the reviewed minimal patch…"
+                                            io.execute {
+                                                try {
+                                                    val proposal = SelfModificationClient().createProposal(token, draft)
+                                                    runOnUiThread {
+                                                        logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
+                                                        selfChangeNotice.text = "PR created; CI and owner review are required: ${proposal.pullRequestUrl}"
+                                                        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
+                                                    }
+                                                } catch (error: Exception) {
+                                                    runOnUiThread { selfChangeNotice.text = "PR creation failed: ${error.message ?: "GitHub error"}" }
+                                                }
+                                            }
+                                        }
+                                        .show()
                                 }
                             } catch (error: Exception) {
                                 runOnUiThread {
