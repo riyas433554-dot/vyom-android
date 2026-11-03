@@ -35,9 +35,8 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             ShizukuRequestRegistry.Begin.ACCEPTED -> Unit
         }
         val boundedTimeout = timeoutMs.coerceIn(100L, command.timeoutMs)
-        var process: Process? = null
         return try {
-            process = ProcessBuilder(command.argv).redirectErrorStream(true).start()
+            val process = ProcessBuilder(command.argv).redirectErrorStream(true).start()
             if (running.putIfAbsent(requestId, process) != null) {
                 process.destroyForcibly()
                 return "rejected: duplicate request id"
