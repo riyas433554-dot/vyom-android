@@ -1783,3 +1783,23 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Exact-head `bb8ba3540ae66ee4724022ab972c9f6972c8233e`: Debug `41589916070` and Full CI `41589916022` FAILED at `:app:compileDebugKotlin`. Real logs show unresolved `ShizukuProcessTerminator` and missing `terminateProcess` in `VyomShizukuUserService.kt`; no APK artifact was produced.
 - Root cause: previous tree update did not include the helper source file or service adapter. Corrected by adding the production helper and restoring its regression test source in the actual tree.
 - No ID rows changed. P1 remains PARTIAL. Next: exact-head Debug + Full CI; do not proceed to the capability matrix until CI resolves.
+
+
+## M1 update-first no-dead-code inventory — 2026-11-03
+
+Audited source/workflows at branch head `1df8bb08a39f874d3ee5319137a8f507f1581ee5` (the two docs commits immediately preceding this inventory are included in the new head). This is an inventory only; none of these IDs is marked FIXED.
+
+| ID / path | Existing implementation found | Reachability / missing proof | Status |
+|---|---|---|---|
+| S6/S7 signing | `vyom-android-debug.yml` validates keystore secrets/alias and expected cert fingerprint when secrets exist; Gradle release signing config; `ANDROID_SIGNING.md` records expected cert | `vyom-android-release.yml` has a separate weaker signing path and does not verify expected cert; no observed proof secrets are configured/current; prior artifact cert was `BF:41…6E:95`, not expected `7A:75…9F:0A`; installed app cert has not been read from owner's phone in this session | BLOCKED / INCONSISTENT |
+| Update path B: external agent commit -> CI -> Check for updates | Settings has reachable CHECK FOR UPDATES; it reads GitHub latest Release manifest, downloads APK, checks SHA-256, package/version and compares APK signer with installed signer | Push/CI branch builds do not publish a release manifest/asset; updater only queries `releases/latest`; no end-to-end CI artifact discovery | PARTIAL |
+| Update path A: prompt -> minimal patch/diff -> PR -> CI -> signed APK -> verify/install | Profile settings exposes PROPOSE SELF-CHANGE; `SelfModificationClient` reads GitHub source and opens a PR; proposal branch is restricted | Model is instructed to return an entire `file_content` and commits whole-file replacement, not a minimal patch; no diff review UI; no CI wait, artifact retrieval, SHA/certificate verification/install handoff; target branch constant needs validation against intended dev branch | PARTIAL / WHOLE-FILE RISK |
+| Update path C: chat “Vyom, ye badlo” | Chat and self-change code exist separately | No command router path found linking that phrase to guarded proposal UI/workflow | NOT WIRED |
+| Hot-swappable UI bundle | Bundled assets directory exists, currently device command JSON | No HTML/CSS/JS bundle loader, app-private versioned bundle store, JS bridge, hash validation or automatic rollback found in tree | NOT IMPLEMENTED |
+| Diagnostics > RUN ALL CHECKS | No dedicated Diagnostics implementation/test path found in source tree; settings has update and self-change controls | No RUN ALL CHECKS UI/action or update diagnostics row | NOT IMPLEMENTED |
+
+Source evidence inspected: `docs/ANDROID_SIGNING.md`; `.github/workflows/vyom-android-debug.yml`; `.github/workflows/vyom-android-release.yml`; `app/build.gradle.kts`; `SelfModificationClient.kt`; `SelfModificationPolicy.kt`; `SelfModificationPolicyTest.kt`; `MainActivity.kt` update/profile wiring. Existing updater's certificate comparison is present at `sameSigningCertificate(archive)`, but this does not prove it matches the owner's currently installed APK until executed on that phone.
+
+Current branch CI after the priority-order documentation commits: Debug `41596703009` and Full CI `41596702934`, both target `1df8bb08a39f874d3ee5319137a8f507f1581ee5`; at inventory time Debug was IN_PROGRESS and Full CI PENDING. No pass is claimed. No ID rows changed. No APK delivered.
+
+Next implementation order: unify and harden release signing first; prove configured secret identity and certificate; then wire all update paths and hot-swappable bundle; Diagnostics rows must accompany each feature. Keep update verifier/signing/policy/kill-switch review-only for self-edit proposals.
