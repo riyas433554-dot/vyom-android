@@ -6,9 +6,11 @@ on:
       - fresh-history/android-app-copy
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
+      - vyom-proposal-*
   pull_request:
     branches:
       - fresh-history/android-app-copy
+      - feature/memory-intelligence
   workflow_dispatch:
 
 permissions:
