@@ -33,6 +33,10 @@ internal object ShizukuCommandPolicy {
                 listOf("appops", "set", packageName, "SYSTEM_ALERT_WINDOW", args[0]),
                 4_000L, true
             ) else null
+            "install_verified_apk" -> if (
+                ownerConfirmed && args.size == 1 &&
+                args[0].matches(Regex("^/storage/emulated/0/Download/VyomUpdates/vyom-update-[a-f0-9]{12}\\.apk$"))
+            ) Command(listOf("pm", "install", "-r", args[0]), 120_000L, true) else null
             else -> null
         }
     }
