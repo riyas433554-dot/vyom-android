@@ -11,7 +11,8 @@ class ControlCapabilityManifestTest {
         accessibilityConnected: Boolean = true,
         appAccessEnabled: Boolean = true,
         plannerConfigured: Boolean = true,
-        stopEnabled: Boolean = false
+        stopEnabled: Boolean = false,
+        powerModeLevel2: Boolean = false
     ) = ControlCapabilityManifest.Snapshot(
         shellExecutorUiReady = shellUiReady,
         accessibilityEnabled = accessibilityEnabled,
@@ -19,7 +20,8 @@ class ControlCapabilityManifestTest {
         appAccessMasterEnabled = appAccessEnabled,
         enabledAppCount = 3,
         plannerConfigured = plannerConfigured,
-        stopControlEnabled = stopEnabled
+        stopControlEnabled = stopEnabled,
+        powerModeLevel2 = powerModeLevel2
     )
 
     @Test fun prefersAuthorizedShellUiAdapterWhenItIsActuallyAvailable() {
