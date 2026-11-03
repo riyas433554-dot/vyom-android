@@ -178,21 +178,46 @@ internal class VyomShizukuShellClient(
         )
     }
 
+    private fun hasLiveServiceAuthorization(service: IVyomShellService): Boolean {
+        val binderAlive = try { Shizuku.pingBinder() } catch (_: Exception) { false }
+        val permissionGranted = if (binderAlive) {
+            try { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }
+            catch (_: Exception) { false }
+        } else false
+        val uid = if (binderAlive) {
+            try { Shizuku.getUid() } catch (_: Exception) { -1 }
+        } else -1
+        val remoteBinderAlive = try { service.asBinder()?.isBinderAlive == true } catch (_: Exception) { false }
+        val authorized = PowerModePolicy.mayUseBoundShizukuUserService(
+            binderAlive, permissionGranted, uid, remoteBinderAlive, bound
+        )
+        if (!authorized) {
+            remote = null
+            bound = false
+            activeRequests.clear()
+        }
+        return authorized
+    }
+
     fun executeReadBack(commandId: String, callback: (String) -> Unit) {
         if (commandId !in READ_ONLY_COMMANDS) {
             callback("Blocked: only read-back command IDs are accepted here.")
             return
         }
         val service = remote
-        if (service == null) {
-            callback("Unavailable: authorize Shizuku and wait for its service connection.")
+        if (service == null || !hasLiveServiceAuthorization(service)) {
+            callback("Unavailable: Shizuku binder, owner authorization, UID 2000 and the bound service must all remain live.")
             return
         }
         val requestId = UUID.randomUUID().toString()
         activeRequests.add(requestId)
         worker.execute {
             val result = try {
-                service.execute(requestId, commandId, emptyArray(), 4_000L, false)
+                if (!hasLiveServiceAuthorization(service)) {
+                    "rejected: Shizuku authorization or service connection was lost before dispatch"
+                } else {
+                    service.execute(requestId, commandId, emptyArray(), 4_000L, false)
+                }
             } catch (e: Exception) {
                 "failed: ${e.javaClass.simpleName}"
             } finally {
@@ -204,6 +229,10 @@ internal class VyomShizukuShellClient(
 
     fun cancelAll() {
         val service = remote ?: return
+        if (!hasLiveServiceAuthorization(service)) {
+            emit("STOP could not reach Shizuku: authorization or service connection is no longer live.")
+            return
+        }
         activeRequests.toList().forEach { id ->
             try { service.cancel(id) } catch (_: Exception) { }
         }

@@ -62,6 +62,16 @@ internal object PowerModePolicy {
     fun mayBindShizukuUserService(binderAlive: Boolean, permissionGranted: Boolean, shizukuUid: Int): Boolean =
         binderAlive && permissionGranted && shizukuUid == 2000
 
+    /** A previously bound remote is usable only while every live authorization/connection input remains valid. */
+    fun mayUseBoundShizukuUserService(
+        binderAlive: Boolean,
+        permissionGranted: Boolean,
+        shizukuUid: Int,
+        remoteBinderAlive: Boolean,
+        serviceBound: Boolean
+    ): Boolean = binderAlive && permissionGranted && shizukuUid == 2000 &&
+        remoteBinderAlive && serviceBound
+
     fun requiredAppOps(overlayFeatureEnabled: Boolean, allFilesFeatureDeclared: Boolean): List<String> =
         buildList {
             if (overlayFeatureEnabled) add("SYSTEM_ALERT_WINDOW")

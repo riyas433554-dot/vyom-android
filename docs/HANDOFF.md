@@ -1595,3 +1595,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Implementation: pure policy allows binding only for live binder + granted Shizuku permission + UID 2000; `bindUserService()` now re-reads all three immediately before checking/reusing/binding the UserService. If any check fails, stale local remote/bound state is cleared and bind is refused.
 - This closes the time-of-check/time-of-use gap at the binding boundary. It does not by itself prove Android/Shizuku binder lifecycle or physical permission revocation behavior.
 - P1 remains PARTIAL; no feature/acceptance IDs changed. Next: exact-head Debug and Full CI; then test UserService disconnect/revocation lifecycle and continue the mandatory P1 live capability/read-back matrix. No APK delivered.
+
+
+### P1 bound UserService authorization revalidation — RED evidence and implementation — 2026-11-03
+- Test-only head: `c15a62b48bb215f16e57f9b9731233be88e95e73`. Debug `41579936271` and Full CI `41579936266` both FAILED as expected in `:app:compileDebugUnitTestKotlin`: six unresolved references to `PowerModePolicy.mayUseBoundShizukuUserService` at `PowerModePolicyTest.kt:151-156`.
+- Implemented pure live-use policy: require live Shizuku binder, currently granted permission, UID 2000, live remote binder and locally bound state.
+- Before a read-back request and again on the worker immediately before dispatch, re-read all authorization and binder inputs. Any failed check invalidates local remote/bound/request state and refuses dispatch. STOP also refuses stale remote access.
+- This is app-side revalidation; it cannot prove the OEM/Shizuku runtime revocation callback timing. P1 remains PARTIAL and no acceptance IDs changed. Continue the actual UserService lifecycle/STOP tests and capability/app-op read-back matrix. No APK delivered.
