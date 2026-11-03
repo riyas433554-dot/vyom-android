@@ -292,6 +292,40 @@ class UiAgentPolicyTest {
             visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
     }
 
+    @Test fun trustedDefaultExecutesOwnerRequestedVisibleActionsWithoutExtraConfirmation() {
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Send"),
+                listOf("Send"), "Send this photo"))
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Delete"),
+                listOf("Delete"), "Delete this draft"))
+    }
+
+    @Test fun trustedDefaultAllowsFreshGesturesWithoutExtraConfirmation() {
+        val observed = UiAgentPolicy.VisibleOcr(4, "Timeline", "Timeline|10|20|110|70", true)
+        val swipe = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_OCR, target = "Timeline",
+            direction = "left", ocrIndex = 4, ocrFingerprint = observed.fingerprint)
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(swipe, emptyList(), "Swipe timeline left", visibleOcr = listOf(observed)))
+        val node = UiAgentPolicy.VisibleNode(5, true, false, false, false, "timeline-node", true, "Timeline")
+        val tap = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 5, nodeFingerprint = "timeline-node")
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(tap, emptyList(), "Open timeline", visibleNodes = listOf(node)))
+    }
+
+    @Test fun trustedDefaultAllowsAllowlistedQuickSettingsButKeepsHardBlocks() {
+        val node = UiAgentPolicy.VisibleNode(3, true, false, false, false, "wifi-tile", true, "Wi-Fi")
+        val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 3,
+            nodeFingerprint = "wifi-tile", screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE)
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(action, listOf("Wi-Fi"), "Turn on Wi-Fi", visibleNodes = listOf(node)))
+        listOf("Pay", "Banking", "Authenticator", "Security", "OTP").forEach { target ->
+            assertEquals("Blocked target: $target", UiAgentPolicy.Verdict.REJECT,
+                UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = target),
+                    listOf(target), "Open $target"))
+        }
+    }
+
     @Test fun rejectsAccessibilityTreeCapturedAcrossScreenTransition() {
         assertFalse(UiAgentPolicy.isTreeObservationFresh(20L, 21L, "com.example.editor", "com.example.editor"))
         assertFalse(UiAgentPolicy.isTreeObservationFresh(20L, 20L, "com.example.editor", "com.android.settings"))
