@@ -140,3 +140,7 @@
 
 ## 10. Repo/ZIP/Creative Studio lock
 Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_STUDIO.md`. This specification is not proof of implementation. Do not mark any new item complete until source code, tests and exact-head CI evidence exist.
+
+- `docs/ANDROID_CONTROL_CAPABILITY_MATRIX.md` — owner-authorized Android permissions, implemented capability inventory, platform boundaries and acceptance gates.
+- `docs/skills/JARVIS_AGENT_ARCHITECTURE.md` — JARVIS brain/hands/capability-probe/tool-gate patterns adapted as Android learning guidance.
+- `docs/skills/CONTINUOUS_LEARNING_AND_VERIFICATION.md` — learn-before-guess protocol, provenance, skill validation and eval workflow.
