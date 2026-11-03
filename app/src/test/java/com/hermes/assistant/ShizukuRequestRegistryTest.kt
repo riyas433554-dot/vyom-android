@@ -7,7 +7,7 @@ class ShizukuRequestRegistryTest {
     @Test fun stopBeforeExecuteRejectsTheRequest() {
         val registry = ShizukuRequestRegistry()
         assertTrue(registry.cancel("req-1"))
-        assertEquals(ShizukuRequestRegistry.Begin.DUPLICATE, registry.begin("req-1"))
+        assertEquals(ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START, registry.begin("req-1"))
         assertTrue(registry.isCancelled("req-1"))
     }
 
