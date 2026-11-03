@@ -183,7 +183,11 @@ internal class ContentUpdateSlotStore(private val root: File) {
         writeAtomically(crashFile, updated.joinToString("\n"))
         if (updated.size < 2) return false
         val rolledBack = rollback()
-        if (rolledBack) crashFile.delete()
+        if (rolledBack) {
+            crashFile.delete()
+            appendHistory(ContentUpdateResult(active, false, emptyList(), null,
+                "Automatic rollback after two crashes within 60 seconds"))
+        }
         return rolledBack
     }
 

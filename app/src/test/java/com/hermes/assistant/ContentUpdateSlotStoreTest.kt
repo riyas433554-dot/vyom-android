@@ -35,6 +35,8 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
+            val baselineBytes = "baseline".toByteArray()
+            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to baselineBytes))
             val firstBytes = "old".toByteArray()
             val first = manifest("1.0.0", "0.9.0", firstBytes)
             assertTrue(apply(store, first, firstBytes) { probe, slot ->
@@ -55,6 +57,8 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
+            val baseline = "baseline".toByteArray()
+            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to baseline))
             val old = "old".toByteArray()
             apply(store, manifest("1.0.0", "0.9.0", old), old) { p, _ ->
                 ContentProbeResult(p.id, true, 2L, "pass")
@@ -73,6 +77,7 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
+            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
             listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
                 apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
@@ -126,6 +131,7 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
+            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
             listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
                 apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes), bytes) { p, _ ->
@@ -143,7 +149,8 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
-            listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
+            store.seedInitialSlot("1.0.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
+            listOf("1.1.0", "1.2.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
                 apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
                     bytes) { p, _ -> ContentProbeResult(p.id, true, 1L, "pass") }
@@ -151,6 +158,7 @@ class ContentUpdateSlotStoreTest {
             assertFalse(store.recordCrashAndRollback(10_000L))
             assertTrue(store.recordCrashAndRollback(40_000L))
             assertEquals("1.0.0", store.activeVersion())
+            assertTrue(store.history().any { it.contains("Automatic rollback after two crashes") })
         } finally { root.deleteRecursively() }
     }
 }
