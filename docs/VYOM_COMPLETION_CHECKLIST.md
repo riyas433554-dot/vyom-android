@@ -1,3 +1,7 @@
+# M0 FACTORY SOURCE STATUS — 2026-11-03
+
+Implemented source (not yet accepted): native Workspace entry and live GitHub Issues screen; issue create/edit/priority/status/comment history; explicit Vyom chat complaint intake with persisted idempotency identity; chat restart recovery; 15-second Factory refresh; Termux `gh` CLI adapter; shared protocol; live Diagnostics issue-read row. Exact-head CI, owner phone/token permission acceptance, Termux and ChatGPT real-issue exercises remain pending. Parallel workers, skill/repository installation, durable runner heartbeat/restart, schedules and true always-on execution remain unimplemented. Do not check off M0 acceptance until these are exercised and evidenced.
+
 # M0 — VYOM FACTORY FIRST (OWNER OVERRIDE · 2026-11-03)
 
 Controlling implementation contract: `docs/HANDOFF.md` M0. This overrides older milestone order until Factory acceptance.
