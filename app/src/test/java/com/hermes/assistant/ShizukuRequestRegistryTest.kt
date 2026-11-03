@@ -35,6 +35,18 @@ class ShizukuRequestRegistryTest {
         assertEquals(ShizukuRequestRegistry.Begin.DUPLICATE, registry.begin("same"))
     }
 
+    @Test fun pendingStopTombstonesAndActiveRequestsCannotExceedCapacity() {
+        val registry = ShizukuRequestRegistry(maxEntries = 2)
+        assertTrue(registry.cancel("stop-a"))
+        assertTrue(registry.cancel("stop-b"))
+        assertFalse(registry.cancel("stop-c"))
+        assertEquals(ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START, registry.begin("stop-a"))
+        assertEquals(ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START, registry.begin("stop-b"))
+        assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("active-a"))
+        assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("active-b"))
+        assertEquals(ShizukuRequestRegistry.Begin.CAPACITY_REACHED, registry.begin("active-c"))
+    }
+
     @Test fun completedHistoryIsBoundedWithoutClearingActiveRequests() {
         val registry = ShizukuRequestRegistry(maxEntries = 2)
         registry.begin("active")
