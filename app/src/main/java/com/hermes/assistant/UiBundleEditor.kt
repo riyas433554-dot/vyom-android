@@ -10,7 +10,7 @@ import java.net.URL
  * Native Kotlin, permissions and privileged bridge code are never exposed to this editor.
  */
 internal class UiBundleEditor(private val store: UiBundleStore) {
-    fun applyPrompt(apiKey: String, model: String, prompt: String): String {
+    fun createPromptFiles(apiKey: String, model: String, prompt: String): Map<String, ByteArray> {
         require(apiKey.trim().length >= 20) { "Configure the NVIDIA API key before editing the UI" }
         require(model.isNotBlank() && model.length <= 120) { "Choose a supported UI-editing model" }
         require(prompt.isNotBlank() && prompt.length <= 1_500) { "Describe a UI change in 1–1,500 characters" }
@@ -70,11 +70,7 @@ internal class UiBundleEditor(private val store: UiBundleStore) {
                 }
                 updated[name] = SelfModificationPatch.apply(updated[name] ?: error("UI asset not found: $name"), operations)
             }
-            val bytes = updated.mapValues { (_, content) -> content.toByteArray(Charsets.UTF_8) }
-            val hashes = bytes.mapValues { (name, content) -> UiBundleIntegrity.sha256(content) }
-            val version = "bundle-${System.currentTimeMillis()}"
-            store.installBundle(version, bytes, hashes)
-            return version
+            return updated.mapValues { (_, content) -> content.toByteArray(Charsets.UTF_8) }
         } finally {
             connection.disconnect()
         }
