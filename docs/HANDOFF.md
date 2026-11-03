@@ -2052,3 +2052,31 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 
 ### Test cleanup
 - Temporary acceptance issue #8 (`factory-termux-test-001`) closed after all tested mutations and independent metadata read passed.
+
+
+## Continuation checkpoint — Termux status display correction (2026-11-03)
+
+### Change implemented
+- Fixed `scripts/vyom-factory.sh list`: the second column now comes from canonical Factory metadata `status`, not GitHub's coarse open/closed issue state. Priority is now shown as a separate column as well.
+- The output columns are now: issue number, Factory status, priority, title, URL.
+- Invalid/malformed metadata and ordinary GitHub issues remain excluded.
+- Added `scripts/test-vyom-factory-list.sh` with fixtures proving that an issue whose GitHub state is `open` but Factory metadata is `in_progress` renders as `in_progress`; completed/closed tasks render as `completed`; ordinary and malformed issues are excluded.
+- Added the fixture test to `vyom-android-ci.yml` after the existing shell syntax check.
+
+### Commits on `feature/memory-intelligence`
+- `f0d6606c13d7ef6c2543d877e34d9dd8a67df7da` — CLI canonical status/priority rendering.
+- `a5b2787efd3277afe20f490ddef12b0ec51582b0` — CLI output regression test.
+- `b439570b28e3a0923662ea22699c6e1f0697fb03` — CI runs the regression test.
+
+### Verification state
+- Owner's prior Termux create/list/priority/status/comment/edit round-trip passed for issue #8; issue #8 was closed after the test.
+- New regression test is committed and will run in CI; it has NOT yet been independently executed in this session. Do not claim it passes until workflow evidence is checked.
+- New exact-head Debug and Full CI results are pending. No APK delivery is authorized.
+- Next immediate verification: inspect latest Actions runs for the new branch HEAD; read actual job results/logs and fix any failures. Then ask owner to update the Termux script from this branch and confirm list output shows the Factory status column accurately.
+
+### Next engineering focus after CI
+1. Complete code-level intake audit across Factory screen, Vyom chat, Termux, and explicit ChatGPT-created issues. Verify each source's metadata identity and duplicate prevention.
+2. Design/implement a real durable worker lifecycle. First prove the available executor can atomically claim a task and persist run/lease/heartbeat/event state; then implement retries, STOP/cancel and crash recovery.
+3. Add isolated task execution branches/worktrees and safe conflict serialization before parallel execution.
+4. Build repository/skill intake with pinned revisions, licence/security review and validation.
+5. Wire persisted run/events into Factory UI. Schedules and always-on claims only after an actual runner/heartbeat exists.
