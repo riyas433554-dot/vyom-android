@@ -67,13 +67,7 @@ class VyomAccessibilityService : AccessibilityService() {
         // Track window/content transitions across app switches; never retain or forward event text.
         if (event == null) return
         val eventPackage = event.packageName?.toString().orEmpty()
-        val relevantType = event.eventType in setOf(
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED,
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-            AccessibilityEvent.TYPE_VIEW_SCROLLED,
-            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
-        )
+        val relevantType = UiAgentPolicy.isRelevantAccessibilityEvent(event.eventType)
         val activeWindowId = rootInActiveWindow?.windowId ?: -1
         if (relevantType && UiAgentPolicy.shouldTrackAccessibilityEvent(
                 eventPackage, packageName, event.windowId, activeWindowId
