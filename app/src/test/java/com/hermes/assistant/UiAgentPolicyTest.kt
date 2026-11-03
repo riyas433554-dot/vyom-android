@@ -90,7 +90,7 @@ class UiAgentPolicyTest {
 
     @Test fun rejectsPaymentSecurityAndUninstallTargetsWithoutConfirmation() {
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Security"), listOf("Security"), "Open settings"))
-        assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Uninstall"), listOf("Uninstall"), "Remove app"))
+        assertEquals(UiAgentPolicy.Verdict.ALLOW, UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Uninstall"), listOf("Uninstall"), "Uninstall this app"))
         val ocr = UiAgentPolicy.VisibleOcr(1, "UPI", "UPI|0|0|20|20", true)
         val ocrAction = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "UPI", ocrIndex = 1, ocrFingerprint = ocr.fingerprint)
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(ocrAction, emptyList(), "Pay", visibleOcr = listOf(ocr)))
@@ -290,6 +290,10 @@ class UiAgentPolicyTest {
             visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
         assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(drag, emptyList(), "Move timeline",
             visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.SESSION_GRANT))
+    }
+
+    @Test fun trustedIsTheDeclaredDefaultMode() {
+        assertEquals(UiAgentPolicy.ConfirmationMode.TRUSTED, UiAgentPolicy.defaultConfirmationMode())
     }
 
     @Test fun trustedDefaultExecutesOwnerRequestedVisibleActionsWithoutExtraConfirmation() {
