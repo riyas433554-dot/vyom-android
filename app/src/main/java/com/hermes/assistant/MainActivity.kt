@@ -3995,6 +3995,16 @@ class MainActivity : Activity() {
                     rows += "FAIL · Hot-swappable UI bundle · ${bundleError.message ?: "bundle verification failed"}"
                 }
                 rows += "PARTIAL · UI bundle prompt editing · Minimal prompt patches, hash verification and page-load rollback are wired; full native app UI migration remains unfinished"
+                val trustedDefaultReady =
+                    UiAgentPolicy.defaultConfirmationMode() == UiAgentPolicy.ConfirmationMode.TRUSTED &&
+                    DeviceActionSafetyPolicy.evaluate(false, ActionEngine.Risk.CONFIRM) == DeviceActionSafetyPolicy.Decision.ALLOW &&
+                    DeviceActionSafetyPolicy.evaluate(true, ActionEngine.Risk.SAFE) == DeviceActionSafetyPolicy.Decision.STOP_CONTROL &&
+                    AppAccessPolicy.isBlockedIdentifier("com.google.android.apps.authenticator2", "Google Authenticator")
+                rows += if (trustedDefaultReady) {
+                    "PASS · A14 TRUSTED default · Owner-requested safe actions run without repeated prompts; STOP CONTROL and finance/authenticator hard blocks remain active"
+                } else {
+                    "FAIL · A14 TRUSTED default · Default mode or hard-block precedence is not configured"
+                }
                 val contentVersion = runCatching { contentUpdateManager.activeVersion() }.getOrDefault("")
                 rows += if (contentVersion.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) {
                     "PASS · A18 content slot · Active version $contentVersion; previous-slot rollback and update history are available"
