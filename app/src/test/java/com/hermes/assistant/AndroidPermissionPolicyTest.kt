@@ -58,4 +58,25 @@ class AndroidPermissionPolicyTest {
         assertEquals(AndroidPermissionPolicy.GrantState.GRANTED,
             AndroidPermissionPolicy.specialPermissionState(true))
     }
+    @Test fun fullControlAlsoRequiresPlannerSkillAndStopControlOff() {
+        val missingPlanner = AndroidPermissionPolicy.readiness(
+            accessibilityEnabled = true, masterAppAccess = true, allowedTargetApps = 2,
+            plannerReady = false
+        )
+        assertFalse(missingPlanner.ready)
+        assertTrue(missingPlanner.missing.contains(AndroidPermissionPolicy.Requirement.PLANNER))
+
+        val disabledSkill = AndroidPermissionPolicy.readiness(
+            accessibilityEnabled = true, masterAppAccess = true, allowedTargetApps = 2,
+            uiAgentEnabled = false
+        )
+        assertTrue(disabledSkill.missing.contains(AndroidPermissionPolicy.Requirement.UI_AGENT_SKILL))
+
+        val stopped = AndroidPermissionPolicy.readiness(
+            accessibilityEnabled = true, masterAppAccess = true, allowedTargetApps = 2,
+            stopControlOn = true
+        )
+        assertTrue(stopped.missing.contains(AndroidPermissionPolicy.Requirement.STOP_CONTROL))
+    }
+
 }
