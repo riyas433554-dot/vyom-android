@@ -7,7 +7,7 @@ import android.view.accessibility.AccessibilityEvent
  * A model may only target controls actually present in the latest observed accessibility tree.
  */
 internal object UiAgentPolicy {
-    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, TYPE_TEXT, BACK, HOME, RECENTS, NOTIFICATIONS, QUICK_SETTINGS, WAIT, DONE }
+    enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, SCROLL_UNTIL_FOUND, TYPE_TEXT, BACK, HOME, RECENTS, NOTIFICATIONS, QUICK_SETTINGS, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
     data class Action(
@@ -24,6 +24,7 @@ internal object UiAgentPolicy {
         val toAnchor: String = "",
         val completionEvidence: String = "",
         val waitMs: Int = 1000,
+        val maxScrolls: Int = 5,
         val screenRevision: Long = -1L,
         val foregroundEpoch: Long = -1L,
         val x1: Int = -1,
@@ -238,6 +239,13 @@ internal object UiAgentPolicy {
                     )) Verdict.REJECT else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
+            Kind.SCROLL_UNTIL_FOUND -> {
+                val target = action.target.trim()
+                if (target.isBlank() || target.length > 100 || blockedTargets.containsMatchIn(target) ||
+                    action.direction.lowercase() !in setOf("up", "down") || action.maxScrolls !in 1..8 ||
+                    visibleLabels.any { it.trim().equals(target, ignoreCase = true) }) Verdict.REJECT
+                else Verdict.ALLOW
+            }
             Kind.TYPE_TEXT -> {
                 val text = action.text.trim()
                 val node = visibleNodes.firstOrNull { it.index == action.nodeIndex }
