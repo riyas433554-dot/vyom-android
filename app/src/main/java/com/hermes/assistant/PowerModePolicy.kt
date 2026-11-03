@@ -64,8 +64,12 @@ internal object PowerModePolicy {
             if (allFilesFeatureDeclared) add("MANAGE_EXTERNAL_STORAGE")
         }
 
-    fun capabilityLevel(shizukuRunning: Boolean, accessibilityEnabled: Boolean): CapabilityLevel = when {
-        shizukuRunning -> CapabilityLevel.LEVEL_2
+    fun capabilityLevel(
+        shizukuRunning: Boolean,
+        shizukuAuthorized: Boolean,
+        accessibilityEnabled: Boolean
+    ): CapabilityLevel = when {
+        shizukuRunning && shizukuAuthorized -> CapabilityLevel.LEVEL_2
         accessibilityEnabled -> CapabilityLevel.LEVEL_1
         else -> CapabilityLevel.LEVEL_0
     }
