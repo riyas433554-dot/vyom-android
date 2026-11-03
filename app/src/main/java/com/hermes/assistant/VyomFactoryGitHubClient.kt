@@ -14,7 +14,8 @@ import java.util.concurrent.TimeUnit
 internal class VyomFactoryGitHubClient(
     private val token: String,
     private val repository: String = DEFAULT_REPOSITORY,
-    private val http: OkHttpClient = OkHttpClient.Builder().callTimeout(25, TimeUnit.SECONDS).build()
+    private val http: OkHttpClient = OkHttpClient.Builder().callTimeout(25, TimeUnit.SECONDS).build(),
+    private val apiBaseUrl: String = "https://api.github.com"
 ) {
     data class Task(
         val number: Int,
@@ -55,8 +56,8 @@ internal class VyomFactoryGitHubClient(
         val key = VyomFactoryStatus.idempotencyKey(source, sourceId)
             ?: throw IllegalArgumentException("Invalid source identity")
         listTasks().firstOrNull { it.metadata.idempotencyKey == key }?.let { existing ->
-            return updateTask(existing, newTitle = cleanTitle, newPriority = priority,
-                newStatus = existing.metadata.status, newDescription = description.trim())
+            // A retry with the same identity must be side-effect free. Edits use updateTask().
+            return existing
         }
         val metadata = VyomFactoryStatus.Metadata(priority, "open", source, sourceId, key, listOf("created"))
         val body = VyomFactoryStatus.withMetadata(description.trim(), metadata)
@@ -118,9 +119,10 @@ internal class VyomFactoryGitHubClient(
     private fun execute(method: String, path: String, payload: JSONObject? = null): String {
         if (token.isBlank() || token.length > 500) throw IllegalStateException("GitHub token is missing or invalid")
         val normalized = path.removePrefix("/")
-        val url = if (normalized.isBlank()) "https://api.github.com/repos/$repository"
-            else if (normalized == "user") "https://api.github.com/user"
-            else "https://api.github.com/repos/$repository/$normalized"
+        val base = apiBaseUrl.trimEnd('/')
+        val url = if (normalized.isBlank()) "$"+"{base}/repos/$"+"{repository}"
+            else if (normalized == "user") "$"+"{base}/user"
+            else "$"+"{base}/repos/$"+"{repository}/$"+"{normalized}"
         val builder = Request.Builder().url(url)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
