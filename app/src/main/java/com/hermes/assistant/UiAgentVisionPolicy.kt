@@ -6,7 +6,10 @@ internal object UiAgentVisionPolicy {
 
     fun normalizedToPixels(value: Int, dimension: Int): Int? {
         if (value !in 0..1000 || dimension <= 0) return null
-        return ((value.toLong() * (dimension - 1).toLong() + 500L) / 1000L).toInt()
+        // Map the closed 0..1000 range to 0..dimension-1 using floor.
+        // This keeps midpoint conversion deterministic with the established
+        // coordinate contract (e.g. 500/1000 of 1080px -> pixel 539).
+        return (value.toLong() * (dimension - 1).toLong() / 1000L).toInt()
     }
 
     fun isAspectCompatible(imageWidth: Int, imageHeight: Int, screenWidth: Int, screenHeight: Int): Boolean {
