@@ -184,7 +184,7 @@ internal data class ContentUpdateManifest(
 
         fun compareVersions(left: String, right: String): Int {
             fun parts(value: String) = value.substringBefore('-').substringBefore('+')
-                .split('.').map { it.toIntOrNull() ?: 0 }
+                .split('.').map { it.toLongOrNull() ?: 0L }
             val a = parts(left)
             val b = parts(right)
             for (index in 0 until maxOf(a.size, b.size)) {
