@@ -18,6 +18,11 @@ class DeviceActionSafetyPolicyTest {
 
     @Test fun confirmActionsNeverBecomeAutomatic() {
         assertEquals(DeviceActionSafetyPolicy.Decision.REQUIRE_CONFIRMATION,
+            DeviceActionSafetyPolicy.evaluate(killSwitchEnabled = false, risk = ActionEngine.Risk.CONFIRM, trustedDefault = false))
+    }
+
+    @Test fun trustedDefaultAllowsOwnerRequestedConfirmClassActionsWithoutSecondPrompt() {
+        assertEquals(DeviceActionSafetyPolicy.Decision.ALLOW,
             DeviceActionSafetyPolicy.evaluate(killSwitchEnabled = false, risk = ActionEngine.Risk.CONFIRM))
     }
 
