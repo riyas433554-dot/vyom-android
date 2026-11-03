@@ -3805,26 +3805,25 @@ class MainActivity : Activity() {
                 }
             }
             val url = manifestUrl ?: continue
-            validateReleaseUrl(url)
+            val releaseTag = release.optString("tag_name")
+            if (!UpdateManifestPolicy.isReleaseAssetUrl(url, releaseTag, "json")) continue
             val manifest = JSONObject(readHttpsText(url, 64 * 1024))
             val versionCode = manifest.optInt("versionCode", 0)
-            val checksum = manifest.optString("sha256").lowercase(Locale.ROOT)
-            val certificate = manifest.optString("certificateSha256").lowercase(Locale.ROOT)
-            val commit = manifest.optString("commit")
-            val apkUrl = manifest.optString("apk")
-            if (expectedCommit != null && commit != expectedCommit) continue
-            if (!checksum.matches(Regex("^[a-f0-9]{64}$"))) continue
-            if (!certificate.matches(Regex("^[a-f0-9]{64}$"))) continue
-            if (!commit.matches(Regex("^[a-f0-9]{40}$"))) continue
-            try {
-                validateReleaseUrl(apkUrl)
-            } catch (_: Exception) {
-                continue
-            }
+            val candidate = UpdateManifestPolicy.Candidate(
+                versionCode = versionCode,
+                sha256 = manifest.optString("sha256").lowercase(Locale.ROOT),
+                certificateSha256 = manifest.optString("certificateSha256").lowercase(Locale.ROOT),
+                commit = manifest.optString("commit"),
+                releaseTag = releaseTag,
+                apkUrl = manifest.optString("apk")
+            )
+            if (!UpdateManifestPolicy.isWellFormed(candidate)) continue
+            if (expectedCommit != null &&
+                !UpdateManifestPolicy.matchesExpectedCommit(candidate, expectedCommit)) continue
             // GitHub returns releases newest-first and versionCode is derived from
             // the repository-wide increasing run ID. Older releases cannot supersede
             // an installed newer build, so stop rather than fetching every old manifest.
-            if (versionCode <= BuildConfig.VERSION_CODE) break
+            if (!UpdateManifestPolicy.isNewerVersion(versionCode, BuildConfig.VERSION_CODE)) break
             return manifest
         }
         return JSONObject()
