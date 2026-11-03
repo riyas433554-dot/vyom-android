@@ -161,6 +161,13 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         System.exit(0)
     }
 
+    private fun terminateProcess(process: Process): Boolean = ShizukuProcessTerminator.terminate(
+        isAlive = process::isAlive,
+        destroy = process::destroy,
+        waitForExit = { process.waitFor(250, TimeUnit.MILLISECONDS) },
+        destroyForcibly = process::destroyForcibly
+    )
+
     private companion object {
         const val TAG = "VyomShizuku"
         const val MAX_OUTPUT_BYTES = 8 * 1024

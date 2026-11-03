@@ -1660,3 +1660,9 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - These are deterministic JVM lifecycle tests and best-effort process APIs; they do not establish OEM Shizuku's external process-death timing. P1 remains PARTIAL; no acceptance IDs changed and no APK delivered.
 - Follow-up correction: teardown's initial process snapshot could miss a process whose `ProcessBuilder.start()` had not returned yet. Added registry quiescence waiting and a final running-child sweep; late startup uses the same verified terminator. This bounded wait is not an unbounded guarantee against a permanently stuck OS process creation call.
 - Next: run Debug and Full CI on this implementation head; inspect real logs for any failures and fix them before moving to live Level 0/1/2 capability and secure-settings/app-op read-back.
+
+
+### P1 Shizuku process-termination CI failure correction — 2026-11-03
+- Exact-head `bb8ba3540ae66ee4724022ab972c9f6972c8233e`: Debug `41589916070` and Full CI `41589916022` FAILED at `:app:compileDebugKotlin`. Real logs show unresolved `ShizukuProcessTerminator` and missing `terminateProcess` in `VyomShizukuUserService.kt`; no APK artifact was produced.
+- Root cause: previous tree update did not include the helper source file or service adapter. Corrected by adding the production helper and restoring its regression test source in the actual tree.
+- No ID rows changed. P1 remains PARTIAL. Next: exact-head Debug + Full CI; do not proceed to the capability matrix until CI resolves.

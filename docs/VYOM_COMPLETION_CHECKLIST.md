@@ -227,3 +227,11 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Exact-head Debug and Full CI green.
 - [ ] Physical Shizuku process-death timing and live Level 0/1/2 + secure-settings/app-op read-back acceptance.
 - P1 remains PARTIAL; no acceptance ID changed and no APK delivered.
+
+
+### P1 Shizuku process termination — exact-head CI correction
+- [x] Add missing production process-termination helper and UserService adapter identified by real CI compiler logs.
+- [x] Restore process-termination regression test source in app test tree.
+- [ ] Exact-head Debug + Full CI green.
+- [ ] Continue P1 live Level 0/1/2 capability and secure-settings/app-op read-back matrix after CI resolves.
+- P1 remains PARTIAL; no acceptance ID changed; no APK.
