@@ -1724,6 +1724,56 @@ class MainActivity : Activity() {
             }, action.waitMs.toLong())
             return
         }
+        val shellClient = shizukuShellClient
+        val shellReady = shellClient?.capabilityLevel(currentVyomAccessibilityEnabled()) ==
+            PowerModePolicy.CapabilityLevel.LEVEL_2
+        val visualKinds = setOf(
+            UiAgentPolicy.Kind.VISION_TAP, UiAgentPolicy.Kind.VISION_LONG_PRESS,
+            UiAgentPolicy.Kind.VISION_SWIPE, UiAgentPolicy.Kind.VISION_DRAG
+        )
+        if (shellReady && action.kind in visualKinds) {
+            if (!AppAccessPolicy.isAllowed(this, action.screenPackage) ||
+                service.screenObservation().foregroundPackage != action.screenPackage) {
+                finish("ShellExecutor blocked: target app is no longer the allowed foreground app.")
+                return
+            }
+            val width = resources.displayMetrics.widthPixels
+            val height = resources.displayMetrics.heightPixels
+            val command = when (action.kind) {
+                UiAgentPolicy.Kind.VISION_TAP -> "ui_tap" to listOf(
+                    action.screenPackage, action.x1.toString(), action.y1.toString(), width.toString(), height.toString()
+                )
+                UiAgentPolicy.Kind.VISION_LONG_PRESS -> "ui_long_press" to listOf(
+                    action.screenPackage, action.x1.toString(), action.y1.toString(), "700", width.toString(), height.toString()
+                )
+                else -> "ui_swipe" to listOf(
+                    action.screenPackage, action.x1.toString(), action.y1.toString(),
+                    action.x2.toString(), action.y2.toString(), "500", width.toString(), height.toString()
+                )
+            }
+            updateProgress("Power Mode • ShellExecutor gesture • verifying screen…")
+            shellClient!!.executeUiAction(command.first, command.second, ownerConfirmed = true) { result ->
+                runOnUiThread {
+                    if (generation != uiAgentGeneration) return@runOnUiThread
+                    val shellAccepted = result.startsWith("exit=0;")
+                    if (!shellAccepted && service.isLatestObservationFresh(action.screenPackage)) {
+                        logControlAction(UiAgentPolicy.auditLabel(action), "ShellExecutor rejected; falling back to Accessibility", "ui-agent")
+                        val fallbackSuccess = when (action.kind) {
+                            UiAgentPolicy.Kind.VISION_TAP -> service.performVisionGesture("tap", action.screenPackage, action.screenRevision, action.foregroundEpoch, action.x1, action.y1, action.x1, action.y1)
+                            UiAgentPolicy.Kind.VISION_LONG_PRESS -> service.performVisionGesture("long_press", action.screenPackage, action.screenRevision, action.foregroundEpoch, action.x1, action.y1, action.x1, action.y1)
+                            UiAgentPolicy.Kind.VISION_SWIPE -> service.performVisionGesture("swipe", action.screenPackage, action.screenRevision, action.foregroundEpoch, action.x1, action.y1, action.x2, action.y2)
+                            else -> service.performVisionGesture("drag", action.screenPackage, action.screenRevision, action.foregroundEpoch, action.x1, action.y1, action.x2, action.y2)
+                        }
+                        completeUiAgentAction(fallbackSuccess, action, goal, generation, completedSteps,
+                            onStepCompleted, updateProgress, nextStep, finish, service, baselineObservation)
+                    } else {
+                        completeUiAgentAction(shellAccepted, action, goal, generation, completedSteps,
+                            onStepCompleted, updateProgress, nextStep, finish, service, baselineObservation)
+                    }
+                }
+            }
+            return
+        }
         val success = when (action.kind) {
             UiAgentPolicy.Kind.OPEN_APP -> launchUiAgentApp(action.target, action.screenPackage)
             UiAgentPolicy.Kind.TAP_TEXT -> service.clickVisibleText(action.target, action.screenPackage)
@@ -1765,61 +1815,79 @@ class MainActivity : Activity() {
                 return
             }
         }
-        if (!UiAgentPolicy.actionAccepted(success)) {
-            logControlAction(UiAgentPolicy.auditLabel(action), "rejected-by-android-or-stale-screen", "ui-agent")
-            finish("Android ne action accept nahi kiya ya screen badal gayi. Task stopped; koi blind retry nahi hua.")
-            return
-        }
-        val nextCount = completedSteps + 1
-        logControlAction(UiAgentPolicy.auditLabel(action), "action-accepted", "ui-agent")
-        updateProgress(UiAgentPolicy.progressMessage(nextCount))
-        service.awaitScreenSettled(baselineObservation) { changed, timedOut, observation ->
-            val generationMatches = generation == uiAgentGeneration
-            val stopRequested = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
-            val systemUiQuickSettingsTransition = action.kind == UiAgentPolicy.Kind.QUICK_SETTINGS &&
-                observation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
-                AppAccessPolicy.isAllowed(this@MainActivity, observation.foregroundPackage)
-            val foregroundMatches = when {
-                action.kind == UiAgentPolicy.Kind.OPEN_APP ->
-                    UiAgentPolicy.isOpenAppOutcomeVerified(action.target, observation.foregroundPackage)
-                systemUiQuickSettingsTransition -> generationMatches && !stopRequested
-                else -> UiAgentPolicy.mayResumeAfterAction(
-                    generationMatches, stopRequested,
-                    baselineObservation.foregroundPackage, observation.foregroundPackage,
-                    baselineObservation.foregroundEpoch, observation.foregroundEpoch
-                )
+        completeUiAgentAction(success, action, goal, generation, completedSteps,
+            onStepCompleted, updateProgress, nextStep, finish, service, baselineObservation)
+    }
+
+
+    private fun completeUiAgentAction(
+        success: Boolean,
+        action: UiAgentPolicy.Action,
+        goal: String,
+        generation: Int,
+        completedSteps: Int,
+        onStepCompleted: () -> Unit,
+        updateProgress: (String) -> Unit,
+        nextStep: () -> Unit,
+        finish: (String) -> Unit,
+        service: VyomAccessibilityService,
+        baselineObservation: VyomAccessibilityService.ScreenObservation
+    ) {
+            if (!UiAgentPolicy.actionAccepted(success)) {
+                logControlAction(UiAgentPolicy.auditLabel(action), "rejected-by-android-or-stale-screen", "ui-agent")
+                finish("Android ne action accept nahi kiya ya screen badal gayi. Task stopped; koi blind retry nahi hua.")
+                return
             }
-            if (!generationMatches || stopRequested || !foregroundMatches) {
-                when {
-                    !generationMatches -> finish("UI Agent task was cancelled. No further action was taken.")
-                    stopRequested -> finish("STOP CONTROL ON — next action blocked.")
-                    action.kind == UiAgentPolicy.Kind.OPEN_APP -> {
-                        logControlAction(UiAgentPolicy.auditLabel(action), "target-app-not-foreground-after-launch", "ui-agent")
-                        finish("Android accepted the app launch, but the requested app did not become foreground. Task stopped; no action was taken on another app.")
-                    }
-                    action.kind == UiAgentPolicy.Kind.QUICK_SETTINGS &&
-                        observation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
-                        !AppAccessPolicy.isAllowed(this@MainActivity, observation.foregroundPackage) -> {
-                        logControlAction(UiAgentPolicy.auditLabel(action), "system-ui-access-off", "ui-agent")
-                        finish("Quick Settings opened, but Android System UI access is OFF. Enable it in Profile > App access to continue. No further action was taken.")
-                    }
-                    else -> {
-                        logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-after-action", "ui-agent")
-                        finish("Foreground app changed or became unavailable after the action. Task stopped; no further action was taken on another app.")
-                    }
+            val nextCount = completedSteps + 1
+            logControlAction(UiAgentPolicy.auditLabel(action), "action-accepted", "ui-agent")
+            updateProgress(UiAgentPolicy.progressMessage(nextCount))
+            service.awaitScreenSettled(baselineObservation) { changed, timedOut, observation ->
+                val generationMatches = generation == uiAgentGeneration
+                val stopRequested = controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)
+                val systemUiQuickSettingsTransition = action.kind == UiAgentPolicy.Kind.QUICK_SETTINGS &&
+                    observation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
+                    AppAccessPolicy.isAllowed(this@MainActivity, observation.foregroundPackage)
+                val foregroundMatches = when {
+                    action.kind == UiAgentPolicy.Kind.OPEN_APP ->
+                        UiAgentPolicy.isOpenAppOutcomeVerified(action.target, observation.foregroundPackage)
+                    systemUiQuickSettingsTransition -> generationMatches && !stopRequested
+                    else -> UiAgentPolicy.mayResumeAfterAction(
+                        generationMatches, stopRequested,
+                        baselineObservation.foregroundPackage, observation.foregroundPackage,
+                        baselineObservation.foregroundEpoch, observation.foregroundEpoch
+                    )
                 }
-                return@awaitScreenSettled
+                if (!generationMatches || stopRequested || !foregroundMatches) {
+                    when {
+                        !generationMatches -> finish("UI Agent task was cancelled. No further action was taken.")
+                        stopRequested -> finish("STOP CONTROL ON — next action blocked.")
+                        action.kind == UiAgentPolicy.Kind.OPEN_APP -> {
+                            logControlAction(UiAgentPolicy.auditLabel(action), "target-app-not-foreground-after-launch", "ui-agent")
+                            finish("Android accepted the app launch, but the requested app did not become foreground. Task stopped; no action was taken on another app.")
+                        }
+                        action.kind == UiAgentPolicy.Kind.QUICK_SETTINGS &&
+                            observation.foregroundPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE &&
+                            !AppAccessPolicy.isAllowed(this@MainActivity, observation.foregroundPackage) -> {
+                            logControlAction(UiAgentPolicy.auditLabel(action), "system-ui-access-off", "ui-agent")
+                            finish("Quick Settings opened, but Android System UI access is OFF. Enable it in Profile > App access to continue. No further action was taken.")
+                        }
+                        else -> {
+                            logControlAction(UiAgentPolicy.auditLabel(action), "foreground-app-changed-after-action", "ui-agent")
+                            finish("Foreground app changed or became unavailable after the action. Task stopped; no further action was taken on another app.")
+                        }
+                    }
+                    return@awaitScreenSettled
+                }
+                val status = when {
+                    timedOut && changed -> "Screen transition observed; quiet wait timed out. Re-observing."
+                    timedOut -> "No screen event detected before timeout. Re-observing current screen; outcome unverified."
+                    changed -> "Screen transition settled. Re-observing."
+                    else -> "No transition event; re-observing current screen."
+                }
+                logControlAction(UiAgentPolicy.auditLabel(action), status, "ui-agent")
+                onStepCompleted()
+                nextStep()
             }
-            val status = when {
-                timedOut && changed -> "Screen transition observed; quiet wait timed out. Re-observing."
-                timedOut -> "No screen event detected before timeout. Re-observing current screen; outcome unverified."
-                changed -> "Screen transition settled. Re-observing."
-                else -> "No transition event; re-observing current screen."
-            }
-            logControlAction(UiAgentPolicy.auditLabel(action), status, "ui-agent")
-            onStepCompleted()
-            nextStep()
-        }
     }
 
 
