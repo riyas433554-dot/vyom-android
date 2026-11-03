@@ -192,6 +192,19 @@ internal class VyomShizukuShellClient(
 
     /** Clear every local handle when owner authorization or either binder is no longer trustworthy. */
     private fun invalidateBoundService() {
+        val previousRemote = remote
+        val remoteBinderAlive = try {
+            previousRemote?.asBinder()?.isBinderAlive == true
+        } catch (_: Exception) { false }
+        if (previousRemote != null) {
+            // Permission loss must not silently orphan work already dispatched to
+            // the shell process. Cancellation is best-effort and never delays
+            // clearing the now-untrusted local capability state.
+            ShizukuRequestCancellation.cancelOutstanding(
+                remoteBinderAlive = remoteBinderAlive,
+                requestIds = activeRequests.toList()
+            ) { requestId -> previousRemote.cancel(requestId) }
+        }
         remote = null
         bound = false
         activeRequests.clear()
