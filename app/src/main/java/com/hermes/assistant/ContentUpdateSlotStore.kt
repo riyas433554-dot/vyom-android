@@ -107,7 +107,7 @@ internal class ContentUpdateSlotStore(private val root: File) {
         probeRunner: ContentUpdateProbeRunner
     ): ContentUpdateResult {
         val oldVersion = activeVersion()
-        if (oldVersion.isNotBlank() && manifest.rollbackTo != oldVersion) {
+        if (oldVersion.isNotBlank() && manifest.rollbackTo != "previous" && manifest.rollbackTo != oldVersion) {
             return ContentUpdateResult(manifest.version, false, emptyList(), null,
                 "rollback_to does not match the currently active slot")
         }
