@@ -32,6 +32,7 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         when (requests.begin(requestId)) {
             ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START -> return "cancelled: STOP arrived before execution"
             ShizukuRequestRegistry.Begin.DUPLICATE -> return "rejected: duplicate or previously completed request id"
+            ShizukuRequestRegistry.Begin.CAPACITY_REACHED -> return "rejected: Shizuku request capacity reached"
             ShizukuRequestRegistry.Begin.ACCEPTED -> Unit
         }
         val boundedTimeout = timeoutMs.coerceIn(100L, command.timeoutMs)
