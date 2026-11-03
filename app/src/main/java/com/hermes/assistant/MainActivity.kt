@@ -3667,7 +3667,7 @@ class MainActivity : Activity() {
                         "FAIL · Stable release identity · Installed certificate differs from the required release identity; updates will be rejected"
                     }
                 }
-                val manifest = fetchLatestUpdateManifest(expectedCommit)
+                val manifest = fetchLatestUpdateManifest()
                 val versionCode = manifest.optInt("versionCode", 0)
                 if (versionCode > BuildConfig.VERSION_CODE) {
                     val checksumValid = manifest.optString("sha256").matches(Regex("(?i)^[a-f0-9]{64}$"))
@@ -3713,7 +3713,7 @@ class MainActivity : Activity() {
         updateNotice.text = "Checking GitHub releases…"
         io.execute {
             try {
-                val manifest = fetchLatestUpdateManifest()
+                val manifest = fetchLatestUpdateManifest(expectedCommit)
                 runOnUiThread {
                     updateCheckInFlight = false
                     updateButton.isEnabled = true
