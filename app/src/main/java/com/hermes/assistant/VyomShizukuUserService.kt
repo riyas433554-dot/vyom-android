@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference
 class VyomShizukuUserService : IVyomShellService.Stub() {
     private val running = ConcurrentHashMap<String, Process>()
     private val cancelled = ConcurrentHashMap.newKeySet<String>()
+    private val completed = ConcurrentHashMap.newKeySet<String>()
 
     override fun execute(
         requestId: String,
@@ -21,6 +22,8 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         ownerConfirmed: Boolean
     ): String {
         if (!requestId.matches(Regex("^[A-Za-z0-9-]{1,64}$"))) return "rejected: invalid request id"
+        if (completed.contains(requestId)) return "rejected: request id already completed"
+        if (cancelled.remove(requestId)) return "cancelled: STOP arrived before execution"
         if (running.containsKey(requestId)) return "rejected: duplicate request id"
         val command = ShizukuCommandPolicy.command(
             commandId = commandId,
@@ -34,6 +37,10 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             if (running.putIfAbsent(requestId, process) != null) {
                 process.destroyForcibly()
                 return "rejected: duplicate request id"
+            }
+            if (cancelled.contains(requestId)) {
+                process.destroyForcibly()
+                return "cancelled: STOP interrupted command startup"
             }
             val output = AtomicReference("")
             val reader = Thread {
@@ -60,7 +67,8 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             if (!finished) {
                 process.destroyForcibly()
                 process.waitFor(300, TimeUnit.MILLISECONDS)
-                "timeout: command exceeded ${boundedTimeout}ms"
+                if (cancelled.remove(requestId)) "cancelled: STOP interrupted the command"
+                else "timeout: command exceeded ${boundedTimeout}ms"
             } else {
                 reader.join(300)
                 if (cancelled.remove(requestId)) "cancelled: STOP interrupted the command"
@@ -76,11 +84,14 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
                 if (process.isAlive) process.destroyForcibly()
             }
             cancelled.remove(requestId)
+            completed.add(requestId)
+            if (completed.size > 256) completed.clear()
         }
     }
 
     override fun cancel(requestId: String) {
         if (!requestId.matches(Regex("^[A-Za-z0-9-]{1,64}$"))) return
+        if (completed.contains(requestId)) return
         cancelled.add(requestId)
         running[requestId]?.let { process ->
             try {
