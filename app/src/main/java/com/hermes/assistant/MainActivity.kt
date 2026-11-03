@@ -3717,8 +3717,8 @@ class MainActivity : Activity() {
                 } else {
                     "FAIL · Self-change guard · Protected-file allowlist is not enforcing expected boundaries"
                 }
-                rows += "PARTIAL · In-app patch flow · Minimal diff preview and PR creation are wired; CI wait and signed artifact handoff remain unfinished"
-                rows += "PARTIAL · External update flow · Signed-release discovery and certificate gate are wired; end-to-end release publication is awaiting CI verification"
+                rows += "PARTIAL · In-app patch flow · Minimal diff, PR, combined CI wait, exact-commit signed release lookup and verified install handoff are wired; CI/device proof remains pending"
+                rows += "PARTIAL · External update flow · Branch CI signed-prerelease publisher, release discovery and SHA/certificate install gate are wired; CI artifact proof remains pending"
                 try {
                     val bundleStore = UiBundleStore(this)
                     val activeBundle = bundleStore.seedBundledVersion()
@@ -4035,8 +4035,11 @@ class MainActivity : Activity() {
         val uri = Uri.parse(value)
         val validReleaseAsset = uri.host.equals("github.com", true) &&
             uri.path.orEmpty().startsWith("/riyas433554-dot/vyom-android/releases/download/")
-        val validApi = uri.host.equals("api.github.com", true) &&
-            uri.path == "/repos/riyas433554-dot/vyom-android/releases/latest"
+        val validApi = uri.host.equals("api.github.com", true) && (
+            uri.path == "/repos/riyas433554-dot/vyom-android/releases/latest" ||
+                (uri.path == "/repos/riyas433554-dot/vyom-android/releases" &&
+                    uri.getQueryParameter("per_page") == "30")
+            )
         if (!uri.scheme.equals("https", true) || (!validReleaseAsset && !validApi)) {
             throw IllegalStateException("Unapproved update endpoint")
         }
