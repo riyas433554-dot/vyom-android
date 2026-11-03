@@ -1944,7 +1944,6 @@ class MainActivity : Activity() {
         val cameraGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         val notificationsGranted = Build.VERSION.SDK_INT < 33 ||
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        val overlayGranted = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
         val writeSettingsGranted = Build.VERSION.SDK_INT < 23 || Settings.System.canWrite(this)
         val baseReadiness = AndroidPermissionPolicy.readiness(
             accessibilityEnabled, access.masterEnabled,
@@ -1960,7 +1959,6 @@ class MainActivity : Activity() {
             "Microphone: " + if (microphoneGranted) "GRANTED" else "NOT GRANTED (voice tasks only)",
             "Camera: " + if (cameraGranted) "GRANTED" else "NOT GRANTED (camera tasks only)",
             "Notifications: " + if (notificationsGranted) "GRANTED" else "NOT GRANTED (background notice tasks only)",
-            "Floating overlay: " + if (overlayGranted) "GRANTED" else "NEEDS SYSTEM APPROVAL",
             "Modify system settings: " + if (writeSettingsGranted) "GRANTED" else "NEEDS SYSTEM APPROVAL",
             "Current app: " + (currentPackage.ifBlank { "not observed" }),
             "Current app allowed: " + if (currentPackage.isNotBlank() && AppAccessPolicy.isAllowed(this, currentPackage)) "YES" else "NO / NOT OBSERVED",
@@ -1982,7 +1980,6 @@ class MainActivity : Activity() {
         val options = arrayOf(
             "Enable Vyom Accessibility service",
             "Enable all safe installed apps",
-            "Allow floating overlay",
             "Allow modify system settings",
             "Allow microphone",
             "Allow camera",
@@ -1997,19 +1994,15 @@ class MainActivity : Activity() {
                     0 -> performControlAction("Open Android accessibility settings", Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     1 -> showAppAccessPanel()
                     2 -> if (Build.VERSION.SDK_INT >= 23) performControlAction(
-                        "Open Vyom overlay permission", Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")
-                    ) else showControlReadiness()
-                    3 -> if (Build.VERSION.SDK_INT >= 23) performControlAction(
                         "Open Vyom modify system settings permission", Settings.ACTION_MANAGE_WRITE_SETTINGS,
                         Uri.parse("package:$packageName")
                     ) else showControlReadiness()
-                    4 -> requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CONTROL_MICROPHONE)
-                    5 -> requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CONTROL_CAMERA)
-                    6 -> if (Build.VERSION.SDK_INT >= 33) requestPermissions(
+                    3 -> requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CONTROL_MICROPHONE)
+                    4 -> requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CONTROL_CAMERA)
+                    5 -> if (Build.VERSION.SDK_INT >= 33) requestPermissions(
                         arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_CONTROL_NOTIFICATIONS
                     ) else performControlAction("Open Vyom notification settings", Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    7 -> showSystemUiAccessConfirmation()
+                    6 -> showSystemUiAccessConfirmation()
                 }
             }
             .setNegativeButton("CLOSE", null)
