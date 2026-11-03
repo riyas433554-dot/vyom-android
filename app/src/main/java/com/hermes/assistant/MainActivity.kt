@@ -2028,7 +2028,7 @@ class MainActivity : Activity() {
         paragraph("6. Overlay is requested only for the floating assistant feature. All-files access is NOT requested: this build uses Android's document picker/SAF, so MANAGE_EXTERNAL_STORAGE is unnecessary.")
         paragraph("7. Accessibility reconnect is allowed only after WRITE_SECURE_SETTINGS is verified. Android still owns the Accessibility toggle; Vyom will never silently enable it.")
         paragraph("Samsung Auto Blocker: Wireless ADB is not the same as USB debugging and should not require turning Auto Blocker off. If you deliberately use a USB cable and USB commands are blocked, check Settings > Security and privacy > Auto Blocker and temporarily disable only the blocking feature that caused the failure. For an APK blocked as an unauthorized source, the same screen has the unauthorized-app blocking setting. Re-enable protection immediately after the owner-authorized step.")
-        paragraph("Shizuku: install it from the official source, start it yourself through Wireless debugging, then explicitly authorize Vyom when Android asks. Non-root Shizuku uses shell (UID 2000), not root, and normally needs restarting after reboot. The Shizuku command executor is not enabled in this wizard until its binder, permission, allowlist and STOP-cancellation checks are implemented and tested.")
+        paragraph("Shizuku: install it from the official source and start it yourself through Wireless debugging. Vyom checks the live binder AND Shizuku's explicit per-app authorization; a connected binder without your approval does not grant LEVEL 2. Non-root Shizuku normally runs as shell (UID 2000), not root, and usually needs restarting after reboot. The current executor exposes only fixed read-back command IDs; mutations require a separate owner-confirmed allowlist path. No arbitrary shell text is accepted.")
         val shizukuStatus = TextView(this).apply {
             text = "Shizuku status has not been checked."
             textSize = 11f
@@ -2037,9 +2037,19 @@ class MainActivity : Activity() {
         }
         content.addView(shizukuStatus, LinearLayout.LayoutParams(-1, -2))
         fun shizukuClient(): VyomShizukuShellClient {
-            return shizukuShellClient ?: VyomShizukuShellClient(this) { message ->
-                shizukuStatus.text = message
-            }.also { shizukuShellClient = it }
+            shizukuShellClient?.let { return it }
+            lateinit var client: VyomShizukuShellClient
+            client = VyomShizukuShellClient(this) { message ->
+                val component = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
+                val enabled = Settings.Secure.getString(
+                    contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                ).orEmpty().split(':').any { it.equals(component, true) }
+                val level = client.capabilityLevel(enabled)
+                shizukuStatus.text = "$message\\nEffective capability: $level"
+            }
+            shizukuShellClient = client
+            return client
         }
         content.addView(Button(this).apply {
             text = "CHECK SHIZUKU STATUS"
