@@ -3963,6 +3963,14 @@ class MainActivity : Activity() {
                     rows += "FAIL · Hot-swappable UI bundle · ${bundleError.message ?: "bundle verification failed"}"
                 }
                 rows += "PARTIAL · UI bundle prompt editing · Minimal prompt patches, hash verification and page-load rollback are wired; full native app UI migration remains unfinished"
+                val contentVersion = runCatching { contentUpdateManager.activeVersion() }.getOrDefault("")
+                rows += if (contentVersion.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) {
+                    "PASS · A18 content slot · Active version $contentVersion; previous-slot rollback and update history are available"
+                } else {
+                    "FAIL · A18 content slot · No valid active content slot; open Profile > Check No-APK Content Updates"
+                }
+                val contentHistory = runCatching { contentUpdateManager.history() }.getOrDefault(emptyList())
+                rows += "PARTIAL · A18 signed package apply · GitHub release discovery, installed-signer verification, staged probes, UI synchronization and rollback are wired; owner-device visible update and failing-probe rollback remain required. History entries=${contentHistory.size}"
             } catch (error: Exception) {
                 rows += "FAIL · Update diagnostics · ${error.message ?: "Unknown verification error"}"
             }
