@@ -16,7 +16,7 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
             State.STARTING, State.RUNNING, State.CANCEL_REQUESTED, State.COMPLETED -> return Begin.DUPLICATE
             null -> Unit
         }
-        trim()
+        trimForInsert()
         if (states.size >= maxEntries) return Begin.CAPACITY_REACHED
         states[id] = State.STARTING
         return Begin.ACCEPTED
@@ -36,7 +36,7 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
             State.CANCEL_REQUESTED, State.CANCELLED_BEFORE_START -> true
             State.STARTING, State.RUNNING -> { states[id] = State.CANCEL_REQUESTED; true }
             null -> {
-                trim()
+                trimForInsert()
                 if (states.size >= maxEntries) false
                 else { states[id] = State.CANCELLED_BEFORE_START; true }
             }
@@ -51,6 +51,14 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
     }
 
     @Synchronized fun state(id: String): State? = states[id]
+
+    /** Evict the oldest completed replay record only when a new slot is needed. */
+    private fun trimForInsert() {
+        while (states.size >= maxEntries) {
+            val removable = states.entries.firstOrNull { it.value == State.COMPLETED }?.key ?: break
+            states.remove(removable)
+        }
+    }
 
     private fun trim() {
         while (states.size > maxEntries) {
