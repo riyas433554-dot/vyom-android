@@ -82,9 +82,12 @@ internal object PowerModePolicy {
         shizukuRunning: Boolean,
         shizukuAuthorized: Boolean,
         shizukuUid: Int,
-        accessibilityEnabled: Boolean
+        accessibilityEnabled: Boolean,
+        userServiceBound: Boolean = false,
+        remoteBinderAlive: Boolean = false
     ): CapabilityLevel = when {
-        shizukuRunning && shizukuAuthorized && shizukuUid == 2000 -> CapabilityLevel.LEVEL_2
+        shizukuRunning && shizukuAuthorized && shizukuUid == 2000 &&
+            userServiceBound && remoteBinderAlive -> CapabilityLevel.LEVEL_2
         accessibilityEnabled -> CapabilityLevel.LEVEL_1
         else -> CapabilityLevel.LEVEL_0
     }

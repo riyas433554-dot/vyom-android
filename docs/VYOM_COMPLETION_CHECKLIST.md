@@ -184,3 +184,10 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Exact-head Debug and Full CI green.
 - [ ] Runtime UserService lifecycle, permission revocation, STOP process termination and Level 0/1/2 read-back acceptance.
 - P1 remains PARTIAL; no acceptance ID changed and no APK delivered.
+
+
+### P1 Level 2 live UserService capability truthfulness — 2026-11-03
+- [x] Policy contract requires live Shizuku binder, owner permission, UID 2000, local UserService binding and a live remote binder before reporting LEVEL_2.
+- [x] Capability read-back clears stale UserService state and falls back to the actually effective lower level when authorization or service liveness is lost.
+- [ ] Exact-head Debug and Full CI green after this change.
+- [ ] Physical Shizuku disconnect/revocation/STOP acceptance remains pending; P1 remains PARTIAL.

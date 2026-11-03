@@ -104,7 +104,7 @@ class PowerModePolicyTest {
         )
         assertEquals(
             PowerModePolicy.CapabilityLevel.LEVEL_2,
-            PowerModePolicy.capabilityLevel(true, true, 2000, false)
+            PowerModePolicy.capabilityLevel(true, true, 2000, false, userServiceBound = true, remoteBinderAlive = true)
         )
     }
 
@@ -115,7 +115,9 @@ class PowerModePolicyTest {
                 shizukuRunning = true,
                 shizukuAuthorized = true,
                 shizukuUid = 2000,
-                accessibilityEnabled = true
+                accessibilityEnabled = true,
+                userServiceBound = true,
+                remoteBinderAlive = true
             )
         )
         assertEquals(
@@ -124,7 +126,9 @@ class PowerModePolicyTest {
                 shizukuRunning = true,
                 shizukuAuthorized = true,
                 shizukuUid = 2000,
-                accessibilityEnabled = false
+                accessibilityEnabled = false,
+                userServiceBound = true,
+                remoteBinderAlive = true
             )
         )
         assertEquals(

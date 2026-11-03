@@ -170,11 +170,24 @@ internal class VyomShizukuShellClient(
             try { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }
             catch (_: Exception) { false }
         } else false
+        val uid = if (running) try { Shizuku.getUid() } catch (_: Exception) { -1 } else -1
+        val service = remote
+        val remoteAlive = try { service?.asBinder()?.isBinderAlive == true } catch (_: Exception) { false }
+        val serviceAuthorized = PowerModePolicy.mayUseBoundShizukuUserService(
+            running, authorized, uid, remoteAlive, bound
+        )
+        if (!serviceAuthorized) {
+            remote = null
+            bound = false
+            activeRequests.clear()
+        }
         return PowerModePolicy.capabilityLevel(
             shizukuRunning = running,
             shizukuAuthorized = authorized,
-            shizukuUid = try { Shizuku.getUid() } catch (_: Exception) { -1 },
-            accessibilityEnabled = accessibilityEnabled
+            shizukuUid = uid,
+            accessibilityEnabled = accessibilityEnabled,
+            userServiceBound = serviceAuthorized,
+            remoteBinderAlive = remoteAlive
         )
     }
 

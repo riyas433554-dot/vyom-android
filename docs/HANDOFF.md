@@ -1609,3 +1609,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Added a regression contract requiring a locally bound and live remote UserService before LEVEL_2 is reported; Shizuku authorization without that service must fall back to LEVEL_1 when Accessibility is effective.
 - Test-only commit is intentionally expected to fail compilation until the policy signature and client read-back are implemented. No capability ID is marked complete; P1 remains PARTIAL.
 - Next: inspect exact RED CI logs, implement live service-backed capability reporting, then continue remaining P1 lifecycle/STOP and app-op read-back acceptance. No APK.
+
+
+### P1 capability-level live UserService read-back — implementation — 2026-11-03
+- RED CI evidence on test-only head `8bde96f00a6a553770b2b75c751d6b53fc129bba`: Full CI run `41582291401` failed at `:app:compileDebugUnitTestKotlin` exactly because the new test's `userServiceBound` and `remoteBinderAlive` policy inputs did not yet exist. The real compiler log showed eight unresolved named-parameter diagnostics; production Kotlin compilation succeeded.
+- Implemented truthful LEVEL_2 reporting: Shizuku binder + permission + UID 2000 are necessary but not sufficient; the UserService must also be locally bound and its remote binder alive. Capability read-back now invalidates stale remote/bound/request state when any of those conditions is lost.
+- Updated existing LEVEL_2 policy tests to supply the complete live-service state. No physical-device behavior is claimed. P1 remains PARTIAL; no acceptance IDs changed.
+- Next: exact-head Debug and Full CI; then continue the P1 UserService disconnect/revocation/STOP and full capability/app-op read-back matrix. No APK.
