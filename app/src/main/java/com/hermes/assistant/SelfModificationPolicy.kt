@@ -22,7 +22,12 @@ internal object SelfModificationPolicy {
         "UpdateVerifier.kt",
         "VyomUpdateClient.kt",
         "SigningConfig.kt",
-        "ReleaseSigning.kt"
+        "ReleaseSigning.kt",
+        "UiBundleEditor.kt",
+        "UiBundleStore.kt",
+        "UiBundleIntegrity.kt",
+        "VyomShizukuShellClient.kt",
+        "VyomShizukuUserService.kt"
     )
 
     fun isAllowedPath(path: String): Boolean {
@@ -32,7 +37,7 @@ internal object SelfModificationPolicy {
         if (fileName in protectedFileNames) return false
         val lower = path.lowercase()
         if (listOf("policy", "audit", "kill", "control", "accessibilityservice", "deviceactionexecutor",
-                "voiceforegroundservice", "selfmodification", "update", "signing", "keystore").any { it in lower }) return false
+                "voiceforegroundservice", "selfmodification", "update", "signing", "keystore", "uibundle", "shizuku").any { it in lower }) return false
         return true
     }
 

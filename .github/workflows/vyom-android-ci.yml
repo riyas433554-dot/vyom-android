@@ -84,7 +84,9 @@ jobs:
                [[ "$lower_name" == *selfmodification* ]] ||
                [[ "$lower_name" == *update* ]] ||
                [[ "$lower_name" == *signing* ]] ||
-               [[ "$lower_name" == *keystore* ]]; then
+               [[ "$lower_name" == *keystore* ]] ||
+               [[ "$lower_name" == *uibundle* ]] ||
+               [[ "$lower_name" == *shizuku* ]]; then
               echo "Blocked policy-critical change in self-proposal: $path"
               exit 1
             fi
