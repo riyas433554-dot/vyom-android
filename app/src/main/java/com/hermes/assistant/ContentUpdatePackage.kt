@@ -81,6 +81,9 @@ internal data class ContentUpdateManifest(
         probes.forEach { probe ->
             if (!probe.id.matches(Regex("^[A-Za-z0-9._-]{1,64}$"))) errors += "Invalid probe ID"
             if (probe.target.isBlank() || probe.target.length > 240 || probe.expected.length > 1_000) errors += "Invalid probe target or expected value"
+            if (probe.kind == ContentProbeKind.PRESENCE && probe.expected.isBlank()) {
+                errors += "Presence probe requires expected visible content"
+            }
             if (probe.kind == ContentProbeKind.PERFORMANCE && !probe.baselineKey.matches(Regex("^[A-Za-z0-9._-]{1,80}$"))) {
                 errors += "Performance probe requires a stored baseline key"
             }
