@@ -21,6 +21,12 @@ class AppAccessPolicyTest {
         assertFalse(AppAccessPolicy.isBlockedIdentifier("com.example.videoeditor", "CapCut"))
     }
 
+    @Test fun tradingAndInvestmentAppsAreNotOverBlocked() {
+        assertFalse(AppAccessPolicy.isBlockedIdentifier("com.example.trading", "Trading"))
+        assertFalse(AppAccessPolicy.isBlockedIdentifier("com.example.investment", "Investment"))
+        assertFalse(AppAccessPolicy.isBlockedIdentifier("com.zerodha.app", "Zerodha"))
+    }
+
     @Test fun authenticatorAndOtpAppsAreBlockedByPackageOrLabel() {
         assertTrue(AppAccessPolicy.isBlockedIdentifier("com.google.android.apps.authenticator2", "Google Authenticator"))
         assertTrue(AppAccessPolicy.isBlockedIdentifier("com.example.otp"))
