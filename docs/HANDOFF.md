@@ -2392,3 +2392,35 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 - Updated the assertion to verify the original description prefix while retaining the stronger exact body equality check. Test branch commit: ad405dbb448b5444070432dab48511070232502e.
 - New PR branch CI must pass on this exact commit before accepting the test. Existing runs on older PR heads do not validate this change.
 - Factory background execution remains unimplemented: this code is registry/intake only, not a persistent worker. Do not advertise app-closed task execution until a durable worker/lease/heartbeat/retry/recovery design is implemented and verified.
+
+## BACKGROUND FACTORY EXECUTION — IMPLEMENTATION TRACK (2026-11-03)
+
+Owner-approved fixed order:
+1. persistent task store/queue
+2. worker claim + lease
+3. heartbeat
+4. retry/backoff
+5. STOP/pause
+6. crash recovery
+7. bounded parallel workers
+8. app-closed execution verification
+
+### Stage 1 source work — partial implementation, not yet accepted
+- Added `VyomFactoryTaskStore`: device-local durable SharedPreferences-backed JSON inbox; synchronous commit is required before enqueue reports success; rejects duplicate issue numbers and source IDs; validates priority/identity; queue order is P0→P3 then enqueue time; supports pending/remove/contains.
+- Added pure `VyomFactoryTaskQueuePolicy` and JVM tests for stable priority ordering and duplicate identity rejection.
+- Files: `app/src/main/java/com/hermes/assistant/VyomFactoryTaskStore.kt`, `VyomFactoryTaskQueuePolicy.kt`, `app/src/test/java/com/hermes/assistant/VyomFactoryTaskQueuePolicyTest.kt`.
+- Commits: `127f637f346e3d4b4e11cb5d112f9d827abbed5b`, `29ced6b228849a6ddd298caadd4a4701da914708`, `02f443b31bf507f197b6246cb666169dd2fe37b7`, `b9eca76d724d7ffbe2a5a77ca09bdc19e11b9aca`.
+- Important: queue is not yet wired to GitHub task intake and no worker consumes it. This is storage groundwork only, not background execution.
+
+### Architecture constraints
+- Android minSdk 26, targetSdk 35. Current manifest has INTERNET and a microphone foreground service only; no WorkManager dependency exists yet.
+- Existing Factory dialog uses a dialog-lifetime single-thread executor and 15-second UI polling; dismissing it shuts that executor down. This is not a durable worker.
+- GitHub Issues remains the shared task registry. A local Android queue cannot provide a cross-device/Termux/ChatGPT atomic lease. Do not write GitHub status=in_progress until a safe claim protocol exists; do not imply local queue uniqueness prevents cross-client races.
+- WorkManager is the likely durable deferred-work substrate, subject to Android force-stop/Doze/battery/network constraints. Never promise guaranteed 24/7 operation on a phone.
+- No backend, Render, production Supabase, or main branch changes are permitted.
+
+### Verification / next actions
+- Run exact-head Debug and Full CI for the queue implementation; inspect real logs and fix any failure before proceeding.
+- Add persistence-level instrumentation coverage (process recreation / app context), wire successful Factory intake to durable enqueue, and make task state truthful.
+- Then implement worker claim + lease before heartbeat/retry controls. Do not skip ahead or mark the milestone complete based on queue class existence alone.
+- PR #12 stale test branch failure observed on 2026-11-03: both runs `41666365674` and `41666365436` fail at `VyomFactoryGitHubClientTest.duplicateOnSecondIssuePageIsFoundWithoutCreatingAnotherTask`, assertion line 144. Feature branch exact head `265403a42ddc47c715ae99c391d09cc661c447d1` had Debug `41666384836` PASS and Full CI `41666384862` PASS. PR #12 is not merged.
