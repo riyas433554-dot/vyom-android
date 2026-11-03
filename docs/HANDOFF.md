@@ -2362,3 +2362,15 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 2. If test passes, add test cases for no matching idempotency key -> one POST and for issue pagination; then run full suite.
 3. Keep read-before-create concurrency race explicitly open; do not claim atomic idempotency.
 4. Update HANDOFF after each verified batch. Keep main, Render, backend and production Supabase untouched.
+
+
+## 2026-11-03 — Android Factory create-path regression coverage (PR #12)
+
+- Extended VyomFactoryGitHubClientTest on work/factory-android-idempotency-test-v2 with two MockWebServer cases:
+  - A genuinely new task must perform one list GET, exactly one issue-creation POST, then one audit-comment POST; it verifies the issue endpoint and idempotency key in the posted body.
+  - An unsupported source identity must throw before any HTTP request (requestCount == 0).
+- Existing duplicate-retry test remains: an existing matching identity is returned unchanged and causes no mutation.
+- Test commit: 9e0450bac89c8f48f51b5052576d0f4f0c42490a. PR #12 head was advanced by this commit; verify the changed-file list remains only this test file.
+- These are regression tests, not proof of concurrency-safe idempotency. The current read-then-create algorithm can still race across simultaneous clients; an atomic durable uniqueness primitive is still required, and backend/production Supabase changes remain out of scope.
+- CI status at handoff: current feature branch HEAD 0649f7228b4fbde05beb59631c04fb7c4f32de5b has Full CI run 41665284058 and Debug CI run 41665283308 in progress. Earlier Debug run 41665134204 is also in progress on b46d0797377900fa58d11ea53bd755332a7a91aa; its paired Full CI 41665134203 was cancelled after newer work superseded it. Prior exact SHA 30b7838903448060620d832ac39443b39bce9011 passed both Full CI 41664216657 and Debug CI 41664216559.
+- Next: inspect PR #12 checks for the new test commit, read actual Gradle/JUnit logs, fix any failure from evidence, then continue adding bounded tests for pagination/duplicate discovery before merging anything.
