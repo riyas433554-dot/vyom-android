@@ -34,14 +34,16 @@ internal data class ContentUpdateManifest(
         val errors = mutableListOf<String>()
         if (!isVersion(version)) errors += "Invalid content version"
         if (!isVersion(minAppVersion)) errors += "Invalid min_app_version"
+        if (!isVersion(currentAppVersion)) errors += "Invalid installed app version"
         if (isVersion(minAppVersion) && isVersion(currentAppVersion) &&
             compareVersions(currentAppVersion, minAppVersion) < 0) {
             errors += "This update requires app version $minAppVersion or newer"
         }
-        if (changes.isEmpty() || changes.any { it.isBlank() || it.length > 500 }) {
+        if (changes.isEmpty() || changes.size > 30 || changes.any { it.isBlank() || it.length > 500 }) {
             errors += "Manifest changes must contain non-empty short descriptions"
         }
-        if (files.isEmpty()) errors += "Manifest has no content files"
+        if (files.isEmpty() || files.size > 100) errors += "Manifest must contain between 1 and 100 content files"
+        if (suppliedFiles.values.sumOf { it.size.toLong() } > 10L * 1024L * 1024L) errors += "Content package exceeds the 10 MiB limit"
         val paths = files.map { it.path }
         if (paths.distinct().size != paths.size) errors += "Manifest contains duplicate file paths"
         files.forEach { file ->
@@ -66,8 +68,8 @@ internal data class ContentUpdateManifest(
         if (probes.map { it.id }.distinct().size != probes.size) errors += "Probe IDs must be unique"
         probes.forEach { probe ->
             if (!probe.id.matches(Regex("^[A-Za-z0-9._-]{1,64}$"))) errors += "Invalid probe ID"
-            if (probe.target.isBlank() || probe.target.length > 240) errors += "Invalid probe target"
-            if (probe.kind == ContentProbeKind.PERFORMANCE && probe.baselineKey.isBlank()) {
+            if (probe.target.isBlank() || probe.target.length > 240 || probe.expected.length > 1_000) errors += "Invalid probe target or expected value"
+            if (probe.kind == ContentProbeKind.PERFORMANCE && !probe.baselineKey.matches(Regex("^[A-Za-z0-9._-]{1,80}$"))) {
                 errors += "Performance probe requires a stored baseline key"
             }
         }
