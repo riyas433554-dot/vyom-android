@@ -2259,3 +2259,41 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 2. Add Android `createTask` retry unit tests with mocked HTTP; ensure a sequential same-key retry reuses the existing task and does not issue a second POST. Preserve honest warning that read-before-create is still racy.
 3. Audit all status mutation entry points (Android, Termux, ChatGPT docs) to ensure manual callers cannot set or resume `in_progress`.
 4. Design atomic cross-source idempotency only after selecting an allowed durable transactional store; production Supabase and backend remain explicitly untouched.
+
+
+## Android Factory retry semantics + CI test recovery — 2026-11-03 (continued)
+
+### CI failure diagnosis and repair
+- Full CI `41662745519` for SHA `c2f959c1fe94ec3565aa3d091f8c0292e251b219` failed in `Test Termux Factory status and priority rendering`.
+- Actual log: `Factory list metadata test PASS`, `Factory transition policy test PASS`, then line 80 error `unexpected argument 'newline' to conditional binary operator`.
+- Fixed malformed multiline expected TSV string with ANSI-C quoted `$'41\\thttps://github.com/example/repo/issues/41'` in commit `0de75563fb24063cf798fecdf44b5af04b1790f3`.
+- Strengthened test to invoke actual `create_task` with an existing source ID and assert only one GitHub API call (the read) occurs; any POST/PATCH fails. Commit `fd93dfed9b741e3a01c13e1633e25bd484ac2480`.
+- Added a HANDOFF entry for the failure and correction at `a3999603b8878e7136b23c7bf93bf4395bc961b0`.
+
+### Android duplicate retry behavior corrected
+- Source review found Android `createTask` previously found an existing issue by idempotency key and then called `updateTask` using the retry's title/description/priority. That made a retry unexpectedly mutate the original task.
+- Changed duplicate retry to return the existing task unchanged; actual edits remain the responsibility of `updateTask`.
+- Added injectable GitHub API base URL (default remains `https://api.github.com`) so JVM tests can use a local MockWebServer without live GitHub credentials/network.
+- Added test dependency `com.squareup.okhttp3:mockwebserver:4.12.0`.
+- Code commits: `54af841f858a9311329b21dae79c08fb4d4f2932` and `7ab5d46792af13325767e33e167c5a500de41909`.
+
+### Branch protection / PR handling
+- Direct creation of the new Android test file was rejected by repository rules requiring a pull request. No bypass attempted.
+- First draft PR #9 was closed without merge because its generated Git tree had an unintended 145-file diff (22,861 deletions). It was never merged and changed no base branch files.
+- Recreated correctly using the exact base commit tree. PR #10 is open and targets `feature/memory-intelligence`; it contains exactly one new test file (56 additions, 0 deletions), commit `a8a4f92b46dcea2bf05003b5e286e97d7c31a1e2`.
+- PR #10 test asserts same-key retry returns original task and performs only one GET request, with no second HTTP mutation. Awaiting PR CI. Do not merge if changed-file count differs from 1 or the diff expands unexpectedly.
+- Protocol docs updated to remove stale `blocked/paused -> in_progress` transitions; manual recovery from those states goes to `open`, then worker claim is required. Commit `94cbdd76fd98665f5fe7560aa15bc461d76a3353`.
+
+### Verification checkpoint
+- SHA `fd93dfed...`: Full CI run `41663387755` pending and Debug run `41663387907` in progress when checked; they were triggered before the HANDOFF and protocol commits, so not exact latest-head proof.
+- SHA `0de75563...`: Full CI `41663301896` and Debug `41663301788` were in progress; both predate the stronger retry-path test.
+- Current feature branch has later commits `94cbdd76...` and subsequent HANDOFF commit; new exact-head CI runs must be checked.
+- PR #10 has its own CI; inspect actual workflow and test output. No local Gradle/Termux execution or physical Android testing was performed.
+- No APK delivered. No actual worker implemented. No Render, backend, production Supabase or `main` changes.
+
+### Next exact steps
+1. Inspect PR #10 checks and verify its one-file diff and test compilation/result.
+2. Check CI for latest `feature/memory-intelligence` HEAD including protocol/HANDOFF; wait for Debug and Full CI on the same SHA.
+3. If PR #10 test fails, use the exact Gradle/JUnit log to correct it; do not merge before green.
+4. Add Android tests for create-key validation, no-match POST, and pagination boundaries; retain explicit limitation that list-before-create is not atomic under concurrent writers.
+5. Decide how cross-source duplicate creation will be made atomic without touching production Supabase/backend; until then surface best-effort dedupe and duplicate reconciliation.
