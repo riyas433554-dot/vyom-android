@@ -67,19 +67,26 @@ for pair in "open in_progress" "paused in_progress" "blocked in_progress" "compl
 done
 echo "Factory transition policy test PASS"
 
-# Mock the gh API boundary and verify a retried source ID resolves to the
-# existing issue instead of creating a second issue.
+# Mock the gh API boundary and run the actual create_task retry path.
+# It must resolve the existing key and must not POST a second issue.
+gh_calls="$(mktemp)"
+trap 'rm -f "$fixture" "$gh_calls"' EXIT
 gh() {
+  printf '%s\\n' "$*" >> "$gh_calls"
   [[ "$1" == api && "$2" == --paginate && "$3" == --slurp ]] || {
-    echo "Unexpected gh invocation in idempotency test" >&2
+    echo "Unexpected gh invocation (duplicate POST or unsupported API call): $*" >&2
     return 2
   }
   cat "$fixture"
 }
-existing="$(find_task_by_idempotency_key "termux:test-41")"
-expected_existing=$'41\thttps://github.com/example/repo/issues/41'
-[[ "$existing" == "$expected_existing" ]] || {
-  printf 'Idempotency lookup mismatch: %s\\n' "$existing" >&2
+retry_output="$(create_task "Retry existing task" "Retry must not create a duplicate." P2 "test-41")"
+[[ "$retry_output" == *"Already registered · #41 · https://github.com/example/repo/issues/41"* ]] || {
+  printf 'Unexpected retry result: %s\\n' "$retry_output" >&2
   exit 1
 }
-echo "Factory Termux idempotency preflight test PASS"
+[[ "$(wc -l < "$gh_calls" | tr -d ' ')" == "1" ]] || {
+  echo "Retry performed more than one GitHub API call" >&2
+  cat "$gh_calls" >&2
+  exit 1
+}
+echo "Factory Termux idempotent create retry test PASS"
