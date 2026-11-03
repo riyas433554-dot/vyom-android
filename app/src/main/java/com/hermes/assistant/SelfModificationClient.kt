@@ -110,26 +110,46 @@ internal class SelfModificationClient {
     fun waitForProposalCi(token: String, branch: String, timeoutMillis: Long = 15 * 60 * 1000L): String {
         require(branch.matches(Regex("^vyom-proposal-[a-zA-Z0-9-]+$"))) { "Invalid proposal branch name" }
         val deadline = System.currentTimeMillis() + timeoutMillis
-        var lastState = "pending"
+        val requiredWorkflows = setOf("Vyom Android Debug", "Vyom Android CI")
+        var lastState = "waiting for both required workflows"
         while (System.currentTimeMillis() < deadline) {
             val ref = request("GET", "/git/ref/heads/$branch", token = token)
             val sha = ref.optJSONObject("object")?.optString("sha").orEmpty()
             require(sha.matches(Regex("^[a-f0-9]{40}$"))) { "Proposal branch has no valid commit SHA" }
-            val status = request("GET", "/commits/$sha/status", token = token)
-            lastState = status.optString("state", "pending").lowercase()
-            if (lastState == "success") return sha
-            if (lastState == "failure" || lastState == "error") {
-                val contexts = status.optJSONArray("statuses") ?: JSONArray()
-                val failures = (0 until contexts.length()).mapNotNull { index ->
-                    val item = contexts.optJSONObject(index) ?: return@mapNotNull null
-                    if (item.optString("state") in setOf("failure", "error")) item.optString("context") else null
-                }
-                throw IllegalStateException("Proposal CI failed: ${failures.joinToString().ifBlank { lastState }}")
+            val runsResponse = request("GET", "/actions/runs?head_sha=$sha&per_page=20", token = token)
+            val runs = runsResponse.optJSONArray("workflow_runs") ?: JSONArray()
+            val latestByWorkflow = mutableMapOf<String, JSONObject>()
+            for (index in 0 until runs.length()) {
+                val run = runs.optJSONObject(index) ?: continue
+                val name = run.optString("name")
+                if (name !in requiredWorkflows || run.optString("head_sha") != sha) continue
+                val runId = run.optLong("id", 0L)
+                val existing = latestByWorkflow[name]
+                if (existing == null || runId > existing.optLong("id", 0L)) latestByWorkflow[name] = run
             }
+            var allSucceeded = true
+            for (workflow in requiredWorkflows) {
+                val run = latestByWorkflow[workflow]
+                if (run == null) {
+                    allSucceeded = false
+                    lastState = "$workflow has not started"
+                    continue
+                }
+                val status = run.optString("status")
+                val conclusion = run.optString("conclusion")
+                if (status != "completed") {
+                    allSucceeded = false
+                    lastState = "$workflow is $status"
+                } else if (conclusion != "success") {
+                    throw IllegalStateException("$workflow completed with conclusion $conclusion")
+                }
+            }
+            if (allSucceeded) return sha
             Thread.sleep(5_000)
         }
-        throw IllegalStateException("Timed out waiting for proposal CI (last state: $lastState)")
+        throw IllegalStateException("Timed out waiting for both proposal CI workflows ($lastState)")
     }
+
 
     private fun readCurrentSource(token: String, path: String, sourceRef: String): String {
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
