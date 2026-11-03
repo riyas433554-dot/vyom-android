@@ -1,3 +1,7 @@
+## M0 FACTORY IMPLEMENTATION STATUS (2026-11-03)
+
+Source now contains the native Factory Workspace entry/screen, GitHub Issues registry client, validated metadata/state policy, complaint intake from Factory and explicit Vyom chat prefixes, task editing/priority/status/history, periodic refresh, a Termux `gh` CLI adapter, shared task protocol and a live Diagnostics read. This is implementation progress only. Exact-head CI, owner phone/token permission acceptance, Termux exercise, ChatGPT issue exercise and all worker/skills/scheduler/always-on execution layers remain open. No APK is authorized. See `docs/HANDOFF.md` M0 checkpoint for evidence and limitations.
+
 # OWNER OVERRIDE — M0 VYOM FACTORY FIRST (2026-11-03)
 
 The newest controlling order is `docs/HANDOFF.md` → **M0 Vyom Factory**. It supersedes the older M1/M2/M3 sequencing below until Factory acceptance. Keep all existing branch/safety restrictions: only `feature/memory-intelligence`; never Android `main`, Render, Hermes backend or production Supabase.
