@@ -91,4 +91,29 @@ class ShizukuRequestRegistryTest {
         assertEquals(ShizukuRequestRegistry.State.STARTING, registry.state("active"))
         assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("old"))
     }
+    @Test fun serviceShutdownCancelsInFlightWorkAndRejectsEveryNewRequest() {
+        val registry = ShizukuRequestRegistry()
+        assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("starting"))
+        assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("running"))
+        assertTrue(registry.markRunning("running"))
+        assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("already-done"))
+        registry.complete("already-done")
+
+        val interrupted = registry.shutdown()
+        assertEquals(setOf("starting", "running"), interrupted)
+        assertEquals(ShizukuRequestRegistry.State.CANCEL_REQUESTED, registry.state("starting"))
+        assertEquals(ShizukuRequestRegistry.State.CANCEL_REQUESTED, registry.state("running"))
+        assertEquals(ShizukuRequestRegistry.State.COMPLETED, registry.state("already-done"))
+        assertEquals(ShizukuRequestRegistry.Begin.SERVICE_STOPPED, registry.begin("after-shutdown"))
+        assertEquals(ShizukuRequestRegistry.Begin.SERVICE_STOPPED, registry.begin("starting"))
+    }
+
+    @Test fun shutdownIsIdempotentAndDoesNotReopenAfterCompletion() {
+        val registry = ShizukuRequestRegistry()
+        assertEquals(ShizukuRequestRegistry.Begin.ACCEPTED, registry.begin("active"))
+        assertEquals(setOf("active"), registry.shutdown())
+        registry.complete("active")
+        assertTrue(registry.shutdown().isEmpty())
+        assertEquals(ShizukuRequestRegistry.Begin.SERVICE_STOPPED, registry.begin("new"))
+    }
 }

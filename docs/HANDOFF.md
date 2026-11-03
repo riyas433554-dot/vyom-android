@@ -1616,3 +1616,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Implemented truthful LEVEL_2 reporting: Shizuku binder + permission + UID 2000 are necessary but not sufficient; the UserService must also be locally bound and its remote binder alive. Capability read-back now invalidates stale remote/bound/request state when any of those conditions is lost.
 - Updated existing LEVEL_2 policy tests to supply the complete live-service state. No physical-device behavior is claimed. P1 remains PARTIAL; no acceptance IDs changed.
 - Next: exact-head Debug and Full CI; then continue the P1 UserService disconnect/revocation/STOP and full capability/app-op read-back matrix. No APK.
+
+
+### P1 Shizuku UserService teardown admission race — RED — 2026-11-03
+- Source inspection found `VyomShizukuUserService.destroy()` only iterated currently running process IDs and had no atomic service-closed gate shared with `execute()`. A request could pass `begin()` while teardown was in progress; a STARTING request was also not guaranteed to be included in the process-kill snapshot.
+- Added regression tests requiring atomic shutdown to cancel STARTING/RUNNING requests, preserve completed history, be idempotent, and reject every new/replayed request after shutdown.
+- Test-only commit is expected to fail until `ShizukuRequestRegistry.shutdown()` and a terminal `SERVICE_STOPPED` begin result are implemented. No acceptance IDs changed; P1 remains PARTIAL.
+- Next: inspect exact-head RED CI logs, implement registry/service teardown integration, then run exact-head Debug and Full CI. No APK.
