@@ -14,7 +14,7 @@ class ContentUpdatePackageTest {
         version = "1.2.0",
         minAppVersion = "0.3.1",
         changes = listOf("Change visible home title"),
-        files = listOf(ContentUpdateFile("ui-bundle/index.html", "0".repeat(64))),
+        files = listOf(ContentUpdateFile("skills/demo/SKILL.md", "0".repeat(64))),
         probes = probes,
         rollbackTo = "1.1.0"
     )
@@ -32,18 +32,18 @@ class ContentUpdatePackageTest {
 
     @Test fun validatesAppVersionFileHashesAndOneOrTwoOrderedProbes() {
         val bytes = "visible content".toByteArray()
-        val valid = manifest().copy(files = listOf(ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))))
-        assertTrue(valid.validate("0.3.1", mapOf("ui-bundle/index.html" to bytes)).isEmpty())
-        assertTrue(valid.validate("0.2.9", mapOf("ui-bundle/index.html" to bytes)).any { it.contains("requires app version") })
-        assertTrue(valid.validate("0.3.1", mapOf("ui-bundle/index.html" to "tampered".toByteArray())).any { it.contains("SHA-256 mismatch") })
-        assertTrue(valid.copy(probes = emptyList()).validate("0.3.1", mapOf("ui-bundle/index.html" to bytes)).isNotEmpty())
+        val valid = manifest().copy(files = listOf(ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))))
+        assertTrue(valid.validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).isEmpty())
+        assertTrue(valid.validate("0.2.9", mapOf("skills/demo/SKILL.md" to bytes)).any { it.contains("requires app version") })
+        assertTrue(valid.validate("0.3.1", mapOf("skills/demo/SKILL.md" to "tampered".toByteArray())).any { it.contains("SHA-256 mismatch") })
+        assertTrue(valid.copy(probes = emptyList()).validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).isNotEmpty())
         assertTrue(valid.copy(probes = listOf(ContentUpdateProbe("speed", ContentProbeKind.PERFORMANCE, "x", baselineKey = "x")))
-            .validate("0.3.1", mapOf("ui-bundle/index.html" to bytes)).any { it.contains("Probe 1 must be a presence probe") })
+            .validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).any { it.contains("Probe 1 must be a presence probe") })
     }
 
     @Test fun verifiesDetachedEcdsaSignatureOverCanonicalManifest() {
         val bytes = "visible content".toByteArray()
-        val file = ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))
+        val file = ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))
         val valid = manifest().copy(files = listOf(file))
         val pair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
         val signer = Signature.getInstance("SHA256withECDSA").apply { initSign(pair.private); update(valid.canonicalPayload()) }
@@ -56,7 +56,7 @@ class ContentUpdatePackageTest {
 
     @Test fun refusesUnknownSigningKeyAndMissingTrustConfiguration() {
         val bytes = "visible content".toByteArray()
-        val file = ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))
+        val file = ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))
         val valid = manifest().copy(files = listOf(file))
         val pair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
         val signer = Signature.getInstance("SHA256withECDSA").apply { initSign(pair.private); update(valid.canonicalPayload()) }

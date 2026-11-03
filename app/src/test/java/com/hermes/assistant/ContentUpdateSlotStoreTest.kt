@@ -21,13 +21,13 @@ class ContentUpdateSlotStoreTest {
 
     private fun apply(store: ContentUpdateSlotStore, manifest: ContentUpdateManifest, bytes: ByteArray,
                       runner: ContentUpdateProbeRunner) =
-        store.applySigned(manifest, signed(manifest), mapOf("ui-bundle/index.html" to bytes),
+        store.applySigned(manifest, signed(manifest), mapOf("skills/demo/SKILL.md" to bytes),
             "0.3.1", verifier, runner)
 
     private fun manifest(version: String, rollbackTo: String, bytes: ByteArray) = ContentUpdateManifest(
         version, "0.3.1", listOf("Change UI label"),
-        listOf(ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))),
-        listOf(ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "ui-bundle/index.html", "New label")),
+        listOf(ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))),
+        listOf(ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "skills/demo/SKILL.md", "New label")),
         rollbackTo
     )
 
@@ -37,7 +37,7 @@ class ContentUpdateSlotStoreTest {
             val store = ContentUpdateSlotStore(root)
             val baselineBytes = "baseline".toByteArray()
             store.seedInitialSlot("0.9.0", mapOf(
-                "ui-bundle/index.html" to baselineBytes,
+                "skills/demo/SKILL.md" to baselineBytes,
                 "skills/calendar/SKILL.md" to "calendar skill v1".toByteArray()
             ))
             val firstBytes = "old".toByteArray()
@@ -52,7 +52,7 @@ class ContentUpdateSlotStoreTest {
             }
             assertTrue(result.passed)
             assertEquals("1.1.0", store.activeVersion())
-            assertTrue(File(root, "1.0.0/ui-bundle/index.html").readText() == "old")
+            assertTrue(File(root, "1.0.0/skills/demo/SKILL.md").readText() == "old")
             assertEquals("calendar skill v1", File(root, "1.1.0/skills/calendar/SKILL.md").readText())
         } finally { root.deleteRecursively() }
     }
@@ -62,7 +62,7 @@ class ContentUpdateSlotStoreTest {
         try {
             val store = ContentUpdateSlotStore(root)
             val baseline = "baseline".toByteArray()
-            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to baseline))
+            store.seedInitialSlot("0.9.0", mapOf("skills/demo/SKILL.md" to baseline))
             val old = "old".toByteArray()
             apply(store, manifest("1.0.0", "0.9.0", old), old) { p, _ ->
                 ContentProbeResult(p.id, true, 2L, "pass")
@@ -81,7 +81,7 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
-            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
+            store.seedInitialSlot("0.9.0", mapOf("skills/demo/SKILL.md" to "baseline".toByteArray()))
             listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
                 apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
@@ -98,21 +98,21 @@ class ContentUpdateSlotStoreTest {
         try {
             val store = ContentUpdateSlotStore(root)
             val old = "baseline".toByteArray()
-            store.seedInitialSlot("1.0.0", mapOf("ui-bundle/index.html" to old))
+            store.seedInitialSlot("1.0.0", mapOf("skills/demo/SKILL.md" to old))
             store.recordPerformanceBaseline("home-render", 100L)
             fun performanceManifest(version: String, rollback: String, bytes: ByteArray) =
                 ContentUpdateManifest(
                     version, "0.3.1", listOf("Tune home render"),
-                    listOf(ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))),
+                    listOf(ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))),
                     listOf(
-                        ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "ui-bundle/index.html", "home"),
-                        ContentUpdateProbe("speed", ContentProbeKind.PERFORMANCE, "ui-bundle/index.html", baselineKey = "home-render")
+                        ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "skills/demo/SKILL.md", "home"),
+                        ContentUpdateProbe("speed", ContentProbeKind.PERFORMANCE, "skills/demo/SKILL.md", baselineKey = "home-render")
                     ), rollback
                 )
             val fasterBytes = "faster".toByteArray()
             val fasterManifest = performanceManifest("1.1.0", "1.0.0", fasterBytes)
             val faster = store.applySigned(fasterManifest, signed(fasterManifest),
-                mapOf("ui-bundle/index.html" to fasterBytes), "0.3.1", verifier) { p, _ ->
+                mapOf("skills/demo/SKILL.md" to fasterBytes), "0.3.1", verifier) { p, _ ->
                 ContentProbeResult(p.id, true, if (p.kind == ContentProbeKind.PERFORMANCE) 80L else 1L, "pass")
             }
             assertTrue(faster.passed)
@@ -121,7 +121,7 @@ class ContentUpdateSlotStoreTest {
             val slowerBytes = "slower".toByteArray()
             val slowerManifest = performanceManifest("1.2.0", "1.1.0", slowerBytes)
             val slower = store.applySigned(slowerManifest, signed(slowerManifest),
-                mapOf("ui-bundle/index.html" to slowerBytes), "0.3.1", verifier) { p, _ ->
+                mapOf("skills/demo/SKILL.md" to slowerBytes), "0.3.1", verifier) { p, _ ->
                 ContentProbeResult(p.id, true, if (p.kind == ContentProbeKind.PERFORMANCE) 125L else 1L, "pass")
             }
             assertTrue(slower.passed)
@@ -135,7 +135,7 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
-            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
+            store.seedInitialSlot("0.9.0", mapOf("skills/demo/SKILL.md" to "baseline".toByteArray()))
             listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
                 apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes), bytes) { p, _ ->
@@ -153,7 +153,7 @@ class ContentUpdateSlotStoreTest {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
             val store = ContentUpdateSlotStore(root)
-            store.seedInitialSlot("1.0.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
+            store.seedInitialSlot("1.0.0", mapOf("skills/demo/SKILL.md" to "baseline".toByteArray()))
             val updated = "updated".toByteArray()
             apply(store, manifest("1.1.0", "1.0.0", updated), updated) { p, _ ->
                 ContentProbeResult(p.id, true, 1L, "pass")
