@@ -66,6 +66,13 @@ class ControlCapabilityManifestTest {
         )
     }
 
+    @Test fun shellExecutorMustNotBypassMasterAppAccessGate() {
+        assertEquals(
+            ControlCapabilityManifest.Adapter.UNAVAILABLE,
+            ControlCapabilityManifest.selectAdapter(snapshot(shellUiReady = true, appAccessEnabled = false))
+        )
+    }
+
     @Test fun stopControlAlwaysOverridesAvailableAdapters() {
         assertEquals(
             ControlCapabilityManifest.Adapter.UNAVAILABLE,
