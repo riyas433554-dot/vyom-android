@@ -58,6 +58,7 @@ internal object VyomDesignSpec {
     val drawerItems = listOf(
         NavItem("home", "Home", "Workspace"),
         NavItem("automations", "Automations", "Workspace"),
+        NavItem("factory", "Vyom Factory", "Workspace"),
         NavItem("animations", "Animations", "Workspace", false),
         NavItem("videos", "Videos", "Workspace", false),
         NavItem("images", "Images", "Workspace", false),
