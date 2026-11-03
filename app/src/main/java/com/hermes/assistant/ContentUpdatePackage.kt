@@ -196,11 +196,13 @@ internal class ContentUpdatePackageVerifier(
         if (errors.isNotEmpty()) return errors.distinct()
         try {
             val encodedKey = Base64.getDecoder().decode(pinnedPublicKeyX509Base64)
-            val keyAlgorithm = when {
-                encodedKey.size > 0 -> "EC"
-                else -> throw IllegalArgumentException("Empty public key")
+            require(encodedKey.isNotEmpty()) { "Empty public key" }
+            val keySpec = X509EncodedKeySpec(encodedKey)
+            val publicKey = try {
+                KeyFactory.getInstance("EC").generatePublic(keySpec)
+            } catch (_: Exception) {
+                KeyFactory.getInstance("RSA").generatePublic(keySpec)
             }
-            val publicKey = KeyFactory.getInstance(keyAlgorithm).generatePublic(X509EncodedKeySpec(encodedKey))
             val signatureAlgorithm = when (publicKey.algorithm.uppercase()) {
                 "EC", "ECDSA" -> "SHA256withECDSA"
                 "RSA" -> "SHA256withRSA"
