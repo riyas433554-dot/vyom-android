@@ -645,3 +645,32 @@ class UiAgentPolicyTest {
     }
 
 }
+
+    @Test fun scrollUntilFoundRequiresAnAbsentVisibleTargetAndBoundedDirection() {
+        val action = UiAgentPolicy.Action(
+            UiAgentPolicy.Kind.SCROLL_UNTIL_FOUND,
+            target = "Downloads",
+            direction = "down",
+            maxScrolls = 4
+        )
+        assertEquals(
+            UiAgentPolicy.Verdict.ALLOW,
+            UiAgentPolicy.validate(action, listOf("Settings", "Storage"), "Find Downloads")
+        )
+        assertEquals(
+            UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action, listOf("Downloads"), "Find Downloads")
+        )
+        assertEquals(
+            UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(direction = "diagonal"), emptyList(), "Find Downloads")
+        )
+        assertEquals(
+            UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(maxScrolls = 0), emptyList(), "Find Downloads")
+        )
+        assertEquals(
+            UiAgentPolicy.Verdict.REJECT,
+            UiAgentPolicy.validate(action.copy(maxScrolls = 9), emptyList(), "Find Downloads")
+        )
+    }
