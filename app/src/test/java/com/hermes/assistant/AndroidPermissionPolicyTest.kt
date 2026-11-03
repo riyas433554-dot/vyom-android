@@ -48,7 +48,7 @@ class AndroidPermissionPolicyTest {
         assertTrue(AndroidPermissionPolicy.missingForTask(
             AndroidPermissionPolicy.TaskCapability.FLOATING_PROGRESS,
             microphoneGranted = true, cameraGranted = true, notificationsGranted = true,
-            overlayGranted = false, writeSettingsGranted = true
+            writeSettingsGranted = true
         ).isEmpty())
     }
 
