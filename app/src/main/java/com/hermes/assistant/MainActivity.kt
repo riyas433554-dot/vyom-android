@@ -2003,7 +2003,7 @@ class MainActivity : Activity() {
                 }, LinearLayout.LayoutParams(-1, dp(40)))
                 commandList.addView(TextView(this).apply {
                     text = value
-                    isTextSelectable = true
+                    setTextIsSelectable(true)
                     textSize = 10f
                     setTextColor(Color.LTGRAY)
                     setPadding(dp(6), dp(2), dp(6), dp(6))
