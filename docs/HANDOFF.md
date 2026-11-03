@@ -1,3 +1,13 @@
+### P1 effective Accessibility read-back — 2026-11-03
+- Test-first source SHA: `8a6e694181beddbffffb808c8c46775db65abf78`.
+- Exact-head Full CI run `41576567452` FAILED in `:app:compileDebugUnitTestKotlin`: six unresolved-reference diagnostics at `AccessibilityReconnectPolicyTest.kt:27-35` for missing `AccessibilityReconnectPolicy.isEffectivelyEnabled`. The production source compiled; secret scan passed. The Debug workflow `41576567444` was still in progress at the time of this correction.
+- Correction: add the pure effective-state policy (global Accessibility flag AND Vyom component membership), and use it in both Power Mode status and Control readiness so displayed state cannot drift from the tested rule. Reconnect success read-back also continues to require both secure settings.
+- Added regression cases already on the test-first commit: global off/component on; global on/component absent; both off; both on; null service list; malformed component.
+- No matrix ID is marked complete by this source correction. P1 remains PARTIAL pending Shizuku UserService lifecycle/STOP/audit verification and owner-led permission revocation/read-back; physical Galaxy A06 acceptance remains deferred.
+- Next: finish the live Level 0/1/2 capability table/read-back matrix, then continue the remaining P1 lifecycle and owner permission acceptance. Do not advance to P2.
+
+---
+
 ### P1 bounded-registry follow-up — 2026-11-03
 - Adversarial review found a further resource-bound issue: pending STOP tombstones could prevent the registry's completed-only trim from reducing the map. Registry now enforces a hard entry cap and refuses new tombstones/requests when all slots are active or pending.
 - Commits: strict capacity `ce49a55fafd4d2b03a2870a8f0b70de83d47af97`; UserService capacity response `f0d13c6b2d7386101de54223b68e5517e870adc1`; hard-cap regression test `20bb2988e7a1e10fc69764e6f6e25f5a2b9d03d6`.

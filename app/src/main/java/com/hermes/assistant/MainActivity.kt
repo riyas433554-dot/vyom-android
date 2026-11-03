@@ -2041,13 +2041,17 @@ class MainActivity : Activity() {
             lateinit var client: VyomShizukuShellClient
             client = VyomShizukuShellClient(this) { message ->
                 val component = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
-                val enabled = Settings.Secure.getInt(
-                    contentResolver,
-                    Settings.Secure.ACCESSIBILITY_ENABLED,
-                    0
-                ) == 1 && AccessibilityReconnectPolicy.isEnabled(
-                    Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
-                    component
+                val enabled = AccessibilityReconnectPolicy.isEffectivelyEnabled(
+                    globalEnabled = Settings.Secure.getInt(
+                        contentResolver,
+                        Settings.Secure.ACCESSIBILITY_ENABLED,
+                        0
+                    ) == 1,
+                    enabledServices = Settings.Secure.getString(
+                        contentResolver,
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                    ),
+                    component = component
                 )
                 val secureSettingsGranted =
                     checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
@@ -2166,11 +2170,14 @@ class MainActivity : Activity() {
         val skillEnabled = getSharedPreferences("vyom_skill_registry", MODE_PRIVATE).getBoolean("ui_agent", true)
         val currentPackage = service?.screenObservation()?.foregroundPackage.orEmpty()
         val accessibilityComponent = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
-        val accessibilityEnabled = Settings.Secure.getInt(
-            contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0
-        ) == 1 && AccessibilityReconnectPolicy.isEnabled(
-            Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
-            accessibilityComponent
+        val accessibilityEnabled = AccessibilityReconnectPolicy.isEffectivelyEnabled(
+            globalEnabled = Settings.Secure.getInt(
+                contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0
+            ) == 1,
+            enabledServices = Settings.Secure.getString(
+                contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ),
+            component = accessibilityComponent
         )
         val microphoneGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val cameraGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED

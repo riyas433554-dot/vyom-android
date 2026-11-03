@@ -19,6 +19,10 @@ internal object AccessibilityReconnectPolicy {
         isValidComponent(component) && current.orEmpty().split(':')
             .any { it.trim().equals(component, ignoreCase = true) }
 
+    /** Android Accessibility is effective only when the global switch and Vyom service are both enabled. */
+    fun isEffectivelyEnabled(globalEnabled: Boolean, enabledServices: String?, component: String): Boolean =
+        globalEnabled && isEnabled(enabledServices, component)
+
     private fun isValidComponent(component: String): Boolean {
         val parts = component.split('/')
         return parts.size == 2 &&

@@ -156,3 +156,11 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Exact-head CI for this implementation and the remaining P1 lifecycle test matrix.
 - [ ] Physical Galaxy A06 verification of Wireless ADB/Shizuku authorization, service bind/disconnect, STOP process termination, secure-settings revocation and owner-disabled behavior. This remains deferred until implementation phases are complete.
 - P1 remains PARTIAL; do not advance to P2 until the remaining lifecycle/runtime acceptance is met.
+
+
+### P1 effective Accessibility read-back regression — 2026-11-03
+- [x] Test the effective-state truth table: global switch AND Vyom component must both be enabled; null/malformed component state is false.
+- [x] Route Power Mode status and Control readiness through the same pure effective-state policy.
+- [ ] Exact-head Debug and Full CI green after this correction; no pass claimed until both complete on the same commit.
+- [ ] Complete live Level 0/1/2 capability read-back matrix and P1 Shizuku UserService lifecycle/STOP/audit + owner permission revocation acceptance.
+- P1 remains PARTIAL. No physical-device acceptance or APK delivery is implied.
