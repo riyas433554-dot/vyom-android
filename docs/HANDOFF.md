@@ -2374,3 +2374,12 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 - These are regression tests, not proof of concurrency-safe idempotency. The current read-then-create algorithm can still race across simultaneous clients; an atomic durable uniqueness primitive is still required, and backend/production Supabase changes remain out of scope.
 - CI status at handoff: current feature branch HEAD 0649f7228b4fbde05beb59631c04fb7c4f32de5b has Full CI run 41665284058 and Debug CI run 41665283308 in progress. Earlier Debug run 41665134204 is also in progress on b46d0797377900fa58d11ea53bd755332a7a91aa; its paired Full CI 41665134203 was cancelled after newer work superseded it. Prior exact SHA 30b7838903448060620d832ac39443b39bce9011 passed both Full CI 41664216657 and Debug CI 41664216559.
 - Next: inspect PR #12 checks for the new test commit, read actual Gradle/JUnit logs, fix any failure from evidence, then continue adding bounded tests for pagination/duplicate discovery before merging anything.
+
+
+## 2026-11-03 — Factory duplicate pagination test added
+
+- Added a MockWebServer regression case where the first GitHub Issues page contains exactly 100 unrelated entries and the matching idempotency key is on page 2. The retry must return the existing issue unchanged and issue no POST/PATCH.
+- PR #12 test branch commit: 2a1521c5731454dbc00f352d5fa46013b4ec7023. PR #12 currently remains a one-file test-only change; recheck head and changed-file list after this push.
+- Test suite now covers: duplicate retry is read-only, new task creation issues one issue POST plus one audit comment POST, invalid source identity fails before network, and duplicate discovery on page 2.
+- CI runs for the previous test head 9e0450bac89c8f48f51b5052576d0f4f0c42490a were 41665773529 (Full CI) and 41665773431 (Debug CI), both in progress at last check. Current feature branch HEAD 0649f7228b4fbde05beb59631c04fb7c4f32de5b runs 41665284058 (Full CI) and 41665283308 (Debug CI), both in progress at last check. The pagination-test commit will trigger new PR-branch checks; do not treat earlier runs as verification of it.
+- Read-before-create remains non-atomic under concurrent clients. No worker/executor is implemented by this test work; GitHub Issues remains only the shared registry. Backend/Render/production Supabase remain untouched.
