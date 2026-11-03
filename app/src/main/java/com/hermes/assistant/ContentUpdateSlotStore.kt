@@ -1,0 +1,148 @@
+package com.hermes.assistant
+
+import java.io.File
+
+internal data class ContentProbeResult(
+    val id: String,
+    val passed: Boolean,
+    val durationMs: Long,
+    val detail: String
+)
+
+internal data class ContentUpdateResult(
+    val version: String,
+    val passed: Boolean,
+    val probeResults: List<ContentProbeResult>,
+    val timingDeltaMs: Long?,
+    val message: String
+)
+
+internal fun interface ContentUpdateProbeRunner {
+    fun run(probe: ContentUpdateProbe, stagedSlot: File): ContentProbeResult
+}
+
+/** Inactive-slot staging with a single atomic pointer replacement after all probes pass. */
+internal class ContentUpdateSlotStore(private val root: File) {
+    private val activePointer get() = File(root, "active-slot")
+    private val previousPointer get() = File(root, "previous-slot")
+    private val historyFile get() = File(root, "update-history.log")
+    private val baselineDirectory get() = File(root, "probe-baselines")
+
+    fun activeVersion(): String = activePointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
+
+    fun applyVerified(
+        manifest: ContentUpdateManifest,
+        files: Map<String, ByteArray>,
+        probeRunner: ContentUpdateProbeRunner
+    ): ContentUpdateResult {
+        val oldVersion = activeVersion()
+        if (oldVersion.isNotBlank() && oldVersion == manifest.version) {
+            return ContentUpdateResult(manifest.version, false, emptyList(), null, "Version is already active")
+        }
+        root.mkdirs()
+        val staging = File(root, ".staging-${manifest.version}")
+        staging.deleteRecursively()
+        require(staging.mkdirs()) { "Could not create inactive content slot" }
+        try {
+            files.forEach { (path, bytes) ->
+                require(ContentUpdateManifest.isAllowedContentPath(path)) { "Protected content path rejected: $path" }
+                val target = File(staging, path)
+                require(target.canonicalPath.startsWith(staging.canonicalPath + File.separator)) {
+                    "Content path escaped staging slot"
+                }
+                target.parentFile?.mkdirs()
+                target.writeBytes(bytes)
+            }
+            val stagedResults = manifest.probes.map { probe -> probeRunner.run(probe, staging) }
+            val allPassed = stagedResults.size == manifest.probes.size && stagedResults.all { it.passed }
+            if (!allPassed) {
+                staging.deleteRecursively()
+                val failed = stagedResults.filterNot { it.passed }.joinToString { it.id }
+                val result = ContentUpdateResult(manifest.version, false, stagedResults, null, "Probe failed: $failed; previous slot remains active")
+                appendHistory(result)
+                return result
+            }
+            if (oldVersion.isNotBlank()) writeAtomically(previousPointer, oldVersion)
+            val finalSlot = File(root, manifest.version)
+            if (finalSlot.exists()) finalSlot.deleteRecursively()
+            require(staging.renameTo(finalSlot)) { "Could not seal staged content slot" }
+            writeAtomically(activePointer, manifest.version)
+            val performance = stagedResults.lastOrNull()?.takeIf {
+                manifest.probes.lastOrNull()?.kind == ContentProbeKind.PERFORMANCE
+            }
+            val delta = performance?.let { result ->
+                val baselineFile = baselineFile(manifest.probes.last().baselineKey)
+                val baseline = baselineFile.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.toLongOrNull()
+                if (baseline == null) {
+                    writeAtomically(baselineFile, result.durationMs.toString())
+                    0L
+                } else {
+                    writeAtomically(baselineFile, result.durationMs.toString())
+                    result.durationMs - baseline
+                }
+            }
+            val result = ContentUpdateResult(manifest.version, true, stagedResults, delta, "Content update activated")
+            appendHistory(result)
+            return result
+        } catch (error: Exception) {
+            staging.deleteRecursively()
+            throw error
+        }
+    }
+
+    fun rollback(): Boolean {
+        val previous = previousPointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
+        if (!previous.matches(Regex("^[A-Za-z0-9._-]{1,64}$"))) return false
+        if (!File(root, previous).isDirectory) return false
+        val current = activeVersion()
+        writeAtomically(activePointer, previous)
+        if (current.isNotBlank()) writeAtomically(previousPointer, current)
+        appendHistory(ContentUpdateResult(previous, true, emptyList(), null, "Owner-triggered rollback from $current"))
+        return true
+    }
+
+    fun recordCrashAndRollback(nowMs: Long): Boolean {
+        val active = activeVersion()
+        if (active.isBlank()) return false
+        val crashFile = File(root, "crashes-$active.log")
+        val recent = crashFile.takeIf { it.isFile }?.readLines()?.mapNotNull { it.toLongOrNull() }
+            .orEmpty().filter { nowMs >= it && nowMs - it <= CRASH_WINDOW_MS }
+        val updated = recent + nowMs
+        writeAtomically(crashFile, updated.joinToString("\n"))
+        if (updated.size < 2) return false
+        val rolledBack = rollback()
+        if (rolledBack) crashFile.delete()
+        return rolledBack
+    }
+
+    fun recordStableLaunch() {
+        val active = activeVersion()
+        if (active.isNotBlank()) File(root, "crashes-$active.log").delete()
+    }
+
+    fun history(): List<String> = historyFile.takeIf { it.isFile }?.readLines().orEmpty()
+
+    private fun baselineFile(key: String): File {
+        require(key.matches(Regex("^[A-Za-z0-9._-]{1,80}$"))) { "Invalid performance baseline key" }
+        baselineDirectory.mkdirs()
+        return File(baselineDirectory, key)
+    }
+
+    private fun appendHistory(result: ContentUpdateResult) {
+        historyFile.parentFile?.mkdirs()
+        historyFile.appendText(
+            "${System.currentTimeMillis()}|${result.version}|${if (result.passed) "PASS" else "FAIL"}|${result.message.replace('|', '/') }\n",
+            Charsets.UTF_8
+        )
+    }
+
+    private fun writeAtomically(target: File, value: String) {
+        target.parentFile?.mkdirs()
+        val temp = File(target.parentFile, target.name + ".tmp")
+        temp.writeText(value, Charsets.UTF_8)
+        if (target.exists() && !target.delete()) throw IllegalStateException("Could not replace ${target.name}")
+        if (!temp.renameTo(target)) throw IllegalStateException("Could not atomically replace ${target.name}")
+    }
+
+    companion object { private const val CRASH_WINDOW_MS = 60_000L }
+}
