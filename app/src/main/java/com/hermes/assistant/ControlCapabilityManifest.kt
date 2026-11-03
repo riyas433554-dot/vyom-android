@@ -16,10 +16,9 @@ internal object ControlCapabilityManifest {
     )
 
     fun selectAdapter(snapshot: Snapshot): Adapter = when {
-        snapshot.stopControlEnabled || !snapshot.plannerConfigured -> Adapter.UNAVAILABLE
+        snapshot.stopControlEnabled || !snapshot.plannerConfigured || !snapshot.appAccessMasterEnabled -> Adapter.UNAVAILABLE
         snapshot.shellExecutorUiReady -> Adapter.SHELL_EXECUTOR
-        snapshot.accessibilityEnabled && snapshot.accessibilityConnected &&
-            snapshot.appAccessMasterEnabled -> Adapter.ACCESSIBILITY
+        snapshot.accessibilityEnabled && snapshot.accessibilityConnected -> Adapter.ACCESSIBILITY
         else -> Adapter.UNAVAILABLE
     }
 
