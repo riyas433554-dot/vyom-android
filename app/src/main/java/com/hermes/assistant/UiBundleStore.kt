@@ -103,6 +103,19 @@ internal class UiBundleStore(context: Context) {
         }
     }
 
+    fun recordPageLoadSuccess() {
+        rootDirectory.mkdirs()
+        File(rootDirectory, "last-page-load.txt").writeText("PASS|${activeVersion()}", Charsets.UTF_8)
+    }
+
+    fun recordPageLoadFailure() {
+        rootDirectory.mkdirs()
+        File(rootDirectory, "last-page-load.txt").writeText("FAIL|${activeVersion()}", Charsets.UTF_8)
+    }
+
+    fun lastPageLoadStatus(): String =
+        File(rootDirectory, "last-page-load.txt").takeIf { it.isFile }?.readText(Charsets.UTF_8).orEmpty()
+
     fun rollbackAfterPageLoadFailure(): File? {
         val previous = previousPointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
         if (!isValidVersion(previous)) return null

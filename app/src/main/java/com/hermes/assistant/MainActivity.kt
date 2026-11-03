@@ -3623,11 +3623,13 @@ class MainActivity : Activity() {
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
+                    store.recordPageLoadSuccess()
                     updateNotice.text = "Hot-swappable UI bundle v${store.activeVersion()} loaded and integrity-checked."
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (!request.isForMainFrame) return
+                    store.recordPageLoadFailure()
                     val fallback = store.rollbackAfterPageLoadFailure()
                     if (fallback != null) {
                         view.loadUrl(fallback.toURI().toString())
@@ -3690,8 +3692,15 @@ class MainActivity : Activity() {
                 rows += "PARTIAL · In-app patch flow · Minimal diff preview and PR creation are wired; CI wait and signed artifact handoff remain unfinished"
                 rows += "PARTIAL · External update flow · Signed-release discovery and certificate gate are wired; end-to-end release publication is awaiting CI verification"
                 try {
-                    val activeBundle = UiBundleStore(this).seedBundledVersion()
-                    rows += "PASS · Hot-swappable UI bundle · v${UiBundleStore(this).activeVersion()} loaded from app-private storage; entry=${activeBundle.name}"
+                    val bundleStore = UiBundleStore(this)
+                    val activeBundle = bundleStore.seedBundledVersion()
+                    rows += "PASS · Hot-swappable UI bundle integrity · v${bundleStore.activeVersion()} seeded and hash-verified in app-private storage; entry=${activeBundle.name}"
+                    val pageLoad = bundleStore.lastPageLoadStatus()
+                    rows += when {
+                        pageLoad.startsWith("PASS|") -> "PASS · WebView page load · $pageLoad"
+                        pageLoad.startsWith("FAIL|") -> "FAIL · WebView page load · $pageLoad"
+                        else -> "SKIP · WebView page load · Open Update Center once to run this check"
+                    }
                 } catch (bundleError: Exception) {
                     rows += "FAIL · Hot-swappable UI bundle · ${bundleError.message ?: "bundle verification failed"}"
                 }
