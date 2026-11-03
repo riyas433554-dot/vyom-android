@@ -40,6 +40,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import android.media.AudioRecord
 import org.json.JSONArray
 import org.json.JSONObject
