@@ -58,6 +58,10 @@ internal object PowerModePolicy {
 
     fun mayAttemptAccessibilityReconnect(secureSettingsGranted: Boolean): Boolean = secureSettingsGranted
 
+    /** UserService binding is permitted only for a live, explicitly authorized ADB-shell Shizuku identity. */
+    fun mayBindShizukuUserService(binderAlive: Boolean, permissionGranted: Boolean, shizukuUid: Int): Boolean =
+        binderAlive && permissionGranted && shizukuUid == 2000
+
     fun requiredAppOps(overlayFeatureEnabled: Boolean, allFilesFeatureDeclared: Boolean): List<String> =
         buildList {
             if (overlayFeatureEnabled) add("SYSTEM_ALERT_WINDOW")

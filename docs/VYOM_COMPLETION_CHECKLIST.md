@@ -176,3 +176,11 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Revalidate live binder, explicit Shizuku authorization and UID 2000 immediately before UserService binding.
 - [ ] Verify authorization revocation/binder death cannot leave a stale UserService binding or overstate Level 2.
 - No acceptance ID changes until exact-head CI and lifecycle evidence pass.
+
+
+### P1 Shizuku bind-time authorization — implementation awaiting exact-head CI
+- [x] Pure policy rejects binding unless binder is live, owner authorization is granted, and Shizuku UID is exactly 2000.
+- [x] Re-read binder liveness, permission and UID immediately before UserService bind/reuse; refuse and clear stale local state on any mismatch.
+- [ ] Exact-head Debug and Full CI green.
+- [ ] Runtime UserService lifecycle, permission revocation, STOP process termination and Level 0/1/2 read-back acceptance.
+- P1 remains PARTIAL; no acceptance ID changed and no APK delivered.

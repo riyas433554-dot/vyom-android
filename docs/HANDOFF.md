@@ -1588,3 +1588,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Security edge: Shizuku binder/UID/permission are checked before authorization, but `bindUserService()` does not independently re-read binder liveness, owner permission and shell UID at the binding boundary. These values can change between the earlier check and bind.
 - RED test adds a pure contract: bind only when binder is live, explicit permission is granted, and UID is exactly 2000. The policy method is intentionally not implemented in this test-first commit.
 - P1 remains PARTIAL. No matrix/acceptance ID is marked complete. Next: implement bind-time guard, then continue UserService lifecycle/STOP and permission read-back acceptance. No APK delivered.
+
+
+### P1 bind-time Shizuku authorization — GREEN implementation; exact-head CI pending — 2026-11-03
+- Exact RED evidence at `b9c085714329419fe1ea76bee5ab1d667a3e15d2`: Debug run `41578130250` and Full CI `41578130284` both failed in `:app:compileDebugUnitTestKotlin` on six unresolved references to `PowerModePolicy.mayBindShizukuUserService` in `PowerModePolicyTest.kt:142-147`. This is the expected missing-policy RED result.
+- Implementation: pure policy allows binding only for live binder + granted Shizuku permission + UID 2000; `bindUserService()` now re-reads all three immediately before checking/reusing/binding the UserService. If any check fails, stale local remote/bound state is cleared and bind is refused.
+- This closes the time-of-check/time-of-use gap at the binding boundary. It does not by itself prove Android/Shizuku binder lifecycle or physical permission revocation behavior.
+- P1 remains PARTIAL; no feature/acceptance IDs changed. Next: exact-head Debug and Full CI; then test UserService disconnect/revocation lifecycle and continue the mandatory P1 live capability/read-back matrix. No APK delivered.

@@ -115,6 +115,22 @@ internal class VyomShizukuShellClient(
     }
 
     private fun bindUserService() {
+        // Re-read all three trust inputs at the binding boundary; earlier authorization
+        // checks are not reusable because binder/permission state can change asynchronously.
+        val binderAlive = try { Shizuku.pingBinder() } catch (_: Exception) { false }
+        val permissionGranted = if (binderAlive) {
+            try { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }
+            catch (_: Exception) { false }
+        } else false
+        val shizukuUid = if (binderAlive) {
+            try { Shizuku.getUid() } catch (_: Exception) { -1 }
+        } else -1
+        if (!PowerModePolicy.mayBindShizukuUserService(binderAlive, permissionGranted, shizukuUid)) {
+            remote = null
+            bound = false
+            emit("Shizuku bind blocked: live binder, owner authorization and ADB shell UID 2000 are all required.")
+            return
+        }
         if (bound && remote != null) {
             emit("Allowlisted Shizuku shell service is connected.")
             return
