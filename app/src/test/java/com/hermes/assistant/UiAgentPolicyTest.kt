@@ -636,4 +636,12 @@ class UiAgentPolicyTest {
         ))
     }
 
+    @Test fun clickSelectionAndFocusEventsInvalidateTheObservedScreenRevision() {
+        assertTrue(UiAgentPolicy.isRelevantAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_CLICKED))
+        assertTrue(UiAgentPolicy.isRelevantAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SELECTED))
+        assertTrue(UiAgentPolicy.isRelevantAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED))
+        assertTrue(UiAgentPolicy.isRelevantAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED))
+        assertFalse(UiAgentPolicy.isRelevantAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED))
+    }
+
 }
