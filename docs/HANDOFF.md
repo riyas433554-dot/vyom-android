@@ -1411,3 +1411,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Auto Blocker cannot be reliably identified through a documented public Android API in this implementation. Therefore the wizard gives Samsung's official manual Settings route and does not falsely claim automatic detection or disablement. Wireless ADB is preferred; Samsung documents USB command blocking and unauthorized-source install blocking.
 - Important: Shizuku status/binder and command behavior still need exact-head CI and physical Galaxy A06 validation. P1 remains incomplete. Do not advance to P2 until P1 acceptance is satisfied.
 - Current source head: `ee9f5be8471cb819508d098236454afa79a4d3b7`.
+
+
+### Debug/release packaging parser correction — 2026-11-03
+- Commit: `d0ee04a10b4cd42a98f75fbfaef9397bd88e5230`.
+- The exact-head Debug run `41553588766` for `9ba2cc7f5e3c4a5a5385f7f569d04828c4041399` completed Gradle tests and APK builds successfully, then failed only at certificate fingerprint extraction. The log did not include stderr in the saved certificate output.
+- Workflow now captures both stdout and stderr from `apksigner`, then extracts the first 64-hex digest from the SHA-256 line. The expected certificate SHA-256 remains unchanged; mismatch still blocks publication.
+- This is a CI workflow fix only. It is not yet verified until the latest exact-head Debug run completes. Do not claim the packaging issue fixed before that run passes.
