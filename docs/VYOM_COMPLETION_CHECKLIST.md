@@ -1,3 +1,23 @@
+# M0 — VYOM FACTORY FIRST (OWNER OVERRIDE · 2026-11-03)
+
+Controlling implementation contract: `docs/HANDOFF.md` M0. This overrides older milestone order until Factory acceptance.
+
+- [ ] Audit existing task/chat/drawer/skills/update/diagnostics wiring; record reusable components and gaps.
+- [ ] Define canonical complaint schema, idempotent source identity, state/priority transitions and append-only events.
+- [ ] Verify GitHub Issues auth, repo permission, issue labels/schema and rate-limit behavior; do not embed PAT/secrets in APK.
+- [ ] Add native Factory Workspace destination using real task/event data.
+- [ ] Wire Factory complaint intake and normal Vyom chat intake.
+- [ ] Verify ChatGPT connector and Termux `gh` can create/edit the same canonical task IDs.
+- [ ] Wire real worker, repository/skill, CI and update events; no synthetic progress.
+- [ ] Add safe pause/resume/cancel/reprioritize/merge/split and concurrency conflict protection.
+- [ ] Add Diagnostics row and named automated tests for each delivered capability.
+- [ ] Exact-head Debug + Full CI green; verify APK checksum/signing/certificate before M0 APK handoff.
+- [ ] Owner phone acceptance: create/edit one complaint from each source, confirm same ID and history, run/pause/resume/cancel task, verify update/skill states.
+
+Factory is not complete while any cross-source intake or task control is local-only, mocked, or unverified. Do not claim 24/7 execution unless a real runner heartbeat and restart/recovery path are demonstrated.
+
+---
+
 ### M1 / P1 Power Mode read-back checkpoint — 2026-11-03
 - [x] Add exact-output classification tests for secure-settings grant, overlay app-op, Accessibility global flag and Vyom service membership.
 - [x] Show interpreted read-back states in the Power Mode UI; ambiguous, failed or nonzero results remain UNKNOWN.
