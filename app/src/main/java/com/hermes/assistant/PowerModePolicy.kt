@@ -62,6 +62,17 @@ internal object PowerModePolicy {
     fun mayBindShizukuUserService(binderAlive: Boolean, permissionGranted: Boolean, shizukuUid: Int): Boolean =
         binderAlive && permissionGranted && shizukuUid == 2000
 
+    /** A bound UserService must be discarded as soon as any live trust input is lost. */
+    fun mustInvalidateShizukuUserService(
+        binderAlive: Boolean,
+        permissionGranted: Boolean,
+        shizukuUid: Int,
+        remoteBinderAlive: Boolean,
+        serviceBound: Boolean
+    ): Boolean = !mayUseBoundShizukuUserService(
+        binderAlive, permissionGranted, shizukuUid, remoteBinderAlive, serviceBound
+    )
+
     /** A previously bound remote is usable only while every live authorization/connection input remains valid. */
     fun mayUseBoundShizukuUserService(
         binderAlive: Boolean,

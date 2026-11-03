@@ -27,9 +27,7 @@ internal class VyomShizukuShellClient(
 
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener { refreshStatus() }
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
-        remote = null
-        bound = false
-        activeRequests.clear()
+        invalidateBoundService()
         emit("Shizuku disconnected. Active shell requests are no longer available. Restart it from its app, then explicitly reconnect.")
     }
     private val permissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
@@ -38,7 +36,8 @@ internal class VyomShizukuShellClient(
                 emit("Shizuku permission granted by owner. Binding the allowlisted shell service.")
                 bindUserService()
             } else {
-                emit("Shizuku permission denied. No shell command can run.")
+                invalidateBoundService()
+                emit("Shizuku permission denied or revoked. Bound service and active requests were invalidated; no shell command can run.")
             }
         }
     }
@@ -56,22 +55,26 @@ internal class VyomShizukuShellClient(
             true
         } catch (_: Exception) { false }
         if (!installed) {
+            invalidateBoundService()
             emit("Shizuku is not installed.")
             return
         }
         val alive = try { Shizuku.pingBinder() } catch (_: Exception) { false }
         if (!alive) {
+            invalidateBoundService()
             emit("Shizuku is installed but not running. Start it yourself using Wireless debugging.")
             return
         }
         val version = try { Shizuku.getVersion() } catch (_: Exception) { 0 }
         val uid = try { Shizuku.getUid() } catch (_: Exception) { -1 }
         if (version < 11) {
+            invalidateBoundService()
             emit("Shizuku API older than v11 is unsupported.")
             return
         }
         val identity = if (uid == 2000) "ADB shell" else if (uid == 0) "root" else "unknown identity"
         if (uid != 2000) {
+            invalidateBoundService()
             emit("Shizuku identity is $identity (UID $uid). Vyom Power Mode requires the non-root ADB shell identity (UID 2000); Level 2 and UserService binding are blocked.")
             return
         }
@@ -79,6 +82,7 @@ internal class VyomShizukuShellClient(
             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         } catch (_: Exception) { false }
         if (!authorized) {
+            invalidateBoundService()
             emit("Shizuku binder connected (UID $uid; $identity), but Vyom is NOT authorized. LEVEL 2 is unavailable; tap AUTHORIZE VYOM IN SHIZUKU and approve Android's prompt.")
             return
         }
@@ -126,8 +130,7 @@ internal class VyomShizukuShellClient(
             try { Shizuku.getUid() } catch (_: Exception) { -1 }
         } else -1
         if (!PowerModePolicy.mayBindShizukuUserService(binderAlive, permissionGranted, shizukuUid)) {
-            remote = null
-            bound = false
+            invalidateBoundService()
             emit("Shizuku bind blocked: live binder, owner authorization and ADB shell UID 2000 are all required.")
             return
         }
@@ -158,9 +161,7 @@ internal class VyomShizukuShellClient(
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
-        remote = null
-        bound = false
-        activeRequests.clear()
+        invalidateBoundService()
         emit("Shizuku shell service disconnected. Pending requests must be retried after an explicit reconnect.")
     }
 
@@ -176,11 +177,9 @@ internal class VyomShizukuShellClient(
         val serviceAuthorized = PowerModePolicy.mayUseBoundShizukuUserService(
             running, authorized, uid, remoteAlive, bound
         )
-        if (!serviceAuthorized) {
-            remote = null
-            bound = false
-            activeRequests.clear()
-        }
+        if (PowerModePolicy.mustInvalidateShizukuUserService(
+                running, authorized, uid, remoteAlive, bound
+            )) invalidateBoundService()
         return PowerModePolicy.capabilityLevel(
             shizukuRunning = running,
             shizukuAuthorized = authorized,
@@ -189,6 +188,13 @@ internal class VyomShizukuShellClient(
             userServiceBound = serviceAuthorized,
             remoteBinderAlive = remoteAlive
         )
+    }
+
+    /** Clear every local handle when owner authorization or either binder is no longer trustworthy. */
+    private fun invalidateBoundService() {
+        remote = null
+        bound = false
+        activeRequests.clear()
     }
 
     private fun hasLiveServiceAuthorization(service: IVyomShellService): Boolean {
@@ -204,11 +210,7 @@ internal class VyomShizukuShellClient(
         val authorized = PowerModePolicy.mayUseBoundShizukuUserService(
             binderAlive, permissionGranted, uid, remoteBinderAlive, bound
         )
-        if (!authorized) {
-            remote = null
-            bound = false
-            activeRequests.clear()
-        }
+        if (!authorized) invalidateBoundService()
         return authorized
     }
 
