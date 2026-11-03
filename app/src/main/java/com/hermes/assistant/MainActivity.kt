@@ -596,6 +596,11 @@ class MainActivity : Activity() {
             textSize = 11f
             setTextColor(Color.LTGRAY)
         }
+        val contentUpdateHistory = TextView(this).apply {
+            text = "Content update history will appear here."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }
         settingsContent.addView(Button(this).apply {
             text = "CHECK NO-APK CONTENT UPDATES"
             setOnClickListener { view ->
@@ -617,11 +622,6 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(contentUpdateResult, LinearLayout.LayoutParams(-1, -2))
-        val contentUpdateHistory = TextView(this).apply {
-            text = "Content update history will appear here."
-            textSize = 10f
-            setTextColor(Color.LTGRAY)
-        }
         settingsContent.addView(contentUpdateHistory, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(Button(this).apply {
             text = "ROLL BACK CONTENT UPDATE"
