@@ -1,3 +1,51 @@
+# OWNER PRIORITY OVERRIDE — UPDATE-FIRST MILESTONE ROUTE (2026-11-03)
+
+This is the newest owner instruction. It supersedes the milestone order in the earlier OWNER RESET in this file and all conflicting sequencing elsewhere. Repository/branch and safety restrictions remain in force.
+
+## Immutable scope and delivery rules
+- Repository: `riyas433554-dot/vyom-android`; work ONLY on `feature/memory-intelligence`.
+- Never touch Android `main`, Render, Hermes backend, or production Supabase.
+- One verified APK at the end of EACH milestone. Candidate APK must match the certificate of the already-installed app before install; never suggest uninstalling to bypass a mismatch.
+- Stable signing secrets/keystore must be verified without exposing secret values. Release APKs must use the same key on every build. If secrets are absent/unverifiable, stop signing-dependent delivery and report the exact missing evidence; do not silently create a new production key.
+- Protected files (kill-switch, policy engine, update verifier, signing configuration) are review-only for self-editing. Owner/GPT repository changes still require review, CI and verification; never auto-apply protected-file patches.
+- No dead code: FIXED means reachable from UI or voice/chat, end-to-end behavior verified, and a real Diagnostics row exists. First task in EACH milestone: inventory all previously implemented/claimed items, identify unwired paths, wire them, and re-verify. Re-do failed claims.
+- Evidence per ID: full source SHA, CI run ID/result, named test, Diagnostics row. No physical-device claim without actual owner/device evidence.
+
+## MILESTONE 1 — APK 1 (UPDATE SYSTEM FIRST)
+1. Stable signing + update pipeline (S6/S7): verify keystore secrets, stable release signing, same-certificate update compatibility. Candidate certificate comparison against installed package certificate is a mandatory pre-install gate.
+2. Complete all THREE end-to-end update paths:
+   - In-app update screen: owner request -> GitHub API repo read -> minimal patch/diff (never whole-file replacement) -> PR on dev branch -> CI wait -> signed APK artifact download -> SHA-256 + certificate verification -> install. Shizuku silent install only when Power Mode is active and Android permits; otherwise one-tap user install.
+   - External GPT/Claude/other agent commit -> CI signed APK -> Vyom Check for updates discovers and installs it.
+   - Owner chat phrase “Vyom, ye badlo” routes into the same guarded in-app patch/PR flow.
+3. Hot-swappable UI bundle: HTML/CSS/JS stored in app-private storage, seeded from bundled assets; prompt edits apply without APK. Versioned bundle, integrity hash, load validation and automatic rollback on page-load failure. Native logic remains Kotlin behind a narrowly scoped, validated JS bridge.
+4. Then finish and wire P1 Power Mode, A12 structured tool-call execution (no raw JSON in chat), A14 TRUSTED default/no blanket confirmations while retaining hard blocks, A1 Play Store install with independent verification, whatsapp_send, floating orb during control tasks, F4 persistent auto-capture visible in Memory, and Diagnostics > RUN ALL CHECKS.
+
+M1 APK gate: all above items must be reachable, end-to-end, tested and represented in Diagnostics; exact-head Debug + Full CI green; release artifact SHA-256 and certificate verified; certificate matches installed app before update; deliver one APK and owner phone-test guide.
+
+## MILESTONE 2 — APK 2
+- UI through hot-swappable bundle. Combine Grok-style composer (+, model pill, mic, Speak), Voice Settings, drawer and Automations with the owner's last Claude Design files. The supplied design is authoritative; do not redesign it. Drawer and Profile are separate screens. Add activity timeline, source chips and stop button.
+- Advanced memory: CORE + episodic + semantic, embeddings, 500+ facts, conflict handling.
+- Model Hub: owner-managed API keys; route chat/task/vision/live lanes to best configured model with secure key storage.
+- Claude-Code-style agent loop: plan, read files, edit, run, verify, retry.
+- First M2 task remains no-dead-code inventory/wiring of every previously implemented M2 item.
+
+## MILESTONE 3 — APK 3
+- Learn Anywhere (research, try, verify, save).
+- Install skills from GitHub URL or ZIP in chat: inspect SKILL.md and repository, safety/licence review, install, run a test, report; editable learned-skills list.
+- Agent Company orchestrator with planner/coder/researcher/tester roles and shared task board. Researcher finds useful repos/skills; skill-factory creates and tests new repos/skills. Show agents/status on Automations and workflow canvas.
+- In-app local server plus Termux bridge (RUN_COMMAND intent or ShellExecutor); show localhost sites inside Vyom panel. Vyom executes Termux commands itself; owner should not need manual Termux steps.
+- First M3 task remains no-dead-code inventory/wiring of every previously implemented M3 item.
+
+## Execution protocol
+- Update these controlling instructions first (done by this commit), then inspect current source and workflow. Work in long batches; commit/push to this branch only; keep HANDOFF and MASTER_ORDERS current.
+- Start M1 with signing/update-system audit and inventory of existing update/signing/UI-bundle implementations and their actual UI/command/Diagnostics reachability. Do not jump to P1 or other M1 features until the update system is end-to-end.
+- Use minimal patch operations for agent-authored code changes. Never implement self-edit by blind whole-file replacement. PRs target the development branch and require CI.
+- Keep the three update paths distinct in tests and Diagnostics. Verify hash, signing cert, installed cert match, rollback and failure states.
+- Do not expose signing secrets, GitHub tokens or private keys in logs, chat, diffs or artifacts.
+- Report only current full 40-char HEAD, CI run IDs/results, and ID rows changed. For milestone delivery, include one APK's artifact/checksum/certificate evidence and Diagnostics/phone-test checklist.
+
+---
+
 # OWNER RESET — MILESTONE DELIVERY PLAN (2026-11-03)
 
 This section is the newest controlling owner order and supersedes conflicting older milestone sequencing or the former one-final-APK rule. Repository and safety boundaries remain unchanged.
