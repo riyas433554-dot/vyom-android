@@ -1543,3 +1543,13 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - This fixes the exact Kotlin compile error; no tests/build are claimed until both new exact-head workflows pass.
 - No feature matrix ID changed. P1 remains PARTIAL; next item remains P1 live permission/app-op read-back and owner-opt-in Accessibility reconnect, plus UserService lifecycle/audit verification.
 - Correction source commits: see exact-head history after this addendum is committed.
+
+
+### Shizuku registry capacity regression — 2026-11-03
+- Verified branch before correction: `cb9d7501baad9be1bce7330a49a294d1ec5c816b` on `feature/memory-intelligence`.
+- Exact-head Debug run `41563233822` failed in `:app:testDebugUnitTest`: 196 tests completed, 2 failed. Failing methods: `ShizukuRequestRegistryTest.pendingStopTombstonesAndActiveRequestsCannotExceedCapacity` (line 47) and `ShizukuRequestRegistryTest.completedHistoryIsBoundedWithoutClearingActiveRequests` (line 59). Kotlin compilation succeeded.
+- Root cause from source: insertion called `trim()` only when map size was already greater than the cap. At exactly maxEntries, completed replay entries were not evicted to make room for the next request/tombstone, so valid insertions were rejected; completion later overfilled then trimmed the map.
+- Correction commit: `7c723cde50d26a49ea14a09ce15a64853420b778`. Added `trimForInsert()` which evicts the oldest COMPLETED entry only when a new slot is needed; STARTING/RUNNING/CANCEL_REQUESTED/CANCELLED_BEFORE_START entries remain non-evictable. Existing completed-history trimming still enforces the hard upper bound after completion.
+- This is a behavior correction against two existing regression tests; no test was weakened or removed. GREEN is not yet claimed: exact-head Full CI run `41563816253` is queued for this source SHA. Re-check its head and result, and require the Debug workflow on the same exact head before accepting.
+- No feature ID changed. P1 remains PARTIAL. After exact-head CI passes, continue P1 UserService lifecycle/STOP/audit and live permission/app-op read-back plus owner-opt-in Accessibility reconnect; do not start P2.
+- No APK produced or delivered.
