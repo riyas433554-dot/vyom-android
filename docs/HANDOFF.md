@@ -1178,3 +1178,9 @@ Branch: `feature/memory-intelligence`
 - Corrected permission inventory: the UI Agent progress card uses TYPE_ACCESSIBILITY_OVERLAY, so no Draw Over Other Apps grant is needed.
 - Latest implementation checkpoint before this handoff append: source commit `aee4dde2b91ce3e502c3dc139ebdf31753993a87`; latest docs commit is expected to follow this append. The current branch head must be re-read before CI evidence is recorded.
 - No Gradle tests/build, CI success, APK artifact, signing verification or physical phone test is claimed yet.
+
+## 2026-11-03 — Owner recovery and app-target correctness
+
+- Owner-tapped Android Settings navigation is no longer blocked by STOP CONTROL. This allows the owner to open Accessibility/special-permission settings and repair grants while the UI Agent remains stopped; automated device actions remain blocked by STOP.
+- Corrected allowed-target count and ENABLE ALL SAFE APPS to exclude Vyom's own controller package. Readiness can no longer appear ready merely because the controller itself is listed.
+- These are source changes only. Build/CI/device verification remains pending for the latest branch head.
