@@ -41,7 +41,7 @@ internal object ShizukuCommandPolicy {
                 val source = args[0]
                 val hash = args[1]
                 val destination = "/data/local/tmp/vyom-update-$hash.apk"
-                val script = "set -e; trap 'rm -f \\"$destination\\"' EXIT; cp '$source' '$destination'; actual=\\$(sha256sum '$destination' | cut -d ' ' -f 1); [ \\"\\$actual\\" = '$hash' ]; pm install -r '$destination'"
+                val script = "set -e; trap 'rm -f \"$destination\"' EXIT; cp '$source' '$destination'; actual=\$(sha256sum '$destination' | cut -d ' ' -f 1); [ \"\$actual\" = '$hash' ]; pm install -r '$destination'"
                 Command(listOf("sh", "-c", script), 120_000L, true)
             } else null
             else -> null
