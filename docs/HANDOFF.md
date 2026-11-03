@@ -1432,3 +1432,4 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Exact build failure: `Task :app:compileDebugAidl FAILED`; `IVyomShellService.aidl:6.9-17: You must either assign id's to all methods or to none of them.`
 - Fix commit: `03c9e570fc9571ad434fbc0aa8c67b18adfcd585`. Assigned stable transaction IDs 1 and 2 to execute/cancel while preserving Shizuku's reserved destroy transaction ID 16777114.
 - This is a build/compiler failure, not a unit-test failure. The fix is awaiting exact-head CI/Debug verification.
+- Phone testing is deferred until the complete implementation sequence and final APK, per the user's requested order. Do not require Galaxy A06 physical testing before moving through the remaining code phases; P1 must first pass its automated policy/build/CI acceptance. Record actual device permission and Wireless ADB behavior as pending for the final phone-test guide.
