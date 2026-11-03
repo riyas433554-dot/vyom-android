@@ -1844,3 +1844,11 @@ Source checkpoint before this documentation commit: `ee9fe53b01a42fa8b1157807cb7
 2. Verify the signed artifact's SHA-256 and actual APK certificate from CI artifact bytes; compare with the expected fingerprint and, later, the owner's installed APK fingerprint.
 3. Prove a branch-push prerelease can be discovered by the app and that a proposal build is selected only by exact commit SHA.
 4. Complete Shizuku silent install under verified Power Mode and finish full UI bundle migration/rollback runtime proof before calling update-first M1 complete.
+
+## Release-token permission correction and exact-head CI — 2026-11-03
+
+- Release publishing workflows now grant job-scoped `permissions: contents: write` on the publishing jobs and pass only `${{ secrets.GITHUB_TOKEN }}` to `softprops/action-gh-release`. The optional `VYOM_RELEASE_TOKEN` personal-token path has been removed from both CI prerelease publishing and tagged release publishing. Android signing secrets remain repository Actions secrets; no personal GitHub token is stored in workflow YAML.
+- If GitHub still returns HTTP 403 `Resource not accessible by integration`, change this exact repository setting: **Settings → Actions → General → Workflow permissions → Read and write permissions → Save**. Do not add a PAT as a workaround.
+- Before this permission-only correction, exact source SHA `20ad49186ed2a58f804873be98f5f88181cb5d5c` passed Debug run `41623371371` and Full CI run `41623371384`; the signed prerelease release step also succeeded on that SHA. The signed APK release asset was `vyom-0.3.1-20ad491-signed.apk` only if verified against its own release; no APK delivery or installed-device certificate match is claimed.
+- Permission correction commits: Debug workflow `26aeebc761133e49138138af97a6521f6a0071ec`; tagged release workflow `fbce0c067a807b0cc234f1971aa15cc94622717b`. Exact-head CI for the resulting branch head is required before accepting this correction.
+- M1 remains IN PROGRESS. Continue in order: validate signed artifact bytes/checksum/certificate; prove updater discovers the exact branch release; finish all three update paths and the hot-swappable bundle runtime/rollback proof; then close remaining M1 feature IDs with reachable UI, end-to-end tests and Diagnostics rows. Physical installed-app certificate comparison remains owner-device evidence.
