@@ -204,6 +204,6 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 ### P1 Shizuku permission revocation — source audit checkpoint (2026-11-03)
 - [x] Pure policy regression contract covers invalidation when binder, permission, UID, remote binder or bound state is lost.
 - [x] Client clears stale remote/bound/request state on permission-result denial and all known invalid refreshStatus() paths; read-back and capability checks still revalidate live state.
-- [ ] Exact-head Debug + Full CI for implementation SHA 87ea80ae796ca11c3f5a5b1d7633bb50169bbf51 is pending (Debug 41585343710, Full 41585343732). The test-only RED runs 41585179156 and 41585179120 also had not completed at last poll; no RED result is claimed.
+- [ ] Exact-head Debug + Full CI for implementation SHA 87ea80ae796ca11c3f5a5b1d7633bb50169bbf51 is pending (Debug 41585343710, Full 41585343732). The test-only Debug run 41585179156 FAILED as expected with six unresolved mustInvalidateShizukuUserService references at PowerModePolicyTest.kt:209-214; Full CI 41585179120 was CANCELLED. RED is confirmed by Debug log only.
 - [ ] In-flight process cancellation on authorization loss and actual Shizuku permission-revocation callback timing are not proven.
 - P1 remains PARTIAL. No acceptance ID row changed. No physical-device acceptance and no final APK.
