@@ -150,15 +150,14 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         val stoppingIds = requests.shutdown()
         ShizukuProcessTerminator.terminateAll(
             requestIds = stoppingIds,
-            processFor = { running[it] }
-        ) { process ->
-            ShizukuProcessTerminator.terminate(
-                isAlive = process::isAlive,
-                destroy = process::destroy,
-                waitForExit = { process.waitFor(250, TimeUnit.MILLISECONDS) },
-                destroyForcibly = process::destroyForcibly
-            )
-        }
+            processFor = { running[it] },
+            terminate = ::terminateProcess
+        )
+        // A request may have passed begin() but not yet published its Process when
+        // shutdown took its snapshot. Keep the service alive while that execute()
+        // observes the closed registry, kills any late child and completes cleanup.
+        requests.awaitQuiescence(2_000L)
+        running.values.toList().forEach(::terminateProcess)
         System.exit(0)
     }
 

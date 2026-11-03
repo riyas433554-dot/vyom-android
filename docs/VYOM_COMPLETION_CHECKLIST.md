@@ -223,6 +223,7 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [x] Added bounded graceful termination followed by force-kill fallback and bounded post-kill wait.
 - [x] STOP and UserService teardown share the same process-termination helper; teardown processes every request ID from the atomic shutdown snapshot without one failure skipping later IDs.
 - [x] A child process that appears after teardown's snapshot is terminated when the closed registry rejects its STARTING-to-RUNNING transition.
+- [x] Teardown waits up to 2 seconds for in-flight registry entries to complete late-start cleanup, then sweeps remaining visible children before exiting.
 - [ ] Exact-head Debug and Full CI green.
 - [ ] Physical Shizuku process-death timing and live Level 0/1/2 + secure-settings/app-op read-back acceptance.
 - P1 remains PARTIAL; no acceptance ID changed and no APK delivered.

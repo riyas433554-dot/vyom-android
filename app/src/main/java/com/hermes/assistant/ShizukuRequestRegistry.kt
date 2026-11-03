@@ -1,5 +1,7 @@
 package com.hermes.assistant
 
+import java.util.concurrent.TimeUnit
+
 /**
  * Atomic request lifecycle shared by execute(), STOP and service teardown.
  * Terminal entries are retained in a bounded insertion-ordered window to reject replay.
@@ -66,6 +68,19 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
     @Synchronized fun complete(id: String) {
         states[id] = State.COMPLETED
         trim()
+        (this as java.lang.Object).notifyAll()
+    }
+
+    /** Wait for in-flight execute() calls to observe STOP and finish child cleanup. */
+    @Synchronized fun awaitQuiescence(timeoutMs: Long): Boolean {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs.coerceAtLeast(0L))
+        while (states.values.any { it == State.STARTING || it == State.RUNNING || it == State.CANCEL_REQUESTED }) {
+            val remaining = deadline - System.nanoTime()
+            if (remaining <= 0L) return false
+            val millis = TimeUnit.NANOSECONDS.toMillis(remaining).coerceAtLeast(1L)
+            (this as java.lang.Object).wait(millis)
+        }
+        return true
     }
 
     @Synchronized fun state(id: String): State? = states[id]
