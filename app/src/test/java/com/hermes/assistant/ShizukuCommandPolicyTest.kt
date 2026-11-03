@@ -62,4 +62,62 @@ class ShizukuCommandPolicyTest {
         assertNull(ShizukuCommandPolicy.command("verify_overlay", listOf("extra"), false, "com.vyom.assistant"))
         assertNull(ShizukuCommandPolicy.command("unknown", emptyList(), false, "com.vyom.assistant"))
     }
+
+    @Test fun genericUiTapIsBoundToTargetDisplayAndSafeCoordinates() {
+        assertEquals(
+            listOf("input", "tap", "10", "20"),
+            ShizukuCommandPolicy.command(
+                "ui_tap", listOf("com.example.app", "10", "20", "100", "200"),
+                false, "com.vyom.assistant"
+            )?.argv
+        )
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_tap", listOf("com.example.app", "-1", "20", "100", "200"),
+            false, "com.vyom.assistant"
+        ))
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_tap", listOf("com.example.app", "100", "20", "100", "200"),
+            false, "com.vyom.assistant"
+        ))
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_tap", listOf("com.android.systemui", "10", "20", "100", "200"),
+            false, "com.vyom.assistant"
+        ))
+    }
+
+    @Test fun genericUiSwipeRequiresConfirmationAndValidDisplayBounds() {
+        val args = listOf("com.example.app", "10", "20", "90", "180", "450", "100", "200")
+        assertNull(ShizukuCommandPolicy.command("ui_swipe", args, false, "com.vyom.assistant"))
+        assertEquals(
+            listOf("input", "swipe", "10", "20", "90", "180", "450"),
+            ShizukuCommandPolicy.command("ui_swipe", args, true, "com.vyom.assistant")?.argv
+        )
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_swipe", args.toMutableList().also { it[4] = "201" }, true, "com.vyom.assistant"
+        ))
+    }
+
+    @Test fun genericKeyEventsAreRestrictedToKnownNavigationAndEditingKeys() {
+        assertEquals(
+            listOf("input", "keyevent", "66"),
+            ShizukuCommandPolicy.command("ui_keyevent", listOf("com.example.app", "66"), false, "com.vyom.assistant")?.argv
+        )
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_keyevent", listOf("com.example.app", "999"), false, "com.vyom.assistant"
+        ))
+    }
+
+    @Test fun genericTextInputRejectsCredentialPatternsAndEncodesSpaces() {
+        assertEquals(
+            listOf("input", "text", "hello%sworld"),
+            ShizukuCommandPolicy.command("ui_type_text", listOf("com.example.app", "hello world"), false, "com.vyom.assistant")?.argv
+        )
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_type_text", listOf("com.example.app", "123456"), false, "com.vyom.assistant"
+        ))
+        assertNull(ShizukuCommandPolicy.command(
+            "ui_type_text", listOf("com.example.app", "hello\nworld"), false, "com.vyom.assistant"
+        ))
+    }
+
 }
