@@ -126,7 +126,8 @@ internal class ContentUpdateManager(private val context: Context) {
         val major = parts.getOrNull(0) ?: 1
         val minor = parts.getOrNull(1) ?: 0
         val patch = parts.getOrNull(2) ?: 0
-        return "$major.$minor.${patch + 1}"
+        val nextPatch = maxOf(patch.toLong() + 1L, System.currentTimeMillis())
+        return "$major.$minor.$nextPatch"
     }
 
     fun rollback(): Boolean {
