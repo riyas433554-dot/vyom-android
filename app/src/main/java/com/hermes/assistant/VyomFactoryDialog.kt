@@ -287,14 +287,36 @@ internal class VyomFactoryDialog(
                 setOnClickListener { editTask(task) }
             }, LinearLayout.LayoutParams(dp(64), dp(36)).apply { leftMargin = dp(3) })
             card.addView(controls)
-            card.setOnClickListener {
-                AlertDialog.Builder(activity).setTitle("Factory task #${task.number}")
-                    .setMessage(description.ifBlank { "No description supplied." } + "\\n\\nIssue: " + task.url)
-                    .setPositiveButton("OPEN GITHUB") { _, _ ->
-                        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(task.url)))
-                    }.setNegativeButton("CLOSE", null).show()
-            }
+            card.setOnClickListener { showTaskHistory(task) }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+    }
+
+    private fun showTaskHistory(task: VyomFactoryGitHubClient.Task) {
+        status.text = "Loading history for task #${task.number}…"
+        worker.execute {
+            try {
+                val comments = client.listEvents(task.number)
+                val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+                val history = if (comments.isEmpty()) "No comments or event notes recorded yet."
+                    else comments.joinToString("\\n\\n")
+                val details = "Status: ${task.metadata.status} · Priority: ${task.metadata.priority}\\n\\n" +
+                    description + "\\n\\nEVENT HISTORY\\n" + history
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = "Task #${task.number} history loaded."
+                    AlertDialog.Builder(activity).setTitle("Factory task #${task.number}")
+                        .setMessage(details)
+                        .setPositiveButton("OPEN GITHUB") { _, _ ->
+                            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(task.url)))
+                        }.setNegativeButton("CLOSE", null).show()
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = errorMessage(error)
+                }
+            }
         }
     }
 
