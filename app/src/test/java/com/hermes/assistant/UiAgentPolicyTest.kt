@@ -85,7 +85,7 @@ class UiAgentPolicyTest {
     @Test fun consequentialVisibleControlsRequireConfirmation() {
         assertEquals(UiAgentPolicy.Verdict.CONFIRM,
             UiAgentPolicy.validate(UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_TEXT, target = "Delete"),
-                listOf("Delete", "Cancel"), "Delete this draft"))
+                listOf("Delete", "Cancel"), "Delete this draft", confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
     }
 
     @Test fun rejectsPaymentSecurityAndUninstallTargetsWithoutConfirmation() {
@@ -133,23 +133,23 @@ class UiAgentPolicyTest {
     @Test fun requiresConfirmationForUnlabelledClickableNode() {
         val fingerprint = "android.view.View|1|2|30|40"
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Tap icon", listOf(UiAgentPolicy.VisibleNode(4, true, false, false, false, fingerprint, true))))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Tap icon", listOf(UiAgentPolicy.VisibleNode(4, true, false, false, false, fingerprint, true)), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
     }
 
     @Test fun requiresConfirmationForLongClickableNode() {
         val fingerprint = "android.view.View|1|2|30|40"
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.LONG_PRESS_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Long press icon", listOf(UiAgentPolicy.VisibleNode(4, false, true, false, false, fingerprint, true))))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Long press icon", listOf(UiAgentPolicy.VisibleNode(4, false, true, false, false, fingerprint, true)), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
     }
 
     @Test fun OCRTapRequiresAnExactFreshObservedLabelAndConfirmation() {
         val observed = UiAgentPolicy.VisibleOcr(2, "Trim", "Trim|10|20|80|50", true)
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_OCR, target = "Trim", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Trim clip", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Trim clip", visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(ocrIndex = 3), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(target = "Delete"), emptyList(), "Trim clip", visibleOcr = listOf(observed)))
         val longPress = UiAgentPolicy.Action(UiAgentPolicy.Kind.LONG_PRESS_OCR, target = "Trim", ocrIndex = 2, ocrFingerprint = observed.fingerprint)
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(longPress, emptyList(), "Select clip", visibleOcr = listOf(observed)))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(longPress, emptyList(), "Select clip", visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
     }
 
     @Test fun onlyLaunchesAppsExplicitlyAllowedInAppAccess() {
@@ -169,14 +169,14 @@ class UiAgentPolicyTest {
         val fingerprint = "android.view.View|1|2|30|40"
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.TAP_NODE, nodeIndex = 4, nodeFingerprint = fingerprint)
         val node = UiAgentPolicy.VisibleNode(4, false, false, false, false, fingerprint, true)
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Tap icon", listOf(node)))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Tap icon", listOf(node), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
     }
 
     @Test fun allowsOnlyDirectionalSwipeOnSafeBoundedView() {
         val fingerprint = "android.view.View|1|2|30|40"
         val node = UiAgentPolicy.VisibleNode(4, false, false, false, false, fingerprint, true)
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_NODE, direction = "left", nodeIndex = 4, nodeFingerprint = fingerprint)
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Swipe timeline", listOf(node)))
+        assertEquals(UiAgentPolicy.Verdict.CONFIRM, UiAgentPolicy.validate(action, emptyList(), "Swipe timeline", listOf(node), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
         assertEquals(UiAgentPolicy.Verdict.REJECT, UiAgentPolicy.validate(action.copy(direction = "diagonal"), emptyList(), "Swipe timeline", listOf(node)))
     }
 
@@ -245,7 +245,7 @@ class UiAgentPolicyTest {
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.SWIPE_OCR, target = "Timeline",
             direction = "left", ocrIndex = 4, ocrFingerprint = observed.fingerprint)
         assertEquals(UiAgentPolicy.Verdict.CONFIRM,
-            UiAgentPolicy.validate(action, emptyList(), "Swipe timeline left", visibleOcr = listOf(observed)))
+            UiAgentPolicy.validate(action, emptyList(), "Swipe timeline left", visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(action.copy(direction = "diagonal"), emptyList(), "Swipe timeline", visibleOcr = listOf(observed)))
         assertEquals(UiAgentPolicy.Verdict.REJECT,
@@ -260,7 +260,7 @@ class UiAgentPolicyTest {
         val action = UiAgentPolicy.Action(UiAgentPolicy.Kind.DRAG_OCR, target = "Clip",
             ocrIndex = 5, ocrFingerprint = observed.fingerprint, fromAnchor = "left", toAnchor = "right")
         assertEquals(UiAgentPolicy.Verdict.CONFIRM,
-            UiAgentPolicy.validate(action, emptyList(), "Move clip", visibleOcr = listOf(observed)))
+            UiAgentPolicy.validate(action, emptyList(), "Move clip", visibleOcr = listOf(observed), confirmationMode = UiAgentPolicy.ConfirmationMode.RISKY_ASK))
         assertEquals(UiAgentPolicy.Verdict.REJECT,
             UiAgentPolicy.validate(action.copy(toAnchor = "left"), emptyList(), "Move clip", visibleOcr = listOf(observed)))
         assertEquals(UiAgentPolicy.Verdict.REJECT,
@@ -585,7 +585,7 @@ class UiAgentPolicyTest {
             UiAgentPolicy.Kind.DRAG_NODE, nodeIndex = 5, nodeFingerprint = "brightness-fp",
             screenPackage = AppAccessPolicy.SYSTEM_UI_PACKAGE, fromAnchor = "left", toAnchor = "right"
         )
-        assertEquals(UiAgentPolicy.Verdict.CONFIRM,
+        assertEquals(UiAgentPolicy.Verdict.ALLOW,
             UiAgentPolicy.validate(action, listOf("Brightness"), "Make the screen brighter",
                 visibleNodes = listOf(node)))
         val wrongDirection = action.copy(fromAnchor = "right", toAnchor = "left")
