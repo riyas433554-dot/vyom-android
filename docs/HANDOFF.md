@@ -1194,5 +1194,5 @@ Branch: `feature/memory-intelligence`
 
 ## Test inventory at source head e3f8671
 
-- Counted all 18 Kotlin test files in the feature-branch tree: 176 `@Test` methods are present.
+- Counted all 19 Kotlin test files in the feature-branch tree: 177 `@Test` methods are present (including the new encrypted-memory principle test).
 - This is a source inventory only, not a passing-test claim. The exact-head CI and Debug workflows are queued; no test execution result has been observed.
