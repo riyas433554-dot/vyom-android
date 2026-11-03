@@ -146,4 +146,13 @@ class PowerModePolicyTest {
         assertFalse(PowerModePolicy.mayBindShizukuUserService(true, true, 1000))
         assertFalse(PowerModePolicy.mayBindShizukuUserService(true, true, -1))
     }
+
+    @Test fun boundUserServiceIsUnusableAfterAuthorizationOrBinderIsLost() {
+        assertTrue(PowerModePolicy.mayUseBoundShizukuUserService(true, true, 2000, true, true))
+        assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(false, true, 2000, true, true))
+        assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(true, false, 2000, true, true))
+        assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(true, true, 0, true, true))
+        assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(true, true, 2000, false, true))
+        assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(true, true, 2000, true, false))
+    }
 }
