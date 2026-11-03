@@ -1433,3 +1433,24 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Fix commit: `03c9e570fc9571ad434fbc0aa8c67b18adfcd585`. Assigned stable transaction IDs 1 and 2 to execute/cancel while preserving Shizuku's reserved destroy transaction ID 16777114.
 - This is a build/compiler failure, not a unit-test failure. The fix is awaiting exact-head CI/Debug verification.
 - Phone testing is deferred until the complete implementation sequence and final APK, per the user's requested order. Do not require Galaxy A06 physical testing before moving through the remaining code phases; P1 must first pass its automated policy/build/CI acceptance. Record actual device permission and Wireless ADB behavior as pending for the final phone-test guide.
+
+
+## Master orders archive and current checkpoint — 2026-11-03
+
+- Full Part 2, Part 3 and Part 5 user orders are preserved in `docs/MASTER_ORDERS.md` (commit `57e16ead4cab761cbe99899c37fb2aa8d958c118`). The original Part 2/3 text is transcribed from the user's 19-page source PDF; Part 5 records the user's P1–P8 instructions supplied in the project messages.
+- Added matrix IDs:
+  - U13 — Activity Timeline: **UNVERIFIED**. Acceptance test not implemented/verified yet: per-step chat timeline, status/icon, expandable detail/log, same source as audit/task detail, newest at bottom.
+  - U14 — Web Search UI: **UNVERIFIED**. Acceptance test not implemented/verified yet: searched-sites row, favicon chips, expandable title/domain source list with page opening, inline citation chips.
+  - Composer/generation controls: round square-icon STOP replaces Send during generation/action; compact circular down-arrow replaces wide JUMP TO LATEST; composer retains +, mic and Send. **UNVERIFIED**.
+  - Theme constraint: use Vyom dark-glass/cyan tokens; do not import competitor color palettes. U13/U14 screenshot tests required.
+- Real branch checkpoint before this HANDOFF update: `64df8d306ea80fe68b23f952340427457480e110`.
+- Exact-head CI for that checkpoint:
+  - Debug `41559566186`: in progress at last check.
+  - Full CI `41559566221`: pending at last check.
+- Previous exact-head failure on `1abb30771d016c58430d9df6e38f3bc559e1943f`:
+  - Debug `41557885850` — FAILED.
+  - Full CI `41557885817` — FAILED.
+  - Exact compiler error: `MainActivity.kt:2006:21 Unresolved reference 'textIsSelectable'.`
+  - Corrected in commit `64df8d306ea80fe68b23f952340427457480e110` to use Android TextView's Kotlin property `isTextSelectable = true`. This fix is not accepted until exact-head CI passes.
+- Earlier P1 AIDL issue was corrected in `03c9e570fc9571ad434fbc0aa8c67b18adfcd585`; subsequent build got past `:app:compileDebugAidl`, confirming that specific AIDL compile error is resolved on that build attempt.
+- **Exact next step:** obtain the completed Debug and Full CI results for `64df8d306ea80fe68b23f952340427457480e110`; if either fails, use its real job log, fix the exact failure, commit and rerun both workflows on the new exact head. Then continue P1 Power Mode acceptance (secure-settings grant read-back, explicit owner-opt-in Accessibility reconnect after verified grant, audit logging and policy tests). Do not start P2 before P1 acceptance; preserve the user's fixed order. One final APK only after all items and exact-final-head CI/signing/artifact checks.
