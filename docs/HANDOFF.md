@@ -1631,3 +1631,13 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Integrated shutdown into `VyomShizukuUserService.destroy()` before process termination. Startup racing teardown cannot transition to RUNNING after the registry has closed.
 - Unit tests cover STARTING and RUNNING cancellation, completed-history preservation, idempotent teardown and rejection after shutdown. This proves registry semantics, not OEM Shizuku process-death timing. P1 remains PARTIAL; no acceptance IDs changed.
 - Next: exact-head Debug and Full CI; then permission-revocation invalidation and owner STOP/process termination lifecycle. No APK.
+
+
+### P1 Shizuku permission-revocation invalidation — implementation; exact-head CI pending — 2026-11-03
+- Source audit found that the Shizuku permission-result denial callback only emitted a status message, while refreshStatus() returned from unauthorized/dead/unsupported identity paths without clearing a previously bound UserService and active request IDs.
+- Test-first commit: 2c53a89a6ce7c8d7030a8ceddf08524fe29673bd; added PowerModePolicyTest.authorizationLossInvalidatesEveryBoundServiceState for binder death, permission revocation, UID change, remote-binder death, unbound state and the fully valid state. Its Debug run 41585179156 and Full CI run 41585179120 were still IN_PROGRESS at the last poll; the expected RED compiler result has NOT been confirmed from logs.
+- Implementation commit: 87ea80ae796ca11c3f5a5b1d7633bb50169bbf51. Added pure mustInvalidateShizukuUserService; permission denial/revocation, missing Shizuku, dead binder, unsupported API, non-shell UID and failed live-use checks now clear the remote reference, bound flag and active request tracking. Binder-death and service-disconnect callbacks use the same invalidation helper.
+- Exact-head implementation CI: Debug run 41585343710 was IN_PROGRESS and Full CI run 41585343732 was PENDING at the last poll. Do not claim GREEN until both finish on this exact SHA and logs are inspected if either fails.
+- This is app-side stale-state invalidation only. It does not prove Shizuku's OEM permission-revocation callback timing or that a command already executing inside UserService is terminated by permission revocation. Physical Galaxy A06 acceptance remains pending.
+- No acceptance/matrix ID rows changed; P1 remains PARTIAL. No APK delivered.
+- Next: verify exact-head CI and inspect failure logs; then harden in-flight cancellation on authorization loss and complete owner STOP/process-termination lifecycle tests, followed by the live Level 0/1/2 + secure-settings/app-op read-back matrix.
