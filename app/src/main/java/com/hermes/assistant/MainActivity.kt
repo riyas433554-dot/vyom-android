@@ -54,6 +54,11 @@ import java.net.URL
 import java.security.MessageDigest
 import java.util.Locale
 import android.util.Base64
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
+import android.webkit.JavascriptInterface
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -576,6 +581,10 @@ class MainActivity : Activity() {
             setOnClickListener { runUpdateDiagnostics(updateDiagnosticsNotice, this) }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(updateDiagnosticsNotice, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "OPEN HOT-SWAPPABLE UPDATE CENTER"
+            setOnClickListener { openUpdateCenter() }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
 
         settingsContent.addView(TextView(this).apply {
             text = "CONTROLLED SELF-MODIFICATION"
@@ -3537,6 +3546,73 @@ class MainActivity : Activity() {
                 micIndicator.text = "MIC PERMISSION DENIED"
                 micIndicator.contentDescription = "Microphone permission denied"
             }
+        }
+    }
+
+    private inner class UpdateCenterBridge(private val store: UiBundleStore) {
+        @JavascriptInterface
+        fun bundleVersion(): String = store.activeVersion()
+
+        @JavascriptInterface
+        fun checkForUpdates() {
+            runOnUiThread {
+                checkForUpdate()
+                updateNotice.text = "Update check started from the local UI bundle. See Profile for verification status."
+            }
+        }
+
+        @JavascriptInterface
+        fun openSelfChange() {
+            runOnUiThread {
+                showTab(false, true)
+                selfChangeButton.performClick()
+            }
+        }
+    }
+
+    private fun openUpdateCenter() {
+        try {
+            val store = UiBundleStore(this)
+            val entry = store.seedBundledVersion()
+            val webView = WebView(this)
+            webView.settings.javaScriptEnabled = true
+            webView.settings.domStorageEnabled = false
+            webView.settings.allowFileAccess = true
+            webView.settings.allowContentAccess = false
+            webView.settings.allowFileAccessFromFileURLs = false
+            webView.settings.allowUniversalAccessFromFileURLs = false
+            webView.addJavascriptInterface(UpdateCenterBridge(store), "VyomBridge")
+            webView.webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val uri = request.url
+                    val localPath = uri.path.orEmpty()
+                    return !(uri.scheme.equals("file", true) &&
+                        localPath.startsWith(store.rootDirectory.absolutePath))
+                }
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    updateNotice.text = "Hot-swappable UI bundle v${store.activeVersion()} loaded and integrity-checked."
+                }
+
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    if (!request.isForMainFrame) return
+                    val fallback = store.rollbackAfterPageLoadFailure()
+                    if (fallback != null) {
+                        view.loadUrl(fallback.toURI().toString())
+                        updateNotice.text = "UI bundle failed to load; rolled back to v${store.activeVersion()}."
+                    } else {
+                        updateNotice.text = "UI bundle failed to load and no previous version is available."
+                    }
+                }
+            }
+            webView.loadUrl(entry.toURI().toString())
+            AlertDialog.Builder(this)
+                .setTitle("Vyom · Update Center")
+                .setView(webView)
+                .setPositiveButton("CLOSE") { _, _ -> webView.destroy() }
+                .show()
+        } catch (error: Exception) {
+            updateNotice.text = "Could not open verified UI bundle: ${error.message ?: "bundle error"}"
         }
     }
 
