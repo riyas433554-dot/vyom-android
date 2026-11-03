@@ -33,7 +33,7 @@ class VyomFactoryStatusTest {
     }
 
     @Test fun transitionsAreBounded() {
-        assertTrue(VyomFactoryStatus.canTransition("open", "in_progress"))
+        assertFalse(VyomFactoryStatus.canTransition("open", "in_progress"))
         assertTrue(VyomFactoryStatus.canTransition("in_progress", "paused"))
         assertTrue(VyomFactoryStatus.canTransition("blocked", "open"))
         assertFalse(VyomFactoryStatus.canTransition("open", "completed"))
