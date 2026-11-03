@@ -1946,15 +1946,19 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         val writeSettingsGranted = Build.VERSION.SDK_INT < 23 || Settings.System.canWrite(this)
         val baseReadiness = AndroidPermissionPolicy.readiness(
-            accessibilityEnabled, access.masterEnabled,
-            access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE }
+            accessibilityEnabled = accessibilityEnabled,
+            masterAppAccess = access.masterEnabled,
+            allowedTargetApps = access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE },
+            plannerReady = plannerReady,
+            uiAgentEnabled = skillEnabled,
+            stopControlOn = stopOn
         )
         val lines = listOf(
             "Accessibility setting: " + if (accessibilityEnabled) "GRANTED" else "NEEDS SYSTEM APPROVAL",
             "Accessibility service connection: " + if (service != null) "CONNECTED" else "NOT CONNECTED",
             "Owner App Access: " + if (access.masterEnabled) "ON" else "OFF",
             "Allowed target apps: ${access.enabledPackages.count { it != AppAccessPolicy.SYSTEM_UI_PACKAGE }}",
-            "Core UI-control readiness: " + if (baseReadiness.ready && service != null && !stopOn) "READY" else "NOT READY",
+            "Core UI-control readiness: " + if (baseReadiness.ready && service != null) "READY" else "NOT READY",
             "STOP CONTROL: " + if (stopOn) "ON — actions blocked" else "OFF",
             "Microphone: " + if (microphoneGranted) "GRANTED" else "NOT GRANTED (voice tasks only)",
             "Camera: " + if (cameraGranted) "GRANTED" else "NOT GRANTED (camera tasks only)",
