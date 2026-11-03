@@ -98,6 +98,8 @@ class MainActivity : Activity() {
     private lateinit var reduceMotionButton: Button
     private lateinit var voiceRepliesButton: Button
     private lateinit var updateButton: Button
+    private lateinit var selfChangeButton: Button
+    private var pendingSelfChangeTask = ""
     private lateinit var updateNotice: TextView
     private lateinit var rollbackButton: Button
     private lateinit var personaButton: Button
@@ -588,7 +590,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         settingsContent.addView(selfChangeNotice, LinearLayout.LayoutParams(-1, -2))
-        settingsContent.addView(Button(this).apply {
+        selfChangeButton = Button(this).apply {
             text = "PROPOSE SELF-CHANGE"
             setOnClickListener {
                 val form = LinearLayout(this@MainActivity).apply {
@@ -613,6 +615,8 @@ class MainActivity : Activity() {
                 }
                 form.addView(proposalTitle, LinearLayout.LayoutParams(-1, dp(48)))
                 form.addView(proposalPath, LinearLayout.LayoutParams(-1, dp(48)))
+                proposalTask.setText(pendingSelfChangeTask)
+                pendingSelfChangeTask = ""
                 form.addView(proposalTask, LinearLayout.LayoutParams(-1, dp(150)))
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Create review-only proposal")
@@ -670,7 +674,8 @@ class MainActivity : Activity() {
                     }
                     .show()
             }
-        }, LinearLayout.LayoutParams(-1, dp(44)))
+        }
+        settingsContent.addView(selfChangeButton, LinearLayout.LayoutParams(-1, dp(44)))
         rollbackButton = Button(this).apply {
             text = "OPEN PREVIOUS APK (ROLLBACK)"
             visibility = if (settingsPrefs.getString("previous_apk_uri", null).isNullOrBlank()) View.GONE else View.VISIBLE
@@ -2616,7 +2621,18 @@ class MainActivity : Activity() {
 
     private fun sendMessage() {
         val message = chatInput.text.toString().trim()
-        if (message.isBlank() || !chatReady) return
+        if (message.isBlank()) return
+        val lowerMessage = message.lowercase(Locale.ROOT)
+        val selfChangePrefix = listOf("vyom, ye badlo", "vyom ye badlo")
+            .firstOrNull { lowerMessage.startsWith(it) }
+        if (selfChangePrefix != null) {
+            pendingSelfChangeTask = message.substring(selfChangePrefix.length).trim()
+            chatInput.setText("")
+            showTab(false, true)
+            selfChangeButton.post { selfChangeButton.performClick() }
+            return
+        }
+        if (!chatReady) return
         memoryStore.learnFrom(message)
         chatInput.setText("")
         val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
