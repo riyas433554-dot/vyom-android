@@ -8,9 +8,9 @@ class VyomIdentityPolicyTest {
     @Test fun identityExplainsPurposeAndCapabilityBoundaries() {
         val prompt = VyomIdentityPolicy.systemInstruction()
         assertTrue(prompt.contains("You are Vyom"))
-        assertTrue(prompt.contains("protected Android surfaces"))
+        assertTrue(prompt.contains("safeguards"))
         assertTrue(prompt.contains("verified"))
-        assertTrue(prompt.contains("Never request or store passwords"))
+        assertTrue(prompt.contains("Never request/store passwords"))
         assertTrue(prompt.contains("linked to Hermes"))
         assertTrue(prompt.contains("Accessibility"))
     }
