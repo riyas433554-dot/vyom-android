@@ -2135,7 +2135,32 @@ class MainActivity : Activity() {
                 text = label
                 setOnClickListener {
                     shizukuClient().executeReadBack(commandId) { result ->
-                        shizukuStatus.text = "$commandId: $result"
+                        val component = ComponentName(
+                            this@MainActivity,
+                            VyomAccessibilityService::class.java
+                        ).flattenToString()
+                        val interpreted = when (commandId) {
+                            "verify_secure_settings" ->
+                                PowerModeReadbackPolicy.secureSettings(result).name
+                            "verify_overlay" ->
+                                PowerModeReadbackPolicy.overlay(result).name
+                            "verify_accessibility_enabled" -> when (
+                                PowerModeReadbackPolicy.accessibilityGlobalEnabled(result)
+                            ) {
+                                true -> "ENABLED"
+                                false -> "DISABLED"
+                                null -> "UNKNOWN"
+                            }
+                            "verify_accessibility_services" -> when (
+                                PowerModeReadbackPolicy.accessibilityServiceEnabled(result, component)
+                            ) {
+                                true -> "VYOM SERVICE ENABLED"
+                                false -> "VYOM SERVICE DISABLED"
+                                null -> "UNKNOWN"
+                            }
+                            else -> "UNKNOWN"
+                        }
+                        shizukuStatus.text = "$commandId: $interpreted"
                     }
                 }
             }, LinearLayout.LayoutParams(-1, dp(42)))
