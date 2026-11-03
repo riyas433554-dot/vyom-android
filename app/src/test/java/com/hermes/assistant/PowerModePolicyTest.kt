@@ -64,6 +64,7 @@ class PowerModePolicyTest {
             PowerModePolicy.capabilityLevel(
                 shizukuRunning = true,
                 shizukuAuthorized = false,
+                shizukuUid = 2000,
                 accessibilityEnabled = true
             )
         )
@@ -72,17 +73,33 @@ class PowerModePolicyTest {
             PowerModePolicy.capabilityLevel(
                 shizukuRunning = true,
                 shizukuAuthorized = false,
+                shizukuUid = 2000,
                 accessibilityEnabled = false
             )
         )
     }
 
-    @Test fun levelTwoRequiresLiveBinderAndExplicitOwnerAuthorization() {
+    @Test fun rootOrUnknownShizukuIdentityNeverGetsLevelTwo() {
+        for (uid in listOf(0, 1000, -1)) {
+            assertEquals(
+                PowerModePolicy.CapabilityLevel.LEVEL_1,
+                PowerModePolicy.capabilityLevel(
+                    shizukuRunning = true,
+                    shizukuAuthorized = true,
+                    shizukuUid = uid,
+                    accessibilityEnabled = true
+                )
+            )
+        }
+    }
+
+    @Test fun levelTwoRequiresLiveBinderExplicitAuthorizationAndAdbShellUid() {
         assertEquals(
             PowerModePolicy.CapabilityLevel.LEVEL_2,
             PowerModePolicy.capabilityLevel(
                 shizukuRunning = true,
                 shizukuAuthorized = true,
+                shizukuUid = 2000,
                 accessibilityEnabled = true
             )
         )
@@ -91,6 +108,7 @@ class PowerModePolicyTest {
             PowerModePolicy.capabilityLevel(
                 shizukuRunning = true,
                 shizukuAuthorized = true,
+                shizukuUid = 2000,
                 accessibilityEnabled = false
             )
         )
@@ -99,6 +117,7 @@ class PowerModePolicyTest {
             PowerModePolicy.capabilityLevel(
                 shizukuRunning = false,
                 shizukuAuthorized = true,
+                shizukuUid = 2000,
                 accessibilityEnabled = true
             )
         )
