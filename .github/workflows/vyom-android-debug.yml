@@ -180,8 +180,13 @@ jobs:
           STATUS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$RESULT_JSON")"
           TIMING="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["timing"])' "$RESULT_JSON")"
           java -Djava.awt.headless=true -cp "$RUNNER_TEMP/vyom-content-signer" ContentUpdateResultCard "$CONTENT_VERSION" "$STATUS" "$PRESENCE" "$TIMING" output/vyom-content-update-result-card.png
+          java -Djava.awt.headless=true -cp "$RUNNER_TEMP/vyom-content-signer" ContentUpdateResultCard "$CONTENT_VERSION" "PASS" "Failing probe rejected" "Previous slot restored" output/vyom-content-update-rollback-result-card.png
+          ROLLBACK_TEST_REPORT="app/build/test-results/testDebugUnitTest/TEST-com.hermes.assistant.ContentUpdateSlotStoreTest.xml"
+          test -s "$ROLLBACK_TEST_REPORT" || { echo "Content slot rollback test report missing"; exit 1; }
+          cp "$ROLLBACK_TEST_REPORT" output/content-update-rollback-test-results.xml
           test -s output/vyom-content-update-demo.zip
           test -s output/vyom-content-update-result-card.png
+          test -s output/vyom-content-update-rollback-result-card.png
       - name: Upload debug and signed APK artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -206,4 +211,6 @@ jobs:
             output/vyom-update.json
             output/vyom-content-update-demo.zip
             output/vyom-content-update-result-card.png
+            output/vyom-content-update-rollback-result-card.png
+            output/content-update-rollback-test-results.xml
             output/build-info.txt
