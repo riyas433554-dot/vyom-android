@@ -5,11 +5,11 @@ import org.junit.Test
 
 class VyomFactoryStatusTest {
     @Test fun metadataRoundTrips() {
-        val key = VyomFactoryStatus.idempotencyKey("Vyom_Chat", "message-42")!!
-        val meta = VyomFactoryStatus.Metadata("P1", "in_progress", "vyom_chat", "message-42", key, listOf("created"))
-        val body = VyomFactoryStatus.withMetadata("Fix update flow", meta)
+        val key = VyomFactoryStatus.idempotencyKey("vyom_chat", "message-42")!!
+        val metadata = VyomFactoryStatus.Metadata("P1", "in_progress", "vyom_chat", "message-42", key, listOf("created"))
+        val body = VyomFactoryStatus.withMetadata("Fix update flow", metadata)
         assertTrue(body.contains("Fix update flow"))
-        assertEquals(meta, VyomFactoryStatus.readMetadata(body))
+        assertEquals(metadata, VyomFactoryStatus.readMetadata(body))
     }
 
     @Test fun invalidMetadataIsRejected() {
@@ -32,7 +32,7 @@ class VyomFactoryStatusTest {
         assertNull(VyomFactoryStatus.idempotencyKey("factory", " "))
     }
 
-    @Test fun transitionsAreBoundedAndTerminalStatesStayTerminal() {
+    @Test fun transitionsAreBounded() {
         assertTrue(VyomFactoryStatus.canTransition("open", "in_progress"))
         assertTrue(VyomFactoryStatus.canTransition("in_progress", "paused"))
         assertTrue(VyomFactoryStatus.canTransition("blocked", "open"))
