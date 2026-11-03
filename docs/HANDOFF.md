@@ -1166,3 +1166,15 @@ Branch: `feature/memory-intelligence`
 3. Review actual APK manifest, app ID, version and signing fingerprint.
 4. Continue remaining action adapters and end-to-end reliability tests; then deliver update-safe APK for physical phone acceptance.
 5. Implement repository/ZIP ingestion, skill registry and skill eval execution before claiming autonomous self-learning is complete.
+
+## 2026-11-03 — Permission readiness and event freshness follow-up
+
+- Core readiness now requires: Android Accessibility enabled, service actually connected, Master App Control ON, at least one safe target app, NVIDIA UI planner configured, UI Agent skill enabled and STOP CONTROL OFF. Missing states are explicitly listed.
+- Added regression coverage for missing planner, disabled UI Agent skill and STOP state.
+- Added WRITE_SETTINGS to AndroidManifest so Android's Modify System Settings approval screen can grant the special permission; the readiness panel checks Settings.System.canWrite().
+- Notification settings fallback now includes the app package extra on older Android versions.
+- Accessibility observation revisions now also advance on click, selection and focus events, not only window/content/scroll/text changes. Added policy tests and subscribed to those event types in the service metadata.
+- Corrected the event import ordering before any build; final CI is still required.
+- Corrected permission inventory: the UI Agent progress card uses TYPE_ACCESSIBILITY_OVERLAY, so no Draw Over Other Apps grant is needed.
+- Latest implementation checkpoint before this handoff append: source commit `aee4dde2b91ce3e502c3dc139ebdf31753993a87`; latest docs commit is expected to follow this append. The current branch head must be re-read before CI evidence is recorded.
+- No Gradle tests/build, CI success, APK artifact, signing verification or physical phone test is claimed yet.
