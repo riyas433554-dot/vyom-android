@@ -2297,3 +2297,34 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. If PR #10 test fails, use the exact Gradle/JUnit log to correct it; do not merge before green.
 4. Add Android tests for create-key validation, no-match POST, and pagination boundaries; retain explicit limitation that list-before-create is not atomic under concurrent writers.
 5. Decide how cross-source duplicate creation will be made atomic without touching production Supabase/backend; until then surface best-effort dedupe and duplicate reconciliation.
+
+
+## Mocked Termux retry test: CI-discovered logger defect and clean Android test PR — 2026-11-03
+
+### Second CI failure (actual log)
+- Full CI run `41663872294` on SHA `94cbdd76fd98665f5fe7560aa15bc461d76a3353` failed in the Termux regression script after list and transition tests passed.
+- Exact log: `Retry performed more than one GitHub API call`, but the call log showed exactly one command. Root cause: the test's mock logger wrote the two-character sequence `\\n` rather than an actual newline, so `wc -l` could not count calls correctly. The CLI had made only the expected single GET; this was a test harness defect.
+- A first attempted correction at `0792bf439ab98b85a91ec5914058c106d94de9e8` did not correct the escaped format string; subsequent source inspection caught that. Final correction replaces the mock logger with `echo "$*"`, commit `3f528aec89b3b691b1828cedcb1292e94710ddd7`. Await exact-head CI for proof; no pass claimed yet.
+
+### Android retry semantics code
+- Android `createTask` now returns the existing issue unchanged when its idempotency key is already present. It no longer silently overwrites title, priority or description during a retry. Explicit edits still use `updateTask`.
+- `apiBaseUrl` is injectable for deterministic local HTTP tests; default remains GitHub API. Added MockWebServer test dependency.
+- Commits: `54af841f858a9311329b21dae79c08fb4d4f2932`, `7ab5d46792af13325767e33e167c5a500de41909`.
+- Added JVM regression test in PR #11: same source identity retry returns issue #73 unchanged, and the mock server receives only the single GET list request (no POST/PATCH). PR #11 targets current `feature/memory-intelligence` HEAD and currently has exactly 1 file, 54 additions, 0 deletions; head commit `b0613507b0ed31e983cd8336a5be44ff96014f05`.
+- PR #9 was closed without merge due an incorrect 145-file tree diff. PR #10 was closed without merge because it was based on a stale feature-branch SHA. PR #11 is the clean replacement; do not merge unless its diff remains exactly one file and its Gradle tests pass.
+
+### Protocol correction
+- Protocol previously retained stale blocked/paused -> in_progress bullets despite the Android/Termux implementation rejecting those manual transitions. Removed those stale bullets in `94cbdd76fd98665f5fe7560aa15bc461d76a3353`.
+
+### Current CI checkpoints
+- SHA `94cbdd76...`: Full CI `41663872294` failed due test logger defect; Debug `41663872253` still in progress at checkpoint.
+- SHA `0792bf43...`: Full CI `41664012507` failed (same logger issue persisted); Debug `41664012497` in progress.
+- SHA `3f528aec...`: Full CI `41664062901` in progress; Debug `41664062496` queued when checked. These are before this HANDOFF append and will not be exact latest-head verification.
+- No local Gradle run, no Termux run of the latest script, no physical Android test, and no APK delivered.
+
+### Next
+1. Check exact-head CI for current branch after this HANDOFF commit. Verify Termux script list, transition and idempotent retry tests pass.
+2. Check PR #11 workflow and MockWebServer Gradle test. Fix failures from actual logs; never merge a malformed or broad PR diff.
+3. If Android retry test passes, add tests for no-match POST and multiple-page issue lookup. Then document that concurrent create race remains.
+4. Implement cross-source atomic dedupe only with an approved durable transactional store; production Supabase/backend remain off-limits.
+5. Do not add executor workflows until task schema, untrusted input handling, credential scoping, branch isolation, lease/heartbeat, cancellation and verified completion are addressed.
