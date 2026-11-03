@@ -12,7 +12,6 @@ internal object AndroidPermissionPolicy {
         MICROPHONE,
         CAMERA,
         NOTIFICATIONS,
-        OVERLAY,
         WRITE_SYSTEM_SETTINGS
     }
 
@@ -47,12 +46,11 @@ internal object AndroidPermissionPolicy {
         microphoneGranted: Boolean,
         cameraGranted: Boolean,
         notificationsGranted: Boolean,
-        overlayGranted: Boolean,
         writeSettingsGranted: Boolean
     ): Set<Requirement> = when (task) {
         TaskCapability.SPEECH_INPUT -> if (microphoneGranted) emptySet() else setOf(Requirement.MICROPHONE)
         TaskCapability.CAMERA_CAPTURE -> if (cameraGranted) emptySet() else setOf(Requirement.CAMERA)
-        TaskCapability.FLOATING_PROGRESS -> if (overlayGranted) emptySet() else setOf(Requirement.OVERLAY)
+        TaskCapability.FLOATING_PROGRESS -> emptySet() // TYPE_ACCESSIBILITY_OVERLAY is covered by the enabled Accessibility service.
         TaskCapability.CHANGE_SYSTEM_SETTINGS -> if (writeSettingsGranted) emptySet() else setOf(Requirement.WRITE_SYSTEM_SETTINGS)
         TaskCapability.BACKGROUND_NOTIFICATIONS -> if (notificationsGranted) emptySet() else setOf(Requirement.NOTIFICATIONS)
         TaskCapability.APP_SWITCH, TaskCapability.UI_AUTOMATION -> emptySet()
