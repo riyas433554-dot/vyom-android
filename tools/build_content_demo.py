@@ -67,7 +67,7 @@ def prepare(output, version):
             {"id": "presence", "type": "presence", "target": "ui-bundle/index.html", "expected": DEMO_TEXT},
             {"id": "performance", "type": "performance", "target": "ui-bundle/index.html", "baseline_key": "update-center-page-load"}
         ],
-        "rollback_to": "1.0.0"
+        "rollback_to": "previous"
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     (output / "manifest.canonical").write_bytes(canonical(manifest))
