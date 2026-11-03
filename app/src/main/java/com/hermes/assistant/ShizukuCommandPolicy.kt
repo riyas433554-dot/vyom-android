@@ -87,6 +87,6 @@ internal object ShizukuCommandPolicy {
     private fun isSafeUiText(value: String): Boolean =
         value.isNotBlank() && value.length <= 500 && value.none { it.code < 0x20 || it.code == 0x7f } &&
             !Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token)").containsMatchIn(value) &&
-            !Regex("""\\b(?:\\d[ -]*?){13,19}\\b""").containsMatchIn(value) &&
-            !Regex("""\\b\\d{4,12}\\b""").containsMatchIn(value)
+            !Regex("""\b(?:\d[ -]*?){13,19}\b""").containsMatchIn(value) &&
+            !Regex("""\b\d{4,12}\b""").containsMatchIn(value)
 }
