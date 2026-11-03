@@ -1,3 +1,11 @@
+## Shizuku identity boundary hardening — 2026-11-03
+- Test-first commit: `18ea9e8022645b2e17cdb1d5fe74c87e21915422` adds `PowerModePolicyTest.rootOrUnknownShizukuIdentityNeverGetsLevelTwo`; it asserts root (UID 0), system (UID 1000) and unknown (-1) cannot obtain Level 2 even with a live, authorized binder.
+- Policy commit: `3b933a4b97f737f65de56dfd6d7770e5f9582b34` now requires UID 2000 (ADB shell) in addition to binder liveness and owner authorization.
+- Client commit: `a472cfeff8eb46c18b2efe18dec57be7154731d6` blocks authorization requests and UserService binding for root/unknown Shizuku identities, and includes UID in the effective capability policy.
+- This closes a safety gap: previously any authorized Shizuku identity, including root, could be reported as Level 2 despite the intended non-root shell-only contract.
+- Exact-head CI is pending for the source head; do not claim tests/build pass until the new exact-head Debug and Full CI runs complete.
+- P1 remains PARTIAL. This does not validate UserService lifecycle, cancellation/audit races, live Android permission read-back, or physical-device behavior.
+
 # CURRENT P1 POWER MODE CHECKPOINT — 2026-11-03
 
 This checkpoint supersedes the earlier P1 authorization-gap statement above.
@@ -9,7 +17,7 @@ This checkpoint supersedes the earlier P1 authorization-gap statement above.
   - `3ceba5ec7c11c82c49a4671e4f2388937615d355`: Shizuku status reads `Shizuku.checkSelfPermission()` and distinguishes connected-but-unauthorized.
   - `a22d62e3490941854be62fdbafbab29aaf8bcce7`: Power Mode wizard reports effective capability level from the current Shizuku/Accessibility state and corrects stale executor disclosure.
   - `fc08ec51088ba713011bd610afa68febfb7e6d97`: client capability helper reads binder + permission state and feeds the pure policy.
-- Regression coverage: `PowerModePolicyTest.shizukuBinderWithoutOwnerAuthorizationDoesNotGrantLevelTwo` proves a connected-but-unapproved binder cannot elevate to Level 2; `PowerModePolicyTest.levelTwoRequiresLiveBinderAndExplicitOwnerAuthorization` covers the positive/negative state combinations and protected-surface boundary.
+- Regression coverage: `PowerModePolicyTest.shizukuBinderWithoutOwnerAuthorizationDoesNotGrantLevelTwo` proves a connected-but-unapproved binder cannot elevate to Level 2; `PowerModePolicyTest.levelTwoRequiresLiveBinderExplicitAuthorizationAndAdbShellUid` covers the positive/negative state combinations and protected-surface boundary.
 - Shizuku command surface remains fixed read-back IDs; arbitrary shell text is not accepted. Existing mutating `set_overlay` policy still requires explicit owner confirmation and an exact allowlisted mode.
 - Exact-head CI for implementation SHA `fc08ec51088ba713011bd610afa68febfb7e6d97`: Debug run `41561433950` and Full CI run `41561433988`. At documentation time Debug was IN_PROGRESS and Full CI QUEUED. No pass is claimed. Re-check both against their exact `head_sha`.
 - No APK delivered.
