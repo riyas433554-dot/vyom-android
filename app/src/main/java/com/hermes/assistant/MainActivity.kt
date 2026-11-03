@@ -3035,7 +3035,10 @@ class MainActivity : Activity() {
     }
 
     private fun resumeQueuedChatMessages() {
-        chatMessages.filter { it.state == "queued" }.forEach { scheduleChatMessage(it) }
+        chatMessages.filter { it.state == "queued" }.forEach { item ->
+            val complaint = extractFactoryComplaint(item.text)
+            if (complaint != null) submitFactoryComplaint(item, complaint) else scheduleChatMessage(item)
+        }
     }
 
     private fun persistChatMessages() {
