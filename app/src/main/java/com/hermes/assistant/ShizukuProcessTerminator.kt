@@ -8,7 +8,11 @@ internal object ShizukuProcessTerminator {
         val graceful = try { waitForExit() } catch (_: Exception) { false }
         if (graceful || !isAlive()) return true
         try { destroyForcibly() } catch (_: Exception) { }
-        return try { waitForExit() } catch (_: Exception) { false }
+        // A force-kill can complete before the bounded wait callback observes the
+        // exit (or the wait itself can fail). The process liveness read-back is
+        // authoritative: never report failure for a child already confirmed dead.
+        val exitedAfterForce = try { waitForExit() } catch (_: Exception) { false }
+        return exitedAfterForce || !isAlive()
     }
     fun <T : Any> terminateAll(requestIds: Collection<String>, processFor: (String) -> T?, terminate: (T) -> Boolean): Set<String> {
         val stopped = linkedSetOf<String>()
