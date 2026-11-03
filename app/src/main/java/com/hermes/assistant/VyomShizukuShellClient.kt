@@ -135,6 +135,19 @@ internal class VyomShizukuShellClient(
         emit("Shizuku shell service disconnected.")
     }
 
+    fun capabilityLevel(accessibilityEnabled: Boolean): PowerModePolicy.CapabilityLevel {
+        val running = try { Shizuku.pingBinder() } catch (_: Exception) { false }
+        val authorized = if (running) {
+            try { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }
+            catch (_: Exception) { false }
+        } else false
+        return PowerModePolicy.capabilityLevel(
+            shizukuRunning = running,
+            shizukuAuthorized = authorized,
+            accessibilityEnabled = accessibilityEnabled
+        )
+    }
+
     fun executeReadBack(commandId: String, callback: (String) -> Unit) {
         if (commandId !in READ_ONLY_COMMANDS) {
             callback("Blocked: only read-back command IDs are accepted here.")
