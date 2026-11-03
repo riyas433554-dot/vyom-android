@@ -3971,7 +3971,6 @@ class MainActivity : Activity() {
     private fun tryInstallWithPowerMode(file: File, targetVersionCode: Int): Boolean {
         val client = shizukuShellClient ?: return false
         if (targetVersionCode <= BuildConfig.VERSION_CODE) return false
-        if (checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return false
         if (client.capabilityLevel(currentVyomAccessibilityEnabled()) != PowerModePolicy.CapabilityLevel.LEVEL_2) return false
         val expectedHash = sha256(file)
         val publicPath = try {
