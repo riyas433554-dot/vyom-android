@@ -21,6 +21,12 @@ class AppAccessPolicyTest {
         assertFalse(AppAccessPolicy.isBlockedIdentifier("com.example.videoeditor", "CapCut"))
     }
 
+    @Test fun authenticatorAndOtpAppsAreBlockedByPackageOrLabel() {
+        assertTrue(AppAccessPolicy.isBlockedIdentifier("com.google.android.apps.authenticator2", "Google Authenticator"))
+        assertTrue(AppAccessPolicy.isBlockedIdentifier("com.example.otp"))
+        assertFalse(AppAccessPolicy.isBlockedIdentifier("com.example.messaging", "Messages"))
+    }
+
     @Test fun unknownOrBlankPackagesAreDenied() {
         assertFalse(AppAccessPolicy.isAllowed(true, setOf("com.example.app"), "com.other.app"))
         assertFalse(AppAccessPolicy.isAllowed(true, setOf("com.example.app"), ""))
