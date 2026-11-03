@@ -2204,3 +2204,30 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. Fix cross-source create idempotency race; document GitHub Issues read-then-create limitation and ensure duplicate retries are reconciled rather than reported as exactly-once.
 4. Specify a safe executor threat model and constrained task schema before creating any worker workflow.
 5. Implement durable run/lease records only with an approved durable store and scoped worker identity. Do not touch Render or production Supabase; do not assume GitHub Issues metadata alone is a safe atomic lease primitive.
+
+
+## Termux transition regression + retry dedupe work — 2026-11-03
+
+### Implemented
+- Extracted the CLI's allowed-transition logic into pure `valid_transition(from,to)`; CLI mutations now call that same function.
+- Existing CI test script `scripts/test-vyom-factory-list.sh` now sources the CLI safely (main only runs when executed directly) and tests all allowed transitions plus forbidden manual `open/paused/blocked -> in_progress` transitions. It also checks completed/cancelled cannot be reopened by manual status mutation.
+- Added Termux create retry preflight: before POST, it pages through existing issues and checks the canonical `idempotency_key`. If the same Termux source ID already exists, it returns that issue rather than creating another on a sequential retry.
+- Added a mocked `gh` boundary test for the idempotency lookup using the existing JSON fixture. No live issue is mutated by the test.
+- Commits: `3c11b3ccc017dee27b201053ce5685bef8479cc7` (pure transition helper); `6e24ec4b7f4591bbf04dabbd7a0eac4b877e8552` (transition tests); `e43959f281b9df0ce9c4aea28b4c00360f2acd09` (initial retry preflight, later found malformed by CI); `a6c6b63c6e7378ace5fbd30b8d60b3a929ef1a46` (reconstructed and repaired CLI); `30d80644b448576f100bc2fb87f09a4a16d80d94` (mocked idempotency test).
+
+### Failure and correction — do not omit
+- Full CI run `41662536143` for SHA `e43959f281b9df0ce9c4aea28b4c00360f2acd09` FAILED at `bash -n scripts/vyom-factory.sh`, exact log: line 329 unexpected EOF while looking for matching quote. This was caused by a malformed source rewrite while adding the duplicate preflight. It was not a pre-existing failure.
+- The CLI was then reconstructed as a complete clean file at `a6c6b63...`, and the idempotency regression was added at `30d80644...`. Do not claim the syntax is fixed until the current exact-head CI confirms it.
+- This is a sequential retry dedupe improvement only, NOT atomic exactly-once. Two concurrent clients can still both preflight before either POST is visible and create duplicate issues. GitHub Issues does not provide a uniqueness constraint on `idempotency_key`. Android `createTask` also uses read-before-create and has the same race. Cross-source concurrency-safe idempotency remains open; no exactly-once claim.
+- The Termux preflight scans paginated repository issues and can be slow/rate-limit expensive on a large issue history. A dedicated registry with atomic uniqueness/transactions is the correct eventual fix, but production Supabase is explicitly out of scope.
+
+### Exact-head CI
+- SHA `30d80644b448576f100bc2fb87f09a4a16d80d94` triggered Debug run `41662634097` and Full CI run `41662634099`; both were IN_PROGRESS when recorded. Wait for and inspect the exact run results; neither is green yet.
+- No local Termux execution of this revised CLI, no Android unit-test execution locally, no device test, and no APK delivery are claimed.
+
+### Next exact sequence
+1. Inspect exact-head Debug/Full CI for `30d80644...`; fix failures from actual step logs. Verify both tests execute and pass, not just syntax.
+2. Run the updated script on the owner's Termux only after CI is green; test duplicate create with the same source ID and verify it returns the existing issue without a second POST.
+3. Implement Android unit tests for task creation idempotency with mocked HTTP responses. Keep read-before-create limitation explicit.
+4. Design atomic cross-source identity/claim storage without touching production Supabase or backend; if no approved durable store is available, label dedupe best-effort and surface possible duplicate reconciliation.
+5. Do not start a coding worker until safe task contract, scoped credentials, isolated branch/worktree, STOP, lease/heartbeat, bounded retry and output verification are designed and tested.
