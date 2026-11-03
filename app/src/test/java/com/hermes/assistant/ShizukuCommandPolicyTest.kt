@@ -30,20 +30,27 @@ class ShizukuCommandPolicyTest {
         assertNull(ShizukuCommandPolicy.command("grant_secure_settings", emptyList(), true, "com.vyom.assistant"))
     }
 
-    @Test fun silentInstallAcceptsOnlyVerifiedDownloadPathAndOwnerAuthorization() {
-        val path = "/storage/emulated/0/Download/VyomUpdates/vyom-update-a1b2c3d4e5f6.apk"
-        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf(path), false, "com.vyom.assistant"))
-        assertEquals(
-            listOf("pm", "install", "-r", path),
-            ShizukuCommandPolicy.command("install_verified_apk", listOf(path), true, "com.vyom.assistant")?.argv
-        )
+    @Test fun silentInstallCopiesToShellPrivatePathAndVerifiesHashBeforeInstall() {
+        val hash = "a".repeat(64)
+        val path = "/storage/emulated/0/Download/VyomUpdates/vyom-update-${hash.take(12)}.apk"
+        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf(path, hash), false, "com.vyom.assistant"))
+        val command = ShizukuCommandPolicy.command("install_verified_apk", listOf(path, hash), true, "com.vyom.assistant")!!
+        assertEquals("sh", command.argv[0])
+        assertEquals("-c", command.argv[1])
+        assertTrue(command.argv[2].contains("/data/local/tmp/vyom-update-$hash.apk"))
+        assertTrue(command.argv[2].contains("sha256sum"))
+        assertTrue(command.argv[2].contains("pm install -r"))
+        assertTrue(command.timeoutMs >= 120_000L)
     }
 
-    @Test fun silentInstallRejectsArbitraryPathsAndCommandInjection() {
-        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf("/data/local/tmp/evil.apk"), true, "com.vyom.assistant"))
-        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf("/storage/emulated/0/Download/VyomUpdates/../../evil.apk"), true, "com.vyom.assistant"))
-        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf("/storage/emulated/0/Download/VyomUpdates/vyom-update-a1b2c3d4e5f6.apk;pm clear com.vyom.assistant"), true, "com.vyom.assistant"))
-        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf("/storage/emulated/0/Download/VyomUpdates/vyom-update-a1b2c3d4e5f6.apk", "extra"), true, "com.vyom.assistant"))
+    @Test fun silentInstallRejectsArbitraryPathsAndMismatchedHashes() {
+        val hash = "a".repeat(64)
+        val path = "/storage/emulated/0/Download/VyomUpdates/vyom-update-${hash.take(12)}.apk"
+        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf("/data/local/tmp/evil.apk", hash), true, "com.vyom.assistant"))
+        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf(path + ";pm clear", hash), true, "com.vyom.assistant"))
+        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf(path, "bad-hash"), true, "com.vyom.assistant"))
+        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf(path, "b".repeat(64)), true, "com.vyom.assistant"))
+        assertNull(ShizukuCommandPolicy.command("install_verified_apk", listOf(path, hash, "extra"), true, "com.vyom.assistant"))
     }
 
     @Test fun timeoutIsAlwaysBounded() {
