@@ -27,6 +27,14 @@ need_tools() {
 }
 valid_priority() { [[ " $PRIORITIES " == *" $1 "* ]]; }
 valid_status() { [[ " open in_progress blocked paused completed cancelled " == *" $1 "* ]]; }
+valid_transition() {
+  local from="$1" to="$2"
+  [[ "$from" == "$to" ]] && return 0
+  case "$from:$to" in
+    open:blocked|open:paused|open:cancelled|in_progress:open|in_progress:blocked|in_progress:paused|in_progress:completed|in_progress:cancelled|blocked:open|blocked:cancelled|paused:open|paused:cancelled) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 issue_json() {
   local number="$1"
@@ -108,10 +116,8 @@ update_metadata() {
     priority="$value"
   else
     valid_status "$value" || fail "Unknown status"
-    case "$state:$value" in
-      open:blocked|open:paused|open:cancelled|in_progress:open|in_progress:blocked|in_progress:paused|in_progress:completed|in_progress:cancelled|blocked:open|blocked:cancelled|paused:open|paused:cancelled) state="$value" ;;
-      *) [[ "$state" == "$value" ]] || fail "Transition $state -> $value is not allowed" ;;
-    esac
+    valid_transition "$state" "$value" || fail "Transition $state -> $value is not allowed"
+    state="$value"
   fi
   next_meta="$(jq -c --arg p "$priority" --arg s "$state" --arg e "$field:$value:$(date -u +%FT%TZ)" '.priority=$p | .status=$s | .events=((.events // []) + [$e])[-500:]' <<< "$meta")"
   body="$description
@@ -138,4 +144,6 @@ main() {
     *) usage; fail "Unknown command: $1" ;;
   esac
 }
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
