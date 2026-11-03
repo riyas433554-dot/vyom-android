@@ -164,6 +164,7 @@ class MainActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val settingsPrefs by lazy { getSharedPreferences("vyom_settings", MODE_PRIVATE) }
     private val controlPrefs by lazy { getSharedPreferences("vyom_control_audit", MODE_PRIVATE) }
+    private var shizukuShellClient: VyomShizukuShellClient? = null
     private var tasksTabVisible = false
     private var orbMode = 0
     private var reduceMotion = false
@@ -1106,6 +1107,7 @@ class MainActivity : Activity() {
         controlKillSwitch = true
         controlPrefs.edit().putBoolean("kill_switch", true).apply()
         uiAgentGeneration = UiAgentPolicy.invalidateGeneration(uiAgentGeneration)
+        shizukuShellClient?.cancelAll()
         VyomAccessibilityService.current()?.hideAgentOverlay()
         updateHomeOrbState()
         if (recordAudit) logControlAction("STOP CONTROL", "enabled", source)
@@ -2027,6 +2029,46 @@ class MainActivity : Activity() {
         paragraph("7. Accessibility reconnect is allowed only after WRITE_SECURE_SETTINGS is verified. Android still owns the Accessibility toggle; Vyom will never silently enable it.")
         paragraph("Samsung Auto Blocker: Wireless ADB is not the same as USB debugging and should not require turning Auto Blocker off. If you deliberately use a USB cable and USB commands are blocked, check Settings > Security and privacy > Auto Blocker and temporarily disable only the blocking feature that caused the failure. For an APK blocked as an unauthorized source, the same screen has the unauthorized-app blocking setting. Re-enable protection immediately after the owner-authorized step.")
         paragraph("Shizuku: install it from the official source, start it yourself through Wireless debugging, then explicitly authorize Vyom when Android asks. Non-root Shizuku uses shell (UID 2000), not root, and normally needs restarting after reboot. The Shizuku command executor is not enabled in this wizard until its binder, permission, allowlist and STOP-cancellation checks are implemented and tested.")
+        val shizukuStatus = TextView(this).apply {
+            text = "Shizuku status has not been checked."
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, dp(4), 0, dp(8))
+        }
+        content.addView(shizukuStatus, LinearLayout.LayoutParams(-1, -2))
+        fun shizukuClient(): VyomShizukuShellClient {
+            return shizukuShellClient ?: VyomShizukuShellClient(this) { message ->
+                shizukuStatus.text = message
+            }.also { shizukuShellClient = it }
+        }
+        content.addView(Button(this).apply {
+            text = "CHECK SHIZUKU STATUS"
+            setOnClickListener { shizukuClient().refreshStatus() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        content.addView(Button(this).apply {
+            text = "AUTHORIZE VYOM IN SHIZUKU"
+            setOnClickListener { shizukuClient().requestOwnerAuthorization(this@MainActivity) }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
+        fun readBackButton(label: String, commandId: String) {
+            content.addView(Button(this).apply {
+                text = label
+                setOnClickListener {
+                    shizukuClient().executeReadBack(commandId) { result ->
+                        shizukuStatus.text = "$commandId: $result"
+                    }
+                }
+            }, LinearLayout.LayoutParams(-1, dp(42)))
+        }
+        readBackButton("READ BACK SECURE SETTINGS GRANT", "verify_secure_settings")
+        readBackButton("READ BACK OVERLAY APP-OP", "verify_overlay")
+        readBackButton("READ BACK ACCESSIBILITY ENABLED", "verify_accessibility_enabled")
+        readBackButton("READ BACK ACCESSIBILITY SERVICES", "verify_accessibility_services")
+        content.addView(Button(this).apply {
+            text = "STOP SHIZUKU COMMANDS"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(170, 25, 35))
+            setOnClickListener { shizukuShellClient?.cancelAll() }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         paragraph("Capability levels: LEVEL 0 = ordinary app APIs; LEVEL 1 = owner-enabled Accessibility/special app access; LEVEL 2 = owner-authorized ADB/Shizuku allowlisted operations. LEVEL 2 is NOT root and never bypasses secure windows, biometrics, OTPs, payments, Play Protect or system confirmation dialogs.")
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -4432,6 +4474,8 @@ class MainActivity : Activity() {
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
+        shizukuShellClient?.close()
+        shizukuShellClient = null
         io.shutdown()
         super.onDestroy()
     }
