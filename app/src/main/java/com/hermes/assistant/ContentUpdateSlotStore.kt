@@ -37,6 +37,20 @@ internal class ContentUpdateSlotStore(private val root: File) {
 
     fun activeVersion(): String = activePointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
 
+    fun activeFile(relativePath: String): File {
+        require(ContentUpdateManifest.isAllowedContentPath(relativePath)) { "Unsupported active content path" }
+        val version = activeVersion()
+        require(version.matches(Regex("^[A-Za-z0-9._-]{1,64}$"))) { "No active content slot" }
+        val slot = File(root, version)
+        val target = File(slot, relativePath)
+        require(target.canonicalPath.startsWith(slot.canonicalPath + File.separator)) { "Content path escaped active slot" }
+        require(target.isFile) { "Active content file is missing: $relativePath" }
+        return target
+    }
+
+    fun hasPerformanceBaseline(key: String): Boolean =
+        baselineFile(key).takeIf { it.isFile }?.readText(Charsets.UTF_8)?.toLongOrNull() != null
+
     fun recordPerformanceBaseline(key: String, durationMs: Long) {
         require(durationMs >= 0L) { "Performance duration cannot be negative" }
         writeAtomically(baselineFile(key), durationMs.toString())
