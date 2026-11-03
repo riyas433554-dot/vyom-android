@@ -144,7 +144,7 @@ internal data class ContentUpdateManifest(
         )
         private val protectedMarkers = setOf(
             "kill-switch", "killswitch", "kill_switch", "policy-engine", "policy_engine",
-            "update-verifier", "update_verifier", "signing", "protected", "native",
+            "update-verifier", "update_verifier", "signing", "native",
             "androidmanifest"
         )
 
@@ -156,7 +156,7 @@ internal data class ContentUpdateManifest(
             if (segments.first() !in contentRoots) return false
             if (segments.any { segment ->
                 val lower = segment.lowercase()
-                protectedMarkers.any { marker -> lower.contains(marker) } ||
+                lower == "protected" || protectedMarkers.any { marker -> lower.contains(marker) } ||
                     lower.endsWith(".kt") || lower.endsWith(".java") ||
                     lower.endsWith(".gradle") || lower.endsWith(".gradle.kts") ||
                     lower == "androidmanifest.xml"
