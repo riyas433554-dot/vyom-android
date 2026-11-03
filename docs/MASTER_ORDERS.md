@@ -49,7 +49,7 @@ M1 APK gate: all above items must be reachable, end-to-end, tested and represent
 - Exact source SHA `24b325571b653d376120a224cae4f7946d8187fa`: Debug `41600380211` and Full CI `41600380229` both FAILED at Kotlin compilation.
 - Actual compiler error from both logs: `MainActivity.kt:3998:35 No value passed for parameter 'expectedSha256'`. The client API had been hardened to require the expected SHA-256, but the UI call site still used the previous one-argument signature.
 - Corrected the UI call to pass the exact `expectedHash` already computed from the verified APK. This preserves the shell-private staging hash read-back gate; it does not weaken signing/hash checks.
-- The previous source SHA `3387385b76d03aa3d43a0e657458182c2c20cb3f` had passed the release signing/certificate verification stage but GitHub Release publication failed with HTTP 403. Workflow now supports `VYOM_RELEASE_TOKEN` (preferred) or `GITHUB_TOKEN`, and uploads artifacts before release publication. Repository workflow permission still must allow Contents: write for release publishing.
+- The previous source SHA `3387385b76d03aa3d43a0e657458182c2c20cb3f` passed release signing/certificate verification but its GitHub Release publication failed with HTTP 403. This is now corrected: publishing jobs have job-scoped `contents: write` and use only the built-in `secrets.GITHUB_TOKEN`; no personal token is referenced by any workflow. If a future publish still returns 403, set repository Settings → Actions → General → Workflow permissions → Read and write permissions, then Save.
 - No M1 acceptance ID rows changed. No APK delivered. Next: exact-head CI, inspect real logs; then validate update paths, UI bundle, and wiring/Diagnostics inventory. Signing fingerprint observed in CI is `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`; installed-device certificate match is still unverified.
 
 
@@ -428,3 +428,10 @@ Source checkpoint before this documentation commit: `ee9fe53b01a42fa8b1157807cb7
 - If release creation still receives HTTP 403 `Resource not accessible by integration`, set **Repository Settings → Actions → General → Workflow permissions → Read and write permissions**, then Save. No PAT fallback.
 - Exact source SHA `20ad49186ed2a58f804873be98f5f88181cb5d5c`: Debug `41623371371` SUCCESS; Full CI `41623371384` SUCCESS; release publication succeeded before the explicit job-scope permission correction. The two workflow permission commits are `26aeebc761133e49138138af97a6521f6a0071ec` and `fbce0c067a807b0cc234f1971aa15cc94622717b`; final head still needs exact-head CI.
 - Continue M1 using the controlling UPDATE-FIRST route in the top owner priority override/HANDOFF. Do not revert to the older P1-first sequence quoted in historical reset text below. No M1 acceptance IDs are changed by this YAML-only permission fix.
+
+## Exact-head release permission and artifact verification — 2026-11-03
+
+- Source SHA `36e9c5c431a59cbfcc05efb3e66baa1f48d7d551`: Full CI `41625535668` SUCCESS; Debug/release `41625535813` SUCCESS, including release publication with job-scoped `contents: write` and only built-in `GITHUB_TOKEN`. No personal token appears in any workflow.
+- Artifact `13226900200`: signed APK SHA-256 `d220b3900e92aefdb3184823171e21d0f2304bcda0c4b6688c2ac4723a8daa79` equals the sidecar and independently computed hash; v2 signature valid; certificate fingerprint equals required `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`. Exact-commit prerelease and manifest published.
+- Installed-phone certificate match is still pending; do not install or deliver as a compatible update until the on-device signer is read back.
+- Continue the controlling UPDATE-FIRST M1 order. Next: app updater release discovery/exact-commit selection, proposal CI and verified install handoff, chat route, then bundle runtime/rollback. Do not mark ID rows FIXED without end-to-end reachability, named tests and Diagnostics rows.

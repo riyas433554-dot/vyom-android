@@ -49,21 +49,10 @@
 - Repository secrets were present and keytool validated the keystore, alias and key password in Debug run `41597804231` (steps “Configure persistent release signing when repository secrets are available” and “Verify release signing environment for Gradle”). That run then failed at `UiBundleIntegrityTest.computesStableSha256ForUtf8BundleContent` due to a test assertion comparing a full SHA-256 with a truncated 32-character value. The test was corrected in commit `705a0c162529b216547f63c9ffc444de41d0c481`; later exact-head CI is required to verify it.
 - Expected signing certificate identity remains `7A:75:64:FC:A9:C2:A3:2B:23:DD:52:03:52:A4:E3:AA:FE:44:56:21:D2:B9:9A:FA:15:40:7D:23:86:69:9F:0A`. No successful signed artifact or owner-device certificate match is claimed yet.
 
-
-## GitHub release publishing permission — 2026-11-03
-
-The signed release build and certificate fingerprint gate passed in Debug run `41598643026` (source SHA `3387385b76d03aa3d43a0e657458182c2c20cb3f`), but the release creation step failed with HTTP 403 `Resource not accessible by integration`. This is a GitHub Actions token permission issue, not a keystore/certificate failure.
-
-The workflows now prefer repository secret `VYOM_RELEASE_TOKEN` and fall back to `GITHUB_TOKEN`. Configure one of these before expecting a published update:
-1. In repository Settings → Actions → General → Workflow permissions, enable **Read and write permissions** for `GITHUB_TOKEN`; or
-2. Add a fine-grained PAT as Actions secret `VYOM_RELEASE_TOKEN`, restricted to this repository with **Contents: Read and write**.
-
-The Debug workflow uploads the CI artifact before attempting GitHub Release creation, so the signed APK/checksum/certificate report remain available even if release publication is still denied. Do not expose the token in logs or chat.
-
 ## GITHUB_TOKEN-only release publishing — 2026-11-03
 
 Both signed publishing jobs explicitly declare job-level `permissions: contents: write` and pass only `${{ secrets.GITHUB_TOKEN }}` to the GitHub Release action. The previous optional `VYOM_RELEASE_TOKEN` personal-token fallback has been removed. Keystore and signing values continue to come only from Android signing repository secrets; no personal GitHub token is embedded in YAML.
 
 If GitHub still returns HTTP 403 `Resource not accessible by integration`, open this repository's **Settings → Actions → General → Workflow permissions**, select **Read and write permissions**, and Save. Re-run the workflow after changing the setting. Do not create or add a PAT for release publishing.
 
-On source SHA `20ad49186ed2a58f804873be98f5f88181cb5d5c`, Debug run `41623371371` and Full CI run `41623371384` succeeded, including the signed release publish step. That success predates the latest explicit job-level permission-only commits; exact-head CI for the current branch head remains the acceptance proof.
+Exact source SHA `36e9c5c431a59cbfcc05efb3e66baa1f48d7d551`: Full CI run `41625535668` SUCCESS; Debug run `41625535813` SUCCESS, including the release publish step. Downloaded artifact `13226900200` was independently unpacked: signed APK SHA-256 `d220b3900e92aefdb3184823171e21d0f2304bcda0c4b6688c2ac4723a8daa79` matches its sidecar; v2 signature is valid; certificate SHA-256 is `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`, matching the required release identity. Release tag `vyom-ci-36e9c5c431a59cbfcc05efb3e66baa1f48d7d551` exists and contains the signed APK, checksum, certificate report and `vyom-update.json` manifest. This does NOT prove the certificate matches the APK currently installed on the owner's phone; that remains a pre-install gate.
