@@ -1,3 +1,28 @@
+# CURRENT CONTINUATION — 2026-11-03
+
+## Exact-head compile failure and correction
+- Branch: `feature/memory-intelligence`; Android `main`, Hermes/Render and production Supabase remain untouched.
+- Failed exact-head source: `b8493d545d94c09a0c335da5056a722266d94b77`.
+- Debug run `41559636024` and full CI run `41559636010` both failed at `MainActivity.kt:2006:21`: Kotlin reported `'val' cannot be reassigned`. Both logs reached `:app:compileDebugKotlin FAILED`; secret scan in full CI passed.
+- Root cause: `isTextSelectable = true` was treated as a read-only Kotlin property on Android `TextView`; the previous property spelling fix was still incorrect.
+- Correction commit: `22fff1dc6147fed5388009544dd8107fa33cd39d`; source now calls the actual setter `setTextIsSelectable(true)`.
+- Exact-head CI for correction commit: full CI run `41560177554` and Debug run `41560177582`; both were IN_PROGRESS at the last check. No pass is claimed. Re-check these exact runs before further code changes.
+- No feature ID row changed from this compile-only correction. No APK is being delivered.
+
+## Next P1 Power Mode implementation gap identified from source
+- `PowerModePolicy.capabilityLevel(shizukuRunning, accessibilityEnabled)` currently reports LEVEL_2 whenever Shizuku is running, without requiring `Shizuku.checkSelfPermission() == PERMISSION_GRANTED`. This overstates effective authority and needs a regression test plus an authorization-aware state.
+- `VyomShizukuShellClient.refreshStatus()` checks installation, binder liveness, API version and UID, but does not read the app's Shizuku authorization state. It can therefore report a connected binder without distinguishing authorized from unauthorized.
+- The wizard's static capability text is not a live capability read-back. Keep LEVEL_2 unavailable until both binder and explicit owner authorization are confirmed.
+- The wizard copy currently says the Shizuku executor is not enabled, while the client exposes read-only allowlisted read-back commands. Correct that stale disclosure after the authorization-state fix.
+- Existing Shizuku UI exposes only read-back commands; mutation commands must remain owner-confirmed and narrowly allowlisted. Do not add arbitrary shell text execution.
+- Auto Blocker is currently explained but not reliably detected from code. Do not claim automatic detection unless a supported Samsung signal is established; otherwise clearly label the limitation and provide owner inspection steps.
+- Physical-device verification remains deferred until implementation phases are complete.
+
+## Current exact source head
+- `22fff1dc6147fed5388009544dd8107fa33cd39d`
+
+---
+
 # CURRENT MEMORY INTELLIGENCE CHECKPOINT — 2026-11-02 11:20 IST
 
 This addendum supersedes older milestone-order and Memory Intelligence status statements below.
