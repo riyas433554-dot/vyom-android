@@ -4,8 +4,26 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
+import java.security.KeyPairGenerator
+import java.security.Signature
+import java.util.Base64
 
 class ContentUpdateSlotStoreTest {
+    private val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
+    private val verifier = ContentUpdatePackageVerifier(Base64.getEncoder().encodeToString(keyPair.public.encoded))
+
+    private fun signed(manifest: ContentUpdateManifest): ByteArray =
+        Signature.getInstance("SHA256withECDSA").run {
+            initSign(keyPair.private)
+            update(manifest.canonicalPayload())
+            sign()
+        }
+
+    private fun apply(store: ContentUpdateSlotStore, manifest: ContentUpdateManifest, bytes: ByteArray,
+                      runner: ContentUpdateProbeRunner) =
+        store.applySigned(manifest, signed(manifest), mapOf("ui-bundle/index.html" to bytes),
+            "0.3.1", verifier, runner)
+
     private fun manifest(version: String, rollbackTo: String, bytes: ByteArray) = ContentUpdateManifest(
         version, "0.3.1", listOf("Change UI label"),
         listOf(ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))),
@@ -19,12 +37,12 @@ class ContentUpdateSlotStoreTest {
             val store = ContentUpdateSlotStore(root)
             val firstBytes = "old".toByteArray()
             val first = manifest("1.0.0", "0.9.0", firstBytes)
-            assertTrue(store.applyVerified(first, mapOf("ui-bundle/index.html" to firstBytes)) { probe, slot ->
+            assertTrue(apply(store, first, firstBytes) { probe, slot ->
                 ContentProbeResult(probe.id, File(slot, probe.target).readText() == "old", 4L, "present")
             }.passed)
             val secondBytes = "new".toByteArray()
             val second = manifest("1.1.0", "1.0.0", secondBytes)
-            val result = store.applyVerified(second, mapOf("ui-bundle/index.html" to secondBytes)) { probe, slot ->
+            val result = apply(store, second, secondBytes) { probe, slot ->
                 ContentProbeResult(probe.id, File(slot, probe.target).readText() == "new", 6L, "present")
             }
             assertTrue(result.passed)
@@ -38,11 +56,11 @@ class ContentUpdateSlotStoreTest {
         try {
             val store = ContentUpdateSlotStore(root)
             val old = "old".toByteArray()
-            store.applyVerified(manifest("1.0.0", "0.9.0", old), mapOf("ui-bundle/index.html" to old)) { p, _ ->
+            apply(store, manifest("1.0.0", "0.9.0", old), old) { p, _ ->
                 ContentProbeResult(p.id, true, 2L, "pass")
             }
             val changed = "broken".toByteArray()
-            val result = store.applyVerified(manifest("1.1.0", "1.0.0", changed), mapOf("ui-bundle/index.html" to changed)) { p, _ ->
+            val result = apply(store, manifest("1.1.0", "1.0.0", changed), changed) { p, _ ->
                 ContentProbeResult(p.id, false, 9L, "expected label missing")
             }
             assertFalse(result.passed)
@@ -57,8 +75,8 @@ class ContentUpdateSlotStoreTest {
             val store = ContentUpdateSlotStore(root)
             listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
-                store.applyVerified(manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
-                    mapOf("ui-bundle/index.html" to bytes)) { p, _ -> ContentProbeResult(p.id, true, 1L, "pass") }
+                apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
+                    bytes) { p, _ -> ContentProbeResult(p.id, true, 1L, "pass") }
             }
             assertTrue(store.rollback())
             assertEquals("1.0.0", store.activeVersion())
@@ -71,8 +89,8 @@ class ContentUpdateSlotStoreTest {
             val store = ContentUpdateSlotStore(root)
             listOf("1.0.0", "1.1.0").forEachIndexed { index, version ->
                 val bytes = version.toByteArray()
-                store.applyVerified(manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
-                    mapOf("ui-bundle/index.html" to bytes)) { p, _ -> ContentProbeResult(p.id, true, 1L, "pass") }
+                apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
+                    bytes) { p, _ -> ContentProbeResult(p.id, true, 1L, "pass") }
             }
             assertFalse(store.recordCrashAndRollback(10_000L))
             assertTrue(store.recordCrashAndRollback(40_000L))

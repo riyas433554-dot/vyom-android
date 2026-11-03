@@ -30,12 +30,34 @@ internal class ContentUpdateSlotStore(private val root: File) {
 
     fun activeVersion(): String = activePointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
 
-    fun applyVerified(
+    fun applySigned(
+        manifest: ContentUpdateManifest,
+        detachedSignature: ByteArray,
+        files: Map<String, ByteArray>,
+        installedAppVersion: String,
+        verifier: ContentUpdatePackageVerifier,
+        probeRunner: ContentUpdateProbeRunner
+    ): ContentUpdateResult {
+        val verificationErrors = verifier.verify(manifest, detachedSignature, files, installedAppVersion)
+        if (verificationErrors.isNotEmpty()) {
+            val result = ContentUpdateResult(manifest.version, false, emptyList(), null,
+                "Package rejected: ${verificationErrors.joinToString("; ")}")
+            appendHistory(result)
+            return result
+        }
+        return stageVerifiedPackage(manifest, files, probeRunner)
+    }
+
+    private fun stageVerifiedPackage(
         manifest: ContentUpdateManifest,
         files: Map<String, ByteArray>,
         probeRunner: ContentUpdateProbeRunner
     ): ContentUpdateResult {
         val oldVersion = activeVersion()
+        if (oldVersion.isNotBlank() && manifest.rollbackTo != oldVersion) {
+            return ContentUpdateResult(manifest.version, false, emptyList(), null,
+                "rollback_to does not match the currently active slot")
+        }
         if (oldVersion.isNotBlank() && oldVersion == manifest.version) {
             return ContentUpdateResult(manifest.version, false, emptyList(), null, "Version is already active")
         }
@@ -131,7 +153,7 @@ internal class ContentUpdateSlotStore(private val root: File) {
     private fun appendHistory(result: ContentUpdateResult) {
         historyFile.parentFile?.mkdirs()
         historyFile.appendText(
-            "${System.currentTimeMillis()}|${result.version}|${if (result.passed) "PASS" else "FAIL"}|${result.message.replace('|', '/') }\n",
+            "${System.currentTimeMillis()}|${result.version}|${if (result.passed) "PASS" else "FAIL"}|deltaMs=${result.timingDeltaMs ?: "n/a"}|probes=${result.probeResults.joinToString(",") { "${it.id}:${if (it.passed) "PASS" else "FAIL"}:${it.durationMs}ms" }}|${result.message.replace('|', '/') }\n",
             Charsets.UTF_8
         )
     }
@@ -140,8 +162,16 @@ internal class ContentUpdateSlotStore(private val root: File) {
         target.parentFile?.mkdirs()
         val temp = File(target.parentFile, target.name + ".tmp")
         temp.writeText(value, Charsets.UTF_8)
-        if (target.exists() && !target.delete()) throw IllegalStateException("Could not replace ${target.name}")
-        if (!temp.renameTo(target)) throw IllegalStateException("Could not atomically replace ${target.name}")
+        try {
+            java.nio.file.Files.move(
+                temp.toPath(), target.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+        } catch (error: Exception) {
+            temp.delete()
+            throw IllegalStateException("Atomic pointer replacement is unavailable for ${target.name}", error)
+        }
     }
 
     companion object { private const val CRASH_WINDOW_MS = 60_000L }
