@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   debug:
@@ -96,10 +96,19 @@ jobs:
           keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
           keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-gradle-env-check.csr" -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" >/dev/null
           rm -f "$RUNNER_TEMP/vyom-gradle-env-check.csr"
+      - name: Set CI update version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_NAME="0.3.1-ci.${GITHUB_RUN_NUMBER}"
+          VERSION_CODE="$((1000000 + GITHUB_RUN_NUMBER))"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
       - name: Build and test APKs
         env:
-          ANDROID_VERSION_NAME: "0.3.1"
-          ANDROID_VERSION_CODE: "4"
+          ANDROID_VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          ANDROID_VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
           set -euo pipefail
           gradle testDebugUnitTest assembleDebug --no-daemon
@@ -110,6 +119,8 @@ jobs:
         shell: bash
         env:
           SIGNING_AVAILABLE: ${{ steps.signing.outputs.available }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
           set -euo pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
@@ -139,7 +150,28 @@ jobs:
           else
             CERT_SHA256="not-built"
           fi
-          printf 'versionName=0.3.1\nversionCode=4\ncommit=%s\nreleaseSigning=%s\ncertificateSha256=%s\n' "$SHORT_SHA" "${SIGNING_AVAILABLE:-false}" "$CERT_SHA256" > output/build-info.txt
+          printf 'versionName=%s\nversionCode=%s\ncommit=%s\nreleaseSigning=%s\ncertificateSha256=%s\n' "$VERSION_NAME" "$VERSION_CODE" "$GITHUB_SHA" "${SIGNING_AVAILABLE:-false}" "$CERT_SHA256" > output/build-info.txt
+          if [[ "$SIGNING_AVAILABLE" == "true" && "$GITHUB_EVENT_NAME" == "push" ]]; then
+            RELEASE_TAG="vyom-ci-$GITHUB_SHA"
+            APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/$RELEASE_TAG/$RELEASE_APK"
+            VERSION_SHA256="$(sha256sum "output/$RELEASE_APK" | cut -d ' ' -f 1)"
+            VERSION_CERT="$CERT_SHA256" VERSION_SHA256="$VERSION_SHA256" APK_URL="$APK_URL" VERSION_NAME="$VERSION_NAME" VERSION_CODE="$VERSION_CODE" COMMIT="$GITHUB_SHA" python3 -c 'import json,os; d={"version":os.environ["VERSION_NAME"],"versionName":os.environ["VERSION_NAME"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["VERSION_CERT"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
+          fi
+      - name: Publish signed CI update release
+        if: github.event_name == 'push' && steps.signing.outputs.available == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: vyom-ci-${{ github.sha }}
+          target_commitish: ${{ github.sha }}
+          name: Vyom CI update ${{ github.run_number }}
+          prerelease: true
+          make_latest: false
+          files: |
+            output/${{ env.RELEASE_APK }}
+            output/${{ env.RELEASE_APK }}.sha256
+            output/${{ env.RELEASE_APK }}.certs.txt
+            output/vyom-update.json
+            output/build-info.txt
       - name: Upload debug and signed APK artifacts
         uses: actions/upload-artifact@v4
         with:
