@@ -65,8 +65,14 @@ create_task() {
 
 list_tasks() {
   gh api --paginate --slurp "repos/$REPO/issues?state=all&per_page=100" |
-    jq -r 'add[] | select((.pull_request|not) and ((.body // "") | contains("<!-- VYOM_FACTORY_META:"))) |
-      [.number, .state, .title, .html_url] | @tsv'
+    jq -r 'add[] |
+      select((.pull_request|not) and ((.body // "") | contains("<!-- VYOM_FACTORY_META:"))) |
+      . as $issue |
+      (try (($issue.body | capture("<!-- VYOM_FACTORY_META:(?<meta>.*) -->"; "s").meta) | fromjson) catch null) as $meta |
+      select($meta.schema == 1 and
+        ($meta.priority | IN("P0","P1","P2","P3")) and
+        ($meta.status | IN("open","in_progress","blocked","paused","completed","cancelled"))) |
+      [$issue.number, $meta.status, $meta.priority, $issue.title, $issue.html_url] | @tsv'
 }
 
 edit_task() {
