@@ -421,3 +421,10 @@ Source checkpoint before this documentation commit: `ee9fe53b01a42fa8b1157807cb7
 2. Verify the signed artifact's SHA-256 and actual APK certificate from CI artifact bytes; compare with the expected fingerprint and, later, the owner's installed APK fingerprint.
 3. Prove a branch-push prerelease can be discovered by the app and that a proposal build is selected only by exact commit SHA.
 4. Complete Shizuku silent install under verified Power Mode and finish full UI bundle migration/rollback runtime proof before calling update-first M1 complete.
+
+## M1 release permission correction — 2026-11-03
+
+- Publishing jobs in `.github/workflows/vyom-android-debug.yml` and `.github/workflows/vyom-android-release.yml` now declare job-scoped `permissions: contents: write` and use only the built-in `secrets.GITHUB_TOKEN`. Removed all `VYOM_RELEASE_TOKEN` personal-token references. No personal token belongs in workflow YAML or Actions secrets for this path.
+- If release creation still receives HTTP 403 `Resource not accessible by integration`, set **Repository Settings → Actions → General → Workflow permissions → Read and write permissions**, then Save. No PAT fallback.
+- Exact source SHA `20ad49186ed2a58f804873be98f5f88181cb5d5c`: Debug `41623371371` SUCCESS; Full CI `41623371384` SUCCESS; release publication succeeded before the explicit job-scope permission correction. The two workflow permission commits are `26aeebc761133e49138138af97a6521f6a0071ec` and `fbce0c067a807b0cc234f1971aa15cc94622717b`; final head still needs exact-head CI.
+- Continue M1 using the controlling UPDATE-FIRST route in the top owner priority override/HANDOFF. Do not revert to the older P1-first sequence quoted in historical reset text below. No M1 acceptance IDs are changed by this YAML-only permission fix.
