@@ -199,8 +199,9 @@ internal class SelfModificationClient {
                 (if (requestSummary.isBlank()) "" else "- Requested change: ${requestSummary.take(1_000)}\n") +
                 "- Source base commit: `$baseSha`.\n" +
                 "- Created by Vyom's user-requested proposal workflow.\n" +
-                "- This PR is not auto-merged or auto-installed.\n" +
-                "- CI must pass; the repository owner must review the diff and manually install any approved build.\n" +
+                "- This PR is never auto-merged. The owner reviewed the minimal patch preview before opening it.\n" +
+                "- Vyom waits for both CI workflows and stages a signed APK only when its manifest commit, SHA-256 and certificate are verified.\n" +
+                "- Android's installer remains the final install authority unless a separately verified Power Mode installer is available.\n" +
                 "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
         val prUrl = pr.optString("html_url")
         require(prUrl.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {

@@ -3722,7 +3722,11 @@ class MainActivity : Activity() {
                         updateManifest = null
                         updateButton.text = "CHECK FOR UPDATES"
                         updateButton.setOnClickListener { checkForUpdate() }
-                        updateNotice.text = "Vyom is up to date (v${BuildConfig.VERSION_NAME})."
+                        updateNotice.text = if (expectedCommit != null) {
+                            "CI passed, but no signed APK release was published for exact proposal commit ${expectedCommit.take(12)}."
+                        } else {
+                            "Vyom is up to date (v${BuildConfig.VERSION_NAME})."
+                        }
                     } else {
                         updateManifest = manifest
                         updateButton.text = "DOWNLOAD v${manifest.optString("versionName")}"
