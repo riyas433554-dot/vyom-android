@@ -22,6 +22,16 @@ The controlling milestone order and branch/safety constraints are recorded at th
 - [ ] Final APK requires exact-head Debug + full CI success, artifact download/integrity/SHA verification, and signing-certificate comparison before replacing an installed app.
 - [ ] Physical-device acceptance remains a separate user-side gate.
 
+## A17 — Generic Control Engine (M1; added by owner 2026-11-03)
+- [ ] One app-agnostic observe → plan → act → verify → recover engine; Accessibility fallback and authorized Power Mode/ShellExecutor adapter.
+- [ ] Generic action set: tap/long-press/swipe/scroll-until-found/type, Back/Home/Recents, gestures, key events, clipboard, share sheet, intents/deep links.
+- [ ] Live capability manifest injected into chat/planner; exact missing permission + one-tap Settings repair instruction.
+- [ ] Unknown app/screen Learn Anywhere loop: research, safe try, verify, save tested skill.
+- [ ] 20-row coverage matrix: each row has reachable implementation, named automated test and Control Suite Diagnostics check.
+- [ ] Control Suite runs 20 varied safe tasks across different apps, emits PASS/FAIL/SKIP + evidence and avoids destructive side effects by default.
+- [ ] Owner-runnable real-device subset passes on actual phone; hard limits are clearly reported and never bypassed.
+- Status: PARTIAL. Existing UI Agent is only the baseline, not proof of A17 completion. A1 Play Store and whatsapp_send are acceptance probes, not scope boundaries.
+
 ## Linked source documents
 
 - `docs/ACCEPTANCE_TESTS.md` — full A1–R4 acceptance matrix and phone test guide.
