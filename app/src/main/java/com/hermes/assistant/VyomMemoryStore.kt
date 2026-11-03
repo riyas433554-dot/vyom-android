@@ -20,6 +20,15 @@ internal class VyomMemoryStore(context: Context) {
     fun isEnabled(): Boolean = prefs.getBoolean(KEY_ENABLED, true)
     fun setEnabled(enabled: Boolean) { prefs.edit().putBoolean(KEY_ENABLED, enabled).apply() }
 
+    /** Seeds the user's explicit learn-before-act preference into encrypted on-device memory. */
+    fun ensureCorePrinciples() {
+        if (!isEnabled()) return
+        val principle = CORE_LEARN_BEFORE_ACT
+        if (facts().none { it.equals(principle, ignoreCase = true) }) {
+            write((facts() + principle).takeLast(MAX_FACTS))
+        }
+    }
+
     fun facts(): List<String> {
         if (!isEnabled()) return emptyList()
         return try {
@@ -49,6 +58,8 @@ internal class VyomMemoryStore(context: Context) {
     private fun isSensitive(text: String): Boolean = MemoryCapturePolicy.isSensitive(text)
 
     companion object {
+        const val CORE_LEARN_BEFORE_ACT =
+            "Vyom preference: if knowledge or a skill is missing, learn from trusted documentation/repositories, review license/source/dependencies/security, test safely, then act; report only verified results."
         private const val KEY_ENABLED = "enabled"
         private const val KEY_FACTS = "facts"
         private const val MAX_FACTS = 100
