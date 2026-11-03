@@ -107,6 +107,30 @@ internal class SelfModificationClient {
         }
     }
 
+    fun waitForProposalCi(token: String, branch: String, timeoutMillis: Long = 15 * 60 * 1000L): String {
+        require(branch.matches(Regex("^vyom-proposal-[a-zA-Z0-9-]+$"))) { "Invalid proposal branch name" }
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        var lastState = "pending"
+        while (System.currentTimeMillis() < deadline) {
+            val ref = request("GET", "/git/ref/heads/$branch", token = token)
+            val sha = ref.optJSONObject("object")?.optString("sha").orEmpty()
+            require(sha.matches(Regex("^[a-f0-9]{40}$"))) { "Proposal branch has no valid commit SHA" }
+            val status = request("GET", "/commits/$sha/status", token = token)
+            lastState = status.optString("state", "pending").lowercase()
+            if (lastState == "success") return sha
+            if (lastState == "failure" || lastState == "error") {
+                val contexts = status.optJSONArray("statuses") ?: JSONArray()
+                val failures = (0 until contexts.length()).mapNotNull { index ->
+                    val item = contexts.optJSONObject(index) ?: return@mapNotNull null
+                    if (item.optString("state") in setOf("failure", "error")) item.optString("context") else null
+                }
+                throw IllegalStateException("Proposal CI failed: ${failures.joinToString().ifBlank { lastState }}")
+            }
+            Thread.sleep(5_000)
+        }
+        throw IllegalStateException("Timed out waiting for proposal CI (last state: $lastState)")
+    }
+
     private fun readCurrentSource(token: String, path: String, sourceRef: String): String {
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
         val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }

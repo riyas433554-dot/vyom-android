@@ -666,11 +666,17 @@ class MainActivity : Activity() {
                                             selfChangeNotice.text = "Creating PR from the reviewed minimal patch…"
                                             io.execute {
                                                 try {
-                                                    val proposal = SelfModificationClient().createProposal(token, draft)
+                                                    val proposalClient = SelfModificationClient()
+                                                    val proposal = proposalClient.createProposal(token, draft)
                                                     runOnUiThread {
                                                         logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
-                                                        selfChangeNotice.text = "PR created; CI and owner review are required: ${proposal.pullRequestUrl}"
+                                                        selfChangeNotice.text = "PR created; waiting for both proposal CI workflows…"
                                                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
+                                                    }
+                                                    val verifiedSha = proposalClient.waitForProposalCi(token, proposal.branch)
+                                                    runOnUiThread {
+                                                        selfChangeNotice.text = "CI passed for ${verifiedSha.take(12)}. Finding and verifying its signed APK…"
+                                                        checkForUpdate(autoInstallWhenReady = true)
                                                     }
                                                 } catch (error: Exception) {
                                                     runOnUiThread { selfChangeNotice.text = "PR creation failed: ${error.message ?: "GitHub error"}" }
@@ -3586,7 +3592,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun checkForUpdate() {
+    private fun checkForUpdate(autoInstallWhenReady: Boolean = false) {
         if (updateCheckInFlight) return
         updateCheckInFlight = true
         updateButton.isEnabled = false
@@ -3608,6 +3614,7 @@ class MainActivity : Activity() {
                         updateButton.text = "DOWNLOAD v${manifest.optString("versionName")}"
                         updateButton.setOnClickListener { downloadVerifiedUpdate() }
                         updateNotice.text = "Update v${manifest.optString("versionName")} is available. Download and verification require your tap."
+                        if (autoInstallWhenReady) downloadVerifiedUpdate(installAfterVerification = true)
                     }
                 }
             } catch (error: Exception) {
@@ -3662,7 +3669,7 @@ class MainActivity : Activity() {
             .put("versionName", BuildConfig.VERSION_NAME)
     }
 
-    private fun downloadVerifiedUpdate() {
+    private fun downloadVerifiedUpdate(installAfterVerification: Boolean = false) {
         val manifest = updateManifest ?: run { checkForUpdate(); return }
         updateButton.isEnabled = false
         updateNotice.text = "Downloading update and checking integrity…"
@@ -3703,6 +3710,7 @@ class MainActivity : Activity() {
                     updateButton.text = "INSTALL VERIFIED UPDATE"
                     updateButton.setOnClickListener { installVerifiedUpdate() }
                     updateNotice.text = "Checksum, package, version and signing certificate verified. Android will ask you to confirm installation."
+                    if (installAfterVerification) installVerifiedUpdate()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
