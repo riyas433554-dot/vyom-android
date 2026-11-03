@@ -51,6 +51,13 @@ class ControlCapabilityManifestTest {
         )
     }
 
+    @Test fun plannerConfigurationIsRequiredBeforeAnyAdapterCanRun() {
+        assertEquals(
+            ControlCapabilityManifest.Adapter.UNAVAILABLE,
+            ControlCapabilityManifest.selectAdapter(snapshot(plannerConfigured = false))
+        )
+    }
+
     @Test fun stopControlAlwaysOverridesAvailableAdapters() {
         assertEquals(
             ControlCapabilityManifest.Adapter.UNAVAILABLE,
