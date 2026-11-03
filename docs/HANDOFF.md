@@ -1,3 +1,45 @@
+# OWNER PRIORITY OVERRIDE — VYOM FACTORY FIRST (2026-11-03)
+
+This is the newest owner instruction and supersedes all conflicting milestone sequencing below. Repository and safety boundaries remain unchanged.
+
+## M0 — VYOM FACTORY (FIRST IMPLEMENTATION PRIORITY)
+Owner explicitly approved building Vyom Factory before receiving the next APK. Do not deliver an APK until the Factory milestone is implemented and exact-head CI is green.
+
+### Product contract
+- Add a permanent **Vyom Factory** destination inside the existing Workspace/Drawer, matching the existing native app architecture and visual language. This is a real app screen, not a mock dashboard or separate website.
+- Show live, evidence-backed work: active/pending/blocked/completed tasks, current step, worker, timestamps, progress events, skill/repository research and installation state, CI/test results, update history, errors and rollback state. Never display fabricated progress or percentages.
+- Complaint intake must converge on one canonical task identity across (a) Vyom normal chat, (b) Vyom Factory, (c) ChatGPT via the connected GitHub integration, and (d) Termux via GitHub CLI/API. GitHub Issues are the proposed shared registry; verify repository permissions, auth, issue schema and rate limits before wiring. Same task must be editable/reprioritizable from every source without creating duplicates. Use stable external IDs/idempotency keys and preserve an audit trail.
+- Factory controls: create complaint, edit description, reorder priority, pause/resume, cancel, merge duplicates, split into subtasks, add evidence/comments, and view immutable event history. State changes must be authorized and persisted before UI reports success.
+- Parallel work is allowed only in isolated branches/worktrees or non-overlapping file ownership. Serialize conflicting writes, preserve STOP/cancel semantics, bounded retries, CI gates and review. No autonomous merge to protected/main branches.
+- Skills/repos: discover, inspect repository and SKILL.md, review licence/security, install only into an approved user-writable content location, run a real validation test, record source/revision/hash and report exact result. Never claim installed from merely listing a repo.
+- Update visibility: distinguish content-only A18 updates from native APK releases. Show signed package verification, staged probes, active slot, history and rollback only from actual A18 state. Native Kotlin/permission changes still require a signed APK update; never promise every change is APK-free or silent.
+- Always-on operation means durable queued work plus an actual configured runner/scheduler and observable heartbeat. GitHub Actions alone is event/queue execution, not a guarantee of 24/7 continuous uptime. Show offline/runner unavailable explicitly; do not fake background activity.
+- Secrets: never embed a personal GitHub token, PAT, app private key or signing secret in APK/source/logs. Use a supported OAuth/device-flow or secure broker design, encrypted local token storage if applicable, least privilege, revocation and explicit setup. ChatGPT and Termux use their own authenticated GitHub connections.
+- User's request to use Vyom while it upgrades must be preserved: keep chat/control usable during background work; never replace the installed APK with an incompatible signer or require uninstall to update.
+
+### M0 implementation sequence
+1. Inventory existing task APIs/models, local persistence, chat task creation, drawer navigation, skills/update screens and Diagnostics. Reuse working components; mark unwired/partial paths accurately.
+2. Define and test canonical complaint/task schema, idempotent intake, priority/state transitions, append-only events and conflict-safe updates. GitHub Issues adapter is canonical only after auth/permissions are verified; otherwise clearly report the blocker and do not silently substitute local-only storage.
+3. Build the native Vyom Factory screen and wire it into Workspace/Drawer. All cards/actions must use live task/event data; no hard-coded demo counters.
+4. Wire complaint intake from Factory and normal Vyom chat; document/test ChatGPT GitHub issue intake and Termux `gh issue` intake against the same task schema/labels.
+5. Wire worker/run status, skill/repository operations and CI/update evidence to actual execution records. No pretend workers or fake install state.
+6. Add safe task controls, event history, retry/cancel/STOP and multi-task isolation tests.
+7. Add a real Diagnostics row and acceptance tests for each delivered Factory capability; exact-head Debug + Full CI; only then issue the M0 APK after signing/certificate checks.
+
+### Termux / owner setup
+- Do not ask the owner to perform Termux setup pre-emptively. First complete repository-side work and identify the exact unavoidable local prerequisite.
+- If Termux is genuinely required (e.g. one-time `gh auth login`, device bridge, or phone acceptance), give the exact command, purpose, expected output and whether it is one-time. Never ask the owner to paste tokens or secrets into chat.
+- If GitHub OAuth app registration/client ID, GitHub permissions, or a runner registration requires owner action, stop at that exact gate and provide the minimal safe setup steps.
+
+### Evidence and delivery
+- Keep this section controlling until M0 is accepted. Keep HANDOFF, MASTER_ORDERS and completion checklist synchronized after each meaningful batch.
+- Every task status must have source SHA, named test/CI run where applicable, event timestamp and evidence link. Do not claim cross-source intake, 24/7 operation, skill installation, or automatic update until exercised end-to-end.
+- Work only on `feature/memory-intelligence`. Never touch Android `main`, Render, Hermes backend or production Supabase.
+- Continue in batches; do not stop after one tiny item. Commit/push each coherent verified batch and run exact-head CI. Fix failures from actual logs.
+- Report only verified changes, current full 40-character HEAD, CI run IDs/results, changed acceptance rows, exact owner prerequisite (if any), and next unfinished Factory item.
+
+---
+
 # OWNER PRIORITY OVERRIDE — UPDATE-FIRST MILESTONE ROUTE (2026-11-03)
 
 This is the newest owner instruction. It supersedes the milestone order in the earlier OWNER RESET in this file and all conflicting sequencing elsewhere. Repository/branch and safety restrictions remain in force.
