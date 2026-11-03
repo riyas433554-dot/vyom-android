@@ -1651,3 +1651,11 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Current implementation Debug 41586567783 is QUEUED and Full CI 41586567829 is PENDING; both must complete on the final documentation head below before claiming GREEN.
 - No feature/acceptance ID rows changed. P1 remains PARTIAL; physical Galaxy A06 binder revocation/STOP process-death behavior remains pending. No APK delivered.
 - Next: verify final-head CI and inspect any failure logs; then add/verify explicit STOP + UserService process termination lifecycle evidence, then complete the live Level 0/1/2 and secure-settings/app-op read-back matrix.
+
+
+### P1 Shizuku child-process termination lifecycle — RED evidence and implementation — 2026-11-03
+- Test-only commit `3e0c912b25f1bd2654b786849f15e1a4c3343a83` added deterministic process-termination tests for graceful exit, force-kill fallback, already-exited children, per-child failure isolation and the STARTING-vs-teardown race.
+- Exact-head Debug run `41588019672` and Full CI run `41588019702` both FAILED at `:app:compileDebugUnitTestKotlin`. Real logs show unresolved `ShizukuProcessTerminator` references in `ShizukuProcessTerminationTest.kt`; this is the expected test-first RED result, not an unrelated production compile failure.
+- Implemented bounded graceful-then-force termination and a per-request bulk termination helper. UserService STOP now uses the same helper, teardown terminates the registry shutdown snapshot before `System.exit(0)`, and a process created after the shutdown snapshot is force-terminated when `markRunning()` refuses the closed registry. Normal timeout and cleanup paths also use bounded termination.
+- These are deterministic JVM lifecycle tests and best-effort process APIs; they do not establish OEM Shizuku's external process-death timing. P1 remains PARTIAL; no acceptance IDs changed and no APK delivered.
+- Next: run Debug and Full CI on this implementation head; inspect real logs for any failures and fix them before moving to live Level 0/1/2 capability and secure-settings/app-op read-back.

@@ -43,12 +43,22 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             val process = ProcessBuilder(command.argv).redirectErrorStream(true).start()
             if (running.putIfAbsent(requestId, process) != null) {
                 auditOutcome = "rejected_duplicate"
-                process.destroyForcibly()
+                ShizukuProcessTerminator.terminate(
+                    isAlive = process::isAlive,
+                    destroy = process::destroy,
+                    waitForExit = { process.waitFor(250, TimeUnit.MILLISECONDS) },
+                    destroyForcibly = process::destroyForcibly
+                )
                 return "rejected: duplicate request id"
             }
             if (!requests.markRunning(requestId)) {
                 auditOutcome = "cancelled_startup"
-                process.destroyForcibly()
+                ShizukuProcessTerminator.terminate(
+                    isAlive = process::isAlive,
+                    destroy = process::destroy,
+                    waitForExit = { process.waitFor(250, TimeUnit.MILLISECONDS) },
+                    destroyForcibly = process::destroyForcibly
+                )
                 return "cancelled: STOP interrupted command startup"
             }
             val output = AtomicReference("")
@@ -73,8 +83,12 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
 
             val finished = process.waitFor(boundedTimeout, TimeUnit.MILLISECONDS)
             if (!finished) {
-                process.destroyForcibly()
-                process.waitFor(300, TimeUnit.MILLISECONDS)
+                ShizukuProcessTerminator.terminate(
+                    isAlive = process::isAlive,
+                    destroy = process::destroy,
+                    waitForExit = { process.waitFor(300, TimeUnit.MILLISECONDS) },
+                    destroyForcibly = process::destroyForcibly
+                )
                 if (requests.isCancelled(requestId)) {
                     auditOutcome = "cancelled"
                     "cancelled: STOP interrupted the command"
@@ -102,7 +116,12 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             "failed: ${e.javaClass.simpleName}"
         } finally {
             running.remove(requestId)?.let { child ->
-                if (child.isAlive) child.destroyForcibly()
+                ShizukuProcessTerminator.terminate(
+                    isAlive = child::isAlive,
+                    destroy = child::destroy,
+                    waitForExit = { child.waitFor(250, TimeUnit.MILLISECONDS) },
+                    destroyForcibly = child::destroyForcibly
+                )
             }
             if (requests.isCancelled(requestId)) auditOutcome = "cancelled"
             Log.i(TAG, ShizukuAudit.format(requestId, commandId, auditOutcome, exitCode))
@@ -115,12 +134,12 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         val accepted = requests.cancel(requestId)
         val process = running[requestId]
         if (process != null) {
-            try {
-                process.destroy()
-                if (!process.waitFor(250, TimeUnit.MILLISECONDS)) process.destroyForcibly()
-            } catch (_: Exception) {
-                process.destroyForcibly()
-            }
+            ShizukuProcessTerminator.terminate(
+                isAlive = process::isAlive,
+                destroy = process::destroy,
+                waitForExit = { process.waitFor(250, TimeUnit.MILLISECONDS) },
+                destroyForcibly = process::destroyForcibly
+            )
         }
         if (accepted) Log.i(TAG, "request=$requestId outcome=STOP_requested")
     }
@@ -128,7 +147,18 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
     override fun destroy() {
         // Close request admission and mark STARTING/RUNNING requests cancelled in
         // the same critical section before taking the process-termination snapshot.
-        requests.shutdown().forEach(::cancel)
+        val stoppingIds = requests.shutdown()
+        ShizukuProcessTerminator.terminateAll(
+            requestIds = stoppingIds,
+            processFor = { running[it] }
+        ) { process ->
+            ShizukuProcessTerminator.terminate(
+                isAlive = process::isAlive,
+                destroy = process::destroy,
+                waitForExit = { process.waitFor(250, TimeUnit.MILLISECONDS) },
+                destroyForcibly = process::destroyForcibly
+            )
+        }
         System.exit(0)
     }
 

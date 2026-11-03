@@ -217,3 +217,12 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Exact-head Debug 41586567783 and Full CI 41586567829 pending on implementation SHA 3f62456c9c2c77e88c8778a1da2522b1cc518e31; require final documentation-head runs.
 - [ ] Prove owner STOP and UserService process termination lifecycle; then finish live capability and secure-settings/app-op read-back matrix. Unit tests do not prove Android/Shizuku OEM process-death timing.
 - P1 remains PARTIAL; no acceptance ID changed; no physical-device acceptance or APK delivery.
+
+
+### P1 Shizuku child-process termination lifecycle — implementation pending exact-head CI
+- [x] Added bounded graceful termination followed by force-kill fallback and bounded post-kill wait.
+- [x] STOP and UserService teardown share the same process-termination helper; teardown processes every request ID from the atomic shutdown snapshot without one failure skipping later IDs.
+- [x] A child process that appears after teardown's snapshot is terminated when the closed registry rejects its STARTING-to-RUNNING transition.
+- [ ] Exact-head Debug and Full CI green.
+- [ ] Physical Shizuku process-death timing and live Level 0/1/2 + secure-settings/app-op read-back acceptance.
+- P1 remains PARTIAL; no acceptance ID changed and no APK delivered.
