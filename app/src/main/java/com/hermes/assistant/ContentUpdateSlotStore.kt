@@ -114,6 +114,12 @@ internal class ContentUpdateSlotStore(private val root: File) {
         if (oldVersion.isNotBlank() && oldVersion == manifest.version) {
             return ContentUpdateResult(manifest.version, false, emptyList(), null, "Version is already active")
         }
+        if (oldVersion.isNotBlank() && ContentUpdateManifest.isVersion(oldVersion) &&
+            ContentUpdateManifest.isVersion(manifest.version) &&
+            ContentUpdateManifest.compareVersions(manifest.version, oldVersion) < 0) {
+            return ContentUpdateResult(manifest.version, false, emptyList(), null,
+                "Stale content version rejected; active slot is newer")
+        }
         root.mkdirs()
         val staging = File(root, ".staging-${manifest.version}")
         staging.deleteRecursively()
