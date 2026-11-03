@@ -22,6 +22,42 @@ This is the newest owner instruction. It supersedes the milestone order in the e
 
 M1 APK gate: all above items must be reachable, end-to-end, tested and represented in Diagnostics; exact-head Debug + Full CI green; release artifact SHA-256 and certificate verified; certificate matches installed app before update; deliver one APK and owner phone-test guide.
 
+## A17 — GENERIC CONTROL ENGINE (M1 CORE SCOPE; OWNER CLARIFICATION 2026-11-03)
+
+A17 is an M1 acceptance requirement, not a future optional skill. Play Store install (A1) and `whatsapp_send` are acceptance probes only; neither defines the scope of phone control. Build one app-agnostic engine with no per-app scripts required for ordinary UI work:
+
+`observe (Accessibility tree; local screenshot + vision/OCR fallback) → plan → act → verify post-condition → recover`.
+
+Use the Shizuku ShellExecutor / Power Mode adapter when currently authorized and supported; otherwise use the explicitly enabled Accessibility adapter. Generic actions must cover tap, long-press, swipe, scroll-until-found, type, Back/Home/Recents, gestures (including drag/pinch/multi-step), key events, clipboard, share sheet, intents and deep links. Observe again after every action; retry only after a fresh observation, try a safe alternative path, and ask one question only when the target/intent is genuinely ambiguous. Unknown app/screen enters Learn Anywhere (research trusted docs/source, try a bounded safe action, verify, then save a tested skill); no per-app hard-coded script is a prerequisite.
+
+Runtime capability manifest is mandatory. On failure, inspect it and name the exact missing Android permission/service/app access and the one-tap Settings route; never say only “I can't”. Capability rows must distinguish available, missing, blocked-by-platform and unverified.
+
+**20-row coverage matrix** (every row needs a reachable implementation, a Diagnostics check and a named automated test; destructive/privileged operations retain owner gates):
+1. Apps: open, close, force-stop, clear data, uninstall and install.
+2. Any app UI: forms, lists, search, dialogs, pickers and web pages.
+3. System toggles: Wi-Fi, Bluetooth, mobile data, hotspot, brightness, volume, DND, rotation, flashlight and airplane mode where Android permits.
+4. Notifications: read, filter, act and dismiss.
+5. Calls, SMS and contacts.
+6. Camera, photos, videos, screenshots and screen recording.
+7. Files: browse, create, move, delete, zip and share.
+8. Alarms, timers, calendar and reminders.
+9. Messaging: WhatsApp, Instagram, Telegram and email.
+10. Browser: search, open, fill and download.
+11. Clipboard and text input in any field.
+12. Per-app permission grant/revoke via Power Mode where Android permits.
+13. Battery, storage, app info and Settings pages.
+14. Termux commands through the owner-enabled bridge.
+15. Location and maps.
+16. Media control: music, video and volume.
+17. Accessibility gestures: pinch, drag and multi-step.
+18. Wait for and handle popups, ads and permission dialogs inside normal apps.
+19. Multi-app workflows passing data between apps.
+20. Schedule any supported task above.
+
+**Hard limits**: FLAG_SECURE surfaces; biometrics and lock-screen credentials; Play Protect prompts; payments/banking/OTP/Authenticator apps; Vyom kill-switch and protected files. Do not bypass Android security or owner policy. Report the exact boundary when hit.
+
+Add Diagnostics → Control Suite. It must run 20 varied safe tasks across different apps/domains, show per-task PASS/FAIL/SKIP plus evidence, and avoid destructive side effects in the default suite. M1 cannot be called complete until automated coverage exists for all 20 rows AND an owner-runnable real-device subset passes on the actual phone. Physical-device evidence is separate from CI. Existing UI Agent is a partial foundation only; its presence does not mark A17 complete.
+
 ## MILESTONE 2 — APK 2
 - UI through hot-swappable bundle. Combine Grok-style composer (+, model pill, mic, Speak), Voice Settings, drawer and Automations with the owner's last Claude Design files. The supplied design is authoritative; do not redesign it. Drawer and Profile are separate screens. Add activity timeline, source chips and stop button.
 - Advanced memory: CORE + episodic + semantic, embeddings, 500+ facts, conflict handling.
