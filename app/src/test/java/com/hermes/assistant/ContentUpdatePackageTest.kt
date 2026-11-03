@@ -52,6 +52,11 @@ class ContentUpdatePackageTest {
             .any { it.contains("Presence probe requires expected visible content") })
     }
 
+    @Test fun comparesTimestampSizedContentVersionsWithoutIntegerOverflow() {
+        assertTrue(ContentUpdateManifest.compareVersions("1.0.1800000000000", "1.0.900") > 0)
+        assertTrue(ContentUpdateManifest.compareVersions("1.0.1800000000001", "1.0.1800000000000") > 0)
+    }
+
     @Test fun verifiesDetachedEcdsaSignatureOverCanonicalManifest() {
         val bytes = "visible content".toByteArray()
         val file = ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))
