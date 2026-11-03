@@ -111,7 +111,6 @@ class MainActivity : Activity() {
     private lateinit var settingsContent: LinearLayout
     private var updateManifest: JSONObject? = null
     private var pendingUpdateApk: File? = null
-    private var pendingSilentInstallPath: String? = null
     private var pendingDocumentSource = "app"
     private var pendingDocumentCallback: ((String) -> Unit)? = null
     private var updateCheckInFlight = false
@@ -3695,6 +3694,15 @@ class MainActivity : Activity() {
                 } else {
                     rows += "PASS · GitHub update discovery · API reachable; no newer signed release is published"
                 }
+                val installPath = "/storage/emulated/0/Download/VyomUpdates/vyom-update-0123456789ab.apk"
+                val silentInstallPolicy = ShizukuCommandPolicy.command(
+                    "install_verified_apk", listOf(installPath), true, "com.vyom.assistant"
+                )
+                rows += if (silentInstallPolicy?.argv == listOf("pm", "install", "-r", installPath)) {
+                    "PASS · Shizuku install allowlist · Only a hash-named VyomUpdates APK path can reach pm install"
+                } else {
+                    "FAIL · Shizuku install allowlist · Verified APK install command is not constrained as expected"
+                }
                 rows += if (SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/ReplyFormatter.kt") &&
                     !SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/UpdateVerifier.kt")) {
                     "PASS · Self-change guard · Ordinary Kotlin files allowed; update verifier remains protected"
@@ -3849,7 +3857,7 @@ class MainActivity : Activity() {
                     updateButton.isEnabled = true
                     updateButton.text = "INSTALL VERIFIED UPDATE"
                     updateButton.setOnClickListener { installVerifiedUpdate() }
-                    updateNotice.text = "Checksum, package, version and signing certificate verified. Android will ask you to confirm installation."
+                    updateNotice.text = "Checksum, package, version and signing certificate verified. Tap install; Power Mode may use Shizuku, otherwise Android asks for confirmation."
                     if (installAfterVerification) installVerifiedUpdate()
                 }
             } catch (error: Exception) {
@@ -3971,7 +3979,6 @@ class MainActivity : Activity() {
             updateNotice.text = "Shizuku staging unavailable; Android installer will be used: ${error.message ?: "storage error"}"
             return false
         }
-        pendingSilentInstallPath = publicPath
         settingsPrefs.edit().putInt("pending_silent_update_version_code", targetVersionCode).apply()
         updateNotice.text = "Power Mode verified. Installing the checksum-verified APK through Shizuku…"
         client.installVerifiedApk(publicPath) { result ->
@@ -3981,7 +3988,6 @@ class MainActivity : Activity() {
                 logControlAction("Self-update", "Shizuku pm install returned Success; post-relaunch version read-back pending", "app")
             } else {
                 settingsPrefs.edit().remove("pending_silent_update_version_code").apply()
-                pendingSilentInstallPath = null
                 updateNotice.text = "Shizuku install failed; falling back to Android installer: $result"
                 runOnUiThread { openAndroidInstaller(file) }
             }
