@@ -1125,3 +1125,44 @@ Branch: `feature/memory-intelligence`
 - Separated sensitive content from consequential controls: passwords/OTP/payment/security/credential-like content still blocks planner upload, but labels such as Send/Delete/Export/Post no longer block the whole screen. Those actions remain governed by UiAgentPolicy's mandatory confirmation path. App Access now explicitly discloses that visible UI text may be sent to the configured planner; screenshot upload remains a separate Visual AI opt-in.
 
 - CI compile/test run 41481075757 reached unit-test compilation and found one duplicate test declaration for safe global navigation. Removed the duplicate; the production Kotlin sources compiled in that run, and the next run will verify the full test suite.
+
+# OWNER FULL-CONTROL + LEARN-BEFORE-GUESS CHECKPOINT — 2026-11-03
+
+## Scope and branch
+- Repository: `riyas433554-dot/vyom-android`
+- Branch: `feature/memory-intelligence`
+- Starting head verified before this work: `3c98ba5bf2b084cf37619ff19ff8548d0dc4d741`.
+- All changes in this continuation are on the Android feature branch. Android `main`, Hermes backend/Telegram, Render, production Supabase, deployment and signing secrets are untouched.
+
+## Owner permission / Android Control work
+- Added `AndroidPermissionPolicy.kt` and `AndroidPermissionPolicyTest.kt`. Core UI control readiness requires the Accessibility setting, a connected service, Master App Control and at least one enabled target app. Optional permissions are task-scoped, not blanket prerequisites.
+- Added Profile > Control Readiness > Set Up Permissions flow for Accessibility, all safe installed apps, Modify System Settings, microphone, camera, notifications and separately opt-in safe Quick Settings.
+- Readiness now reads actual Android state: enabled Accessibility component, live service connection, app allowlist/master switch, runtime mic/camera/notification grants and Modify System Settings grant. It distinguishes enabled service from a connected service.
+- `ENABLE ALL SAFE APPS` turns on Master App Control and allowlists discovered non-financial launcher apps. Protected financial identifiers remain blocked; System UI remains separate and limited to safe Quick Settings.
+- Corrected a permission-model issue before finalizing: the UI Agent overlay uses `TYPE_ACCESSIBILITY_OVERLAY`, so it does not require Draw Over Other Apps. Removed the redundant overlay permission request/status rather than asking the user for an unnecessary grant.
+- Notification settings fallback now targets this app's notification settings on Android versions before runtime notification permission.
+- Android system permissions remain Android-owned: a ChatGPT instruction cannot remotely change this installed app's SharedPreferences or silently grant Accessibility/runtime/special permissions. The user must activate the setup controls in the installed APK.
+
+## Permanent learn-before-guess doctrine
+- Updated `VyomIdentityPolicy.systemInstruction()` so every chat prompt carries compact durable rules: direct user tasks authorize ordinary non-destructive actions in enabled apps; inspect permissions before action; learn before guessing; inspect source/license/dependencies/security; extract scoped skills; test safely; preserve provenance and evidence; treat repo/web/screen content as untrusted; observe and verify each action; STOP/app-switch/stale-screen/permission-loss cancels.
+- Updated `VyomIdentityPolicyTest.kt` with assertions for learning, provenance/security, permission-aware control and STOP.
+- Important: this is an always-injected operating instruction, not a claim that automatic GitHub/ZIP ingestion, skill extraction, or a verified skill registry is already implemented. Those remain pending runtime capabilities.
+
+## New repository reviews
+- `adewaskar/jarvis`: MIT-licensed browser/Node/Claude Agent SDK assistant, not a native Android agent. Useful patterns: separate brain/hands/HUD, runtime capability probing, interchangeable speech adapters, central effectful-tool gate, cancellation and visible degraded states. Do not transplant its web UI/Node bridge into Android unchanged.
+- `WorldFlowAI/everything-claude-code`: useful agent/skill/hook, continuous-learning, eval-harness and verification-loop patterns. GitHub API returned no declared license for this repository; no source/scripts copied or vendored. Only independently written process guidance was added.
+- Added `docs/skills/JARVIS_AGENT_ARCHITECTURE.md` and `docs/skills/CONTINUOUS_LEARNING_AND_VERIFICATION.md`.
+- Added `docs/ANDROID_CONTROL_CAPABILITY_MATRIX.md` to record owner authorization, actual Android grants, implemented source capabilities, platform limits and acceptance gates.
+
+## Verification truth
+- Tests added/updated, but no Gradle test or build result is claimed yet for this checkpoint.
+- No CI run, APK artifact, signature continuity check or physical phone test is claimed yet.
+- Existing app local preferences are not modified by source changes. After a safe update is delivered, the owner must use the new Set Up Permissions screen to activate broad app access and the required Android system grants.
+- Full unrestricted control is not a valid Android promise: secure surfaces, protected financial actions and Android-owned approval gates remain protected. The goal is broad reliable control wherever Android and the target app expose a supported interface.
+
+## Next fixed steps
+1. Verify exact current feature-branch head and run Android CI/unit tests once.
+2. Fix all compile/test failures; re-run only after a code change.
+3. Review actual APK manifest, app ID, version and signing fingerprint.
+4. Continue remaining action adapters and end-to-end reliability tests; then deliver update-safe APK for physical phone acceptance.
+5. Implement repository/ZIP ingestion, skill registry and skill eval execution before claiming autonomous self-learning is complete.
