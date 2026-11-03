@@ -9,7 +9,7 @@ import android.view.accessibility.AccessibilityEvent
 internal object UiAgentPolicy {
     enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, SCROLL_UNTIL_FOUND, TYPE_TEXT, BACK, HOME, RECENTS, NOTIFICATIONS, QUICK_SETTINGS, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
-    enum class ConfirmationMode { ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
+    enum class ConfirmationMode { TRUSTED, ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
     data class Action(
         val kind: Kind,
         val target: String = "",
@@ -72,7 +72,7 @@ internal object UiAgentPolicy {
     }
 
     private val blockedTargets = Regex(
-        """\b(pay|payment|upi|wallet|bank|transfer|security|permissions?|biometric|password|passcode|otp|uninstall)\b""",
+        """\b(pay|payment|upi|wallet|bank|banking|authenticator|checkout|purchase|transaction|transfer|security|permissions?|biometric|password|passcode|otp|uninstall)\b""",
         RegexOption.IGNORE_CASE
     )
 
@@ -149,9 +149,9 @@ internal object UiAgentPolicy {
         return matchingTitles.size == 1
     }
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.RISKY_ASK, screenWidth: Int = 0, screenHeight: Int = 0, density: Float = 1f, sensitiveScreen: Boolean = false): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.TRUSTED, screenWidth: Int = 0, screenHeight: Int = 0, density: Float = 1f, sensitiveScreen: Boolean = false): Verdict {
         if (action.screenPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE) {
-            return validateSystemUiAction(action, visibleLabels, userGoal, visibleNodes, visibleOcr)
+            return validateSystemUiAction(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)
         }
         return when (action.kind) {
             Kind.OPEN_APP -> if (action.target.isNotBlank() && action.target in allowedAppPackages) Verdict.ALLOW else Verdict.REJECT
@@ -161,7 +161,8 @@ internal object UiAgentPolicy {
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target)) Verdict.REJECT
                 else if (action.kind == Kind.TAP_OCR && isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (action.kind == Kind.TAP_OCR && isRequestedInstallNavigation(action, action.target, userGoal, confirmationMode)) Verdict.ALLOW
-                else if (sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
+                else if (confirmationMode == ConfirmationMode.TRUSTED ||
+                    sessionGrantAllows(confirmationMode, userGoal, action.target)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.SWIPE_OCR -> {
@@ -169,7 +170,7 @@ internal object UiAgentPolicy {
                 if (target == null || !target.gestureBoundsSafe || action.target.isBlank() || target.text != action.target ||
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target) ||
                     action.direction.lowercase() !in setOf("left", "right", "up", "down")) Verdict.REJECT
-                else Verdict.CONFIRM
+                else if (confirmationMode == ConfirmationMode.TRUSTED) Verdict.ALLOW else Verdict.CONFIRM
             }
             Kind.DRAG_OCR -> {
                 val target = visibleOcr.firstOrNull { it.index == action.ocrIndex }
@@ -178,7 +179,7 @@ internal object UiAgentPolicy {
                     target.fingerprint != action.ocrFingerprint || blockedTargets.containsMatchIn(action.target) ||
                     action.fromAnchor.lowercase() !in anchors || action.toAnchor.lowercase() !in anchors ||
                     action.fromAnchor.equals(action.toAnchor, ignoreCase = true)) Verdict.REJECT
-                else Verdict.CONFIRM
+                else if (confirmationMode == ConfirmationMode.TRUSTED) Verdict.ALLOW else Verdict.CONFIRM
             }
             Kind.TAP_TEXT -> {
                 if (action.target.isBlank() || action.target.length > 100 || blockedTargets.containsMatchIn(action.target) ||
@@ -192,7 +193,8 @@ internal object UiAgentPolicy {
                 else if (confirmationMode == ConfirmationMode.USER_REQUESTED_INSTALL &&
                     action.target.trim().equals("Buy", ignoreCase = true)) Verdict.REJECT
                 else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
-                else if (confirmationMode == ConfirmationMode.ALWAYS_ASK || consequential.containsMatchIn(action.target)) Verdict.CONFIRM
+                else if (confirmationMode == ConfirmationMode.ALWAYS_ASK ||
+                    (confirmationMode != ConfirmationMode.TRUSTED && consequential.containsMatchIn(action.target))) Verdict.CONFIRM
                 else Verdict.ALLOW
             }
             Kind.TAP_NODE -> {
@@ -200,7 +202,8 @@ internal object UiAgentPolicy {
                 if (node == null || !node.gestureBoundsSafe || node.password || node.editable || blockedTargets.containsMatchIn(node.label) || node.fingerprint.isBlank() || node.fingerprint != action.nodeFingerprint) Verdict.REJECT
                 else if (isExplicitRequestedInstallTap(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)) Verdict.ALLOW
                 else if (isRequestedInstallNavigation(action, node.label, userGoal, confirmationMode)) Verdict.ALLOW
-                else if (sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
+                else if (confirmationMode == ConfirmationMode.TRUSTED ||
+                    sessionGrantAllows(confirmationMode, userGoal, node.label)) Verdict.ALLOW
                 else Verdict.CONFIRM
             }
             Kind.LONG_PRESS_NODE -> {
@@ -236,7 +239,9 @@ internal object UiAgentPolicy {
                     !UiAgentVisionPolicy.isSafeGesture(
                         gesture, action.x1, action.y1, action.x2, action.y2,
                         screenWidth, screenHeight, density, sensitiveScreen
-                    )) Verdict.REJECT else Verdict.CONFIRM
+                    )) Verdict.REJECT
+                else if (confirmationMode == ConfirmationMode.TRUSTED) Verdict.ALLOW
+                else Verdict.CONFIRM
             }
             Kind.SCROLL -> if (action.direction.lowercase() in setOf("up", "down")) Verdict.ALLOW else Verdict.REJECT
             Kind.SCROLL_UNTIL_FOUND -> {
@@ -386,7 +391,8 @@ internal object UiAgentPolicy {
 
     private fun validateSystemUiAction(
         action: Action, visibleLabels: Collection<String>, userGoal: String,
-        visibleNodes: Collection<VisibleNode>, visibleOcr: Collection<VisibleOcr>
+        visibleNodes: Collection<VisibleNode>, visibleOcr: Collection<VisibleOcr>,
+        confirmationMode: ConfirmationMode
     ): Verdict {
         fun allowed(label: String) =
             isSafeSystemUiLabel(label) && isSystemUiTargetRequested(label, userGoal)
@@ -398,7 +404,9 @@ internal object UiAgentPolicy {
                     node.fingerprint == action.nodeFingerprint && allowed(node.label) &&
                     !node.label.equals("Brightness", true) &&
                     systemUiToggleDirection(userGoal) != 0 &&
-                    !isSystemUiTargetSatisfied(node.label, userGoal)) Verdict.CONFIRM
+                    !isSystemUiTargetSatisfied(node.label, userGoal)) {
+                    if (confirmationMode == ConfirmationMode.TRUSTED) Verdict.ALLOW else Verdict.CONFIRM
+                }
                 else Verdict.REJECT
             }
             Kind.DRAG_NODE -> {
@@ -412,7 +420,9 @@ internal object UiAgentPolicy {
                     node.fingerprint.isNotBlank() && node.fingerprint == action.nodeFingerprint &&
                     node.label.equals("Brightness", true) && allowed(node.label) &&
                     action.fromAnchor.lowercase() in anchors && action.toAnchor.lowercase() in anchors &&
-                    delta != 0 && direction != 0 && delta * direction > 0) Verdict.CONFIRM
+                    delta != 0 && direction != 0 && delta * direction > 0) {
+                    if (confirmationMode == ConfirmationMode.TRUSTED) Verdict.ALLOW else Verdict.CONFIRM
+                }
                 else Verdict.REJECT
             }
             Kind.BACK -> Verdict.ALLOW
