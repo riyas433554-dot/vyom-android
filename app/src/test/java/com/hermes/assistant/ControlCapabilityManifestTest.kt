@@ -36,6 +36,12 @@ class ControlCapabilityManifestTest {
         )
     }
 
+    @Test fun ShizukuLevelTwoDoesNotClaimGenericShellUiInputUntilAdapterExists() {
+        val state = snapshot().copy(powerModeLevel2 = true, shellExecutorUiReady = false)
+        assertEquals(ControlCapabilityManifest.Adapter.ACCESSIBILITY, ControlCapabilityManifest.selectAdapter(state))
+        assertTrue(ControlCapabilityManifest.promptContext(state).contains("generic ShellExecutor UI input is not yet implemented"))
+    }
+
     @Test fun refusesControlWhenAccessibilityOrAppAccessIsMissing() {
         assertEquals(
             ControlCapabilityManifest.Adapter.UNAVAILABLE,
