@@ -67,9 +67,10 @@ internal object PowerModePolicy {
     fun capabilityLevel(
         shizukuRunning: Boolean,
         shizukuAuthorized: Boolean,
+        shizukuUid: Int,
         accessibilityEnabled: Boolean
     ): CapabilityLevel = when {
-        shizukuRunning && shizukuAuthorized -> CapabilityLevel.LEVEL_2
+        shizukuRunning && shizukuAuthorized && shizukuUid == 2000 -> CapabilityLevel.LEVEL_2
         accessibilityEnabled -> CapabilityLevel.LEVEL_1
         else -> CapabilityLevel.LEVEL_0
     }
