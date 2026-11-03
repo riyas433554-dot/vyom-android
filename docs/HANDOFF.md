@@ -1196,3 +1196,177 @@ Branch: `feature/memory-intelligence`
 
 - Counted all 19 Kotlin test files in the feature-branch tree: 177 `@Test` methods are present (including the new encrypted-memory principle test).
 - This is a source inventory only, not a passing-test claim. The exact-head CI and Debug workflows are queued; no test execution result has been observed.
+
+
+---
+
+# AUTHORITATIVE CONTROL / AUTONOMY MATRIX — 2026-11-03
+
+This section is the current acceptance contract and supersedes any older shorthand matrix. Scope remains Android repository only, branch `feature/memory-intelligence`. Never modify Android `main`, Hermes/Telegram, Render, production Supabase, secrets, or deployment.
+
+## SHA and evidence hygiene
+- Always record full 40-character commit SHAs; never abbreviate a SHA in status records.
+- Status vocabulary: `DONE` requires implementation + named automated tests + exact-head green CI + required runtime acceptance; `PARTIAL` requires a named test that proves the limited behavior stated; `UNVERIFIED` means no named proving test or no current evidence; `BLOCKED` means an explicit dependency/safety gate.
+- A test name proves only the behavior it asserts. Source presence, test inventory, compilation, or CI success does not prove physical-device behavior.
+- For every PARTIAL row, record the exact test class/method. If no such test exists, downgrade to UNVERIFIED.
+- Never claim a CI run belongs to a commit unless its head_sha exactly matches that full SHA.
+
+## P1-P8 exact definitions and acceptance
+
+### P1 — Power Mode
+Owner-led, one-time Wireless ADB setup initiated from Termux. Guided steps must support Samsung One UI 8 / Android 16:
+1. Detect Wireless debugging availability and explain that Wi-Fi must be enabled and phone/Termux must be on the same local network.
+2. Pair with the Android Wireless debugging pairing code. Because Samsung may dismiss the pairing-code dialog when switching apps, show split-screen or pop-up-view Termux instructions before the user opens pairing; do not assume the code remains visible.
+3. Detect Samsung Auto Blocker / USB command blocking and show the exact Settings route to disable it temporarily only if it is actually blocking the owner-authorized setup. Never silently toggle it.
+4. Owner runs the pairing/grant commands in Termux; no app silently pairs, grants, or changes global security settings.
+5. Explicit owner-run `pm grant <package> android.permission.WRITE_SECURE_SETTINGS` only after ADB pairing; verify with `pm check-permission`/package permission read-back where supported. Do not assume command success.
+6. Guide owner through required `appops` for overlay and all-files only where the app's declared features require them; read back each mode and display exact state.
+7. Shizuku must be installed, started by the owner, and separately authorized. ShellExecutor must use a strict command allowlist, argument validation, bounded timeouts, output redaction, audit records, and immediate STOP cancellation. No arbitrary shell, root assumption, or silent privilege escalation.
+8. Accessibility service reconnect is attempted only after verified grant and owner action; show actual enabled/connected state, never infer it from an ADB command.
+9. Live read-back checklist and capability table:
+   - Level 0: ordinary app APIs / granted runtime permissions only.
+   - Level 1: Accessibility and explicitly granted special app access; protected/secure surfaces remain blocked.
+   - Level 2: owner-authorized ADB/Shizuku operations, limited to allowlisted commands; still not root and not a bypass for biometrics, OTPs, payment approval, secure windows, Play Protect, or Android security prompts.
+Acceptance: setup wizard accurately detects each state, explains Samsung-specific failure points, supports owner cancellation/STOP, and tests every read-back state. Physical Galaxy A06 validation remains required.
+
+### P2 — Learn Anywhere loop
+Mandatory lifecycle: KNOW-CHECK -> RESEARCH (web_search, web_fetch, GitHub read, Play Store, docs, screen) -> LEARN (Knowledge notes + draft SKILL.md) -> TRY (dry run or low-risk) -> DO -> VERIFY -> SAVE.
+Acceptance test: ask “Instagram mein story kaise lagate hain” when Vyom has no skill. It must discover the gap, research sources, draft/try a safe skill, verify the actual outcome, save the skill and report what it learned. Also ingest:
+- `github.com/adewaskar/jarvis`
+- `github.com/WorldFlowAI/everything-claude-code`
+- `github.com/morluto/rea` — tag as desktop-only; do not imply Android compatibility.
+For each repo, record readable files, unreadable files, license, provenance, security review, extracted concepts, and whether any code was actually copied. Report honestly what was readable.
+
+### P3 — Capability Ledger and self-awareness
+Per skill/action record required permission, actual permission state, last result, success rate, latency, and known failure causes. Inject a compact, bounded capability summary into every relevant prompt. Before saying “I can't”, consult the ledger and runtime capability manifest; name the exact missing permission and the one-tap Power Mode fix when available. Include a “what I know about this phone” map: installed apps and learned UI paths. Stale capability data must be marked stale and refreshed before action.
+
+### P4 — Continuous learning
+Model the continuous-learning pattern from `WorldFlowAI/everything-claude-code`: after any session with 10+ messages or any failure-then-success, extract `error_resolution`, `user_corrections`, `workarounds`, and app-specific UI paths into candidate learned skills. Default “auto-approve learned skills” ON only for non-protected skills; protected/sensitive skills always require review. Provide an editable Learned Skills list, provenance, version, enable/disable, rollback and deletion. Never convert secrets or sensitive personal data into skills.
+
+### P5 — Jarvis brain
+Intent + slots + coreference resolution (including “usse”, “wahi”, “pehle wala”); per-task working memory; plan-act-verify-reflect with explicit step budget, retry budget and loop detection; “ye kya hai” invokes current-screen capture + local vision/OCR + grounded explanation and only acts when asked/authorized. Proactive suggestions are opt-in. Optional “Hey Vyom” wake word is OFF by default and requires explicit microphone/privacy disclosure and owner enablement.
+
+### P6 — Human-like fast voice
+Streaming STT partials, streaming LLM tokens, TTS starts on first complete clause; target first audio <800 ms p50 and <1.5 s p95 measured and shown in Diagnostics (not promised until measured). Semantic end-of-turn; barge-in target <=150 ms; truthful short fillers while a task runs; mirror user's language; do not read Markdown syntax, raw URLs or emoji aloud; cache common phrases; Indian voice default for Hindi/Hinglish. Measure on the actual device/network and report sample count and percentile method.
+
+### P7 — Competitor parity
+Implement comparable product patterns without copying proprietary UI/assets:
+- Gemini: system-wide assistant bubble and ask-about-screen.
+- ChatGPT: interruptible voice, memory manager, Projects, scheduled tasks.
+- Grok: compact composer, personalities, Automations.
+- Claude: skills/connectors list.
+- Perplexity: source chips, follow-up suggestions, Deep research, Spaces.
+Use one consistent line-icon set and no emoji in app chrome. Settings groups: Account / Appearance / Voice / Memory / Skills / Connectors / Permissions / About. Do not mark parity complete where a real capability/backend executor is absent.
+
+### P8 — System-wide floating assistant bubble/orb
+One overlay service shared with A16. Show “How can I help you today?” sheet above other apps, support ask-about-screen with current-screen freshness/privacy gates, and tap-to-expand into full Vyom. Respect overlay permission, foreground service lifecycle, Android background restrictions, per-app exclusions, STOP and owner hide controls. A16 auto-show/hide during control tasks must be implemented in this same service, not a second competing overlay.
+
+## Full ID matrix — current conservative status
+“PARTIAL” below is limited to the named source test and is not device acceptance. “UNVERIFIED” is mandatory wherever no proving test is named.
+
+| ID | Scope | Status | Evidence / remaining acceptance |
+|---|---|---|---|
+| A1 | Play Store publisher/package/version verification | UNVERIFIED | Add publisher identity and package/version tests; real Play Store verification |
+| A2 | Hinglish install routing and APK rejection | UNVERIFIED | Named routing tests required |
+| A3 | Installed-app discovery/open | UNVERIFIED | App discovery/launch tests and device check |
+| A4 | Permission inventory/readiness | PARTIAL | `AndroidPermissionPolicyTest`; verify live Samsung settings/read-back |
+| A5 | UI Agent policy entry points | PARTIAL | `UiAgentPolicyTest`; full entry-point execution tests |
+| A6 | Action postconditions | UNVERIFIED | Add action-specific outcome tests |
+| A7 | Multi-step plan/verify/pause | PARTIAL | `UiAgentPolicyTest`; bounded loop and pause/resume acceptance |
+| A8 | Floating orb controls | UNVERIFIED | Shared overlay service tests + physical overlay |
+| A9 | Special permission/Power Mode inventory | PARTIAL | `AndroidPermissionPolicyTest`; actual ADB/appops/Shizuku read-back |
+| A10 | Hinglish typo-tolerant routing | UNVERIFIED | Named parser tests required |
+| A11 | Runtime capability manifest in prompts | UNVERIFIED | Prompt-injection and stale-ledger tests |
+| A12 | Structured tool-call parsing/execution | UNVERIFIED | Schema validation, dispatch and raw-JSON suppression tests |
+| A13 | Clear-command fast path | UNVERIFIED | Routing tests for clear vs ambiguous instructions |
+| A14 | TRUSTED default / consequential-action confirmation | PARTIAL | `VyomIdentityPolicyTest`; full policy matrix tests |
+| A15 | Persistent task stack/pause/resume/cancel | UNVERIFIED | Persistence/restart/cancel tests |
+| A16 | Auto-show/hide control-task orb | UNVERIFIED | Shared P8 overlay lifecycle tests |
+| M1 | Memory capture/retrieval | PARTIAL | `MemoryCapturePolicyTest`; broader paraphrase/semantic coverage |
+| M2 | Core/episodic/recent memory tiers | UNVERIFIED | Tier isolation and retrieval tests |
+| M3 | Conversation restoration/scroll | UNVERIFIED | Restoration tests |
+| M4 | Context budget/fallback | UNVERIFIED | Budget and truncation regression tests |
+| M5 | Project/scope injection | PARTIAL | `VyomIdentityPolicyTest`; cross-project isolation tests |
+| M6 | 500-fact cap/dedupe/conflict/migration | PARTIAL | `VyomMemoryPrincipleTest`; staging/migration tests |
+| M7 | Project aliases linked to skills | UNVERIFIED | Alias resolution and linking tests |
+| S1 | Procedures/preconditions/outcomes/rollback | UNVERIFIED | Procedure contract tests |
+| S2 | Self-change branch targeting | UNVERIFIED | Branch isolation tests |
+| S3 | Repository analysis/minimal patch | UNVERIFIED | Patch scope and diff tests |
+| S4 | Patch -> tests -> PR -> CI -> artifact/update | UNVERIFIED | End-to-end self-change workflow tests |
+| S5 | Reviewable fixes from audit failures | UNVERIFIED | Review/approval tests |
+| S6 | Release signing validation | UNVERIFIED | Signing fingerprint tests and CI |
+| S7 | Candidate APK certificate continuity | UNVERIFIED | Compare actual candidate and installed/base certificate |
+| T1 | Durable scheduled work/reboot/Doze | UNVERIFIED | WorkManager/AlarmManager behavior tests |
+| T2 | Executors/artifacts/retry/cancel | UNVERIFIED | Executor integration tests |
+| T3 | Task detail/log/result/retry/cancel UI | UNVERIFIED | UI state/action tests |
+| T4 | Queue limit and clipping | UNVERIFIED | Small-screen/large-font tests |
+| T5 | n8n-style workflow canvas/execution | UNVERIFIED | Canvas serialization/execution tests |
+| T6 | Persistent approval UI | BLOCKED | Android approval UI in scope; server-side/Telegram persistence excluded |
+| V1 | Voice state/echo/barge-in | PARTIAL | `VoiceStateMachineTest`; real audio latency/barge-in test |
+| V2 | Hindi/Hinglish/English STT cleanup | PARTIAL | `SttTranscriptCleanerTest`; device transcription tests |
+| V3 | On-device voice latency metrics | UNVERIFIED | Measure p50/p95 on Galaxy A06 |
+| V4 | Beep/custom sound behavior | UNVERIFIED | Audio output tests |
+| V5 | Live model/fallback policy | PARTIAL | `LiveModelPolicyTest`; live provider/fallback verification |
+| V6 | Background/reboot/STOP/mute | PARTIAL | `VoiceStateMachineTest`; device lifecycle tests |
+| V7 | Indian Hindi/Hinglish voice quality | UNVERIFIED | Human listening evaluation |
+| V8 | Language detection/instant greeting | UNVERIFIED | Language-routing tests + device latency |
+| U1 | Orb/home shell | PARTIAL | `VyomDesignSpecTest`; overlay is separate P8 acceptance |
+| U2 | Small screen/large font | UNVERIFIED | Screenshot/layout tests on supported sizes |
+| U3 | Drawer destinations | UNVERIFIED | Destination routing tests |
+| U4 | Design fidelity | PARTIAL | `VyomDesignSpecTest`; screenshot comparison |
+| U5 | Self-change proposal/diff UI | UNVERIFIED | Proposal rendering and approval tests |
+| U6 | Theme tokens | PARTIAL | `VyomDesignSpecTest`; full screen token coverage |
+| U7 | Markdown/code/error rendering | UNVERIFIED | Rendering tests for long and malformed content |
+| U8 | Separate Drawer/Profile destinations | UNVERIFIED | Navigation tests |
+| U9 | Compact Grok-style composer | UNVERIFIED | Composer interaction/layout tests |
+| U10 | Workflow canvas UI | UNVERIFIED | Canvas editing/persistence tests |
+| U11 | Design-board mapping/screenshot comparison | UNVERIFIED | Per-screen visual regression |
+| U12 | Adaptive app icon/splash | UNVERIFIED | Manifest/resource and launcher verification |
+| F1 | Attachments in/out/share receiver | UNVERIFIED | URI permission, preview, send/receive tests |
+| F2 | GitHub/ZIP learning + provenance | UNVERIFIED | P2 repo-ingestion acceptance and license/security tests |
+| F3 | SELF.md/runtime self-model | PARTIAL | `VyomIdentityPolicyTest`; ledger freshness and prompt tests |
+| F4 | Auto-capture + visible facts + 500 cap | PARTIAL | `MemoryCapturePolicyTest`; capture rate/limit UI tests |
+| F5 | GitHub token encryption/masking | UNVERIFIED | Secret storage/log/export redaction tests |
+| F6 | Authenticator/password-manager hard block | PARTIAL | `AppAccessPolicyTest`; actual screen/tap denial tests |
+| P1 | Power Mode owner-led ADB/Shizuku | UNVERIFIED | Implement wizard, permission read-back and Galaxy A06 validation |
+| P2 | Learn Anywhere loop | UNVERIFIED | Instagram story skill acceptance + three-repo ingestion ledger |
+| P3 | Capability ledger/self-awareness | UNVERIFIED | Permission/result/latency ledger and prompt injection tests |
+| P4 | Continuous learning | UNVERIFIED | 10+ message and failure-success extraction tests |
+| P5 | Jarvis brain | UNVERIFIED | Coreference, task memory, loop budget and screen-vision tests |
+| P6 | Human-like fast voice | UNVERIFIED | Measured p50/p95, barge-in and streaming tests |
+| P7 | Competitor parity | UNVERIFIED | Feature-by-feature acceptance; no fake parity |
+| P8 | System-wide assistant bubble | UNVERIFIED | Shared overlay service physical validation |
+| R1 | Normalized coordinate fix | PARTIAL | `UiAgentVisionPolicyTest.normalizedCoordinatesMapToScreenPixels`; see CI record below |
+| R2 | Handoff matrix commit | DONE | This commit; verify commit SHA after push |
+| R3 | Package/version/signing identity | UNVERIFIED | Manifest + certificate continuity verification |
+| R4 | Diagnostics/PHONE_TEST_GUIDE | UNVERIFIED | Diagnostics tests and device-specific guide |
+
+## Exact CI record for coordinate checkpoint
+- Commit: `9ba2cc7f5e3c4a5a5385f7f569d04828c4041399`.
+- Android CI run `41553588741`: SUCCESS on exact SHA. Secret scan, unit tests/debug APK build, checksum packaging and artifact upload passed.
+- Debug workflow run `41553588766`: FAILED on exact SHA at packaging step 8, after Gradle debug/release build succeeded. Exact failure: `Could not extract a valid SHA-256 signing certificate fingerprint.` The workflow's `apksigner verify --verbose --print-certs` output did not match the parser's expected line format; no artifact uploaded. This is a packaging/certificate-parser failure, NOT a failing unit test. No exact test failure was reported for this SHA.
+- Current branch head at time of this update: `9ba2cc7f5e3c4a5a5385f7f569d04828c4041399`.
+- No APK from this checkpoint is approved for delivery. Fix certificate fingerprint extraction, rerun exact-head CI/debug, and verify artifact and certificate before final APK.
+
+## Mandatory implementation order
+1. P1 Power Mode.
+2. Authorization + structured tool-call execution (A12-A14).
+3. UI Agent / Play Store install / send-message skills (A1-A7, A15-A16).
+4. Learn Anywhere + provenance ledger + self-model (P2-P3, F2-F3).
+5. Continuous learning + memory (P4, M1-M7, F4).
+6. Attachments (F1).
+7. Jarvis brain, navigation/composer/canvas/design and competitor parity (P5, U1-U12, T5, P7).
+8. Human-like voice (P6, V1-V8).
+9. One shared system-wide floating overlay (P8 + A8 + A16).
+10. Diagnostics + refreshed Galaxy A06 PHONE_TEST_GUIDE (R4).
+11. One final APK only after all required work, exact-head green CI, artifact checksum, package/version and signing-certificate verification. No interim APK delivery.
+
+## Galaxy A06 device profile
+- Product: Samsung Galaxy A06; model SM-A065F/DS.
+- One UI 8.0; Android 16.
+- Firmware: A065FXXUECZI1 / A065FOJMECZI1 / A065FXXUECZI1.
+- Security patch: 2026-07-05.
+- Wireless debugging requires Wi-Fi; same-network and pairing-dialog handling must be explicit.
+- Pairing dialog may disappear when switching apps: instruct split-screen or Samsung pop-up view for Termux before opening the pairing dialog.
+- Detect Samsung Auto Blocker and explain its exact user-controlled setting; do not silently disable it.
+- Device test is pending; firmware profile is user-supplied and not a substitute for runtime validation.
