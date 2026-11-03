@@ -1,3 +1,14 @@
+### M1 / P1 Power Mode read-back and termination checkpoint — 2026-11-03
+- Process termination regression on source SHA `fad60e3106139f1cd63bbe58e64c7904b6e67a14`: Debug `41592559997` and Full CI `41592559989` both FAILED at `:app:testDebugUnitTest`; 221 tests completed, one failed: `ShizukuProcessTerminationTest.teardownSnapshotAndLateStartupCannotLeaveAnUntrackedProcessRunning`.
+- Correction commit `4840b2e06f2bba415075234a36402453a51860e0`: after force-kill, the terminator now also checks process liveness; a confirmed-dead child is not incorrectly reported as still running when the bounded wait callback returns false.
+- Added `PowerModeReadbackPolicyTest` for exact successful `pm check-permission` output, explicit overlay app-op allow vs default/denied, exact Accessibility global 0/1, and exact Vyom component membership. Test commit `882e2a7b3c76dc624e9a591aa0141c9f04ed7796`.
+- Added `PowerModeReadbackPolicy.kt` and wired Power Mode read-back buttons to display interpreted GRANTED/DENIED/ALLOWED/BLOCKED/ENABLED/DISABLED/UNKNOWN states rather than presenting raw shell output as proof. Source commits: `ffc84e775c594135ce813eb72aae7c082fda0acc`, `69fd02d289971451844aefd1614953b82c3131d3`.
+- Debug `41594969989` and Full CI `41594969891` target exact source SHA `69fd02d289971451844aefd1614953b82c3131d3`; both were IN_PROGRESS at this checkpoint. These do not cover the documentation commit below; exact final-head CI is still required.
+- P1 remains PARTIAL. No feature/acceptance ID rows changed. No physical Galaxy A06 Shizuku, permission-revocation or STOP timing acceptance is claimed. No APK delivered.
+- Next: exact-head CI after this checkpoint; then complete the remaining P1 live Level 0/1/2 + secure-settings/app-op read-back and owner STOP/permission-revocation acceptance before starting A12.
+
+---
+
 ### P1 Shizuku force-kill exit read-back correction — 2026-11-03
 - Verified failing source SHA: `fad60e3106139f1cd63bbe58e64c7904b6e67a14`; Debug run `41592559997` and Full CI run `41592559989` both FAILED in `:app:testDebugUnitTest`.
 - Real failure: `ShizukuProcessTerminationTest.teardownSnapshotAndLateStartupCannotLeaveAnUntrackedProcessRunning` (221 tests, 1 failed). The helper called force-kill, but returned only the bounded wait result; if the process was already dead while the wait callback returned false, it incorrectly reported failure.
