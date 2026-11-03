@@ -28,16 +28,14 @@ internal class VyomFactoryTaskStore(context: Context) {
         require(task.priority in setOf("P0", "P1", "P2", "P3"))
         require(task.sourceId.isNotBlank() && task.sourceId.length <= 160)
         val current = readAll().toMutableList()
-        if (current.any { it.issueNumber == task.issueNumber || it.sourceId == task.sourceId }) return false
+        if (!VyomFactoryTaskQueuePolicy.isUnique(current, task)) return false
         current += task
         persist(current)
         return true
     }
 
     @Synchronized
-    fun pending(): List<QueuedTask> = readAll().sortedWith(
-        compareBy<QueuedTask> { it.priorityRank() }.thenBy { it.enqueuedAt }
-    )
+    fun pending(): List<QueuedTask> = VyomFactoryTaskQueuePolicy.order(readAll())
 
     @Synchronized
     fun remove(issueNumber: Int): Boolean {
@@ -50,13 +48,6 @@ internal class VyomFactoryTaskStore(context: Context) {
 
     @Synchronized
     fun contains(issueNumber: Int): Boolean = readAll().any { it.issueNumber == issueNumber }
-
-    private fun QueuedTask.priorityRank() = when (priority) {
-        "P0" -> 0
-        "P1" -> 1
-        "P2" -> 2
-        else -> 3
-    }
 
     private fun readAll(): List<QueuedTask> {
         val raw = prefs.getString(KEY_QUEUE, null) ?: return emptyList()
