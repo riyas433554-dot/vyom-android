@@ -18,7 +18,11 @@ internal object SelfModificationPolicy {
         "VoiceForegroundService.kt",
         "VyomAccessibilityService.kt",
         "SelfModificationPolicy.kt",
-        "SelfModificationClient.kt"
+        "SelfModificationClient.kt",
+        "UpdateVerifier.kt",
+        "VyomUpdateClient.kt",
+        "SigningConfig.kt",
+        "ReleaseSigning.kt"
     )
 
     fun isAllowedPath(path: String): Boolean {
@@ -28,7 +32,7 @@ internal object SelfModificationPolicy {
         if (fileName in protectedFileNames) return false
         val lower = path.lowercase()
         if (listOf("policy", "audit", "kill", "control", "accessibilityservice", "deviceactionexecutor",
-                "voiceforegroundservice", "selfmodification").any { it in lower }) return false
+                "voiceforegroundservice", "selfmodification", "update", "signing", "keystore").any { it in lower }) return false
         return true
     }
 

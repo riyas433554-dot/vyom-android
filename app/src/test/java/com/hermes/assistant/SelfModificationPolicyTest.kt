@@ -16,6 +16,8 @@ class SelfModificationPolicyTest {
         assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/DeviceActionExecutor.kt"))
         assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/VoiceForegroundService.kt"))
         assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/SelfModificationPolicy.kt"))
+        assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/UpdateVerifier.kt"))
+        assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/ReleaseSigning.kt"))
     }
 
     @Test fun rejectsTraversalAndNonSourcePaths() {
