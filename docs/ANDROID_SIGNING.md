@@ -59,3 +59,11 @@ The workflows now prefer repository secret `VYOM_RELEASE_TOKEN` and fall back to
 2. Add a fine-grained PAT as Actions secret `VYOM_RELEASE_TOKEN`, restricted to this repository with **Contents: Read and write**.
 
 The Debug workflow uploads the CI artifact before attempting GitHub Release creation, so the signed APK/checksum/certificate report remain available even if release publication is still denied. Do not expose the token in logs or chat.
+
+## GITHUB_TOKEN-only release publishing — 2026-11-03
+
+Both signed publishing jobs explicitly declare job-level `permissions: contents: write` and pass only `${{ secrets.GITHUB_TOKEN }}` to the GitHub Release action. The previous optional `VYOM_RELEASE_TOKEN` personal-token fallback has been removed. Keystore and signing values continue to come only from Android signing repository secrets; no personal GitHub token is embedded in YAML.
+
+If GitHub still returns HTTP 403 `Resource not accessible by integration`, open this repository's **Settings → Actions → General → Workflow permissions**, select **Read and write permissions**, and Save. Re-run the workflow after changing the setting. Do not create or add a PAT for release publishing.
+
+On source SHA `20ad49186ed2a58f804873be98f5f88181cb5d5c`, Debug run `41623371371` and Full CI run `41623371384` succeeded, including the signed release publish step. That success predates the latest explicit job-level permission-only commits; exact-head CI for the current branch head remains the acceptance proof.
