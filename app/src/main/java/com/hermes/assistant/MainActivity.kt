@@ -2188,11 +2188,8 @@ class MainActivity : Activity() {
             .show()
     }
 
+    /** Owner-tapped Settings navigation remains available while STOP is active so permissions can be repaired. */
     private fun performControlAction(label: String, action: String, data: Uri? = null) {
-        if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
-            logControlAction(label, "blocked-by-kill-switch", "app")
-            return
-        }
         val intent = if (action == "app-details") {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         } else {
