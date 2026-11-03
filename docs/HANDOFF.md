@@ -2080,3 +2080,35 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. Add isolated task execution branches/worktrees and safe conflict serialization before parallel execution.
 4. Build repository/skill intake with pinned revisions, licence/security review and validation.
 5. Wire persisted run/events into Factory UI. Schedules and always-on claims only after an actual runner/heartbeat exists.
+
+
+## Owner confirmation — Termux canonical status rendering (2026-11-03)
+
+### Owner-run result after updating the Termux adapter
+- Owner downloaded the current branch version of `scripts/vyom-factory.sh` to `~/bin/vyom-factory`.
+- `chmod 700 ~/bin/vyom-factory` completed without error.
+- `bash -n ~/bin/vyom-factory` completed with no syntax error.
+- Owner first typed `~/bin/vyom-factory lis`; the CLI correctly printed usage and `ERROR: Unknown command: lis`. This is a user command typo, not a script failure.
+- Owner then ran the correct command `~/bin/vyom-factory list`. Actual output:
+  `8  in_progress  P2  [VYOM FACTORY][P2] TEST - Factory integration updated  https://github.com/riyas433554-dot/vyom-android/issues/8`
+- This confirms the updated CLI is installed on the owner's Termux and displays Factory metadata status and priority in the intended columns.
+
+### Important reconciliation — test issue #8
+- Independent GitHub API read at 2026-11-03 confirmed Issue #8 has GitHub issue state `closed`, while the Factory metadata rendered by the CLI is `in_progress` / P2.
+- Therefore the earlier note saying issue #8 was "closed as completed" is only true for GitHub's issue state; the Factory status metadata was NOT transitioned to `completed`. Treat this as a test-data inconsistency, not an active worker task and not a successful completion event.
+- Do not silently rewrite this history. Before using issue #8 for further acceptance, reconcile it explicitly (set Factory metadata to `completed` with an audit event, or mark it as a cancelled test record) and verify both GitHub state and Factory metadata. Keep the CLI's display based on Factory metadata, because GitHub open/closed is not the Factory lifecycle.
+- This mismatch exposes an acceptance requirement: the app/CLI must visibly distinguish the Factory lifecycle from GitHub issue state and must not imply a worker is running merely because metadata says `in_progress`. A later worker implementation must bind `in_progress` to a real claimed run/lease/heartbeat.
+
+### CI state at this checkpoint
+- Exact branch HEAD before this documentation-only checkpoint: `f3868bb85861d584fcc3eca8014959ae160becb6`.
+- Debug run `41659785640`: still `in_progress` when checked.
+- Full CI run `41659785658`: still `in_progress` when checked.
+- Neither run is green yet; do not infer success from elapsed time. Re-check both against their exact source SHA after this docs commit and inspect job logs for any failure.
+- No APK delivered and no acceptance milestone declared complete.
+
+### Carry-forward rules (do not drop)
+1. Preserve this owner-run Termux output and the issue #8 metadata/GitHub-state discrepancy in future handoffs.
+2. After every meaningful implementation batch, update `docs/HANDOFF.md` with source SHA(s), exact tests, workflow run IDs/results, owner/device evidence, unresolved contradictions and next ordered item. Keep controlling order and `MASTER_ORDERS` synchronized whenever the controlling plan changes.
+3. Separate code implemented, automated test passed, GitHub workflow passed, owner phone-tested, and production accepted. These are different evidence levels.
+4. Never label a Factory task `running` without a real worker run ID plus live lease/heartbeat; never label it `completed` without verified outputs/tests and an append-only completion event.
+5. Continue only on `feature/memory-intelligence`; do not touch Android `main`, Render, Hermes backend or production Supabase. No APK until all M1 gates and exact-head CI are satisfied.
