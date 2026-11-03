@@ -2328,3 +2328,37 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. If Android retry test passes, add tests for no-match POST and multiple-page issue lookup. Then document that concurrent create race remains.
 4. Implement cross-source atomic dedupe only with an approved durable transactional store; production Supabase/backend remain off-limits.
 5. Do not add executor workflows until task schema, untrusted input handling, credential scoping, branch isolation, lease/heartbeat, cancellation and verified completion are addressed.
+
+
+## Debug CI investigation: real Gradle failure and API URL fix — 2026-11-03
+
+### User asked whether long-running Debug CI was actually working
+- Inspected GitHub Actions job steps and logs rather than assuming it was stuck.
+- Full CI `41664216657` for SHA `30b7838903448060620d832ac39443b39bce9011` completed SUCCESS.
+- Debug workflow `41664216559` for the same SHA showed JDK/Gradle setup complete and `Build and test APKs` running. GitHub log archive for the still-running job was not downloadable at that moment; do not interpret that as no work.
+- PR #11 had two completed Debug checks, both FAILED in `testDebugUnitTest`. Exact test output: 300 tests completed, 1 failed; `VyomFactoryGitHubClientTest > duplicateCreateRetryReturnsExistingTaskWithoutMutation FAILED`, `IllegalArgumentException at VyomFactoryGitHubClientTest.kt:37`.
+
+### Root cause found in source (not merely a test-only issue)
+- Inspected exact test line and production `VyomFactoryGitHubClient.execute()`.
+- The injectable API URL had been written as string concatenation that generated literal `$"+"{base}` / `$"+"{repository}` text, not Kotlin interpolation. This produced an invalid HTTP URL and explains the IllegalArgumentException.
+- Corrected to normal Kotlin interpolation:
+  - `"${base}/repos/${repository}"`
+  - `"${base}/user"`
+  - `"${base}/repos/${repository}/${normalized}"`
+- Fix committed to feature branch: `b46d0797377900fa58d11ea53bd755332a7a91aa`. This is a production code bug introduced by the testability change; it is not waived as a test-only issue.
+
+### PR handling
+- PR #11 closed without merge after the failure and because it was based on the earlier feature head.
+- PR #12 created on top of corrected feature HEAD, exact one-file diff (54 additions, 0 deletions), test commit `7d67adf73a630243a11268e8b3cd54147808cf0a`.
+- PR #12 repeats the MockWebServer test with local API URL. Wait for its real Gradle result. Do not merge before green.
+
+### Verification still pending
+- Need exact-head Full CI and Debug CI for feature branch after `b46d079...` and the subsequent HANDOFF commit.
+- Need PR #12 Debug checks. The previous PR #11 failure must remain recorded; do not erase it.
+- No APK has been delivered. No local Termux or physical Android test has been performed. No worker implementation claimed.
+
+### Next steps
+1. Inspect exact-head CI and PR #12 Gradle logs. Confirm API URL now points to MockWebServer and same-key retry performs GET only.
+2. If test passes, add test cases for no matching idempotency key -> one POST and for issue pagination; then run full suite.
+3. Keep read-before-create concurrency race explicitly open; do not claim atomic idempotency.
+4. Update HANDOFF after each verified batch. Keep main, Render, backend and production Supabase untouched.
