@@ -12,7 +12,10 @@ internal object AndroidPermissionPolicy {
         MICROPHONE,
         CAMERA,
         NOTIFICATIONS,
-        WRITE_SYSTEM_SETTINGS
+        WRITE_SYSTEM_SETTINGS,
+        PLANNER,
+        UI_AGENT_SKILL,
+        STOP_CONTROL
     }
 
     enum class GrantState { GRANTED, NEEDS_SYSTEM_APPROVAL }
@@ -32,12 +35,18 @@ internal object AndroidPermissionPolicy {
     fun readiness(
         accessibilityEnabled: Boolean,
         masterAppAccess: Boolean,
-        allowedTargetApps: Int
+        allowedTargetApps: Int,
+        plannerReady: Boolean = true,
+        uiAgentEnabled: Boolean = true,
+        stopControlOn: Boolean = false
     ): Readiness {
         val missing = linkedSetOf<Requirement>()
         if (!accessibilityEnabled) missing += Requirement.ACCESSIBILITY
         if (!masterAppAccess) missing += Requirement.APP_ACCESS_MASTER
         if (allowedTargetApps <= 0) missing += Requirement.ALLOWED_TARGET_APP
+        if (!plannerReady) missing += Requirement.PLANNER
+        if (!uiAgentEnabled) missing += Requirement.UI_AGENT_SKILL
+        if (stopControlOn) missing += Requirement.STOP_CONTROL
         return Readiness(missing.isEmpty(), missing)
     }
 
