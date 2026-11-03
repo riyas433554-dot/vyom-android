@@ -31,17 +31,23 @@ internal object UiBundleIntegrity {
                     lower.contains("default-src 'self'") &&
                     lower.contains("script-src 'self'") &&
                     !Regex("(?i)<(iframe|object|embed)\\b").containsMatchIn(content) &&
-                    !Regex("(?i)(src|href)\\s*=\\s*['\\\"]https?://").containsMatchIn(content)
+                    !Regex("(?i)(src|href)\\s*=\\s*['\\\"]https?://").containsMatchIn(content) &&
+                    !Regex("(?i)\\son[a-z]+\\s*=").containsMatchIn(content) &&
+                    !content.contains("javascript:", ignoreCase = true) &&
+                    !content.contains("data:text/html", ignoreCase = true)
             }
             "styles.css" -> !Regex("(?i)@import\\s+url\\s*\\(\\s*['\\\"]?https?://").containsMatchIn(content) &&
-                !Regex("(?i)url\\s*\\(\\s*['\\\"]?https?://").containsMatchIn(content)
+                !Regex("(?i)url\\s*\\(\\s*['\\\"]?https?://").containsMatchIn(content) &&
+                !content.contains("expression(", ignoreCase = true) &&
+                !content.contains("-moz-binding", ignoreCase = true)
             "app.js" -> {
                 val lower = content.lowercase()
                 val forbidden = listOf(
                     "eval(", "new function(", "fetch(", "xmlhttprequest",
                     "websocket", "import(", "sendbeacon(", "document.cookie",
                     "localstorage", "sessionstorage", "indexeddb", "window.open(",
-                    "location.href", "location.assign("
+                    "location.href", "location.assign(", "window.location", "document.location",
+                    "document.write(", "javascript:"
                 )
                 forbidden.none { it in lower } && !content.contains("Function(")
             }

