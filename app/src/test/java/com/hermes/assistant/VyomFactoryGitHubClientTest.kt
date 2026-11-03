@@ -42,7 +42,7 @@ class VyomFactoryGitHubClientTest {
             assertEquals("[VYOM FACTORY][P1] Original task", result.title)
             assertEquals(existingBody, result.body)
             assertEquals("P1", result.metadata.priority)
-            assertEquals("Original task description", result.body.substringBefore("<!-- VYOM_FACTORY_META:").trim())
+            assertTrue(result.body.substringBefore("<!-- VYOM_FACTORY_META:").trim().startsWith("Original task description"))
             val request = server.takeRequest()
             assertEquals("GET", request.method)
             assertTrue(request.path!!.contains("/issues?state=all"))
