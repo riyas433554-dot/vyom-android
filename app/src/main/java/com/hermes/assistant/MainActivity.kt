@@ -3515,16 +3515,43 @@ class MainActivity : Activity() {
     }
 
     private fun fetchLatestUpdateManifest(): JSONObject {
-        val release = JSONObject(readHttpsText("https://api.github.com/repos/riyas433554-dot/vyom-android/releases/latest", 128 * 1024))
-        val assets = release.optJSONArray("assets") ?: throw IllegalStateException("Release assets missing")
-        var manifestUrl: String? = null
-        for (i in 0 until assets.length()) {
-            val asset = assets.optJSONObject(i) ?: continue
-            if (asset.optString("name") == "vyom-update.json") manifestUrl = asset.optString("browser_download_url")
+        val releases = JSONArray(readHttpsText(
+            "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30",
+            512 * 1024
+        ))
+        var newest: JSONObject? = null
+        var newestVersionCode = BuildConfig.VERSION_CODE
+        for (index in 0 until releases.length()) {
+            val release = releases.optJSONObject(index) ?: continue
+            if (release.optBoolean("draft", false)) continue
+            val assets = release.optJSONArray("assets") ?: continue
+            var manifestUrl: String? = null
+            for (assetIndex in 0 until assets.length()) {
+                val asset = assets.optJSONObject(assetIndex) ?: continue
+                if (asset.optString("name") == "vyom-update.json") {
+                    manifestUrl = asset.optString("browser_download_url")
+                    break
+                }
+            }
+            val url = manifestUrl ?: continue
+            validateReleaseUrl(url)
+            val manifest = JSONObject(readHttpsText(url, 64 * 1024))
+            val versionCode = manifest.optInt("versionCode", 0)
+            val checksum = manifest.optString("sha256").lowercase(Locale.ROOT)
+            val certificate = manifest.optString("certificateSha256").lowercase(Locale.ROOT)
+            val commit = manifest.optString("commit")
+            val apkUrl = manifest.optString("apk")
+            if (versionCode <= newestVersionCode) continue
+            if (!checksum.matches(Regex("^[a-f0-9]{64}$"))) continue
+            if (!certificate.matches(Regex("^[a-f0-9]{64}$"))) continue
+            if (!commit.matches(Regex("^[a-f0-9]{40}$"))) continue
+            validateReleaseUrl(apkUrl)
+            newest = manifest
+            newestVersionCode = versionCode
         }
-        val url = manifestUrl ?: throw IllegalStateException("Signed update manifest not published")
-        validateReleaseUrl(url)
-        return JSONObject(readHttpsText(url, 64 * 1024))
+        return newest ?: JSONObject()
+            .put("versionCode", BuildConfig.VERSION_CODE)
+            .put("versionName", BuildConfig.VERSION_NAME)
     }
 
     private fun downloadVerifiedUpdate() {
@@ -3550,6 +3577,13 @@ class MainActivity : Activity() {
                     ?: throw IllegalStateException("Downloaded file is not an APK")
                 if (archive.packageName != packageName) throw IllegalStateException("APK package does not match Vyom")
                 if (packageVersionCode(archive) != versionCode.toLong()) throw IllegalStateException("APK version does not match manifest")
+                val expectedCertificate = manifest.optString("certificateSha256").lowercase(Locale.ROOT)
+                if (!expectedCertificate.matches(Regex("^[a-f0-9]{64}$"))) {
+                    throw IllegalStateException("Update manifest is missing its signing certificate fingerprint")
+                }
+                if (expectedCertificate !in signerFingerprintSet(archive)) {
+                    throw IllegalStateException("APK signing certificate does not match the signed update manifest")
+                }
                 if (!sameSigningCertificate(archive)) throw IllegalStateException("APK signing certificate does not match installed Vyom")
                 val rollbackUri = backupCurrentApkForRollback()
                 runOnUiThread {
@@ -3772,9 +3806,27 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     private fun legacySignerSet(info: PackageInfo): List<String> = info.signatures?.map { it.toCharsString() }?.sorted().orEmpty()
 
+    private fun signerFingerprintSet(info: PackageInfo): List<String> {
+        val signatures = if (Build.VERSION.SDK_INT >= 28) {
+            info.signingInfo?.apkContentsSigners?.toList().orEmpty()
+        } else {
+            legacySignatures(info)
+        }
+        return signatures.map { signature ->
+            MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        }.sorted()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun legacySignatures(info: PackageInfo): List<android.content.pm.Signature> =
+        info.signatures?.toList().orEmpty()
+
     private fun sameSigningCertificate(archive: PackageInfo): Boolean {
         val current = packageManager.getPackageInfo(packageName, packageInfoFlags())
-        return signerSet(current).isNotEmpty() && signerSet(current) == signerSet(archive)
+        val installedCertificates = signerFingerprintSet(current)
+        val candidateCertificates = signerFingerprintSet(archive)
+        return installedCertificates.isNotEmpty() && installedCertificates == candidateCertificates
     }
 
     private fun createTask() {
