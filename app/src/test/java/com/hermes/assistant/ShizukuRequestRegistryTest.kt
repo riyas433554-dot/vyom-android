@@ -7,8 +7,10 @@ class ShizukuRequestRegistryTest {
     @Test fun stopBeforeExecuteRejectsTheRequest() {
         val registry = ShizukuRequestRegistry()
         assertTrue(registry.cancel("req-1"))
+        assertTrue(registry.cancel("req-1")) // STOP is idempotent before execute.
         assertEquals(ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START, registry.begin("req-1"))
-        assertTrue(registry.isCancelled("req-1"))
+        assertEquals(ShizukuRequestRegistry.State.COMPLETED, registry.state("req-1"))
+        assertEquals(ShizukuRequestRegistry.Begin.DUPLICATE, registry.begin("req-1"))
     }
 
     @Test fun stopDuringStartupPreventsTransitionToRunning() {
