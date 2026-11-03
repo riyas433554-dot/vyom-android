@@ -32,6 +32,14 @@ internal class VyomFactoryDialog(
     private fun dp(value: Int) = (value * density).toInt()
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            if (::dialog.isInitialized && dialog.isShowing && token.isNotBlank()) {
+                refresh()
+                main.postDelayed(this, 15_000)
+            }
+        }
+    }
     private val client by lazy { VyomFactoryGitHubClient(token) }
     private lateinit var dialog: Dialog
     private lateinit var status: TextView
@@ -147,7 +155,10 @@ internal class VyomFactoryDialog(
         root.addView(footer)
 
         dialog.setContentView(root)
-        dialog.setOnDismissListener { worker.shutdownNow() }
+        dialog.setOnDismissListener {
+            main.removeCallbacks(refreshRunnable)
+            worker.shutdownNow()
+        }
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
@@ -165,6 +176,7 @@ internal class VyomFactoryDialog(
             })
         } else {
             refresh()
+            main.postDelayed(refreshRunnable, 15_000)
         }
     }
 
