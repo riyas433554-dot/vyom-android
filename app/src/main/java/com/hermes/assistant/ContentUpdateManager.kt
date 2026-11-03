@@ -112,8 +112,12 @@ internal class ContentUpdateManager(private val context: Context) {
             }
         )
         if (result.passed) {
-            try { syncUiBundleToUiHost(manifest.version) }
-            catch (error: Exception) {
+            try {
+                syncUiBundleToUiHost(manifest.version)
+                val expectedPresence = manifest.probes.firstOrNull { it.kind == ContentProbeKind.PRESENCE }?.expected.orEmpty()
+                context.getSharedPreferences(CONTENT_PREFS, Context.MODE_PRIVATE).edit()
+                    .putString("expected_${manifest.version}", expectedPresence).apply()
+            } catch (error: Exception) {
                 store.rollback()
                 throw IllegalStateException("Content slot activated but UI host rejected it; previous slot restored", error)
             }
@@ -143,6 +147,12 @@ internal class ContentUpdateManager(private val context: Context) {
     }
 
     fun history(): List<String> = store.history()
+    fun activePresenceExpectation(): String {
+        val version = activeVersion()
+        if (version.isBlank()) return ""
+        return context.getSharedPreferences(CONTENT_PREFS, Context.MODE_PRIVATE)
+            .getString("expected_$version", "").orEmpty()
+    }
 
     /** A second uncaught process crash in 60 seconds restores the previous content slot. */
     fun installCrashRollbackHandler() {
@@ -231,5 +241,6 @@ internal class ContentUpdateManager(private val context: Context) {
     companion object {
         private const val RELEASES_API = "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30"
         private const val MAX_PACKAGE_BYTES = 10 * 1024 * 1024
+        private const val CONTENT_PREFS = "vyom_content_update"
     }
 }
