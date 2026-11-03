@@ -23,6 +23,18 @@ class AccessibilityReconnectPolicyTest {
         assertFalse(AccessibilityReconnectPolicy.isEnabled(other, vyom))
     }
 
+    @Test fun effectiveStateRequiresGlobalAccessibilityFlagAndVyomComponent() {
+        assertFalse(AccessibilityReconnectPolicy.isEffectivelyEnabled(false, "$vyom", vyom))
+        assertFalse(AccessibilityReconnectPolicy.isEffectivelyEnabled(true, other, vyom))
+        assertFalse(AccessibilityReconnectPolicy.isEffectivelyEnabled(false, other, vyom))
+        assertTrue(AccessibilityReconnectPolicy.isEffectivelyEnabled(true, "$other:$vyom", vyom))
+    }
+
+    @Test fun effectiveStateRejectsNullAndMalformedComponents() {
+        assertFalse(AccessibilityReconnectPolicy.isEffectivelyEnabled(true, null, vyom))
+        assertFalse(AccessibilityReconnectPolicy.isEffectivelyEnabled(true, "$vyom", "invalid"))
+    }
+
     @Test fun malformedComponentIsRejectedWithoutChangingExistingServices() {
         assertNull(AccessibilityReconnectPolicy.mergeEnabledServices(other, "bad:component"))
         assertNull(AccessibilityReconnectPolicy.mergeEnabledServices(other, ""))

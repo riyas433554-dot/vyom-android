@@ -49,6 +49,37 @@ class ShizukuRequestRegistryTest {
         assertEquals(ShizukuRequestRegistry.Begin.CAPACITY_REACHED, registry.begin("active-c"))
     }
 
+    @Test fun concurrentBeginAndStopNeverLoseCancellationOrExceedCapacity() {
+        val registry = ShizukuRequestRegistry(maxEntries = 32)
+        val start = java.util.concurrent.CountDownLatch(1)
+        val done = java.util.concurrent.CountDownLatch(64)
+        val accepted = java.util.concurrent.atomic.AtomicInteger()
+        repeat(32) { index ->
+            Thread {
+                start.await()
+                if (registry.begin("race-$index") == ShizukuRequestRegistry.Begin.ACCEPTED) {
+                    accepted.incrementAndGet()
+                }
+                done.countDown()
+            }.start()
+            Thread {
+                start.await()
+                registry.cancel("race-$index")
+                done.countDown()
+            }.start()
+        }
+        start.countDown()
+        assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(accepted.get() <= 32)
+        repeat(32) { index ->
+            val state = registry.state("race-$index")
+            assertTrue(state == null ||
+                state == ShizukuRequestRegistry.State.CANCELLED_BEFORE_START ||
+                state == ShizukuRequestRegistry.State.CANCEL_REQUESTED ||
+                state == ShizukuRequestRegistry.State.STARTING)
+        }
+    }
+
     @Test fun completedHistoryIsBoundedWithoutClearingActiveRequests() {
         val registry = ShizukuRequestRegistry(maxEntries = 2)
         registry.begin("active")
