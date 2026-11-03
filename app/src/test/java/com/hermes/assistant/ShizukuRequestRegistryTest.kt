@@ -73,10 +73,12 @@ class ShizukuRequestRegistryTest {
         assertTrue(accepted.get() <= 32)
         repeat(32) { index ->
             val state = registry.state("race-$index")
-            assertTrue(state == null ||
-                state == ShizukuRequestRegistry.State.CANCELLED_BEFORE_START ||
-                state == ShizukuRequestRegistry.State.CANCEL_REQUESTED ||
-                state == ShizukuRequestRegistry.State.STARTING)
+            // STOP first: begin consumes the tombstone into COMPLETED.
+            // Begin first: STOP leaves the request CANCEL_REQUESTED.
+            assertTrue(
+                state == ShizukuRequestRegistry.State.COMPLETED ||
+                    state == ShizukuRequestRegistry.State.CANCEL_REQUESTED
+            )
         }
     }
 

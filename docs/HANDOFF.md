@@ -1,3 +1,12 @@
+### Exact-head CI race-test correction — 2026-11-03
+- Exact source SHA: `806fa49ae8daefb41759ae13642992de73764d95`.
+- Debug run `41576923369` FAILED in `:app:testDebugUnitTest`: `ShizukuRequestRegistryTest.concurrentBeginAndStopNeverLoseCancellationOrExceedCapacity`, assertion at line 76. 207 tests ran; one failed. Kotlin compilation and APK packaging reached completion before the test task failed. Full CI run `41576923374` was still in progress at the time of this update.
+- Root cause is the test's invalid expected-state set, not a registry defect: when STOP creates a pre-start tombstone and begin subsequently consumes it, the specified registry transition is `CANCELLED_BEFORE_START -> COMPLETED`. The test incorrectly rejected this valid terminal state.
+- Correction: assert the two valid outcomes only: STOP wins first => COMPLETED; begin wins first => CANCEL_REQUESTED. No production behavior is weakened.
+- Next: exact-head Debug + Full CI; then continue P1 live capability matrix and remaining Shizuku lifecycle acceptance. P1 remains PARTIAL; no APK delivered.
+
+---
+
 ### P1 effective Accessibility read-back — 2026-11-03
 - Test-first source SHA: `8a6e694181beddbffffb808c8c46775db65abf78`.
 - Exact-head Full CI run `41576567452` FAILED in `:app:compileDebugUnitTestKotlin`: six unresolved-reference diagnostics at `AccessibilityReconnectPolicyTest.kt:27-35` for missing `AccessibilityReconnectPolicy.isEffectivelyEnabled`. The production source compiled; secret scan passed. The Debug workflow `41576567444` was still in progress at the time of this correction.

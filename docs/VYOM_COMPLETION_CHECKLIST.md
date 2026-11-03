@@ -164,3 +164,9 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Exact-head Debug and Full CI green after this correction; no pass claimed until both complete on the same commit.
 - [ ] Complete live Level 0/1/2 capability read-back matrix and P1 Shizuku UserService lifecycle/STOP/audit + owner permission revocation acceptance.
 - P1 remains PARTIAL. No physical-device acceptance or APK delivery is implied.
+
+
+### Shizuku concurrent STOP race-test correction — 2026-11-03
+- [x] Correct the concurrent test's terminal-state oracle: STOP-before-begin must end COMPLETED after tombstone consumption; begin-before-STOP must end CANCEL_REQUESTED.
+- [ ] Exact-head Debug and Full CI green on the correction commit.
+- [ ] Continue live Level 0/1/2 state read-back and physical Shizuku lifecycle/permission acceptance. P1 remains PARTIAL.
