@@ -34,9 +34,16 @@ internal object ShizukuCommandPolicy {
                 4_000L, true
             ) else null
             "install_verified_apk" -> if (
-                ownerConfirmed && args.size == 1 &&
-                args[0].matches(Regex("^/storage/emulated/0/Download/VyomUpdates/vyom-update-[a-f0-9]{12}\\.apk$"))
-            ) Command(listOf("pm", "install", "-r", args[0]), 120_000L, true) else null
+                ownerConfirmed && args.size == 2 &&
+                args[1].matches(Regex("^[a-f0-9]{64}$")) &&
+                args[0] == "/storage/emulated/0/Download/VyomUpdates/vyom-update-${args[1].take(12)}.apk"
+            ) {
+                val source = args[0]
+                val hash = args[1]
+                val destination = "/data/local/tmp/vyom-update-$hash.apk"
+                val script = "set -e; trap 'rm -f \\"$destination\\"' EXIT; cp '$source' '$destination'; actual=\\$(sha256sum '$destination' | cut -d ' ' -f 1); [ \\"\\$actual\\" = '$hash' ]; pm install -r '$destination'"
+                Command(listOf("sh", "-c", script), 120_000L, true)
+            } else null
             else -> null
         }
     }
