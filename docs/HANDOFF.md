@@ -2231,3 +2231,31 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. Implement Android unit tests for task creation idempotency with mocked HTTP responses. Keep read-before-create limitation explicit.
 4. Design atomic cross-source identity/claim storage without touching production Supabase or backend; if no approved durable store is available, label dedupe best-effort and surface possible duplicate reconciliation.
 5. Do not start a coding worker until safe task contract, scoped credentials, isolated branch/worktree, STOP, lease/heartbeat, bounded retry and output verification are designed and tested.
+
+
+## CI failure fix: Termux idempotency test — 2026-11-03 (continued)
+
+### Actual failure evidence
+- Full CI run `41662745519` on exact SHA `c2f959c1fe94ec3565aa3d091f8c0292e251b219` failed in `Test Termux Factory status and priority rendering`.
+- Exact log: list metadata test PASS; transition policy test PASS; then `scripts/test-vyom-factory-list.sh: line 80: unexpected argument 'newline' to conditional binary operator`.
+- Root cause: malformed multiline Bash expected-value assertion introduced in the mocked idempotency test. The CLI syntax check itself passed; failure was in the test assertion, not app Kotlin code.
+- Fixed assertion using a single ANSI-C quoted expected TSV value: `expected_existing=$'41\\thttps://github.com/example/repo/issues/41'`. Commit `0de75563fb24063cf798fecdf44b5af04b1790f3`.
+
+### Strengthened retry test
+- The first mock only called `find_task_by_idempotency_key`; that did not prove the public `create_task` path avoids a POST.
+- Replaced it with a mocked `gh` boundary that invokes actual `create_task(title, description, P2, same_source_id)`, asserts it returns existing issue #41, and asserts exactly one GitHub API invocation (the paginated read). Any POST or other API call fails the test.
+- This tests sequential retry behavior without live issue mutation. It still cannot prove atomicity under concurrent clients.
+- Commit `fd93dfed9b741e3a01c13e1633e25bd484ac2480`.
+
+### CI checkpoint and remaining proof
+- For `0de75563...`, Full CI run `41663301896` and Debug run `41663301788` were both IN_PROGRESS when checked. Full CI had passed Bash syntax, list/transition/idempotency preflight tests, JDK/Gradle setup and secret scan; Gradle unit tests/debug APK remained running.
+- Those runs predate the stronger final retry-path test at `fd93dfed...`; they are not exact-HEAD verification.
+- Need verify new exact-head workflow runs for `fd93dfed...`, inspect their logs and results. Do not call CI green until Full CI and Debug both complete successfully for the same exact SHA.
+- Older Debug run `41662745598` for `c2f959c...` remained in progress at checkpoint; it is not a pass and should be observed only for cleanup, not counted as latest-head proof.
+- No local Termux execution, no Android device test, no APK delivered.
+
+### Next exact steps
+1. Confirm workflow runs were triggered for `fd93dfed...`; inspect job steps/logs. Fix any real failure before proceeding.
+2. Add Android `createTask` retry unit tests with mocked HTTP; ensure a sequential same-key retry reuses the existing task and does not issue a second POST. Preserve honest warning that read-before-create is still racy.
+3. Audit all status mutation entry points (Android, Termux, ChatGPT docs) to ensure manual callers cannot set or resume `in_progress`.
+4. Design atomic cross-source idempotency only after selecting an allowed durable transactional store; production Supabase and backend remain explicitly untouched.
