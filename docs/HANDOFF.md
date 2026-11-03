@@ -1,3 +1,52 @@
+# OWNER RESET — MILESTONE DELIVERY PLAN (2026-11-03)
+
+This section is the newest controlling owner order and supersedes conflicting older milestone sequencing or the former one-final-APK rule. Repository and safety boundaries remain unchanged.
+
+## Scope and branch lock
+- Repository: `riyas433554-dot/vyom-android`.
+- Work only on `feature/memory-intelligence`.
+- Never modify Android `main`, Render, the Hermes backend, or production Supabase.
+- Preserve the existing owner safety policy: TRUSTED is the default; no blanket confirmations. Hard blocks remain payments, OTP/Authenticator/banking/wallet apps, security settings, Vyom's own kill-switch and protected files. Power Mode is owner-initiated through Wireless ADB from Termux, then Shizuku; never bypass Android safeguards.
+- STRICT evidence: claims require exact 40-character source SHA, workflow run IDs/results and named test evidence. No claim of runtime/device verification without it.
+
+## APK delivery policy
+- The former “one final APK only” rule is cancelled.
+- Deliver one APK per completed milestone, so the owner can test each milestone early.
+- A milestone APK may be delivered only after that milestone's exact-head CI is green and the artifact's integrity/signing state is verified. Clearly distinguish debug vs signed APK and report any update-install signing mismatch; never advise uninstalling to bypass it.
+- Exactly one APK artifact is handed off per milestone; do not send interim build artifacts.
+
+## MILESTONE 1 — implement in this exact order
+1. Finish P1 Power Mode.
+2. A12 structured tool-call execution; raw JSON must never appear in user chat.
+3. A14 TRUSTED default with no blanket confirmations, preserving the explicit hard-block list.
+4. A1 Play Store installation end-to-end with listing identity, install progress, PackageManager version/presence verification and truthful outcome.
+5. Implement `whatsapp_send` skill with recipient/message validation, execution and independent delivery/result verification; do not claim sent without evidence.
+6. A8/A16 floating orb during control tasks, with mute/stop and task lifecycle behavior.
+7. F4 memory auto-capture that persists actual records and visibly lists them in the Memory screen, with privacy filters and user controls.
+8. R4 Diagnostics screen with a functional RUN ALL CHECKS action and per-check truthful status/evidence.
+
+After all M1 items are implemented, update HANDOFF and completion checklist with evidence. Run Debug and Full CI on the exact final M1 head, fix failures from real logs, verify APK artifact checksum and signing certificate, then deliver the single M1 APK with the Diagnostics check list and exact owner phone-test script. Do not start M2 before M1 is accepted as implementation-complete and its APK is handed off.
+
+## MILESTONE 2 — UI (only after M1)
+- Host the supplied Claude Design HTML in an Android WebView and reproduce it exactly; no redesign or reinterpretation.
+- Add a narrowly scoped Kotlin JavaScript bridge for chat, voice, memory, tasks and permissions. Validate message schemas/origins and keep privileged actions behind native policy gates.
+- Use native Compose only where HTML/WebView cannot provide the required Android integration.
+- Include the Grok-style composer; Drawer and Profile as separate screens; activity timeline; n8n-style workflow canvas in the web layer.
+- Preserve all Android safety, STOP and hard-block boundaries across the bridge.
+
+## MILESTONE 3
+- Learn Anywhere, ledger, attachments, real-running automations, human-like voice and floating bubble.
+- Each capability must execute through a real adapter, persist results where required, expose progress/errors, support cancellation/STOP and verify outcomes. No placeholder capabilities.
+
+## Execution protocol
+- Work in long autonomous batches; do not stop after each item.
+- Follow the exact M1 order; commit and push incremental verified work to this branch only. Keep HANDOFF and completion checklist current after each meaningful batch.
+- Run CI against the exact pushed head; inspect actual job logs and fix failures before claiming green.
+- Report only: current head SHA (40 chars), CI run IDs and results, and ID rows changed. For milestone delivery, additionally include the APK artifact/integrity/signing evidence and Diagnostics/phone-test checklist required by the owner.
+- No questions unless a truly blocking ambiguity or missing owner asset prevents safe progress; do not silently substitute a design or relax policy.
+
+---
+
 ### Exact-head CI race-test correction — 2026-11-03
 - Exact source SHA: `806fa49ae8daefb41759ae13642992de73764d95`.
 - Debug run `41576923369` FAILED in `:app:testDebugUnitTest`: `ShizukuRequestRegistryTest.concurrentBeginAndStopNeverLoseCancellationOrExceedCapacity`, assertion at line 76. 207 tests ran; one failed. Kotlin compilation and APK packaging reached completion before the test task failed. Full CI run `41576923374` was still in progress at the time of this update.
