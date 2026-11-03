@@ -5,13 +5,14 @@ package com.hermes.assistant
  * Terminal entries are retained in a bounded insertion-ordered window to reject replay.
  */
 internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
-    enum class State { STARTING, RUNNING, CANCEL_REQUESTED, COMPLETED }
+    enum class State { CANCELLED_BEFORE_START, STARTING, RUNNING, CANCEL_REQUESTED, COMPLETED }
     enum class Begin { ACCEPTED, CANCELLED_BEFORE_START, DUPLICATE }
 
     private val states = LinkedHashMap<String, State>()
 
     @Synchronized fun begin(id: String): Begin {
         when (states[id]) {
+            State.CANCELLED_BEFORE_START -> { states[id] = State.COMPLETED; return Begin.CANCELLED_BEFORE_START }
             State.STARTING, State.RUNNING, State.CANCEL_REQUESTED, State.COMPLETED -> return Begin.DUPLICATE
             null -> Unit
         }
@@ -33,7 +34,7 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
             State.COMPLETED -> false
             State.CANCEL_REQUESTED -> true
             State.STARTING, State.RUNNING -> { states[id] = State.CANCEL_REQUESTED; true }
-            null -> { states[id] = State.CANCEL_REQUESTED; trim(); true }
+            null -> { states[id] = State.CANCELLED_BEFORE_START; trim(); true }
         }
     }
 
