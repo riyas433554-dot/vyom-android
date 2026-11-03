@@ -3858,7 +3858,13 @@ class MainActivity : Activity() {
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
-                    view.evaluateJavascript("(document.body && document.body.innerText.trim().length > 0).toString()") { result ->
+                    val expectedPresence = contentUpdateManager.activePresenceExpectation()
+                    val presenceCheck = if (expectedPresence.isBlank()) {
+                        "(document.body && document.body.innerText.trim().length > 0).toString()"
+                    } else {
+                        "(document.body && document.body.innerText.includes(${JSONObject.quote(expectedPresence)})).toString()"
+                    }
+                    view.evaluateJavascript(presenceCheck) { result ->
                         if (result != "\"true\"" && result != "true") {
                             store.recordPageLoadFailure()
                             val failedContentVersion = contentUpdateManager.activeVersion()
