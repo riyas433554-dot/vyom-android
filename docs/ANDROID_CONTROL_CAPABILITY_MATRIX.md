@@ -8,11 +8,11 @@ The owner has explicitly requested broad Android control. Vyom's persistent iden
 
 The Android app still needs its local owner setup because a chat instruction cannot alter the installed APK's local preferences or Android's system-owned grant state. In Profile > Control Readiness > Set Up Permissions:
 - Enable Accessibility for Vyom in Android Settings.
-- Choose Enable all safe installed apps to turn on Master App Control and allowlist visible non-financial launcher apps.
+- Choose Enable all safe installed apps to turn on Master App Control and allowlist visible non-financial launcher apps (excluding Vyom itself).
 - Enable Android System UI / Quick Settings separately; this grants only the existing narrow Quick Settings controls.
 - Grant microphone, camera, notifications and Modify System Settings only when the corresponding task needs them.
 
-The setup UI reports current grants and the Accessibility service connection. Missing permissions are never reported as granted. Runtime and special permissions are granted only by Android's own system UI.
+The setup UI reports current grants and the Accessibility service connection. Missing permissions are never reported as granted. Owner-tapped permission/settings navigation remains available even while STOP is active, so the owner can repair access; STOP still blocks agent-executed actions. Runtime and special permissions are granted only by Android's own system UI.
 
 ## Implemented in source
 
