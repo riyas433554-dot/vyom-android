@@ -83,6 +83,44 @@ class ContentUpdateSlotStoreTest {
         } finally { root.deleteRecursively() }
     }
 
+
+    @Test fun performanceProbeReportsFasterAndSlowerDeltasAgainstStoredBaseline() {
+        val root = Files.createTempDirectory("vyom-slots").toFile()
+        try {
+            val store = ContentUpdateSlotStore(root)
+            val old = "baseline".toByteArray()
+            store.seedInitialSlot("1.0.0", mapOf("ui-bundle/index.html" to old))
+            store.recordPerformanceBaseline("home-render", 100L)
+            fun performanceManifest(version: String, rollback: String, bytes: ByteArray) =
+                ContentUpdateManifest(
+                    version, "0.3.1", listOf("Tune home render"),
+                    listOf(ContentUpdateFile("ui-bundle/index.html", UiBundleIntegrity.sha256(bytes))),
+                    listOf(
+                        ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "ui-bundle/index.html", "home"),
+                        ContentUpdateProbe("speed", ContentProbeKind.PERFORMANCE, "ui-bundle/index.html", baselineKey = "home-render")
+                    ), rollback
+                )
+            val fasterBytes = "faster".toByteArray()
+            val fasterManifest = performanceManifest("1.1.0", "1.0.0", fasterBytes)
+            val faster = store.applySigned(fasterManifest, signed(fasterManifest),
+                mapOf("ui-bundle/index.html" to fasterBytes), "0.3.1", verifier) { p, _ ->
+                ContentProbeResult(p.id, true, if (p.kind == ContentProbeKind.PERFORMANCE) 80L else 1L, "pass")
+            }
+            assertTrue(faster.passed)
+            assertEquals(-20L, faster.timingDeltaMs)
+            assertEquals("faster 20 ms", faster.timingSummary())
+            val slowerBytes = "slower".toByteArray()
+            val slowerManifest = performanceManifest("1.2.0", "1.1.0", slowerBytes)
+            val slower = store.applySigned(slowerManifest, signed(slowerManifest),
+                mapOf("ui-bundle/index.html" to slowerBytes), "0.3.1", verifier) { p, _ ->
+                ContentProbeResult(p.id, true, if (p.kind == ContentProbeKind.PERFORMANCE) 125L else 1L, "pass")
+            }
+            assertTrue(slower.passed)
+            assertEquals(45L, slower.timingDeltaMs)
+            assertEquals("slower +45 ms", slower.timingSummary())
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun twoCrashesWithinSixtySecondsRollbackActiveContent() {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {

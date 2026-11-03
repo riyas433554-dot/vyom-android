@@ -101,13 +101,49 @@ internal data class ContentUpdateManifest(
     }
 
     companion object {
+        fun parse(json: String): ContentUpdateManifest {
+            val root = org.json.JSONObject(json)
+            val changesJson = root.getJSONArray("changes")
+            val filesJson = root.getJSONArray("files")
+            val probesJson = root.getJSONArray("probes")
+            val changes = (0 until changesJson.length()).map { changesJson.getString(it) }
+            val files = (0 until filesJson.length()).map { index ->
+                val item = filesJson.getJSONObject(index)
+                ContentUpdateFile(item.getString("path"), item.getString("sha256"))
+            }
+            val probes = (0 until probesJson.length()).map { index ->
+                val item = probesJson.getJSONObject(index)
+                val kind = when (item.getString("type").lowercase()) {
+                    "presence" -> ContentProbeKind.PRESENCE
+                    "performance" -> ContentProbeKind.PERFORMANCE
+                    else -> throw IllegalArgumentException("Unsupported content probe type")
+                }
+                ContentUpdateProbe(
+                    id = item.getString("id"),
+                    kind = kind,
+                    target = item.getString("target"),
+                    expected = item.optString("expected"),
+                    baselineKey = item.optString("baseline_key")
+                )
+            }
+            return ContentUpdateManifest(
+                version = root.getString("version"),
+                minAppVersion = root.getString("min_app_version"),
+                changes = changes,
+                files = files,
+                probes = probes,
+                rollbackTo = root.getString("rollback_to")
+            )
+        }
+
         private val contentRoots = setOf(
             "ui-bundle", "skills", "workflows", "prompts", "personas",
             "routing", "knowledge", "model-config", "policies"
         )
-        private val protectedSegments = setOf(
-            "kill-switch", "killswitch", "policy-engine", "update-verifier",
-            "signing", "signing-config", "protected", "native", "androidmanifest.xml"
+        private val protectedMarkers = setOf(
+            "kill-switch", "killswitch", "kill_switch", "policy-engine", "policy_engine",
+            "update-verifier", "update_verifier", "signing", "protected", "native",
+            "androidmanifest"
         )
 
         fun isAllowedContentPath(path: String): Boolean {
@@ -118,7 +154,7 @@ internal data class ContentUpdateManifest(
             if (segments.first() !in contentRoots) return false
             if (segments.any { segment ->
                 val lower = segment.lowercase()
-                lower in protectedSegments ||
+                protectedMarkers.any { marker -> lower.contains(marker) } ||
                     lower.endsWith(".kt") || lower.endsWith(".java") ||
                     lower.endsWith(".gradle") || lower.endsWith(".gradle.kts") ||
                     lower == "androidmanifest.xml"
@@ -159,7 +195,12 @@ internal class ContentUpdatePackageVerifier(
         try {
             val encodedKey = Base64.getDecoder().decode(pinnedPublicKeyX509Base64)
             val publicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(encodedKey))
-            val verifier = Signature.getInstance("SHA256withECDSA")
+            val signatureAlgorithm = when (publicKey.algorithm.uppercase()) {
+                "EC", "ECDSA" -> "SHA256withECDSA"
+                "RSA" -> "SHA256withRSA"
+                else -> throw IllegalArgumentException("Unsupported content signing key algorithm")
+            }
+            val verifier = Signature.getInstance(signatureAlgorithm)
             verifier.initVerify(publicKey)
             verifier.update(manifest.canonicalPayload())
             if (!verifier.verify(detachedSignature)) errors += "Package signature verification failed"

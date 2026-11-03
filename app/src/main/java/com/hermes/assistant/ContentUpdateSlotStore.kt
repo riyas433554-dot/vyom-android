@@ -15,7 +15,14 @@ internal data class ContentUpdateResult(
     val probeResults: List<ContentProbeResult>,
     val timingDeltaMs: Long?,
     val message: String
-)
+) {
+    fun timingSummary(): String = when {
+        timingDeltaMs == null -> "baseline not established"
+        timingDeltaMs < 0L -> "faster ${-timingDeltaMs} ms"
+        timingDeltaMs > 0L -> "slower +${timingDeltaMs} ms"
+        else -> "same"
+    }
+}
 
 internal fun interface ContentUpdateProbeRunner {
     fun run(probe: ContentUpdateProbe, stagedSlot: File): ContentProbeResult
@@ -29,6 +36,11 @@ internal class ContentUpdateSlotStore(private val root: File) {
     private val baselineDirectory get() = File(root, "probe-baselines")
 
     fun activeVersion(): String = activePointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
+
+    fun recordPerformanceBaseline(key: String, durationMs: Long) {
+        require(durationMs >= 0L) { "Performance duration cannot be negative" }
+        writeAtomically(baselineFile(key), durationMs.toString())
+    }
 
     /** Seeds the first trusted slot from APK-bundled assets; never overwrites an existing active slot. */
     fun seedInitialSlot(version: String, bundledFiles: Map<String, ByteArray>) {
