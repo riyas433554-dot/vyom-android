@@ -24,9 +24,9 @@ The setup UI reports current grants and the Accessibility service connection. Mi
 | Visual controls | Android screenshot capture, local OCR and opt-in visual point planner with visible confirmation markers | OEM/device testing pending |
 | Global navigation | Back, Home, Recents, Notifications and Quick Settings global actions | Phone acceptance pending |
 | System UI | Separate opt-in, filtered safe Quick Settings labels, exact node/fingerprint checks and visible-state completion evidence | OEM/device testing pending |
-| Reliability | Event/revision re-observation, foreground epoch checks, STOP generation invalidation, bounded retries/step count and action outcome evidence | Unit/build verification pending on this source head |
+| Reliability | Event/revision re-observation (including click/selection/focus events), foreground epoch checks, STOP generation invalidation, bounded retries/step count and action outcome evidence | Unit/build verification pending on this source head |
 | Direct device actions | Volume and brightness readback; torch and launch/composer operations marked pending when no independent outcome is available | Phone acceptance pending |
-| Permission inventory | Accessibility enabled + connected state, app master/allowlist, microphone, camera, notifications and Modify System Settings | System settings verification on device pending |
+| Permission inventory | Accessibility enabled + connected state, app master/allowlist, microphone, camera, notifications and Modify System Settings (manifest declares WRITE_SETTINGS) | System settings verification on device pending |
 | Owner all-safe-app setup | One action enables Master App Control and allowlists all discovered non-financial launcher apps; protected financial identifiers stay blocked | User must activate in installed APK |
 
 ## Task-scoped grants
