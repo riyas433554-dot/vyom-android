@@ -1,3 +1,11 @@
+## P1 Shizuku request lifecycle and STOP hardening — 2026-11-03
+- Added `ShizukuRequestRegistry` with atomic STARTING/RUNNING/CANCEL_REQUESTED/COMPLETED states and a bounded completed-history window. STOP-before-execute, STOP-during-startup, duplicate begin, terminal replay and active-entry retention have dedicated JVM tests in `ShizukuRequestRegistryTest`.
+- UserService now reserves request IDs before process startup, registers the process before transitioning to RUNNING, checks cancellation at the startup boundary, kills the process on STOP/timeout, and records bounded audit events through Android Log (request ID, allowlisted command ID, outcome only; no command output or secrets).
+- The previous implementation kept independent `running`, `cancelled` and `completed` collections and cleared all completed IDs after 256 entries. That could race between STOP and process startup, and wholesale clearing could erase replay protection. The registry replaces that split state.
+- Commits: registry `17bd00e1a47ff2174e772cd564295bd23fcc31dc`; lifecycle tests `3b14ed74da887616f3b21bb5dd8943e1693375bb`; pre-start cancellation state `362b1e2fe2595eb1b94ff8572343937c2d9cca5f`; test assertion `7969a1fea830e834cf72655658d1fea44703d06e`; service integration `9eac1b4afdc194b1279c48abec6d08bca4ca5e63`; non-null process reference `c2100eb2c86d683f5728739cc263646f254c1133`.
+- Automated coverage is still incomplete: no instrumentation test can yet prove Shizuku's actual binder/UserService lifecycle, process-kill timing, durable audit collection, or Samsung runtime permission read-back. Keep P1 PARTIAL and do not advance to P2.
+- CI must be checked on the final documentation commit SHA; no pass is claimed until exact-head Debug and Full CI complete.
+
 ## Shizuku identity boundary hardening — 2026-11-03
 - Test-first commit: `18ea9e8022645b2e17cdb1d5fe74c87e21915422` adds `PowerModePolicyTest.rootOrUnknownShizukuIdentityNeverGetsLevelTwo`; it asserts root (UID 0), system (UID 1000) and unknown (-1) cannot obtain Level 2 even with a live, authorized binder.
 - Policy commit: `3b933a4b97f737f65de56dfd6d7770e5f9582b34` now requires UID 2000 (ADB shell) in addition to binder liveness and owner authorization.
