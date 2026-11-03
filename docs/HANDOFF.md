@@ -1,3 +1,12 @@
+### P1 Shizuku force-kill exit read-back correction — 2026-11-03
+- Verified failing source SHA: `fad60e3106139f1cd63bbe58e64c7904b6e67a14`; Debug run `41592559997` and Full CI run `41592559989` both FAILED in `:app:testDebugUnitTest`.
+- Real failure: `ShizukuProcessTerminationTest.teardownSnapshotAndLateStartupCannotLeaveAnUntrackedProcessRunning` (221 tests, 1 failed). The helper called force-kill, but returned only the bounded wait result; if the process was already dead while the wait callback returned false, it incorrectly reported failure.
+- Fix commit: `4840b2e06f2bba415075234a36402453a51860e0`. After force-kill, termination now succeeds if either the bounded wait confirms exit OR an independent `isAlive()` read-back confirms the child is dead.
+- Exact-head Debug `41594755705` and Full CI `41594755829` were triggered for this source SHA; results pending at this checkpoint. No GREEN claim.
+- No feature/acceptance ID rows changed. P1 remains PARTIAL. Next: verify both exact-head workflows; then finish live Level 0/1/2, app-op/secure-settings read-back and remaining P1 lifecycle evidence.
+
+---
+
 # OWNER RESET — MILESTONE DELIVERY PLAN (2026-11-03)
 
 This section is the newest controlling owner order and supersedes conflicting older milestone sequencing or the former one-final-APK rule. Repository and safety boundaries remain unchanged.
