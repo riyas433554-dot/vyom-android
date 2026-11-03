@@ -47,7 +47,7 @@ internal object ControlCapabilityManifest {
         append("; stopControlEnabled=").append(snapshot.stopControlEnabled)
         append("; powerModeLevel2=").append(snapshot.powerModeLevel2)
         if (snapshot.powerModeLevel2 && !snapshot.shellExecutorUiReady) {
-            append("; Shizuku is connected, but generic ShellExecutor UI input is not yet implemented; use Accessibility fallback.")
+            append("; Power Mode ShellExecutor is available for allowlisted coordinate gestures; Accessibility remains the fallback for tree/OCR actions and any rejected shell action.")
         }
         val guidance = missingGuidance(snapshot)
         if (guidance.isNotEmpty()) append("; missing=").append(guidance.joinToString(" | "))
