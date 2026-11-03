@@ -4082,6 +4082,18 @@ class MainActivity : Activity() {
                 }
                 val contentHistory = runCatching { contentUpdateManager.history() }.getOrDefault(emptyList())
                 rows += "PARTIAL · A18 signed package apply · GitHub release discovery, installed-signer verification, staged probes, UI synchronization and rollback are wired; owner-device visible update and failing-probe rollback remain required. History entries=${contentHistory.size}"
+                val factoryToken = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+                if (factoryToken.isBlank()) {
+                    rows += "SKIP · Vyom Factory registry · GitHub token is not configured"
+                } else {
+                    try {
+                        val factoryTasks = VyomFactoryGitHubClient(factoryToken).listTasks()
+                        rows += "PASS · Vyom Factory GitHub Issues read · ${factoryTasks.size} tagged tasks loaded from the shared repository"
+                    } catch (factoryError: Exception) {
+                        val code = (factoryError as? VyomFactoryGitHubClient.FactoryApiException)?.code
+                        rows += "FAIL · Vyom Factory GitHub Issues read · HTTP ${code ?: 0}; verify token Issues read permission"
+                    }
+                }
             } catch (error: Exception) {
                 rows += "FAIL · Update diagnostics · ${error.message ?: "Unknown verification error"}"
             }
