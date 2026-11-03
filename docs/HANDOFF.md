@@ -2144,3 +2144,34 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. Stop presenting manual `START -> in_progress` as a worker. Add a distinct queue/dispatch state or disable the transition until an executor can claim it.
 4. Implement and test atomic task claim/dedupe and durable run lifecycle on a real available executor. Record run ID, lease owner/expiry, heartbeat, attempts, STOP/cancel, recovery and event history. If GitHub Actions is the executor, clearly model its finite runner lifecycle and availability.
 5. Add isolated task branch/worktree execution and conflict protection; only then add code-writing agent integration and verified output/CI completion.
+
+
+## Factory state-integrity correction + issue #8 reconciliation — 2026-11-03
+
+### Issue #8 reconciliation (real GitHub mutation, independently read back)
+- Temporary Termux test issue #8 had GitHub state `closed` but Factory metadata `in_progress` / P2.
+- Updated only the Factory metadata marker to `status=completed`, appended event `completed:test-cleanup-reconciled`, kept GitHub state `closed`, and added an issue comment explaining that this was test cleanup, NOT a worker execution result.
+- Independent read-back confirmed issue #8 remains closed and metadata is now completed/P2. This resolves the test-record mismatch without inventing a worker run.
+- The event marker intentionally has no fabricated timestamp; the GitHub issue's updated_at/comment timestamps are the external audit time.
+
+### Manual worker-state claim removed
+- Audit found Factory UI's START button directly wrote `in_progress` despite there being no worker. This was misleading and could falsely signal active execution.
+- `VyomFactoryStatus.canTransition` now rejects manual `open -> in_progress`; the unit test `VyomFactoryStatusTest.transitionsAreBounded` now asserts that rejection.
+- Factory UI no longer shows START for open tasks. It still offers pause/block controls; open tasks remain pending until a real executor claims them.
+- Termux CLI transition table no longer permits `open -> in_progress` from a manual status command.
+- Shared protocol now states that only a verified worker claim may set `in_progress`. This policy must also be followed by any future ChatGPT/other intake adapter.
+- Commits: `843d1c52aa945f4ef1dbda4016bc306ac122dfd4` (state policy), `f5ea703654f530e3589766f456f8609a26608b85` (unit test), `9c949f9a3f517001bea540b753b3471566548571` (Factory UI), `906a158bf682dce53f787f730785e0fc82489e8e` (protocol), `2cb67ed5015fa2534c7c84746cea2369c07e72b5` (Termux CLI).
+
+### Verification and limitations
+- Source edits are committed/pushed on `feature/memory-intelligence`; no local Gradle runner was available in this session, so no local Android test pass is claimed.
+- Exact source SHA `906a158bf682dce53f787f730785e0fc82489e8e`: Debug run `41661387498` IN_PROGRESS; Full CI run `41661387321` PENDING at checkpoint. These are BEFORE the final Termux CLI commit `2cb67ed...` and are not exact-head proof for the latest branch.
+- Earlier source SHA `f3868bb...` Debug run `41659785640` passed, but Full CI `41659785658` was cancelled. It does not validate these changes.
+- No durable executor/worker was added in this batch. The change only prevents false worker-running claims; it does not create a worker.
+- No APK delivered.
+
+### Next exact work
+1. Recheck workflows for final HEAD `2cb67ed...`; inspect actual job steps/logs and fix failures from the real output.
+2. Add tests for manual status-transition rejection across Android and Termux, including attempts to set `in_progress` from `open`.
+3. Design the first real executor slice with explicit runner availability, claim/lease/heartbeat/STOP/recovery and run IDs. Do not call GitHub Actions a persistent daemon.
+4. Fix create idempotency race and partial-write reconciliation before claiming exactly-once cross-source intake.
+5. Only after worker run evidence exists, allow `in_progress` from the worker-owned transition path and display its run/heartbeat in Factory.
