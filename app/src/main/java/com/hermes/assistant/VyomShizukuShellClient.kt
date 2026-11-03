@@ -69,6 +69,10 @@ internal class VyomShizukuShellClient(
             return
         }
         val identity = if (uid == 2000) "ADB shell" else if (uid == 0) "root" else "unknown identity"
+        if (uid != 2000) {
+            emit("Shizuku identity is $identity (UID $uid). Vyom Power Mode requires the non-root ADB shell identity (UID 2000); Level 2 and UserService binding are blocked.")
+            return
+        }
         val authorized = try {
             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         } catch (_: Exception) { false }
@@ -86,6 +90,11 @@ internal class VyomShizukuShellClient(
             return
         }
         try {
+            val uid = Shizuku.getUid()
+            if (uid != 2000) {
+                emit("Shizuku UserService requires ADB shell UID 2000. Current UID is $uid; authorization request and binding were not attempted.")
+                return
+            }
             if (Shizuku.isPreV11()) {
                 emit("Shizuku API older than v11 is unsupported.")
                 return
@@ -144,6 +153,7 @@ internal class VyomShizukuShellClient(
         return PowerModePolicy.capabilityLevel(
             shizukuRunning = running,
             shizukuAuthorized = authorized,
+            shizukuUid = try { Shizuku.getUid() } catch (_: Exception) { -1 },
             accessibilityEnabled = accessibilityEnabled
         )
     }
