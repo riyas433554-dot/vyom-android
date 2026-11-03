@@ -1,3 +1,9 @@
+### P1 bounded-registry follow-up — 2026-11-03
+- Adversarial review found a further resource-bound issue: pending STOP tombstones could prevent the registry's completed-only trim from reducing the map. Registry now enforces a hard entry cap and refuses new tombstones/requests when all slots are active or pending.
+- Commits: strict capacity `ce49a55fafd4d2b03a2870a8f0b70de83d47af97`; UserService capacity response `f0d13c6b2d7386101de54223b68e5517e870adc1`; hard-cap regression test `20bb2988e7a1e10fc69764e6f6e25f5a2b9d03d6`.
+- Added `ShizukuRequestRegistryTest.pendingStopTombstonesAndActiveRequestsCannotExceedCapacity`. This proves tombstones and active requests cannot grow the registry beyond its configured cap and that capacity exhaustion is explicit.
+- Exact-head CI from the prior documentation checkpoint was still running when this follow-up was made; those runs do not verify the new source. New exact-head runs are required after this checkpoint.
+
 ## P1 Shizuku request lifecycle and STOP hardening — 2026-11-03
 - Added `ShizukuRequestRegistry` with atomic STARTING/RUNNING/CANCEL_REQUESTED/COMPLETED states and a bounded completed-history window. STOP-before-execute, STOP-during-startup, duplicate begin, terminal replay and active-entry retention have dedicated JVM tests in `ShizukuRequestRegistryTest`.
 - UserService now reserves request IDs before process startup, registers the process before transitioning to RUNNING, checks cancellation at the startup boundary, kills the process on STOP/timeout, and records bounded audit events through Android Log (request ID, allowlisted command ID, outcome only; no command output or secrets).
