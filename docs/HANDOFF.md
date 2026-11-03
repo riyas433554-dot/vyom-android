@@ -1370,3 +1370,24 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Pairing dialog may disappear when switching apps: instruct split-screen or Samsung pop-up view for Termux before opening the pairing dialog.
 - Detect Samsung Auto Blocker and explain its exact user-controlled setting; do not silently disable it.
 - Device test is pending; firmware profile is user-supplied and not a substitute for runtime validation.
+
+
+---
+
+## P1 implementation progress — 2026-11-03
+
+- Current sequence: P1 is active; no later milestone has been started.
+- Source commits (full SHAs):
+  - Policy tests first: `02bca50e61ae92d806d1d2050ec99c1db970e2f0`.
+  - Pure setup policy/command validation: `65cb086adac830400fe33799253ccaabbe0d7160`.
+  - Control screen owner-led Power Mode guide: `05799da798c68751d7769904ef46c304b03078b2`.
+  - Declared `SYSTEM_ALERT_WINDOW` for the planned overlay capability: `6cb6d6f5b53fdff4caf62abb4d99689639a56721`.
+- New test class: `PowerModePolicyTest` (Wireless ADB Wi-Fi/network gates, host:port validation, app-ID-safe command generation, malformed-input rejection, grant-before-Accessibility-reconnect, scoped appops, and Level 2 protected-surface boundary). Tests have not yet been run on this source head; status remains UNVERIFIED pending exact-head CI.
+- The UI prepares/copies commands only. It does not execute ADB or grant permissions. The owner must run commands manually in Termux and review each command.
+- Source inspection found a critical package identity detail: Gradle `applicationId` is `com.vyom.assistant`, while Kotlin namespace is `com.hermes.assistant`. Power Mode commands use runtime `packageName`; never hardcode the namespace as the installed package.
+- Wizard includes Wi-Fi/same-network requirements, separate pairing/debug endpoints, split-screen/pop-up Termux guidance for the disappearing pairing-code dialog, grant/read-back commands, Accessibility read-back, and Samsung Auto Blocker caveat.
+- All-files access is intentionally not requested because current file handling uses the document picker/SAF; no `MANAGE_EXTERNAL_STORAGE` app-op is emitted unless that feature is later explicitly declared and justified.
+- Samsung Auto Blocker is not automatically disabled. Official Samsung documentation describes USB-command blocking and unauthorized-source install blocking. Wireless ADB should be preferred; only temporarily disable the specific Auto Blocker feature if the owner confirms that exact blocked path is needed, then re-enable it.
+- Shizuku UserService/ShellExecutor integration is NOT implemented yet. The UI explicitly says it is not enabled. Remaining P1 work: Shizuku API integration, explicit Shizuku authorization/binder state, strict command allowlist, bounded execution, audit/redaction, STOP cancellation, live permission/app-op read-back and verified Accessibility reconnect gating.
+- No physical Galaxy A06 test has been performed. P1 is not complete; no APK is approved.
+- Current branch source head at time of this note: `6cb6d6f5b53fdff4caf62abb4d99689639a56721`.
