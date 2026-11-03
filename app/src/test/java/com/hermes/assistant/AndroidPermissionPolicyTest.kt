@@ -49,7 +49,7 @@ class AndroidPermissionPolicyTest {
             AndroidPermissionPolicy.TaskCapability.FLOATING_PROGRESS,
             microphoneGranted = true, cameraGranted = true, notificationsGranted = true,
             overlayGranted = false, writeSettingsGranted = true
-        ).contains(AndroidPermissionPolicy.Requirement.OVERLAY))
+        ).isEmpty())
     }
 
     @Test fun specialPermissionsAreNeverAssumedGranted() {
