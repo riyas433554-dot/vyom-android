@@ -2175,3 +2175,32 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. Design the first real executor slice with explicit runner availability, claim/lease/heartbeat/STOP/recovery and run IDs. Do not call GitHub Actions a persistent daemon.
 4. Fix create idempotency race and partial-write reconciliation before claiming exactly-once cross-source intake.
 5. Only after worker run evidence exists, allow `in_progress` from the worker-owned transition path and display its run/heartbeat in Factory.
+
+
+## Worker-state transition hardening — 2026-11-03 (continued batch)
+
+### Additional defect found and fixed
+- A second audit found the earlier guard was incomplete: although `open -> in_progress` was blocked, Factory UI still exposed `RESUME -> in_progress` for paused tasks, and the shared Android transition policy still allowed blocked/paused -> in_progress. Termux had the same manual resume loophole.
+- Added unit assertions that manual `paused -> in_progress` and `blocked -> in_progress` are rejected.
+- Updated `VyomFactoryStatus.canTransition` so only a worker-owned path can ever enter `in_progress`; manual transitions from blocked/paused now return to `open`.
+- Factory UI button for paused tasks now says `REOPEN` and transitions to `open`, not `in_progress`.
+- Termux status transition table removes `blocked -> in_progress` and `paused -> in_progress`.
+- Protocol clarifies that resuming a paused/blocked task requeues it as open; a worker must claim it again.
+- Commits: test `83020487fc1cb69e119855b56d71335530164ad6`; Android policy `74878bd28744cd1291c15ad046e800262cdff770`; UI `740c067076e369df4c2ec3dcb9461337152ef088`; Termux `798639da42885d9cefcfdf6eec9b8b024e6b5cbb`; protocol `db97e7879727eaaad7944013622e7892fe5857dc`.
+
+### CI evidence at checkpoint
+- Prior HANDOFF HEAD `8d1950156ded16761dade79fa0c395e312323fbb`: Debug run `41661483857` and Full CI run `41661483942` were both still running. Full CI had completed Bash syntax, Termux list regression, JDK/Gradle setup and secret scan; Gradle unit tests + debug APK were still in progress. No pass/fail claim yet.
+- These workflow runs do NOT include the later commits in this section. New exact-head workflows must be checked for the latest SHA.
+- No local Gradle execution or device test was performed in this session. No APK delivered.
+
+### Remaining worker architecture blockers
+- This patch closes manual status loopholes only; there is still no task runner, durable claim/lease/heartbeat, run ID, cancellation propagation, retry policy, crash recovery, isolated execution branch/worktree or verified completion.
+- Do not implement an untrusted GitHub Actions worker that executes arbitrary issue text with repository write privileges. Before coding the executor, define a constrained task contract, allowed operations, scoped credentials, sandbox boundaries, branch isolation, cancellation, audit trail and completion verification.
+- Existing GitHub Actions are CI/debug/release workflows; they are finite jobs, not a resident 24/7 worker.
+
+### Next exact sequence
+1. Read exact-head CI for latest branch commit, wait for active runs and inspect logs; fix any failures using actual failing step output.
+2. Add Termux status-policy tests (including paused/blocked -> in_progress rejection) and verify against a mocked `gh` boundary without live issue mutation.
+3. Fix cross-source create idempotency race; document GitHub Issues read-then-create limitation and ensure duplicate retries are reconciled rather than reported as exactly-once.
+4. Specify a safe executor threat model and constrained task schema before creating any worker workflow.
+5. Implement durable run/lease records only with an approved durable store and scoped worker identity. Do not touch Render or production Supabase; do not assume GitHub Issues metadata alone is a safe atomic lease primitive.
