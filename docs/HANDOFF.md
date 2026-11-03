@@ -1425,3 +1425,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Declared `android.permission.WRITE_SECURE_SETTINGS` in the manifest. This declaration is required before the owner-run `pm grant` command can grant the permission to this package; the grant remains owner-initiated and must be read back.
 - The app does not yet auto-enable or auto-reconnect its Accessibility service. That remains a separate explicit-owner-opt-in implementation step gated on the actual runtime grant check. Never silently re-enable a service the owner has disabled.
 - This manifest correction is awaiting exact-head CI.
+
+
+### P1 AIDL compile failure and correction — 2026-11-03
+- Exact failing source head: `c38630a5bbd2f2ba4cadb9d91fcca6a7fb0fab57`, Debug run `41557357263`.
+- Exact build failure: `Task :app:compileDebugAidl FAILED`; `IVyomShellService.aidl:6.9-17: You must either assign id's to all methods or to none of them.`
+- Fix commit: `03c9e570fc9571ad434fbc0aa8c67b18adfcd585`. Assigned stable transaction IDs 1 and 2 to execute/cancel while preserving Shizuku's reserved destroy transaction ID 16777114.
+- This is a build/compiler failure, not a unit-test failure. The fix is awaiting exact-head CI/Debug verification.
