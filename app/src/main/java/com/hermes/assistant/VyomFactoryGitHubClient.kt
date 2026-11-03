@@ -93,10 +93,8 @@ internal class VyomFactoryGitHubClient(
 
     fun verifyConnection(): String {
         val user = JSONObject(execute("GET", "user"))
-        val repo = JSONObject(execute("GET", ""))
-        val canPush = repo.optJSONObject("permissions")?.optBoolean("push", false) == true
         val login = user.optString("login").ifBlank { "GitHub connected" }
-        return login + if (canPush) " · repository write access visible" else " · repository write permission not confirmed"
+        return login + " · identity verified; Issues write permission is checked when creating a task"
     }
 
     private fun execute(method: String, path: String, payload: JSONObject? = null): String {
