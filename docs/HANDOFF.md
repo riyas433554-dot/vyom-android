@@ -1534,3 +1534,12 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
   - Corrected in commit `64df8d306ea80fe68b23f952340427457480e110` to use Android TextView's Kotlin property `isTextSelectable = true`. This fix is not accepted until exact-head CI passes.
 - Earlier P1 AIDL issue was corrected in `03c9e570fc9571ad434fbc0aa8c67b18adfcd585`; subsequent build got past `:app:compileDebugAidl`, confirming that specific AIDL compile error is resolved on that build attempt.
 - **Exact next step:** obtain the completed Debug and Full CI results for `64df8d306ea80fe68b23f952340427457480e110`; if either fails, use its real job log, fix the exact failure, commit and rerun both workflows on the new exact head. Then continue P1 Power Mode acceptance (secure-settings grant read-back, explicit owner-opt-in Accessibility reconnect after verified grant, audit logging and policy tests). Do not start P2 before P1 acceptance; preserve the user's fixed order. One final APK only after all items and exact-final-head CI/signing/artifact checks.
+
+
+### Shizuku registry compile correction — 2026-11-03
+- Exact-head Debug run `41562824222` and Full CI run `41562824313` both failed at `:app:compileDebugKotlin` with the compiler diagnostic: `ShizukuRequestRegistry.kt:34:16 'when' expression must be exhaustive. Add the 'CANCELLED_BEFORE_START' branch or an 'else' branch.`
+- Root cause: `cancel()` handled completed, cancel-requested, starting, running and null states, but omitted the pre-start STOP tombstone state introduced by the bounded registry.
+- Correction: repeated STOP on `CANCELLED_BEFORE_START` is now idempotent and returns true. Regression test now verifies repeated STOP, tombstone consumption into COMPLETED, and duplicate rejection after consumption.
+- This fixes the exact Kotlin compile error; no tests/build are claimed until both new exact-head workflows pass.
+- No feature matrix ID changed. P1 remains PARTIAL; next item remains P1 live permission/app-op read-back and owner-opt-in Accessibility reconnect, plus UserService lifecycle/audit verification.
+- Correction source commits: see exact-head history after this addendum is committed.
