@@ -1191,3 +1191,8 @@ Branch: `feature/memory-intelligence`
 - Existing memory facts are preserved; the principle is deduplicated and stored through the existing EncryptedSharedPreferences store. If memory is disabled, no seed is written; the permanent identity instruction still carries the operating rule in chat/live prompts.
 - Added `VyomMemoryPrincipleTest` to verify the seeded rule contains the expected process and is not classified as sensitive.
 - This persists the preference but does not itself implement GitHub/ZIP ingestion or a learned-skill registry; those remain explicitly pending.
+
+## Test inventory at source head e3f8671
+
+- Counted all 18 Kotlin test files in the feature-branch tree: 176 `@Test` methods are present.
+- This is a source inventory only, not a passing-test claim. The exact-head CI and Debug workflows are queued; no test execution result has been observed.
