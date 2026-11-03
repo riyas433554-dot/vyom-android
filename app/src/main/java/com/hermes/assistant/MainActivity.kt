@@ -1732,9 +1732,13 @@ class MainActivity : Activity() {
             UiAgentPolicy.Kind.VISION_SWIPE, UiAgentPolicy.Kind.VISION_DRAG
         )
         if (shellReady && action.kind in visualKinds) {
+            val shellObservation = service.screenObservation()
             if (!AppAccessPolicy.isAllowed(this, action.screenPackage) ||
-                service.screenObservation().foregroundPackage != action.screenPackage) {
-                finish("ShellExecutor blocked: target app is no longer the allowed foreground app.")
+                shellObservation.foregroundPackage != action.screenPackage ||
+                shellObservation.revision != action.screenRevision ||
+                shellObservation.foregroundEpoch != action.foregroundEpoch) {
+                logControlAction(UiAgentPolicy.auditLabel(action), "ShellExecutor rejected stale screen/package before dispatch", "ui-agent")
+                finish("ShellExecutor blocked: target app, screen revision or foreground epoch changed. No gesture was sent.")
                 return
             }
             val width = resources.displayMetrics.widthPixels
