@@ -116,6 +116,7 @@ jobs:
             gradle assembleRelease --no-daemon
           fi
       - name: Package versioned APKs and checksums
+        id: package
         shell: bash
         env:
           SIGNING_AVAILABLE: ${{ steps.signing.outputs.available }}
@@ -130,6 +131,7 @@ jobs:
           (cd output && sha256sum "${DEBUG_APK}") > "output/${DEBUG_APK}.sha256"
           if [[ "$SIGNING_AVAILABLE" == "true" ]]; then
             RELEASE_APK="vyom-0.3.1-${SHORT_SHA}-signed.apk"
+            echo "release_apk=$RELEASE_APK" >> "$GITHUB_OUTPUT"
             cp app/build/outputs/apk/release/app-release.apk "output/${RELEASE_APK}"
             (cd output && sha256sum "${RELEASE_APK}") > "output/${RELEASE_APK}.sha256"
             SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
@@ -167,9 +169,9 @@ jobs:
           prerelease: true
           make_latest: false
           files: |
-            output/${{ env.RELEASE_APK }}
-            output/${{ env.RELEASE_APK }}.sha256
-            output/${{ env.RELEASE_APK }}.certs.txt
+            output/${{ steps.package.outputs.release_apk }}
+            output/${{ steps.package.outputs.release_apk }}.sha256
+            output/${{ steps.package.outputs.release_apk }}.certs.txt
             output/vyom-update.json
             output/build-info.txt
       - name: Upload debug and signed APK artifacts
