@@ -283,7 +283,7 @@ internal class VyomFactoryDialog(
                 }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { rightMargin = dp(3) })
             }
             when (task.metadata.status) {
-                "open" -> { action("START", "in_progress"); action("PAUSE", "paused"); action("BLOCK", "blocked") }
+                "open" -> { action("PAUSE", "paused"); action("BLOCK", "blocked") }
                 "in_progress" -> { action("PAUSE", "paused"); action("BLOCK", "blocked"); action("DONE", "completed") }
                 "paused" -> { action("RESUME", "in_progress"); action("CANCEL", "cancelled") }
                 "blocked" -> { action("REOPEN", "open"); action("CANCEL", "cancelled") }
