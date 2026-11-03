@@ -30,6 +30,33 @@ internal class ContentUpdateSlotStore(private val root: File) {
 
     fun activeVersion(): String = activePointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
 
+    /** Seeds the first trusted slot from APK-bundled assets; never overwrites an existing active slot. */
+    fun seedInitialSlot(version: String, bundledFiles: Map<String, ByteArray>) {
+        require(version.matches(Regex("^[A-Za-z0-9._-]{1,64}$"))) { "Invalid bundled content version" }
+        if (activeVersion().isNotBlank()) return
+        require(bundledFiles.isNotEmpty()) { "Bundled content slot is empty" }
+        val staging = File(root, ".seed-$version")
+        root.mkdirs()
+        staging.deleteRecursively()
+        require(staging.mkdirs()) { "Could not create initial content slot" }
+        try {
+            bundledFiles.forEach { (path, bytes) ->
+                require(ContentUpdateManifest.isAllowedContentPath(path)) { "Protected bundled path rejected: $path" }
+                val target = File(staging, path)
+                require(target.canonicalPath.startsWith(staging.canonicalPath + File.separator)) { "Bundled path escaped slot" }
+                target.parentFile?.mkdirs()
+                target.writeBytes(bytes)
+            }
+            val destination = File(root, version)
+            require(!destination.exists()) { "Initial content slot already exists without an active pointer" }
+            require(staging.renameTo(destination)) { "Could not seal initial content slot" }
+            writeAtomically(activePointer, version)
+        } catch (error: Exception) {
+            staging.deleteRecursively()
+            throw error
+        }
+    }
+
     fun applySigned(
         manifest: ContentUpdateManifest,
         detachedSignature: ByteArray,
