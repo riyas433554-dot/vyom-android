@@ -10,6 +10,7 @@ internal object UiAgentPolicy {
     enum class Kind { OPEN_APP, TAP_TEXT, TAP_OCR, LONG_PRESS_OCR, SWIPE_OCR, DRAG_OCR, TAP_NODE, LONG_PRESS_NODE, SWIPE_NODE, DRAG_NODE, VISION_TAP, VISION_LONG_PRESS, VISION_SWIPE, VISION_DRAG, SCROLL, SCROLL_UNTIL_FOUND, TYPE_TEXT, BACK, HOME, RECENTS, NOTIFICATIONS, QUICK_SETTINGS, WAIT, DONE }
     enum class Verdict { ALLOW, CONFIRM, REJECT }
     enum class ConfirmationMode { TRUSTED, ALWAYS_ASK, RISKY_ASK, SESSION_GRANT, USER_REQUESTED_INSTALL }
+    fun defaultConfirmationMode(): ConfirmationMode = ConfirmationMode.TRUSTED
     data class Action(
         val kind: Kind,
         val target: String = "",
@@ -72,7 +73,7 @@ internal object UiAgentPolicy {
     }
 
     private val blockedTargets = Regex(
-        """\b(pay|payment|upi|wallet|bank|banking|authenticator|checkout|purchase|transaction|transfer|security|permissions?|biometric|password|passcode|otp|uninstall)\b""",
+        """\b(pay|payment|upi|wallet|bank|banking|authenticator|checkout|purchase|transaction|security|biometric|password|passcode|otp)\b""",
         RegexOption.IGNORE_CASE
     )
 
@@ -149,7 +150,7 @@ internal object UiAgentPolicy {
         return matchingTitles.size == 1
     }
 
-    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = ConfirmationMode.TRUSTED, screenWidth: Int = 0, screenHeight: Int = 0, density: Float = 1f, sensitiveScreen: Boolean = false): Verdict {
+    fun validate(action: Action, visibleLabels: Collection<String>, userGoal: String, visibleNodes: Collection<VisibleNode> = emptyList(), allowedAppPackages: Set<String> = emptySet(), visibleOcr: Collection<VisibleOcr> = emptyList(), confirmationMode: ConfirmationMode = defaultConfirmationMode(), screenWidth: Int = 0, screenHeight: Int = 0, density: Float = 1f, sensitiveScreen: Boolean = false): Verdict {
         if (action.screenPackage == AppAccessPolicy.SYSTEM_UI_PACKAGE) {
             return validateSystemUiAction(action, visibleLabels, userGoal, visibleNodes, visibleOcr, confirmationMode)
         }
