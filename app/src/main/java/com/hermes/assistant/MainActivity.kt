@@ -3815,9 +3815,14 @@ class MainActivity : Activity() {
                         updateNotice.text = "Preparing a minimal, hash-verified UI patch…"
                         io.execute {
                             try {
-                                val version = UiBundleEditor(store).applyPrompt(apiKey, model, prompt)
+                                val files = UiBundleEditor(store).createPromptFiles(apiKey, model, prompt)
+                                val result = contentUpdateManager.applyLocalUiFiles(files, prompt)
+                                if (!result.passed) throw IllegalStateException(result.message)
+                                val probeSummary = result.probeResults.joinToString("; ") {
+                                    "${it.id}=${if (it.passed) "PASS" else "FAIL"} (${it.durationMs} ms)"
+                                }
                                 runOnUiThread {
-                                    updateNotice.text = "UI bundle v$version installed. Reloading without an APK update."
+                                    updateNotice.text = "Signed content update v${result.version} PASS · ${result.timingSummary()} · $probeSummary. Reloading without an APK update."
                                     webView.loadUrl(store.activeIndexFile().toURI().toString())
                                 }
                             } catch (error: Exception) {
