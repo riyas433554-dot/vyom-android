@@ -2899,6 +2899,16 @@ class MainActivity : Activity() {
             selfChangeButton.post { selfChangeButton.performClick() }
             return
         }
+        val factoryComplaint = extractFactoryComplaint(message)
+        if (factoryComplaint != null) {
+            val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
+            chatMessages.add(item)
+            persistChatMessages()
+            renderChatMessages()
+            submitFactoryComplaint(item, factoryComplaint)
+            chatInput.setText("")
+            return
+        }
         if (!chatReady) return
         memoryStore.learnFrom(message)
         chatInput.setText("")
@@ -2914,6 +2924,59 @@ class MainActivity : Activity() {
             }) return
         status.text = "VYOM  •  QUEUED"
         scheduleChatMessage(item)
+    }
+
+    private fun extractFactoryComplaint(message: String): String? {
+        val normalized = message.trim().lowercase(Locale.ROOT)
+        val prefixes = listOf("factory complaint:", "register complaint:", "complaint:", "report bug:", "factory:", "issue:")
+        val prefix = prefixes.firstOrNull { normalized.startsWith(it) } ?: return null
+        return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
+    }
+
+    private fun submitFactoryComplaint(item: ChatMessage, complaint: String) {
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        if (token.isBlank()) {
+            item.state = "error"
+            item.reply = "Factory complaint not registered: GitHub token missing. Save a token with repository Issues read/write permission in Settings."
+            persistChatMessages()
+            renderChatMessages()
+            return
+        }
+        item.state = "running"
+        item.reply = "Registering this complaint in the shared Vyom Factory task registry…"
+        persistChatMessages()
+        renderChatMessages()
+        io.execute {
+            try {
+                val title = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
+                    .ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
+                val task = VyomFactoryGitHubClient(token).createTask(
+                    title = title,
+                    description = complaint,
+                    priority = "P2",
+                    source = "vyom_chat",
+                    sourceId = item.id
+                )
+                runOnUiThread {
+                    item.state = "done"
+                    item.reply = "Registered in Vyom Factory as #${task.number}. The same GitHub issue can be edited from Factory, ChatGPT or Termux."
+                    persistChatMessages()
+                    renderChatMessages()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    item.state = "error"
+                    val code = (error as? VyomFactoryGitHubClient.FactoryApiException)?.code
+                    item.reply = when (code) {
+                        401 -> "Complaint not registered: GitHub token rejected. Replace it in Settings."
+                        403 -> "Complaint not registered: GitHub denied Issues access. Token needs Issues read/write permission."
+                        else -> "Complaint not registered: ${error.message ?: "GitHub request failed"}"
+                    }
+                    persistChatMessages()
+                    renderChatMessages()
+                }
+            }
+        }
     }
 
     private fun scheduleChatMessage(item: ChatMessage) {
