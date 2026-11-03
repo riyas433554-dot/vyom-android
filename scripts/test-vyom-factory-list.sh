@@ -72,7 +72,7 @@ echo "Factory transition policy test PASS"
 gh_calls="$(mktemp)"
 trap 'rm -f "$fixture" "$gh_calls"' EXIT
 gh() {
-  printf '%s\\n' "$*" >> "$gh_calls"
+  echo "$*" >> "$gh_calls"
   [[ "$1" == api && "$2" == --paginate && "$3" == --slurp ]] || {
     echo "Unexpected gh invocation (duplicate POST or unsupported API call): $*" >&2
     return 2
