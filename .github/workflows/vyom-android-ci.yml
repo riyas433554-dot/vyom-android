@@ -27,6 +27,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Validate Termux Factory adapter syntax
+        run: bash -n scripts/vyom-factory.sh
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
