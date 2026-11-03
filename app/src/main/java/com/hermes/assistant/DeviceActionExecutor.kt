@@ -79,9 +79,37 @@ internal object DeviceActionExecutor {
         }
         ActionEngine.Operation.SHARE -> { val t=action.target.replaceFirst(Regex("""^.*?\b(send|share)\s+""",RegexOption.IGNORE_CASE),"").trim(); openIntent(activity,Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,t),"Choose where to share"),"Share sheet","Pending verification: Share sheet requested; nothing has been shared.") }
         ActionEngine.Operation.DELETE -> "Delete is not performed automatically. Use the relevant Android app or file manager."
+        ActionEngine.Operation.UNINSTALL -> {
+            val resolved = resolveInstalledPackage(activity, action.target)
+                ?: return "Failed: Could not uniquely identify installed app '${action.target}'. Use its exact app name or package ID."
+            if (resolved == activity.packageName) return "Blocked: Vyom cannot uninstall itself or its protected update core."
+            if (AppAccessPolicy.isBlocked(activity, resolved)) return "Blocked: Banking, wallet, payment and authenticator apps are protected."
+            openIntent(
+                activity,
+                Intent(Intent.ACTION_DELETE, Uri.parse("package:$resolved")),
+                "Uninstall ${action.target}",
+                "Pending verification: Android uninstall confirmation opened for ${action.target}; Android still requires its own confirmation."
+            )
+        }
         ActionEngine.Operation.INSTALL -> "Only a SHA-256 and signing-certificate verified Vyom update can be installed from Profile > Settings."
     }
     }
+    private fun resolveInstalledPackage(a: Activity, query: String): String? {
+        val normalized = query.trim()
+        if (normalized.matches(Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$"))) {
+            return try {
+                a.packageManager.getPackageInfo(normalized, 0)
+                normalized
+            } catch (_: Exception) { null }
+        }
+        val matches = try {
+            a.packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+                .filter { info -> a.packageManager.getApplicationLabel(info).toString().equals(normalized, ignoreCase = true) }
+                .map { it.packageName }.distinct()
+        } catch (_: Exception) { emptyList() }
+        return matches.singleOrNull()
+    }
+
     private fun openApp(a:Activity,n:String):String {
         val pm=a.packageManager
         val pkg=DeviceCommandConfig.packageForApp(n)
