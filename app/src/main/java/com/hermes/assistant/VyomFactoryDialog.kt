@@ -158,7 +158,10 @@ internal class VyomFactoryDialog(
         if (token.isBlank()) {
             status.text = "GitHub token missing. Open Settings and save a token with repository Issues read/write permission."
             taskList.addView(message("No GitHub connection. Tasks are not stored locally as a substitute."))
-            onOpenSettings()
+            taskList.addView(Button(activity).apply {
+                text = "OPEN SETTINGS"
+                setOnClickListener { dialog.dismiss(); onOpenSettings() }
+            })
         } else {
             refresh()
         }
