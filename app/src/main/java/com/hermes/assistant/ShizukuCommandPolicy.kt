@@ -40,17 +40,17 @@ internal object ShizukuCommandPolicy {
             "ui_long_press" -> if (
                 ownerConfirmed && args.size == 6 && validUiTarget(args[0]) &&
                 validDisplayPoint(args[1], args[2], args[4], args[5]) &&
-                args[3].toLongOrNull() in 500L..2_000L
+                args[3].toLongOrNull()?.let { it in 500L..2_000L } == true
             ) Command(listOf("input", "swipe", args[1], args[2], args[1], args[2], args[3]), 4_000L, true) else null
             "ui_swipe" -> if (
                 ownerConfirmed && args.size == 8 && validUiTarget(args[0]) &&
                 validDisplayPoint(args[1], args[2], args[6], args[7]) &&
                 validDisplayPoint(args[3], args[4], args[6], args[7]) &&
-                args[5].toLongOrNull() in 100L..2_000L
+                args[5].toLongOrNull()?.let { it in 100L..2_000L } == true
             ) Command(listOf("input", "swipe", args[1], args[2], args[3], args[4], args[5]), 5_000L, true) else null
             "ui_keyevent" -> if (
                 args.size == 2 && validUiTarget(args[0]) &&
-                args[1].toIntOrNull() in setOf(3, 4, 19, 20, 21, 22, 23, 61, 62, 66, 111, 187)
+                args[1].toIntOrNull()?.let { it in setOf(3, 4, 19, 20, 21, 22, 23, 61, 62, 66, 111, 187) } == true
             ) Command(listOf("input", "keyevent", args[1]), 4_000L, true) else null
             "ui_type_text" -> if (
                 args.size == 2 && validUiTarget(args[0]) && isSafeUiText(args[1])
@@ -85,7 +85,7 @@ internal object ShizukuCommandPolicy {
     }
 
     private fun isSafeUiText(value: String): Boolean =
-        value.isNotBlank() && value.length <= 500 && value.none(Char::isISOControl) &&
+        value.isNotBlank() && value.length <= 500 && value.none { it.code < 0x20 || it.code == 0x7f } &&
             !Regex("(?i)(password|passcode|otp|cvv|api[_ -]?key|access[_ -]?token)").containsMatchIn(value) &&
             !Regex("""\\b(?:\\d[ -]*?){13,19}\\b""").containsMatchIn(value) &&
             !Regex("""\\b\\d{4,12}\\b""").containsMatchIn(value)
