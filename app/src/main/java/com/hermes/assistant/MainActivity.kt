@@ -3696,11 +3696,14 @@ class MainActivity : Activity() {
                     rows += "PASS · GitHub update discovery · API reachable; no newer signed release is published"
                 }
                 val installPath = "/storage/emulated/0/Download/VyomUpdates/vyom-update-0123456789ab.apk"
+                val installHash = "0123456789ab" + "0".repeat(52)
                 val silentInstallPolicy = ShizukuCommandPolicy.command(
-                    "install_verified_apk", listOf(installPath), true, "com.vyom.assistant"
+                    "install_verified_apk", listOf(installPath, installHash), true, "com.vyom.assistant"
                 )
-                rows += if (silentInstallPolicy?.argv == listOf("pm", "install", "-r", installPath)) {
-                    "PASS · Shizuku install allowlist · Only a hash-named VyomUpdates APK path can reach pm install"
+                rows += if (silentInstallPolicy?.argv?.firstOrNull() == "sh" &&
+                    silentInstallPolicy.argv.lastOrNull()?.contains("sha256sum") == true &&
+                    silentInstallPolicy.argv.lastOrNull()?.contains("pm install -r") == true) {
+                    "PASS · Shizuku install allowlist · Shell-private staging and SHA-256 read-back precede pm install"
                 } else {
                     "FAIL · Shizuku install allowlist · Verified APK install command is not constrained as expected"
                 }

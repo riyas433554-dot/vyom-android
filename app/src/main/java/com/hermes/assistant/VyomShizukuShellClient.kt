@@ -255,10 +255,10 @@ internal class VyomShizukuShellClient(
         }
     }
 
-    fun installVerifiedApk(publicDownloadPath: String, callback: (String) -> Unit) {
+    fun installVerifiedApk(publicDownloadPath: String, expectedSha256: String, callback: (String) -> Unit) {
         val allowed = ShizukuCommandPolicy.command(
             commandId = "install_verified_apk",
-            args = listOf(publicDownloadPath),
+            args = listOf(publicDownloadPath, expectedSha256),
             ownerConfirmed = true,
             packageName = "com.vyom.assistant"
         )
@@ -278,7 +278,7 @@ internal class VyomShizukuShellClient(
                 if (!hasLiveServiceAuthorization(service)) {
                     "rejected: Shizuku authorization or service connection was lost before install"
                 } else {
-                    service.execute(requestId, "install_verified_apk", arrayOf(publicDownloadPath), allowed.timeoutMs, true)
+                    service.execute(requestId, "install_verified_apk", arrayOf(publicDownloadPath, expectedSha256), allowed.timeoutMs, true)
                 }
             } catch (error: Exception) {
                 "failed: ${error.javaClass.simpleName}"
