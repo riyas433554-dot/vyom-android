@@ -72,8 +72,8 @@ internal object VyomFactoryStatus {
         return when (from) {
             "open" -> to in setOf("blocked", "paused", "cancelled")
             "in_progress" -> to in setOf("open", "blocked", "paused", "completed", "cancelled")
-            "blocked" -> to in setOf("open", "in_progress", "cancelled")
-            "paused" -> to in setOf("open", "in_progress", "cancelled")
+            "blocked" -> to in setOf("open", "cancelled")
+            "paused" -> to in setOf("open", "cancelled")
             else -> false
         }
     }
