@@ -66,3 +66,20 @@ for pair in "open in_progress" "paused in_progress" "blocked in_progress" "compl
   fi
 done
 echo "Factory transition policy test PASS"
+
+# Mock the gh API boundary and verify a retried source ID resolves to the
+# existing issue instead of creating a second issue.
+gh() {
+  [[ "$1" == api && "$2" == --paginate && "$3" == --slurp ]] || {
+    echo "Unexpected gh invocation in idempotency test" >&2
+    return 2
+  }
+  cat "$fixture"
+}
+existing="$(find_task_by_idempotency_key "termux:test-41")"
+[[ "$existing" == 
+41\thttps://github.com/example/repo/issues/41' ]] || {
+  printf 'Idempotency lookup mismatch: %s\n' "$existing" >&2
+  exit 1
+}
+echo "Factory Termux idempotency preflight test PASS"
