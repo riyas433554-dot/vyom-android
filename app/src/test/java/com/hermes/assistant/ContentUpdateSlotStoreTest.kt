@@ -77,6 +77,24 @@ class ContentUpdateSlotStoreTest {
         } finally { root.deleteRecursively() }
     }
 
+    @Test fun rejectsOlderContentVersionWithoutChangingTheActiveSlot() {
+        val root = Files.createTempDirectory("vyom-slots").toFile()
+        try {
+            val store = ContentUpdateSlotStore(root)
+            store.seedInitialSlot("1.0.0", mapOf("skills/demo/SKILL.md" to "base".toByteArray()))
+            val current = "current".toByteArray()
+            assertTrue(apply(store, manifest("1.2.0", "previous", current), current) { p, _ ->
+                ContentProbeResult(p.id, true, 1L, "pass")
+            }.passed)
+            val stale = "stale".toByteArray()
+            val result = apply(store, manifest("1.1.0", "previous", stale), stale) { p, _ ->
+                ContentProbeResult(p.id, true, 1L, "pass")
+            }
+            assertFalse(result.passed)
+            assertEquals("1.2.0", store.activeVersion())
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun ownerRollbackRestoresPreviousSlot() {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
