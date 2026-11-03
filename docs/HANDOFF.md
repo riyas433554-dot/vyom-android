@@ -1,3 +1,36 @@
+# CURRENT P1 POWER MODE CHECKPOINT — 2026-11-03
+
+This checkpoint supersedes the earlier P1 authorization-gap statement above.
+
+## Shizuku authorization-aware capability state
+- Implementation source commits on `feature/memory-intelligence`:
+  - `88db603ad7061e6f50c57b0f53c4fd962e521757`: regression tests for unauthorised binder and explicit authorization.
+  - `b889f41109b0a4a5a3dbbba5528607945a4f5a82`: Level 2 policy now requires both a live Shizuku binder and explicit authorization.
+  - `3ceba5ec7c11c82c49a4671e4f2388937615d355`: Shizuku status reads `Shizuku.checkSelfPermission()` and distinguishes connected-but-unauthorized.
+  - `a22d62e3490941854be62fdbafbab29aaf8bcce7`: Power Mode wizard reports effective capability level from the current Shizuku/Accessibility state and corrects stale executor disclosure.
+  - `fc08ec51088ba713011bd610afa68febfb7e6d97`: client capability helper reads binder + permission state and feeds the pure policy.
+- Regression coverage: `PowerModePolicyTest.shizukuBinderWithoutOwnerAuthorizationDoesNotGrantLevelTwo` proves a connected-but-unapproved binder cannot elevate to Level 2; `PowerModePolicyTest.levelTwoRequiresLiveBinderAndExplicitOwnerAuthorization` covers the positive/negative state combinations and protected-surface boundary.
+- Shizuku command surface remains fixed read-back IDs; arbitrary shell text is not accepted. Existing mutating `set_overlay` policy still requires explicit owner confirmation and an exact allowlisted mode.
+- Exact-head CI for implementation SHA `fc08ec51088ba713011bd610afa68febfb7e6d97`: Debug run `41561433950` and Full CI run `41561433988`. At documentation time Debug was IN_PROGRESS and Full CI QUEUED. No pass is claimed. Re-check both against their exact `head_sha`.
+- No APK delivered.
+
+## P1 remaining gaps (do not mark complete)
+- The wizard still does not automatically detect Samsung Auto Blocker state; current UI gives owner-inspection guidance only. Do not claim automatic detection.
+- Verify the Shizuku UserService binder lifecycle, actual service authorization, request completion, STOP cancellation and audit behavior with targeted tests; source-only state is not phone proof.
+- Verify secure-settings grant read-back and owner-opt-in Accessibility reconnect state, including revocation/expiry and owner-disabled behavior.
+- Verify all appops only when the corresponding feature is declared and enabled.
+- Add the live capability table and exact state read-back tests for Level 0/1/2; physical Galaxy A06 validation remains deferred until all implementation phases are complete.
+- Preserve protected surfaces: secure windows, biometrics, OTPs/Authenticator, payment approvals, credentials and Play Protect must remain blocked.
+
+## Current matrix
+- `P1` is **PARTIAL**, not DONE. The matrix row names the two new regression methods. No other ID row changed in this checkpoint.
+- Mandatory next item remains P1: Shizuku UserService lifecycle/STOP/audit tests and remaining owner-led permission read-back. Do not start P2 until P1 acceptance is complete.
+
+## Source head before this documentation update
+- `fc08ec51088ba713011bd610afa68febfb7e6d97`
+
+---
+
 # CURRENT CONTINUATION — 2026-11-03
 
 ## Exact-head compile failure and correction
@@ -1353,7 +1386,7 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 | F4 | Auto-capture + visible facts + 500 cap | PARTIAL | `MemoryCapturePolicyTest`; capture rate/limit UI tests |
 | F5 | GitHub token encryption/masking | UNVERIFIED | Secret storage/log/export redaction tests |
 | F6 | Authenticator/password-manager hard block | PARTIAL | `AppAccessPolicyTest`; actual screen/tap denial tests |
-| P1 | Power Mode owner-led ADB/Shizuku | UNVERIFIED | Implement wizard, permission read-back and Galaxy A06 validation |
+| P1 | Power Mode owner-led ADB/Shizuku | PARTIAL | `PowerModePolicyTest.shizukuBinderWithoutOwnerAuthorizationDoesNotGrantLevelTwo`; `PowerModePolicyTest.levelTwoRequiresLiveBinderAndExplicitOwnerAuthorization`; remaining owner setup/read-back, Auto Blocker, STOP and Galaxy A06 tests pending |
 | P2 | Learn Anywhere loop | UNVERIFIED | Instagram story skill acceptance + three-repo ingestion ledger |
 | P3 | Capability ledger/self-awareness | UNVERIFIED | Permission/result/latency ledger and prompt injection tests |
 | P4 | Continuous learning | UNVERIFIED | 10+ message and failure-success extraction tests |
