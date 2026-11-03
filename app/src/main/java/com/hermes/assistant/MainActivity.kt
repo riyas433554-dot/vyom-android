@@ -3853,8 +3853,28 @@ class MainActivity : Activity() {
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
-                    store.recordPageLoadSuccess()
-                    updateNotice.text = "Hot-swappable UI bundle v${store.activeVersion()} loaded and integrity-checked."
+                    view.evaluateJavascript("(document.body && document.body.innerText.trim().length > 0).toString()") { result ->
+                        if (result != "\"true\"" && result != "true") {
+                            store.recordPageLoadFailure()
+                            val failedContentVersion = contentUpdateManager.activeVersion()
+                            val contentRolledBack = failedContentVersion.isNotBlank() &&
+                                contentUpdateManager.rollbackAfterPageLoadFailure(failedContentVersion)
+                            val fallback = if (contentRolledBack) {
+                                runCatching { store.activeIndexFile() }.getOrNull()
+                            } else {
+                                store.rollbackAfterPageLoadFailure()
+                            }
+                            if (fallback != null) {
+                                view.loadUrl(fallback.toURI().toString())
+                                updateNotice.text = "New content page failed its presence check; rolled back to v${store.activeVersion()}."
+                            } else {
+                                updateNotice.text = "Content page failed its presence check; no verified previous bundle is available."
+                            }
+                        } else {
+                            store.recordPageLoadSuccess()
+                            updateNotice.text = "Hot-swappable UI bundle v${store.activeVersion()} loaded; visible body presence verified."
+                        }
+                    }
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
