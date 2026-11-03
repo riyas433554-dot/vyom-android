@@ -50,3 +50,19 @@ actual="$(jq -r 'add[] |
 expected=$'41\tin_progress\tP2\t[VYOM FACTORY][P2] Running task\thttps://github.com/example/repo/issues/41\n42\tcompleted\tP1\t[VYOM FACTORY][P1] Finished task\thttps://github.com/example/repo/issues/42'
 [[ "$actual" == "$expected" ]] || { printf 'Expected:\n%s\nActual:\n%s\n' "$expected" "$actual" >&2; exit 1; }
 echo "Factory list metadata test PASS"
+
+# Exercise the same pure transition function used by the Termux CLI.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/vyom-factory.sh"
+for pair in "open blocked" "open paused" "open cancelled" "in_progress open" "in_progress blocked" "in_progress paused" "in_progress completed" "in_progress cancelled" "blocked open" "blocked cancelled" "paused open" "paused cancelled"; do
+  read -r from to <<< "$pair"
+  valid_transition "$from" "$to" || { echo "Expected allowed transition: $from -> $to" >&2; exit 1; }
+done
+for pair in "open in_progress" "paused in_progress" "blocked in_progress" "completed open" "cancelled open"; do
+  read -r from to <<< "$pair"
+  if valid_transition "$from" "$to"; then
+    echo "Expected blocked transition: $from -> $to" >&2
+    exit 1
+  fi
+done
+echo "Factory transition policy test PASS"
