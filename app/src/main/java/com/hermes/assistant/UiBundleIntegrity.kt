@@ -14,10 +14,39 @@ internal object UiBundleIntegrity {
     fun matches(name: String, bytes: ByteArray, expectedSha256: String): Boolean {
         if (!isAllowedAssetName(name) || !expectedSha256.matches(Regex("(?i)^[a-f0-9]{64}$"))) return false
         val actual = sha256(bytes)
-        return MessageDigest.isEqual(
+        val matchesHash = MessageDigest.isEqual(
             actual.toByteArray(Charsets.US_ASCII),
             expectedSha256.lowercase().toByteArray(Charsets.US_ASCII)
         )
+        return matchesHash && isSafeContent(name, bytes)
+    }
+
+    fun isSafeContent(name: String, bytes: ByteArray): Boolean {
+        if (!isAllowedAssetName(name)) return false
+        val content = String(bytes, Charsets.UTF_8)
+        return when (name) {
+            "index.html" -> {
+                val lower = content.lowercase()
+                lower.contains("content-security-policy") &&
+                    lower.contains("default-src 'self'") &&
+                    lower.contains("script-src 'self'") &&
+                    !Regex("(?i)<(iframe|object|embed)\\b").containsMatchIn(content) &&
+                    !Regex("(?i)(src|href)\\s*=\\s*['\\\"]https?://").containsMatchIn(content)
+            }
+            "styles.css" -> !Regex("(?i)@import\\s+url\\s*\\(\\s*['\\\"]?https?://").containsMatchIn(content) &&
+                !Regex("(?i)url\\s*\\(\\s*['\\\"]?https?://").containsMatchIn(content)
+            "app.js" -> {
+                val lower = content.lowercase()
+                val forbidden = listOf(
+                    "eval(", "new function(", "function(", "fetch(", "xmlhttprequest",
+                    "websocket", "import(", "sendbeacon(", "document.cookie",
+                    "localstorage", "sessionstorage", "indexeddb", "window.open(",
+                    "location.href", "location.assign("
+                )
+                forbidden.none { it in lower }
+            }
+            else -> false
+        }
     }
 
     fun allowedAssetNames(): Set<String> = allowedNames

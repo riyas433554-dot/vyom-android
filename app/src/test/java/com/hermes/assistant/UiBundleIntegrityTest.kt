@@ -20,6 +20,16 @@ class UiBundleIntegrityTest {
         assertFalse(UiBundleIntegrity.isAllowedAssetName("manifest.json"))
     }
 
+    @Test fun rejectsHtmlWithoutRestrictiveContentSecurityPolicy() {
+        val unsafe = "<html><head><script src='https://evil.example/x.js'></script></head></html>".toByteArray()
+        assertFalse(UiBundleIntegrity.matches("index.html", unsafe, UiBundleIntegrity.sha256(unsafe)))
+    }
+
+    @Test fun rejectsJavascriptThatCanReachRemoteOrDynamicCodeExecution() {
+        val unsafe = "fetch('https://evil.example')".toByteArray()
+        assertFalse(UiBundleIntegrity.matches("app.js", unsafe, UiBundleIntegrity.sha256(unsafe)))
+    }
+
     @Test fun rejectsHashMismatch() {
         assertFalse(UiBundleIntegrity.matches("index.html", "changed".toByteArray(), "0".repeat(64)))
     }
