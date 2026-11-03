@@ -38,12 +38,12 @@ internal object UiBundleIntegrity {
             "app.js" -> {
                 val lower = content.lowercase()
                 val forbidden = listOf(
-                    "eval(", "new function(", "function(", "fetch(", "xmlhttprequest",
+                    "eval(", "new function(", "fetch(", "xmlhttprequest",
                     "websocket", "import(", "sendbeacon(", "document.cookie",
                     "localstorage", "sessionstorage", "indexeddb", "window.open(",
                     "location.href", "location.assign("
                 )
-                forbidden.none { it in lower }
+                forbidden.none { it in lower } && !content.contains("Function(")
             }
             else -> false
         }

