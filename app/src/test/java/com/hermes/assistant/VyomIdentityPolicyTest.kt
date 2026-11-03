@@ -28,4 +28,21 @@ class VyomIdentityPolicyTest {
     @Test fun languageModeIsExplicit() {
         assertTrue(VyomIdentityPolicy.systemInstruction(hinglish = true).contains("natural Hinglish"))
     }
+    @Test fun ownerAuthorizedAgentLearnsBeforeGuessingAndPersistsVerifiedSkills() {
+        val prompt = VyomIdentityPolicy.systemInstruction()
+        assertTrue(prompt.contains("LEARN FIRST"))
+        assertTrue(prompt.contains("license"))
+        assertTrue(prompt.contains("verified skills"))
+        assertTrue(prompt.contains("untrusted data"))
+    }
+
+    @Test fun fullControlIsPermissionAwareAndRechecksAfterActions() {
+        val prompt = VyomIdentityPolicy.systemInstruction()
+        assertTrue(prompt.contains("AUTHORITY"))
+        assertTrue(prompt.contains("PERMISSIONS"))
+        assertTrue(prompt.contains("fresh screen"))
+        assertTrue(prompt.contains("STOP"))
+        assertTrue(prompt.contains("safeguards"))
+    }
+
 }
