@@ -26,8 +26,16 @@ public final class ContentUpdateSigner {
         };
         Signature signer = Signature.getInstance(signatureAlgorithm);
         signer.initSign((PrivateKey) key);
-        signer.update(Files.readAllBytes(Path.of(args[0])));
-        Files.write(Path.of(args[1]), signer.sign());
+        byte[] payload = Files.readAllBytes(Path.of(args[0]));
+        signer.update(payload);
+        byte[] signed = signer.sign();
+        java.security.cert.Certificate certificate = keystore.getCertificate(alias);
+        if (certificate == null) throw new IllegalStateException("Release certificate is missing");
+        Signature verifier = Signature.getInstance(signatureAlgorithm);
+        verifier.initVerify(certificate.getPublicKey());
+        verifier.update(payload);
+        if (!verifier.verify(signed)) throw new IllegalStateException("Content package signature self-check failed");
+        Files.write(Path.of(args[1]), signed);
     }
 
     private static String requiredEnv(String name) {
