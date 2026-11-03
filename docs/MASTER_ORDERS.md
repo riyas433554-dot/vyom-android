@@ -380,3 +380,30 @@ Source evidence inspected: `docs/ANDROID_SIGNING.md`; `.github/workflows/vyom-an
 Current branch CI after the priority-order documentation commits: Debug `41596703009` and Full CI `41596702934`, both target `1df8bb08a39f874d3ee5319137a8f507f1581ee5`; at inventory time Debug was IN_PROGRESS and Full CI PENDING. No pass is claimed. No ID rows changed. No APK delivered.
 
 Next implementation order: unify and harden release signing first; prove configured secret identity and certificate; then wire all update paths and hot-swappable bundle; Diagnostics rows must accompany each feature. Keep update verifier/signing/policy/kill-switch review-only for self-edit proposals.
+
+
+## M1 update-first implementation checkpoint — 2026-11-03
+
+Source checkpoint before this documentation commit: `ee9fe53b01a42fa8b1157807cb77919ffef15565`. All work remains on `feature/memory-intelligence`; Android `main`, Render, Hermes backend and production Supabase were not modified.
+
+### Implemented and wired (not yet accepted as FIXED)
+- **S6/S7 signing workflow:** release workflow now validates the persistent keystore, alias and key password without logging secrets; both signed-build workflows run `apksigner verify` and reject anything except the expected certificate `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`. Release manifest includes SHA-256, certificate SHA-256 and full source commit. Debug CI logs prove keystore/alias/password validation passed in runs `41597804231`, `41598264694` and later runs at the time they reached the signing steps. No artifact fingerprint pass is claimed yet.
+- **Path B:** pushes to `feature/memory-intelligence` and `vyom-proposal-*` are configured to publish signed prerelease APK + sidecar checksum + cert report + `vyom-update.json` after tests/build/signing succeed. In-app update discovery scans releases including prereleases and requires valid SHA-256, certificate fingerprint and full commit SHA. Candidate APK is checked against manifest, package/version and the installed app signer before Android installer opens.
+- **Path A:** self-change model now returns bounded exact-anchor patch operations, not a whole-file response. Patch application fails closed on missing/ambiguous anchors. Settings exposes the workflow; owner sees a minimal patch preview before PR creation. The app waits for combined proposal commit status, then searches only for the signed release whose manifest commit equals that exact proposal SHA and stages/opens install only after checksum + certificate checks.
+- **Path C:** chat phrases `Vyom, ye badlo` / `Vyom ye badlo` open the guarded self-change form with the request prefilled.
+- **Protected self-change files:** in-app policy and CI proposal gate block policy, kill, audit, control, accessibility, update verifier, signing and keystore paths. Protected update/signing/kill-switch/policy code remains review-only.
+- **Hot-swappable UI bundle:** bundled HTML/CSS/JS is seeded into app-private versioned storage; hashes and restrictive content rules are verified. A local-only WebView Update Center is reachable from Profile. Its narrowly scoped Kotlin bridge supports update check, self-change entry and prompt-driven HTML/CSS/JS exact-anchor patches; applying a patch requires native confirmation, creates a versioned bundle and reloads without an APK. Main-frame page-load errors record failure and attempt rollback to the previous bundle.
+- **Diagnostics:** Profile > Update System Diagnostics > RUN ALL CHECKS is reachable. It checks installed signer identity, expected certificate identity, GitHub release discovery/manifest fields, self-change protected-path enforcement, app-private bundle integrity and last WebView load status. Other M1 features are not represented as passed by this update-focused diagnostics run yet.
+
+### CI evidence and unresolved gates
+- Exact-head runs for source SHA `ee9fe53b01a42fa8b1157807cb77919ffef15565`: Debug `41598918013` IN_PROGRESS; Full CI `41598917977` PENDING at this checkpoint. These exact-head results must be polled again after the documentation commit.
+- Actual prior test failure: Debug run `41597804231` at source SHA `da1cffb171d443e4696a7f73192ea689a767b637` failed `UiBundleIntegrityTest.computesStableSha256ForUtf8BundleContent` (233 tests, 1 failed) because the assertion truncated the computed digest to 32 characters while comparing a full 64-character expected digest. The assertion was corrected in `705a0c162529b216547f63c9ffc444de41d0c481`; later exact-head CI is still required to prove it.
+- Signing secret/keystore/alias/key-password checks succeeded in CI, but expected APK certificate verification and signed artifact publication have not yet been observed to pass. The previously inspected APK fingerprint `BF:41:32:C9:D3:4A:2F:80:CF:03:77:0C:2D:5A:85:A8:04:AA:A8:6B:D8:DF:9B:62:84:C4:2A:2D:C8:38:6E:95` differs from the required `7A:75…9F:0A`; the owner's currently installed phone APK fingerprint still needs an on-device read-back.
+- Shizuku silent install is not yet implemented/verified; current install path opens Android's installer. Full app UI has not yet migrated to WebView—the hot-swappable WebView currently hosts Update Center only. These are explicit PARTIAL gaps, not completed claims.
+- No physical-device update install was run. No APK delivered. No feature/acceptance ID rows changed.
+
+### Next
+1. Poll exact-head Debug + Full CI; fix any failures from their actual logs.
+2. Verify the signed artifact's SHA-256 and actual APK certificate from CI artifact bytes; compare with the expected fingerprint and, later, the owner's installed APK fingerprint.
+3. Prove a branch-push prerelease can be discovered by the app and that a proposal build is selected only by exact commit SHA.
+4. Complete Shizuku silent install under verified Power Mode and finish full UI bundle migration/rollback runtime proof before calling update-first M1 complete.
