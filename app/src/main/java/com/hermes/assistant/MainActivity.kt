@@ -1351,9 +1351,10 @@ class MainActivity : Activity() {
             orientation = android.widget.RadioGroup.VERTICAL
         }
         val modes = listOf(
+            UiAgentPolicy.ConfirmationMode.TRUSTED to "TRUSTED — run owner-requested tasks without extra confirmations; hard blocks remain",
             UiAgentPolicy.ConfirmationMode.ALWAYS_ASK to "Always ask — confirm every visible text tap",
-            UiAgentPolicy.ConfirmationMode.RISKY_ASK to "Risky asks — confirm risky and unlabeled controls",
-            UiAgentPolicy.ConfirmationMode.SESSION_GRANT to "Session grant — safe controls can run without repeated prompts"
+            UiAgentPolicy.ConfirmationMode.RISKY_ASK to "Risky asks — confirm consequential and unlabeled controls",
+            UiAgentPolicy.ConfirmationMode.SESSION_GRANT to "Session grant — legacy temporary grant for safe controls"
         )
         modes.forEach { (mode, label) ->
             val option = android.widget.RadioButton(this).apply {
@@ -1363,7 +1364,7 @@ class MainActivity : Activity() {
                 textSize = 12f
             }
             modeGroup.addView(option, android.widget.RadioGroup.LayoutParams(-1, -2))
-            if (mode == UiAgentPolicy.ConfirmationMode.RISKY_ASK) modeGroup.check(option.id)
+            if (mode == UiAgentPolicy.ConfirmationMode.TRUSTED) modeGroup.check(option.id)
         }
         content.addView(modeGroup, LinearLayout.LayoutParams(-1, -2))
         AlertDialog.Builder(this)
@@ -1412,7 +1413,7 @@ class MainActivity : Activity() {
                             return@setOnClickListener
                         }
                         val selectedMode = modeGroup.findViewById<android.widget.RadioButton>(modeGroup.checkedRadioButtonId)
-                            ?.tag as? UiAgentPolicy.ConfirmationMode ?: UiAgentPolicy.ConfirmationMode.RISKY_ASK
+                            ?.tag as? UiAgentPolicy.ConfirmationMode ?: UiAgentPolicy.ConfirmationMode.TRUSTED
                         val visionEnabled = visionToggle.isChecked
                         dialog.dismiss()
                         fun launchSelectedTask() {
