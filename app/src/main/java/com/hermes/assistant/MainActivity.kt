@@ -194,6 +194,7 @@ class MainActivity : Activity() {
         voiceStopReceiverRegistered = true
         api = VyomApiClient(applicationContext)
         memoryStore = VyomMemoryStore(applicationContext)
+        memoryStore.ensureCorePrinciples()
         controlKillSwitch = controlPrefs.getBoolean("kill_switch", false)
         sanitizeControlAuditHistory()
         voiceStateMachine = VoiceStateMachine()
