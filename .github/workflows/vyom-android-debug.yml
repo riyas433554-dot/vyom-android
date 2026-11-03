@@ -163,6 +163,25 @@ jobs:
             VERSION_SHA256="$(sha256sum "output/$RELEASE_APK" | cut -d ' ' -f 1)"
             VERSION_CERT="$CERT_SHA256" VERSION_SHA256="$VERSION_SHA256" APK_URL="$APK_URL" VERSION_NAME="$VERSION_NAME" VERSION_CODE="$VERSION_CODE" COMMIT="$GITHUB_SHA" python3 -c 'import json,os; d={"version":os.environ["VERSION_NAME"],"versionName":os.environ["VERSION_NAME"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["VERSION_CERT"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
           fi
+      - name: Build and sign no-APK content update demo package
+        if: steps.signing.outputs.available == 'true'
+        shell: bash
+        env:
+          CONTENT_VERSION: 1.0.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          python3 tools/build_content_demo.py prepare --output output/content-update-demo --version "$CONTENT_VERSION"
+          mkdir -p "$RUNNER_TEMP/vyom-content-signer"
+          javac -d "$RUNNER_TEMP/vyom-content-signer" tools/ContentUpdateSigner.java tools/ContentUpdateResultCard.java
+          java -cp "$RUNNER_TEMP/vyom-content-signer" ContentUpdateSigner output/content-update-demo/manifest.canonical output/content-update-demo/manifest.sig
+          python3 tools/build_content_demo.py package --output output/content-update-demo --zip output/vyom-content-update-demo.zip
+          RESULT_JSON="output/content-update-demo/result.json"
+          PRESENCE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["presence"])' "$RESULT_JSON")"
+          STATUS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$RESULT_JSON")"
+          TIMING="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["timing"])' "$RESULT_JSON")"
+          java -Djava.awt.headless=true -cp "$RUNNER_TEMP/vyom-content-signer" ContentUpdateResultCard "$CONTENT_VERSION" "$STATUS" "$PRESENCE" "$TIMING" output/vyom-content-update-result-card.png
+          test -s output/vyom-content-update-demo.zip
+          test -s output/vyom-content-update-result-card.png
       - name: Upload debug and signed APK artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -185,4 +204,6 @@ jobs:
             output/${{ steps.package.outputs.release_apk }}.sha256
             output/${{ steps.package.outputs.release_apk }}.certs.txt
             output/vyom-update.json
+            output/vyom-content-update-demo.zip
+            output/vyom-content-update-result-card.png
             output/build-info.txt
