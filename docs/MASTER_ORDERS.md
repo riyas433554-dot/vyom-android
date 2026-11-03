@@ -52,6 +52,12 @@ M1 APK gate: all above items must be reachable, end-to-end, tested and represent
 - The previous source SHA `3387385b76d03aa3d43a0e657458182c2c20cb3f` had passed the release signing/certificate verification stage but GitHub Release publication failed with HTTP 403. Workflow now supports `VYOM_RELEASE_TOKEN` (preferred) or `GITHUB_TOKEN`, and uploads artifacts before release publication. Repository workflow permission still must allow Contents: write for release publishing.
 - No M1 acceptance ID rows changed. No APK delivered. Next: exact-head CI, inspect real logs; then validate update paths, UI bundle, and wiring/Diagnostics inventory. Signing fingerprint observed in CI is `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`; installed-device certificate match is still unverified.
 
+
+### Proposal-branch CI base correction — 2026-11-03
+- Audit found `.github/workflows/vyom-android-ci.yml` still used the retired `feature/u1-live-orbit-tasks` branch as the zero-before-SHA fallback for the first push to a `vyom-proposal-*` branch, and did not target `feature/memory-intelligence` for PR events.
+- Corrected the fallback and pull-request target to the locked development branch `feature/memory-intelligence`. This prevents a first proposal push from being compared against an unrelated historical branch and ensures PR CI attaches to the intended target.
+- This is required for update path (a); proposal-branch CI remains pending exact-head verification. Do not count proposal CI as green until both required workflow runs are for the exact proposal SHA.
+
 ---
 
 # OWNER RESET — MILESTONE DELIVERY PLAN (2026-11-03)

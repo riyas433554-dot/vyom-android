@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - feature/u1-live-orbit-tasks
+      - feature/memory-intelligence
 
 permissions:
   contents: read
@@ -48,8 +49,8 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             base="$EVENT_BEFORE"
             if [[ "$base" =~ ^0+$ ]]; then
-              git fetch origin "+refs/heads/feature/u1-live-orbit-tasks:refs/remotes/origin/feature/u1-live-orbit-tasks"
-              base="origin/feature/u1-live-orbit-tasks"
+              git fetch origin "+refs/heads/feature/memory-intelligence:refs/remotes/origin/feature/memory-intelligence"
+              base="origin/feature/memory-intelligence"
             fi
           else
             git fetch origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
