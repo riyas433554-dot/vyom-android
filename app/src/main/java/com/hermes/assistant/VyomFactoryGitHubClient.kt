@@ -54,7 +54,10 @@ internal class VyomFactoryGitHubClient(
         require(priority in PRIORITIES) { "Unknown priority" }
         val key = VyomFactoryStatus.idempotencyKey(source, sourceId)
             ?: throw IllegalArgumentException("Invalid source identity")
-        listTasks().firstOrNull { it.metadata.idempotencyKey == key }?.let { return it }
+        listTasks().firstOrNull { it.metadata.idempotencyKey == key }?.let { existing ->
+            return updateTask(existing, newTitle = cleanTitle, newPriority = priority,
+                newStatus = existing.metadata.status, newDescription = description.trim())
+        }
         val metadata = VyomFactoryStatus.Metadata(priority, "open", source, sourceId, key, listOf("created"))
         val body = VyomFactoryStatus.withMetadata(description.trim(), metadata)
         val created = JSONObject(execute("POST", "/issues",
