@@ -36,7 +36,10 @@ class ContentUpdateSlotStoreTest {
         try {
             val store = ContentUpdateSlotStore(root)
             val baselineBytes = "baseline".toByteArray()
-            store.seedInitialSlot("0.9.0", mapOf("ui-bundle/index.html" to baselineBytes))
+            store.seedInitialSlot("0.9.0", mapOf(
+                "ui-bundle/index.html" to baselineBytes,
+                "skills/calendar/SKILL.md" to "calendar skill v1".toByteArray()
+            ))
             val firstBytes = "old".toByteArray()
             val first = manifest("1.0.0", "0.9.0", firstBytes)
             assertTrue(apply(store, first, firstBytes) { probe, slot ->
@@ -50,6 +53,7 @@ class ContentUpdateSlotStoreTest {
             assertTrue(result.passed)
             assertEquals("1.1.0", store.activeVersion())
             assertTrue(File(root, "1.0.0/ui-bundle/index.html").readText() == "old")
+            assertEquals("calendar skill v1", File(root, "1.1.0/skills/calendar/SKILL.md").readText())
         } finally { root.deleteRecursively() }
     }
 

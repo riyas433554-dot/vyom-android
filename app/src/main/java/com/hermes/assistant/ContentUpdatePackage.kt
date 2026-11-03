@@ -57,6 +57,18 @@ internal data class ContentUpdateManifest(
                 !file.sha256.equals(UiBundleIntegrity.sha256(bytes), ignoreCase = true)) {
                 errors += "SHA-256 mismatch: ${file.path}"
             }
+            if (file.path.startsWith("ui-bundle/")) {
+                val assetName = file.path.removePrefix("ui-bundle/")
+                if (!UiBundleIntegrity.isAllowedAssetName(assetName) ||
+                    !UiBundleIntegrity.isSafeContent(assetName, bytes)) {
+                    errors += "Unsafe or unsupported UI bundle asset: ${file.path}"
+                }
+            } else if (file.path.endsWith(".js", true) || file.path.endsWith(".sh", true) ||
+                file.path.endsWith(".py", true) || file.path.endsWith(".apk", true) ||
+                file.path.endsWith(".jar", true) || file.path.endsWith(".so", true) ||
+                file.path.endsWith(".dex", true)) {
+                errors += "Executable content is not allowed outside the UI bundle: ${file.path}"
+            }
         }
         if (probes.size !in 1..2) errors += "Every content update must ship one or two probes"
         if (probes.firstOrNull()?.kind != ContentProbeKind.PRESENCE) {

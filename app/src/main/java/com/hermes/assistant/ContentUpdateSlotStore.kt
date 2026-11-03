@@ -105,6 +105,11 @@ internal class ContentUpdateSlotStore(private val root: File) {
         staging.deleteRecursively()
         require(staging.mkdirs()) { "Could not create inactive content slot" }
         try {
+            if (oldVersion.isNotBlank()) {
+                val activeDirectory = File(root, oldVersion)
+                require(activeDirectory.isDirectory) { "Current active content slot is missing" }
+                activeDirectory.copyRecursively(staging, overwrite = true)
+            }
             files.forEach { (path, bytes) ->
                 require(ContentUpdateManifest.isAllowedContentPath(path)) { "Protected content path rejected: $path" }
                 val target = File(staging, path)
