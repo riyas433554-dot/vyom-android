@@ -149,6 +149,25 @@ class ContentUpdateSlotStoreTest {
         } finally { root.deleteRecursively() }
     }
 
+
+    @Test fun exposesOnlyFilesInsideTheActiveSlotAndDetectsStoredPerformanceBaseline() {
+        val root = Files.createTempDirectory("vyom-slots").toFile()
+        try {
+            val store = ContentUpdateSlotStore(root)
+            val bytes = "visible UI".toByteArray()
+            store.seedInitialSlot("1.0.0", mapOf("ui-bundle/index.html" to bytes))
+            assertEquals("visible UI", store.activeFile("ui-bundle/index.html").readText())
+            assertFalse(store.hasPerformanceBaseline("home-render"))
+            store.recordPerformanceBaseline("home-render", 120L)
+            assertTrue(store.hasPerformanceBaseline("home-render"))
+            try {
+                store.activeFile("../outside")
+                fail("Path traversal must not escape the active slot")
+            } catch (_: IllegalArgumentException) { }
+        } finally { root.deleteRecursively() }
+    }
+
+
     @Test fun twoCrashesWithinSixtySecondsRollbackActiveContent() {
         val root = Files.createTempDirectory("vyom-slots").toFile()
         try {
