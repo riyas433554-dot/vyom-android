@@ -39,43 +39,94 @@ internal class ContentUpdateManager(private val context: Context) {
             val packageUrl = ContentUpdateReleaseLocator.latestPackageUrl(releases)
                 ?: return ContentUpdateResult(activeVersion(), false, emptyList(), null,
                     "No signed no-APK content package is available in the release feed")
-            val packageBytes = readHttpsBytes(packageUrl, MAX_PACKAGE_BYTES)
-            val parsed = ContentUpdatePackageArchive.read(packageBytes)
-            val verifier = ContentUpdatePackageVerifier(installedSigningPublicKey())
-            parsed.manifest.probes.filter { it.kind == ContentProbeKind.PERFORMANCE }.forEach { probe ->
-                if (!store.hasPerformanceBaseline(probe.baselineKey)) {
-                    val oldFile = runCatching { store.activeFile(probe.target) }.getOrNull()
-                    if (oldFile != null) store.recordPerformanceBaseline(probe.baselineKey, measureRead(oldFile))
-                }
-            }
-            val result = store.applySigned(
-                parsed.manifest, parsed.detachedSignature, parsed.files, BuildConfig.VERSION_NAME,
-                verifier, ContentUpdateProbeRunner { probe, stagedSlot ->
-                    val started = System.nanoTime()
-                    val file = File(stagedSlot, probe.target)
-                    val bytes = if (file.isFile) file.readBytes() else ByteArray(0)
-                    val duration = ((System.nanoTime() - started) / 1_000_000L).coerceAtLeast(0L)
-                    val passed = when (probe.kind) {
-                        ContentProbeKind.PRESENCE -> bytes.isNotEmpty() &&
-                            String(bytes, Charsets.UTF_8).contains(probe.expected)
-                        ContentProbeKind.PERFORMANCE -> bytes.isNotEmpty()
-                    }
-                    ContentProbeResult(probe.id, passed, duration,
-                        if (passed) "Verified staged content ${probe.target}" else "Expected content not found in ${probe.target}")
-                }
+            val parsed = ContentUpdatePackageArchive.read(readHttpsBytes(packageUrl, MAX_PACKAGE_BYTES))
+            applySignedPackage(
+                parsed.manifest, parsed.detachedSignature, parsed.files,
+                ContentUpdatePackageVerifier(installedSigningPublicKey())
             )
-            if (result.passed) {
-                try { syncUiBundleToUiHost(parsed.manifest.version) }
-                catch (error: Exception) {
-                    store.rollback()
-                    throw IllegalStateException("Content slot activated but UI host rejected it; previous slot restored", error)
-                }
-            }
-            result
         } catch (error: Exception) {
             ContentUpdateResult(activeVersion(), false, emptyList(), null,
                 "Content update rejected; active slot unchanged: ${error.message ?: "verification/download error"}")
         }
+    }
+
+    /** Creates and signs a content-only package locally; it never mutates the active slot directly. */
+    fun applyLocalUiFiles(files: Map<String, ByteArray>, ownerPrompt: String): ContentUpdateResult {
+        ensureSeeded()
+        require(files.keys == UiBundleIntegrity.allowedAssetNames()) {
+            "A local UI update must contain exactly index.html, styles.css and app.js"
+        }
+        require(ownerPrompt.isNotBlank() && ownerPrompt.length <= 1_500) { "Owner prompt is empty or too long" }
+        val html = String(files["index.html"] ?: error("Updated index.html is missing"), Charsets.UTF_8)
+        val heading = Regex("(?is)<h1[^>]*>(.*?)</h1>").find(html)?.groupValues?.get(1)
+            ?.replace(Regex("<[^>]+>"), "")?.replace("&amp;", "&")?.trim().orEmpty()
+        require(heading.isNotBlank()) { "Updated UI must contain a visible h1 heading for the presence probe" }
+        val version = nextContentVersion()
+        val packageFiles = files.mapKeys { (name, _) -> "ui-bundle/$name" }
+        val manifest = ContentUpdateManifest(
+            version = version,
+            minAppVersion = BuildConfig.VERSION_NAME,
+            changes = listOf(ownerPrompt.take(500)),
+            files = packageFiles.map { (path, bytes) -> ContentUpdateFile(path, UiBundleIntegrity.sha256(bytes)) },
+            probes = listOf(
+                ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "ui-bundle/index.html", heading),
+                ContentUpdateProbe("performance", ContentProbeKind.PERFORMANCE, "ui-bundle/index.html",
+                    baselineKey = "update-center-page-load")
+            ),
+            rollbackTo = "previous"
+        )
+        val signer = ContentUpdateLocalSigner(context)
+        val signature = signer.sign(manifest.canonicalPayload())
+        return applySignedPackage(
+            manifest, signature, packageFiles,
+            ContentUpdatePackageVerifier(signer.publicKeyBase64())
+        )
+    }
+
+    private fun applySignedPackage(
+        manifest: ContentUpdateManifest,
+        signature: ByteArray,
+        files: Map<String, ByteArray>,
+        verifier: ContentUpdatePackageVerifier
+    ): ContentUpdateResult {
+        manifest.probes.filter { it.kind == ContentProbeKind.PERFORMANCE }.forEach { probe ->
+            if (!store.hasPerformanceBaseline(probe.baselineKey)) {
+                val oldFile = runCatching { store.activeFile(probe.target) }.getOrNull()
+                if (oldFile != null) store.recordPerformanceBaseline(probe.baselineKey, measureRead(oldFile))
+            }
+        }
+        val result = store.applySigned(
+            manifest, signature, files, BuildConfig.VERSION_NAME, verifier,
+            ContentUpdateProbeRunner { probe, stagedSlot ->
+                val started = System.nanoTime()
+                val file = File(stagedSlot, probe.target)
+                val bytes = if (file.isFile) file.readBytes() else ByteArray(0)
+                val duration = ((System.nanoTime() - started) / 1_000_000L).coerceAtLeast(0L)
+                val passed = when (probe.kind) {
+                    ContentProbeKind.PRESENCE -> bytes.isNotEmpty() &&
+                        String(bytes, Charsets.UTF_8).contains(probe.expected)
+                    ContentProbeKind.PERFORMANCE -> bytes.isNotEmpty()
+                }
+                ContentProbeResult(probe.id, passed, duration,
+                    if (passed) "Verified staged content ${probe.target}" else "Expected content not found in ${probe.target}")
+            }
+        )
+        if (result.passed) {
+            try { syncUiBundleToUiHost(manifest.version) }
+            catch (error: Exception) {
+                store.rollback()
+                throw IllegalStateException("Content slot activated but UI host rejected it; previous slot restored", error)
+            }
+        }
+        return result
+    }
+
+    private fun nextContentVersion(): String {
+        val parts = activeVersion().split('.').mapNotNull { it.toIntOrNull() }
+        val major = parts.getOrNull(0) ?: 1
+        val minor = parts.getOrNull(1) ?: 0
+        val patch = parts.getOrNull(2) ?: 0
+        return "$major.$minor.${patch + 1}"
     }
 
     fun rollback(): Boolean {
