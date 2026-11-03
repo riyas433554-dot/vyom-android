@@ -93,3 +93,12 @@ These are knowledge packs for future repository-learning integration, not a clai
 4. Physical phone tests: Accessibility grant, app-switch, text/OCR, visual controls, gestures, STOP mid-action, grant revocation, foreground switch, Quick Settings and background/Doze.
 5. Implement repository/ZIP ingestion, encrypted skill registry and per-skill verification before claiming autonomous self-learning.
 6. Only then publish an update-safe APK; never uninstall the existing app as a signing workaround.
+
+
+### A17 implementation checkpoint — bounded scroll-until-found — 2026-11-03
+- Owner clarified A17 as mandatory M1 core scope; all 20 coverage domains and Control Suite acceptance requirements are recorded in the top-level A17 sections of HANDOFF, MASTER_ORDERS, ACCEPTANCE_TESTS and ANDROID_CONTROL_CAPABILITY_MATRIX. A1 and whatsapp_send are acceptance probes only.
+- Existing generic UI Agent is the current partial foundation: Accessibility tree, local OCR, optional screenshot/vision, one-action planning, policy validation, bounded action loop, event/revision re-observation, STOP and foreground guards. It is NOT a universal Android-control engine.
+- Added a test-first bounded `SCROLL_UNTIL_FOUND` action. Policy rejects blank/blocked/already-visible targets, invalid direction and maxScrolls outside 1..8. Planner schema exposes the action; runtime scrolls one page then re-observes and counts per-target attempts, stopping when the bound is exhausted. Test: `UiAgentPolicyTest.scrollUntilFoundRequiresAnAbsentVisibleTargetAndBoundedDirection`.
+- Test-first commit: `aebba60158c7d1bc45b59c597798cd709134beaa`; production implementation commit: `0ed83c1ee6f6a158bc14fdb0693c681213211333`.
+- Exact-head workflows on `0ed83c1ee6f6a158bc14fdb0693c681213211333`: Debug `41631445760` IN PROGRESS; Full CI `41631445805` PENDING at last poll. Older test-first runs `41631188888` (Debug) and `41631188907` (Full CI) had not completed; no RED result is claimed.
+- No A17 coverage row is marked FIXED. Diagnostics Control Suite, live capability manifest, ShellExecutor/Accessibility adapter selection, Learn Anywhere execution, remaining generic action adapters and owner-device subset remain open. Next: inspect exact-head CI logs; then wire engine/manifest and add safe, evidence-producing Control Suite checks without pretending static capability checks are device task passes.
