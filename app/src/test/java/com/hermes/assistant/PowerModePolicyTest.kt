@@ -155,4 +155,50 @@ class PowerModePolicyTest {
         assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(true, true, 2000, false, true))
         assertFalse(PowerModePolicy.mayUseBoundShizukuUserService(true, true, 2000, true, false))
     }
+    @Test fun levelTwoRequiresLiveBoundUserServiceNotOnlyShizukuAuthorization() {
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_2,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = true,
+                shizukuUid = 2000,
+                accessibilityEnabled = true,
+                userServiceBound = true,
+                remoteBinderAlive = true
+            )
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_1,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = true,
+                shizukuUid = 2000,
+                accessibilityEnabled = true,
+                userServiceBound = false,
+                remoteBinderAlive = false
+            )
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_1,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = true,
+                shizukuUid = 2000,
+                accessibilityEnabled = true,
+                userServiceBound = true,
+                remoteBinderAlive = false
+            )
+        )
+        assertEquals(
+            PowerModePolicy.CapabilityLevel.LEVEL_1,
+            PowerModePolicy.capabilityLevel(
+                shizukuRunning = true,
+                shizukuAuthorized = false,
+                shizukuUid = 2000,
+                accessibilityEnabled = true,
+                userServiceBound = true,
+                remoteBinderAlive = true
+            )
+        )
+    }
 }

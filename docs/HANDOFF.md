@@ -1602,3 +1602,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Implemented pure live-use policy: require live Shizuku binder, currently granted permission, UID 2000, live remote binder and locally bound state.
 - Before a read-back request and again on the worker immediately before dispatch, re-read all authorization and binder inputs. Any failed check invalidates local remote/bound/request state and refuses dispatch. STOP also refuses stale remote access.
 - This is app-side revalidation; it cannot prove the OEM/Shizuku runtime revocation callback timing. P1 remains PARTIAL and no acceptance IDs changed. Continue the actual UserService lifecycle/STOP tests and capability/app-op read-back matrix. No APK delivered.
+
+
+### P1 capability-level live UserService read-back — RED — 2026-11-03
+- Current source inspection found a capability-reporting gap: `capabilityLevel()` reported LEVEL_2 from Shizuku binder + permission + UID 2000 alone, even if the app's UserService was never bound or its remote binder had died.
+- Added a regression contract requiring a locally bound and live remote UserService before LEVEL_2 is reported; Shizuku authorization without that service must fall back to LEVEL_1 when Accessibility is effective.
+- Test-only commit is intentionally expected to fail compilation until the policy signature and client read-back are implemented. No capability ID is marked complete; P1 remains PARTIAL.
+- Next: inspect exact RED CI logs, implement live service-backed capability reporting, then continue remaining P1 lifecycle/STOP and app-op read-back acceptance. No APK.
