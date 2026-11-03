@@ -3574,21 +3574,30 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun applyUiPrompt(prompt: String) {
-            val apiKey = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
-            val model = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
-            runOnUiThread { updateNotice.text = "Preparing a minimal, hash-verified UI patch…" }
-            io.execute {
-                try {
-                    val version = UiBundleEditor(store).applyPrompt(apiKey, model, prompt)
-                    runOnUiThread {
-                        updateNotice.text = "UI bundle v$version installed. Reloading without an APK update."
-                        webView.loadUrl(store.activeIndexFile().toURI().toString())
+            runOnUiThread {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Apply UI change?")
+                    .setMessage(prompt.take(1_000))
+                    .setNegativeButton("CANCEL", null)
+                    .setPositiveButton("APPLY PATCH") { _, _ ->
+                        val apiKey = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+                        val model = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
+                        updateNotice.text = "Preparing a minimal, hash-verified UI patch…"
+                        io.execute {
+                            try {
+                                val version = UiBundleEditor(store).applyPrompt(apiKey, model, prompt)
+                                runOnUiThread {
+                                    updateNotice.text = "UI bundle v$version installed. Reloading without an APK update."
+                                    webView.loadUrl(store.activeIndexFile().toURI().toString())
+                                }
+                            } catch (error: Exception) {
+                                runOnUiThread {
+                                    updateNotice.text = "UI patch rejected; active bundle unchanged: ${error.message ?: "patch error"}"
+                                }
+                            }
+                        }
                     }
-                } catch (error: Exception) {
-                    runOnUiThread {
-                        updateNotice.text = "UI patch rejected; active bundle unchanged: ${error.message ?: "patch error"}"
-                    }
-                }
+                    .show()
             }
         }
     }

@@ -41,7 +41,14 @@ internal class UiBundleStore(context: Context) {
             stage.deleteRecursively()
             throw error
         }
-        return activeIndexFile()
+        return try {
+            activeIndexFile()
+        } catch (_: Exception) {
+            rollbackAfterPageLoadFailure() ?: run {
+                activePointer.writeText(version, Charsets.UTF_8)
+                activeIndexFile()
+            }
+        }
     }
 
     fun activeVersion(): String = activePointer.takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim().orEmpty()
