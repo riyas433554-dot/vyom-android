@@ -37,6 +37,7 @@ class ContentUpdatePackageTest {
         assertTrue(valid.validate("0.2.9", mapOf("skills/demo/SKILL.md" to bytes)).any { it.contains("requires app version") })
         assertTrue(valid.validate("0.3.1", mapOf("skills/demo/SKILL.md" to "tampered".toByteArray())).any { it.contains("SHA-256 mismatch") })
         assertTrue(valid.copy(probes = emptyList()).validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).isNotEmpty())
+        assertTrue(valid.copy(rollbackTo = "previous").validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).isEmpty())
         assertTrue(valid.copy(probes = listOf(ContentUpdateProbe("speed", ContentProbeKind.PERFORMANCE, "x", baselineKey = "x")))
             .validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).any { it.contains("Probe 1 must be a presence probe") })
     }
