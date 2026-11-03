@@ -255,6 +255,40 @@ internal class VyomShizukuShellClient(
         }
     }
 
+    fun installVerifiedApk(publicDownloadPath: String, callback: (String) -> Unit) {
+        val allowed = ShizukuCommandPolicy.command(
+            commandId = "install_verified_apk",
+            args = listOf(publicDownloadPath),
+            ownerConfirmed = true,
+            packageName = "com.vyom.assistant"
+        )
+        if (allowed == null) {
+            callback("rejected: APK path is outside the verified update allowlist")
+            return
+        }
+        val service = remote
+        if (service == null || !hasLiveServiceAuthorization(service)) {
+            callback("unavailable: live Shizuku shell authorization and bound service are required")
+            return
+        }
+        val requestId = UUID.randomUUID().toString()
+        activeRequests.add(requestId)
+        worker.execute {
+            val result = try {
+                if (!hasLiveServiceAuthorization(service)) {
+                    "rejected: Shizuku authorization or service connection was lost before install"
+                } else {
+                    service.execute(requestId, "install_verified_apk", arrayOf(publicDownloadPath), allowed.timeoutMs, true)
+                }
+            } catch (error: Exception) {
+                "failed: ${error.javaClass.simpleName}"
+            } finally {
+                activeRequests.remove(requestId)
+            }
+            mainHandler.post { callback(result) }
+        }
+    }
+
     fun cancelAll() {
         val service = remote ?: return
         if (!hasLiveServiceAuthorization(service)) {
