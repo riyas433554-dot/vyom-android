@@ -42,6 +42,16 @@ class ContentUpdatePackageTest {
             .validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes)).any { it.contains("Probe 1 must be a presence probe") })
     }
 
+    @Test fun presenceProbeRequiresVisibleExpectedContent() {
+        val bytes = "visible content".toByteArray()
+        val valid = manifest().copy(files = listOf(ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))))
+        val missingExpected = valid.copy(probes = listOf(
+            ContentUpdateProbe("presence", ContentProbeKind.PRESENCE, "skills/demo/SKILL.md", "")
+        ))
+        assertTrue(missingExpected.validate("0.3.1", mapOf("skills/demo/SKILL.md" to bytes))
+            .any { it.contains("Presence probe requires expected visible content") })
+    }
+
     @Test fun verifiesDetachedEcdsaSignatureOverCanonicalManifest() {
         val bytes = "visible content".toByteArray()
         val file = ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))
