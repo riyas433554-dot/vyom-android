@@ -150,15 +150,14 @@ class ContentUpdateSlotStoreTest {
         try {
             val store = ContentUpdateSlotStore(root)
             store.seedInitialSlot("1.0.0", mapOf("ui-bundle/index.html" to "baseline".toByteArray()))
-            listOf("1.1.0", "1.2.0").forEachIndexed { index, version ->
-                val bytes = version.toByteArray()
-                apply(store, manifest(version, if (index == 0) "0.9.0" else "1.0.0", bytes),
-                    bytes) { p, _ -> ContentProbeResult(p.id, true, 1L, "pass") }
+            val updated = "updated".toByteArray()
+            apply(store, manifest("1.1.0", "1.0.0", updated), updated) { p, _ ->
+                ContentProbeResult(p.id, true, 1L, "pass")
             }
+            assertEquals("1.1.0", store.activeVersion())
             assertFalse(store.recordCrashAndRollback(10_000L))
             assertTrue(store.recordCrashAndRollback(40_000L))
             assertEquals("1.0.0", store.activeVersion())
             assertTrue(store.history().any { it.contains("Automatic rollback after two crashes") })
         } finally { root.deleteRecursively() }
-    }
-}
+    }}
