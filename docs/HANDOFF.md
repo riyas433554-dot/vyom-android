@@ -1641,3 +1641,13 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - This is app-side stale-state invalidation only. It does not prove Shizuku's OEM permission-revocation callback timing or that a command already executing inside UserService is terminated by permission revocation. Physical Galaxy A06 acceptance remains pending.
 - No acceptance/matrix ID rows changed; P1 remains PARTIAL. No APK delivered.
 - Next: verify exact-head CI and inspect failure logs; then harden in-flight cancellation on authorization loss and complete owner STOP/process-termination lifecycle tests, followed by the live Level 0/1/2 + secure-settings/app-op read-back matrix.
+
+
+### P1 authorization-loss in-flight cancellation — implementation; exact-head CI pending — 2026-11-03
+- Previous authorization-invalidation implementation head 87ea80ae796ca11c3f5a5b1d7633bb50169bbf51 is now verified: Debug 41585343710 SUCCESS; Full CI 41585343732 CANCELLED by a newer push. The documentation/source checkpoint 89513bed97de477e118a2bf1b247c9d72a3b087a has both exact-head workflows GREEN: Debug 41585666596 SUCCESS and Full CI 41585666684 SUCCESS.
+- Source gap: permission/binder/UID invalidation cleared the client's active request IDs and remote handle but did not attempt to cancel already-dispatched UserService processes. Those shell processes could continue until their own timeout.
+- Test-first commit 0b63c75e9187002f1f3ce3b0d40650a045db9ca9 adds ShizukuRequestCancellationTest for live/dead remote binder, invalid request IDs, and independent failures while iterating cancellation requests. Its Debug 41586511675 and Full CI 41586511800 were IN_PROGRESS at the last poll; no RED outcome is claimed yet.
+- Implementation commit 3f62456c9c2c77e88c8778a1da2522b1cc518e31 adds a pure bounded-ID cancellation helper and invokes it before dropping a still-live remote service handle. It best-effort sends cancel for each valid active request, tolerates per-request binder failures, skips dead remote binders, and then clears local state. This is best-effort: a dead binder or rejected transaction cannot prove the remote process stopped.
+- Current implementation Debug 41586567783 is QUEUED and Full CI 41586567829 is PENDING; both must complete on the final documentation head below before claiming GREEN.
+- No feature/acceptance ID rows changed. P1 remains PARTIAL; physical Galaxy A06 binder revocation/STOP process-death behavior remains pending. No APK delivered.
+- Next: verify final-head CI and inspect any failure logs; then add/verify explicit STOP + UserService process termination lifecycle evidence, then complete the live Level 0/1/2 and secure-settings/app-op read-back matrix.

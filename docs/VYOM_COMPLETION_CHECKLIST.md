@@ -207,3 +207,13 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [ ] Exact-head Debug + Full CI for implementation SHA 87ea80ae796ca11c3f5a5b1d7633bb50169bbf51 is pending (Debug 41585343710, Full 41585343732). The test-only Debug run 41585179156 FAILED as expected with six unresolved mustInvalidateShizukuUserService references at PowerModePolicyTest.kt:209-214; Full CI 41585179120 was CANCELLED. RED is confirmed by Debug log only.
 - [ ] In-flight process cancellation on authorization loss and actual Shizuku permission-revocation callback timing are not proven.
 - P1 remains PARTIAL. No acceptance ID row changed. No physical-device acceptance and no final APK.
+
+
+### P1 authorization-loss cancellation — source checkpoint (2026-11-03)
+- [x] Previous exact-head 89513bed97de477e118a2bf1b247c9d72a3b087a Debug 41585666596 and Full CI 41585666684 both SUCCESS.
+- [x] Regression tests cover cancellation attempts for all valid active IDs, dead remote binder, malformed IDs and individual cancellation transaction failure.
+- [x] Client attempts best-effort cancellation over a still-live UserService binder before clearing stale authorization/service/request state; per-request failures do not prevent remaining attempts.
+- [ ] Test-only RED runs Debug 41586511675 and Full CI 41586511800 were IN_PROGRESS at last poll; no RED result claimed.
+- [ ] Exact-head Debug 41586567783 and Full CI 41586567829 pending on implementation SHA 3f62456c9c2c77e88c8778a1da2522b1cc518e31; require final documentation-head runs.
+- [ ] Prove owner STOP and UserService process termination lifecycle; then finish live capability and secure-settings/app-op read-back matrix. Unit tests do not prove Android/Shizuku OEM process-death timing.
+- P1 remains PARTIAL; no acceptance ID changed; no physical-device acceptance or APK delivery.
