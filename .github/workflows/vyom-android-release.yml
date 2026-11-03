@@ -11,7 +11,7 @@ on:
       version_code:
         description: "Android versionCode"
         required: false
-        default: "4"
+        default: "2000000"
         type: string
   push:
     tags:
@@ -99,7 +99,7 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_REF" == refs/tags/vyom-v* ]]; then
             VERSION="${GITHUB_REF_NAME#vyom-v}"
-            VERSION_CODE="$((100000 + $(echo "$VERSION" | tr -cd '0-9' | head -c 6)))"
+            VERSION_CODE="$((2000000 + GITHUB_RUN_NUMBER))"
           else
             VERSION="${INPUT_VERSION_NAME:-0.3.1}"
             VERSION_CODE="${INPUT_VERSION_CODE:-4}"

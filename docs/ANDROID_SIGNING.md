@@ -39,3 +39,12 @@
 ## Current status
 
 **UNVERIFIED / RELEASE BLOCKED.** Workflow and version changes are committed, but no successful exact-head signed artifact, certificate comparison, full CI run, or phone update test has been observed yet. The original `2459bf1` APK bytes were not present in the Library during this session; the expected fingerprint is taken from the supplied audit and must still match the installed APK at release time.
+
+
+## Update-first pipeline extension — 2026-11-03
+
+- The release workflow now validates the persistent keystore/alias/key password, then verifies the signed APK certificate fingerprint against the required stable identity before publishing. It emits `certificateSha256`, source commit, SHA-256 and APK URL in `vyom-update.json`.
+- Pushes to the development branch and `vyom-proposal-*` branches are configured to publish signed prerelease assets only after the Debug workflow's tests/build/signing checks succeed. The in-app updater scans GitHub releases (including prereleases) and rejects manifests missing SHA-256, certificate fingerprint or full source commit.
+- CI branch version codes use the 1,000,000+ workflow run-number range; tagged stable releases use the 2,000,000+ release-workflow run-number range so a stable release is newer than a CI prerelease. Local Gradle defaults remain debug/dev values only.
+- Repository secrets were present and keytool validated the keystore, alias and key password in Debug run `41597804231` (steps “Configure persistent release signing when repository secrets are available” and “Verify release signing environment for Gradle”). That run then failed at `UiBundleIntegrityTest.computesStableSha256ForUtf8BundleContent` due to a test assertion comparing a full SHA-256 with a truncated 32-character value. The test was corrected in commit `705a0c162529b216547f63c9ffc444de41d0c481`; later exact-head CI is required to verify it.
+- Expected signing certificate identity remains `7A:75:64:FC:A9:C2:A3:2B:23:DD:52:03:52:A4:E3:AA:FE:44:56:21:D2:B9:9A:FA:15:40:7D:23:86:69:9F:0A`. No successful signed artifact or owner-device certificate match is claimed yet.
