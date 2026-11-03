@@ -2014,7 +2014,11 @@ class MainActivity : Activity() {
             .setTitle("Android System UI access")
             .setMessage("This is a separate opt-in. Vyom will only use the existing allowlisted Quick Settings controls. It will not read notification content or upload System UI screenshots.")
             .setNegativeButton("CANCEL", null)
-            .setPositiveButton("OPEN APP ACCESS") { _, _ -> showAppAccessPanel() }
+            .setPositiveButton("ENABLE SAFE QUICK SETTINGS") { _, _ ->
+                AppAccessPolicy.setPackageEnabled(this, AppAccessPolicy.SYSTEM_UI_PACKAGE, true)
+                logControlAction("Android System UI safe Quick Settings", "enabled", "profile")
+                showControlReadiness()
+            }
             .show()
     }
 
@@ -2188,7 +2192,12 @@ class MainActivity : Activity() {
         val intent = if (action == "app-details") {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         } else {
-            Intent(action).apply { if (data != null) this.data = data }
+            Intent(action).apply {
+                if (data != null) this.data = data
+                if (action == Settings.ACTION_APP_NOTIFICATION_SETTINGS) {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                }
+            }
         }
         try {
             if (intent.resolveActivity(packageManager) == null) {
