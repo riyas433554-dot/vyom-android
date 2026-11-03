@@ -145,3 +145,14 @@ Create a real workspace, not drawer placeholders:
 ### Integration rule
 
 Repository learning must record source URL, commit/tag, licence, platform requirements, external services/costs, security review, extracted skill files and verification evidence. Readme claims are not runtime proof. Skills may teach a workflow; they do not grant permission to bypass app permissions, CAPTCHAs, paywalls, provider quotas, or user approvals.
+
+## Additional repository references — 2026-11-03
+
+### JARVIS — adewaskar/jarvis
+Reviewed the MIT-licensed project. It is a React/Vite/Three.js browser HUD with a Node bridge and Claude Agent SDK, not an Android-native Accessibility agent. Reuse its architectural lessons only: brain/hands/presentation separation, runtime capability probes, adapter selection, explicit cancellation, default-deny effectful tool gate, visible degraded state and sanitization of model-authored UI. See docs/skills/JARVIS_AGENT_ARCHITECTURE.md.
+
+### Everything Claude Code — WorldFlowAI/everything-claude-code
+Reviewed its continuous-learning, eval-harness, verification-loop and session memory patterns. GitHub did not declare a repository license; no upstream source/scripts are copied. Independently authored Vyom guidance is in docs/skills/CONTINUOUS_LEARNING_AND_VERIFICATION.md.
+
+### Owner authorization and Android permission model
+The user's direct task instruction authorizes ordinary non-destructive actions in owner-enabled apps. The Android app now includes a permission-readiness/setup flow, owner all-safe-app activation, and a permanent learn-before-guess instruction. Android's own Accessibility/runtime/special permission screens still require action on the phone. Financial/payment, credential, biometric, secure-system, destructive and external-send safeguards remain. Repository/ZIP ingestion and a verified skill registry are still future implementation work; the prompt instruction alone does not create those tools.
