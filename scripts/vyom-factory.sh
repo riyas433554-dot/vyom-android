@@ -109,7 +109,7 @@ update_metadata() {
   else
     valid_status "$value" || fail "Unknown status"
     case "$state:$value" in
-      open:in_progress|open:blocked|open:paused|open:cancelled|in_progress:open|in_progress:blocked|in_progress:paused|in_progress:completed|in_progress:cancelled|blocked:open|blocked:in_progress|blocked:cancelled|paused:open|paused:in_progress|paused:cancelled) state="$value" ;;
+      open:blocked|open:paused|open:cancelled|in_progress:open|in_progress:blocked|in_progress:paused|in_progress:completed|in_progress:cancelled|blocked:open|blocked:in_progress|blocked:cancelled|paused:open|paused:in_progress|paused:cancelled) state="$value" ;;
       *) [[ "$state" == "$value" ]] || fail "Transition $state -> $value is not allowed" ;;
     esac
   fi
