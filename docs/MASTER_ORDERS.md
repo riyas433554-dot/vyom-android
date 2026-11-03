@@ -1,3 +1,9 @@
+# OWNER OVERRIDE — M0 VYOM FACTORY FIRST (2026-11-03)
+
+The newest controlling order is `docs/HANDOFF.md` → **M0 Vyom Factory**. It supersedes the older M1/M2/M3 sequencing below until Factory acceptance. Keep all existing branch/safety restrictions: only `feature/memory-intelligence`; never Android `main`, Render, Hermes backend or production Supabase.
+
+Factory is a real native Workspace destination, backed by a canonical shared GitHub Issues task registry only after auth/permissions are proven. It must unify Vyom chat, Factory, ChatGPT GitHub connector and Termux GitHub CLI intake with stable IDs/idempotency, auditable edits and event history. Live status, skills/repos, workers, CI and updates must come from real execution evidence; no demo counters or fake always-on claims. See HANDOFF M0 for the complete product contract, sequence, security and owner setup gates.
+
 # OWNER PRIORITY OVERRIDE — UPDATE-FIRST MILESTONE ROUTE (2026-11-03)
 
 This is the newest owner instruction. It supersedes the milestone order in the earlier OWNER RESET in this file and all conflicting sequencing elsewhere. Repository/branch and safety restrictions remain in force.
