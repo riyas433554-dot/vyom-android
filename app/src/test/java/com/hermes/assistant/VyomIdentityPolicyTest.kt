@@ -8,11 +8,11 @@ class VyomIdentityPolicyTest {
     @Test fun identityExplainsPurposeAndCapabilityBoundaries() {
         val prompt = VyomIdentityPolicy.systemInstruction()
         assertTrue(prompt.contains("You are Vyom"))
-        assertTrue(prompt.contains("secure screens"))
+        assertTrue(prompt.contains("protected Android surfaces"))
         assertTrue(prompt.contains("verified"))
         assertTrue(prompt.contains("Never request or store passwords"))
-        assertTrue(prompt.contains("Hermes task queue"))
-        assertTrue(prompt.contains("OCR"))
+        assertTrue(prompt.contains("linked to Hermes"))
+        assertTrue(prompt.contains("Accessibility"))
     }
 
     @Test fun voicePromptDoesNotForceEveryReplyToOneOrTwoSentences() {
