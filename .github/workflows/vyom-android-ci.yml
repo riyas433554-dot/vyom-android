@@ -81,7 +81,10 @@ jobs:
                [[ "$lower_name" == *accessibilityservice* ]] ||
                [[ "$lower_name" == *deviceactionexecutor* ]] ||
                [[ "$lower_name" == *voiceforegroundservice* ]] ||
-               [[ "$lower_name" == *selfmodification* ]]; then
+               [[ "$lower_name" == *selfmodification* ]] ||
+               [[ "$lower_name" == *update* ]] ||
+               [[ "$lower_name" == *signing* ]] ||
+               [[ "$lower_name" == *keystore* ]]; then
               echo "Blocked policy-critical change in self-proposal: $path"
               exit 1
             fi
