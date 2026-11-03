@@ -766,6 +766,11 @@ class MainActivity : Activity() {
             setOnClickListener { showControlReadiness() }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         controlPanel.addView(Button(this).apply {
+            text = "POWER MODE SETUP"
+            contentDescription = "Open owner-led Wireless ADB and Shizuku setup guide"
+            setOnClickListener { showPowerModeWizard() }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        controlPanel.addView(Button(this).apply {
             text = "VYOM APP SETTINGS"
             setOnClickListener { confirmControlAction("Open Vyom app settings", "app-details") }
         }, LinearLayout.LayoutParams(-1, dp(42)))
@@ -1929,6 +1934,109 @@ class MainActivity : Activity() {
         val screenArea = screenWidth.toLong() * screenHeight.toLong()
         return left >= 0 && top >= 0 && right <= screenWidth && bottom <= screenHeight &&
             width >= dp(24) && height >= dp(24) && area > 0 && area <= screenArea * 35L / 100L
+    }
+
+    private fun showPowerModeWizard() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(8))
+        }
+        fun paragraph(value: String, size: Float = 12f) {
+            content.addView(TextView(this).apply {
+                text = value
+                textSize = size
+                setTextColor(Color.WHITE)
+                setPadding(0, 0, 0, dp(9))
+            }, LinearLayout.LayoutParams(-1, -2))
+        }
+        fun copyButton(label: String, value: String) {
+            content.addView(Button(this).apply {
+                text = label
+                setOnClickListener {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Vyom Power Mode command", value))
+                    android.widget.Toast.makeText(this@MainActivity, "Copied. Review before running in Termux.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }, LinearLayout.LayoutParams(-1, dp(42)))
+        }
+        paragraph("OWNER-LED SETUP • NOTHING RUNS AUTOMATICALLY", 14f)
+        paragraph("This wizard only prepares commands. You must review and run them yourself in Termux. Wireless debugging needs Wi-Fi ON and both apps on the same local network. Pairing and debugging use two different IP:port values shown by Android.")
+        paragraph("1. Install Android platform tools in Termux:")
+        copyButton("COPY TERMUX INSTALL COMMAND", "pkg install android-tools")
+        paragraph("2. Samsung pairing dialog tip: before opening Developer options > Wireless debugging > Pair device with pairing code, put Termux in split-screen or pop-up view. In Recents, tap Termux's app icon and choose Open in split screen view / Open in pop-up view (wording can vary). This keeps the pairing code visible while you type it into Termux.")
+        paragraph("3. Enter the two IP:port values exactly as displayed by Android. Do not enter the six-digit pairing code here.")
+        val pairEndpoint = EditText(this).apply {
+            hint = "Pairing IP:port (example 192.168.1.12:37123)"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+        }
+        val debugEndpoint = EditText(this).apply {
+            hint = "Wireless debugging IP:port (example 192.168.1.12:41231)"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+        }
+        content.addView(pairEndpoint, LinearLayout.LayoutParams(-1, dp(52)))
+        content.addView(debugEndpoint, LinearLayout.LayoutParams(-1, dp(52)))
+        val commandList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(commandList, LinearLayout.LayoutParams(-1, -2))
+        fun renderCommands() {
+            commandList.removeAllViews()
+            val commands = PowerModePolicy.termuxCommands(packageName, pairEndpoint.text.toString(), debugEndpoint.text.toString())
+            if (commands == null) {
+                commandList.addView(TextView(this).apply {
+                    text = "Enter valid IP:port values above to reveal the owner-run commands."
+                    setTextColor(Color.LTGRAY)
+                    textSize = 11f
+                })
+                return
+            }
+            fun command(label: String, value: String) {
+                commandList.addView(Button(this).apply {
+                    text = label
+                    setOnClickListener {
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Vyom Power Mode command", value))
+                        android.widget.Toast.makeText(this@MainActivity, "Copied. Run manually in Termux.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }, LinearLayout.LayoutParams(-1, dp(40)))
+                commandList.addView(TextView(this).apply {
+                    text = value
+                    textIsSelectable = true
+                    textSize = 10f
+                    setTextColor(Color.LTGRAY)
+                    setPadding(dp(6), dp(2), dp(6), dp(6))
+                }, LinearLayout.LayoutParams(-1, -2))
+            }
+            command("COPY ADB PAIR COMMAND", commands.pair)
+            command("COPY ADB CONNECT COMMAND", commands.connect)
+            command("COPY WRITE_SECURE_SETTINGS GRANT", commands.grantSecureSettings)
+            command("COPY GRANT READ-BACK", commands.verifySecureSettings)
+            command("COPY OVERLAY APP-OP", commands.grantOverlay)
+            command("COPY OVERLAY READ-BACK", commands.verifyOverlay)
+            command("COPY ACCESSIBILITY ENABLED READ-BACK", commands.verifyAccessibilityEnabled)
+            command("COPY ACCESSIBILITY SERVICES READ-BACK", commands.verifyAccessibilityServices)
+        }
+        val refreshCommands = Button(this).apply {
+            text = "VALIDATE IP:PORT AND SHOW COMMANDS"
+            setOnClickListener { renderCommands() }
+        }
+        content.addView(refreshCommands, LinearLayout.LayoutParams(-1, dp(44)))
+        paragraph("4. After pairing succeeds, run adb connect using the separate Wireless debugging port. Confirm adb devices shows the phone as device before running any grant command.")
+        paragraph("5. WRITE_SECURE_SETTINGS is a powerful development permission. The grant command targets this installed app ID: $packageName. Run it only if you intentionally want Power Mode. Then run the check-permission read-back; Vyom must not assume the grant worked.")
+        paragraph("6. Overlay is requested only for the floating assistant feature. All-files access is NOT requested: this build uses Android's document picker/SAF, so MANAGE_EXTERNAL_STORAGE is unnecessary.")
+        paragraph("7. Accessibility reconnect is allowed only after WRITE_SECURE_SETTINGS is verified. Android still owns the Accessibility toggle; Vyom will never silently enable it.")
+        paragraph("Samsung Auto Blocker: Wireless ADB is not the same as USB debugging and should not require turning Auto Blocker off. If you deliberately use a USB cable and USB commands are blocked, check Settings > Security and privacy > Auto Blocker and temporarily disable only the blocking feature that caused the failure. For an APK blocked as an unauthorized source, the same screen has the unauthorized-app blocking setting. Re-enable protection immediately after the owner-authorized step.")
+        paragraph("Shizuku: install it from the official source, start it yourself through Wireless debugging, then explicitly authorize Vyom when Android asks. Non-root Shizuku uses shell (UID 2000), not root, and normally needs restarting after reboot. The Shizuku command executor is not enabled in this wizard until its binder, permission, allowlist and STOP-cancellation checks are implemented and tested.")
+        paragraph("Capability levels: LEVEL 0 = ordinary app APIs; LEVEL 1 = owner-enabled Accessibility/special app access; LEVEL 2 = owner-authorized ADB/Shizuku allowlisted operations. LEVEL 2 is NOT root and never bypasses secure windows, biometrics, OTPs, payments, Play Protect or system confirmation dialogs.")
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(content, FrameLayout.LayoutParams(-1, -2))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Power Mode • Owner setup")
+            .setView(scroll)
+            .setPositiveButton("CLOSE", null)
+            .show()
     }
 
     private fun showControlReadiness() {
