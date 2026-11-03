@@ -110,7 +110,6 @@ internal class SelfModificationClient {
     fun waitForProposalCi(token: String, branch: String, timeoutMillis: Long = 15 * 60 * 1000L): String {
         require(branch.matches(Regex("^vyom-proposal-[a-zA-Z0-9-]+$"))) { "Invalid proposal branch name" }
         val deadline = System.currentTimeMillis() + timeoutMillis
-        val requiredWorkflows = setOf("Vyom Android Debug", "Vyom Android CI")
         var lastState = "waiting for both required workflows"
         while (System.currentTimeMillis() < deadline) {
             val ref = request("GET", "/git/ref/heads/$branch", token = token)
@@ -118,33 +117,26 @@ internal class SelfModificationClient {
             require(sha.matches(Regex("^[a-f0-9]{40}$"))) { "Proposal branch has no valid commit SHA" }
             val runsResponse = request("GET", "/actions/runs?head_sha=$sha&per_page=20", token = token)
             val runs = runsResponse.optJSONArray("workflow_runs") ?: JSONArray()
-            val latestByWorkflow = mutableMapOf<String, JSONObject>()
-            for (index in 0 until runs.length()) {
-                val run = runs.optJSONObject(index) ?: continue
-                val name = run.optString("name")
-                if (name !in requiredWorkflows || run.optString("head_sha") != sha) continue
-                val runId = run.optLong("id", 0L)
-                val existing = latestByWorkflow[name]
-                if (existing == null || runId > existing.optLong("id", 0L)) latestByWorkflow[name] = run
-            }
-            var allSucceeded = true
-            for (workflow in requiredWorkflows) {
-                val run = latestByWorkflow[workflow]
-                if (run == null) {
-                    allSucceeded = false
-                    lastState = "$workflow has not started"
-                    continue
-                }
-                val status = run.optString("status")
-                val conclusion = run.optString("conclusion")
-                if (status != "completed") {
-                    allSucceeded = false
-                    lastState = "$workflow is $status"
-                } else if (conclusion != "success") {
-                    throw IllegalStateException("$workflow completed with conclusion $conclusion")
+            val candidates = buildList {
+                for (index in 0 until runs.length()) {
+                    val run = runs.optJSONObject(index) ?: continue
+                    add(
+                        ProposalCiGatePolicy.Run(
+                            name = run.optString("name"),
+                            headSha = run.optString("head_sha"),
+                            status = run.optString("status"),
+                            conclusion = run.optString("conclusion").takeIf(String::isNotBlank),
+                            id = run.optLong("id", 0L)
+                        )
+                    )
                 }
             }
-            if (allSucceeded) return sha
+            val evaluation = ProposalCiGatePolicy.evaluate(sha, candidates)
+            when (evaluation.state) {
+                ProposalCiGatePolicy.State.SUCCESS -> return sha
+                ProposalCiGatePolicy.State.FAILED -> throw IllegalStateException(evaluation.detail)
+                ProposalCiGatePolicy.State.WAITING -> lastState = evaluation.detail
+            }
             Thread.sleep(5_000)
         }
         throw IllegalStateException("Timed out waiting for both proposal CI workflows ($lastState)")
