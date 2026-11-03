@@ -1,3 +1,5 @@
+import android.view.accessibility.AccessibilityEvent
+
 package com.hermes.assistant
 
 /**
@@ -430,6 +432,17 @@ internal object UiAgentPolicy {
 
     fun isActionObservationFresh(observedRevision: Long, currentRevision: Long, observedPackage: String, currentPackage: String): Boolean =
         isFreshScreen(observedRevision, currentRevision, observedPackage, currentPackage)
+
+    fun isRelevantAccessibilityEvent(eventType: Int): Boolean = eventType in setOf(
+        AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+        AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+        AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+        AccessibilityEvent.TYPE_VIEW_SCROLLED,
+        AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
+        AccessibilityEvent.TYPE_VIEW_CLICKED,
+        AccessibilityEvent.TYPE_VIEW_SELECTED,
+        AccessibilityEvent.TYPE_VIEW_FOCUSED
+    )
 
     fun shouldTrackAccessibilityEvent(eventPackage: String, ownPackage: String, eventWindowId: Int, activeWindowId: Int): Boolean =
         eventPackage.isNotBlank() &&
