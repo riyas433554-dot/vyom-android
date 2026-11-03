@@ -27,6 +27,9 @@ internal class ContentUpdateManager(private val context: Context) {
             "ui-bundle/$name" to context.assets.open("ui-bundle/$name").use { it.readBytes() }
         }
         store.seedInitialSlot(version, files)
+        uiStore.seedBundledVersion()
+        val active = store.activeVersion()
+        if (active.isNotBlank() && uiStore.activeVersion() != active) syncUiBundleToUiHost(active)
     }
 
     fun applyLatestRelease(): ContentUpdateResult {
@@ -61,7 +64,13 @@ internal class ContentUpdateManager(private val context: Context) {
                         if (passed) "Verified staged content ${probe.target}" else "Expected content not found in ${probe.target}")
                 }
             )
-            if (result.passed) syncUiBundleToUiHost(parsed.manifest.version)
+            if (result.passed) {
+                try { syncUiBundleToUiHost(parsed.manifest.version) }
+                catch (error: Exception) {
+                    store.rollback()
+                    throw IllegalStateException("Content slot activated but UI host rejected it; previous slot restored", error)
+                }
+            }
             result
         } catch (error: Exception) {
             ContentUpdateResult(activeVersion(), false, emptyList(), null,
@@ -107,7 +116,7 @@ internal class ContentUpdateManager(private val context: Context) {
 
     private fun installedSigningPublicKey(): String {
         val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES
-            else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
+            else PackageManager.GET_SIGNATURES
         @Suppress("DEPRECATION")
         val info = context.packageManager.getPackageInfo(context.packageName, flags)
         val certificateBytes = if (Build.VERSION.SDK_INT >= 28) {
