@@ -138,4 +138,12 @@ class PowerModePolicyTest {
         )
         assertFalse(PowerModePolicy.levelTwoAllowsProtectedSurfaces())
     }
+    @Test fun userServiceBindingRequiresLiveAuthorizedAdbShellIdentity() {
+        assertTrue(PowerModePolicy.mayBindShizukuUserService(true, true, 2000))
+        assertFalse(PowerModePolicy.mayBindShizukuUserService(false, true, 2000))
+        assertFalse(PowerModePolicy.mayBindShizukuUserService(true, false, 2000))
+        assertFalse(PowerModePolicy.mayBindShizukuUserService(true, true, 0))
+        assertFalse(PowerModePolicy.mayBindShizukuUserService(true, true, 1000))
+        assertFalse(PowerModePolicy.mayBindShizukuUserService(true, true, -1))
+    }
 }

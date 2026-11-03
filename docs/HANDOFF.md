@@ -1581,3 +1581,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - UserService audit now distinguishes success, nonzero exit, timeout, STOP cancellation, startup cancellation, interruption and failure. Audit records contain only validated request ID, allowlisted command ID, outcome and optional exit code; no command output, arguments or secret values.
 - Shizuku binder death/disconnect clears stale remote/bound/request state so a dead binder is not treated as a live UserService connection.
 - P1 remains PARTIAL: these source/policy tests do not prove a physical Shizuku binder, Galaxy A06 Settings.Secure write/read-back, OEM behavior, or runtime STOP process-kill timing. Continue the mandatory P1 lifecycle/runtime matrix before P2. No APK.
+
+
+### P1 Shizuku bind-time authorization revalidation — RED — 2026-11-03
+- Starting exact source head: `26c95453e44539d65be9bae9854ad7545258feb6`; Debug run `41577340647` and Full CI run `41577340639` both completed SUCCESS on this exact SHA. Debug includes unit tests, APK build, checksum packaging and artifact upload.
+- Security edge: Shizuku binder/UID/permission are checked before authorization, but `bindUserService()` does not independently re-read binder liveness, owner permission and shell UID at the binding boundary. These values can change between the earlier check and bind.
+- RED test adds a pure contract: bind only when binder is live, explicit permission is granted, and UID is exactly 2000. The policy method is intentionally not implemented in this test-first commit.
+- P1 remains PARTIAL. No matrix/acceptance ID is marked complete. Next: implement bind-time guard, then continue UserService lifecycle/STOP and permission read-back acceptance. No APK delivered.

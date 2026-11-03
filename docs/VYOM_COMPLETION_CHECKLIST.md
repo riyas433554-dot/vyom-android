@@ -170,3 +170,9 @@ Implementation and acceptance details are in `docs/VYOM_AUTONOMY_AND_CREATIVE_ST
 - [x] Correct the concurrent test's terminal-state oracle: STOP-before-begin must end COMPLETED after tombstone consumption; begin-before-STOP must end CANCEL_REQUESTED.
 - [ ] Exact-head Debug and Full CI green on the correction commit.
 - [ ] Continue live Level 0/1/2 state read-back and physical Shizuku lifecycle/permission acceptance. P1 remains PARTIAL.
+
+
+### P1 Shizuku bind-time authorization — in progress
+- [ ] Revalidate live binder, explicit Shizuku authorization and UID 2000 immediately before UserService binding.
+- [ ] Verify authorization revocation/binder death cannot leave a stale UserService binding or overstate Level 2.
+- No acceptance ID changes until exact-head CI and lifecycle evidence pass.
