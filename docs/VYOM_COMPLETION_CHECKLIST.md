@@ -1,3 +1,11 @@
+### M1 / P1 Power Mode read-back checkpoint — 2026-11-03
+- [x] Add exact-output classification tests for secure-settings grant, overlay app-op, Accessibility global flag and Vyom service membership.
+- [x] Show interpreted read-back states in the Power Mode UI; ambiguous, failed or nonzero results remain UNKNOWN.
+- [x] Correct Shizuku force-kill outcome so a process independently observed dead is treated as terminated even if the bounded wait callback fails.
+- [ ] Exact-head Debug + Full CI green after these source changes and this documentation checkpoint.
+- [ ] Physical Galaxy A06 verification of Wireless ADB/Shizuku, owner authorization, service bind/disconnect, STOP process termination, secure-settings revocation and owner-disabled Accessibility.
+- P1 remains PARTIAL; no acceptance ID changed and no APK delivered.
+
 # OWNER RESET MILESTONE PLAN — 2026-11-03
 
 The controlling milestone order and branch/safety constraints are recorded at the top of `docs/HANDOFF.md` and `docs/MASTER_ORDERS.md`. Milestone 1 order: P1 Power Mode; A12 structured tool calls/no raw JSON; A14 TRUSTED default/no blanket confirmations; A1 verified Play Store install; verified whatsapp_send skill; A8/A16 floating orb during control tasks; F4 persisted memory auto-capture visible in Memory; R4 Diagnostics/RUN ALL CHECKS. M2 WebView exact supplied Claude Design HTML with scoped Kotlin bridge starts only after M1. M3 Learn Anywhere, ledger, attachments, real automations, human-like voice, floating bubble. Former one-final-APK rule is cancelled: one verified APK per milestone.
