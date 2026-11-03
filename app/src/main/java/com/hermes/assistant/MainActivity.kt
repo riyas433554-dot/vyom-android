@@ -685,7 +685,7 @@ class MainActivity : Activity() {
                                                     val verifiedSha = proposalClient.waitForProposalCi(token, proposal.branch)
                                                     runOnUiThread {
                                                         selfChangeNotice.text = "CI passed for ${verifiedSha.take(12)}. Finding and verifying its signed APK…"
-                                                        checkForUpdate(autoInstallWhenReady = true)
+                                                        checkForUpdate(expectedCommit = verifiedSha, autoInstallWhenReady = true)
                                                     }
                                                 } catch (error: Exception) {
                                                     runOnUiThread { selfChangeNotice.text = "PR creation failed: ${error.message ?: "GitHub error"}" }
@@ -3667,7 +3667,7 @@ class MainActivity : Activity() {
                         "FAIL · Stable release identity · Installed certificate differs from the required release identity; updates will be rejected"
                     }
                 }
-                val manifest = fetchLatestUpdateManifest()
+                val manifest = fetchLatestUpdateManifest(expectedCommit)
                 val versionCode = manifest.optInt("versionCode", 0)
                 if (versionCode > BuildConfig.VERSION_CODE) {
                     val checksumValid = manifest.optString("sha256").matches(Regex("(?i)^[a-f0-9]{64}$"))
@@ -3706,7 +3706,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun checkForUpdate(autoInstallWhenReady: Boolean = false) {
+    private fun checkForUpdate(expectedCommit: String? = null, autoInstallWhenReady: Boolean = false) {
         if (updateCheckInFlight) return
         updateCheckInFlight = true
         updateButton.isEnabled = false
@@ -3743,7 +3743,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun fetchLatestUpdateManifest(): JSONObject {
+    private fun fetchLatestUpdateManifest(expectedCommit: String? = null): JSONObject {
         val releases = JSONArray(readHttpsText(
             "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30",
             512 * 1024
@@ -3770,6 +3770,7 @@ class MainActivity : Activity() {
             val certificate = manifest.optString("certificateSha256").lowercase(Locale.ROOT)
             val commit = manifest.optString("commit")
             val apkUrl = manifest.optString("apk")
+            if (expectedCommit != null && commit != expectedCommit) continue
             if (versionCode <= newestVersionCode) continue
             if (!checksum.matches(Regex("^[a-f0-9]{64}$"))) continue
             if (!certificate.matches(Regex("^[a-f0-9]{64}$"))) continue
