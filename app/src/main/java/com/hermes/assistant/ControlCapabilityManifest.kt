@@ -28,7 +28,7 @@ internal object ControlCapabilityManifest {
             add("STOP CONTROL is ON. Turn it off from the Control panel before starting another task.")
         }
         if (!snapshot.plannerConfigured) {
-            add("UI planner is not configured. One-tap fix: Profile > Model settings > configure the NVIDIA planner key.")
+            add("UI planner is not configured. One-tap fix: Profile > Settings > enter and save the NVIDIA API key.")
         }
         if (!snapshot.accessibilityEnabled || !snapshot.accessibilityConnected) {
             add("Missing Android Accessibility service. One-tap fix: Settings > Accessibility > Installed apps > Vyom > turn on Accessibility, then return to Vyom.")
