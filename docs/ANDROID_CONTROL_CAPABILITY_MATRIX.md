@@ -113,3 +113,12 @@ These are knowledge packs for future repository-learning integration, not a clai
 - Test-first evidence/fixes: test-only SHA `aebba60158c7d1bc45b59c597798cd709134beaa` Debug `41631188888` FAILED with unresolved `SCROLL_UNTIL_FOUND` / `maxScrolls` (expected RED). Production commit `0ed83c1ee6f6a158bc14fdb0693c681213211333`. Debug `41631445760` and `41631573291` then FAILED with JUnit `UiAgentPolicyTestKt > initializationError` because the appended test was outside the class; fixed by `6dfc27d01caf7e7123dc9dc63a7f1f93e878d93e`. Debug `41632805000` FAILED because the new test fixture omitted `powerModeLevel2`; fixed in `8a64f127813a89b636a99ae626bb2c332e499ecc`. Later app-access gate test/implementation commits: `c8c043a294671bd43f5f149df4a40615038c7380`, `0d5cf6b2d8aff0c5272c0479a90fdf678c4d3e86`.
 - Latest source SHA before this documentation commit: `0d5cf6b2d8aff0c5272c0479a90fdf678c4d3e86`. Debug `41633460021` queued; Full CI `41633459928` pending. Earlier runs are superseded and do not prove this head green.
 - A17 remains PARTIAL. No coverage row is FIXED. Generic ShellExecutor input, remaining action adapters, Learn Anywhere runtime, full capability inventory, 20-task Control Suite and physical-device subset are still open. Do not deliver M1 APK.
+
+
+## A17 scope clarification — generic control, not app-specific skills
+
+A1 Play Store install and `whatsapp_send` are acceptance probes only. Full A17 requires a single app-agnostic observe → plan → act → verify → recover engine and all 20 coverage rows. No per-app script may be required for ordinary app UI. Learn Anywhere is the fallback for unknown screens/apps; skills are saved only after research, safe trial and verification. The Control Suite runs 20 varied safe checks at milestones/on demand; ordinary content updates must not trigger the full suite.
+
+## A18 dependency boundary
+
+A18 sits immediately after signing and before A17. Generic UI-control logic is native core only when it requires a new Kotlin primitive; content-only policies, workflows, skills, prompts, model/lane config and UI assets ship through the signed no-APK content channel. Content package activation must be atomic and rollback-safe. A18 does not relax any A17 hard limits.
