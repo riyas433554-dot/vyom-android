@@ -3704,6 +3704,13 @@ class MainActivity : Activity() {
                 } else {
                     "FAIL · Shizuku install allowlist · Verified APK install command is not constrained as expected"
                 }
+                val shizukuLevel = shizukuShellClient?.capabilityLevel(currentVyomAccessibilityEnabled())
+                    ?: PowerModePolicy.CapabilityLevel.LEVEL_0
+                rows += if (shizukuLevel == PowerModePolicy.CapabilityLevel.LEVEL_2) {
+                    "PASS · Power Mode install readiness · Shizuku shell UID 2000, owner authorization and UserService are live"
+                } else {
+                    "SKIP · Power Mode install readiness · Level 2 is not currently active; Android installer remains available"
+                }
                 rows += if (SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/ReplyFormatter.kt") &&
                     !SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/UpdateVerifier.kt")) {
                     "PASS · Self-change guard · Ordinary Kotlin files allowed; update verifier remains protected"
