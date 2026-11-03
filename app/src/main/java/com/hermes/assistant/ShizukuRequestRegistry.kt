@@ -6,7 +6,7 @@ package com.hermes.assistant
  */
 internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
     enum class State { CANCELLED_BEFORE_START, STARTING, RUNNING, CANCEL_REQUESTED, COMPLETED }
-    enum class Begin { ACCEPTED, CANCELLED_BEFORE_START, DUPLICATE }
+    enum class Begin { ACCEPTED, CANCELLED_BEFORE_START, DUPLICATE, CAPACITY_REACHED }
 
     private val states = LinkedHashMap<String, State>()
 
@@ -16,8 +16,9 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
             State.STARTING, State.RUNNING, State.CANCEL_REQUESTED, State.COMPLETED -> return Begin.DUPLICATE
             null -> Unit
         }
-        states[id] = State.STARTING
         trim()
+        if (states.size >= maxEntries) return Begin.CAPACITY_REACHED
+        states[id] = State.STARTING
         return Begin.ACCEPTED
     }
 
@@ -34,7 +35,11 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
             State.COMPLETED -> false
             State.CANCEL_REQUESTED -> true
             State.STARTING, State.RUNNING -> { states[id] = State.CANCEL_REQUESTED; true }
-            null -> { states[id] = State.CANCELLED_BEFORE_START; trim(); true }
+            null -> {
+                trim()
+                if (states.size >= maxEntries) false
+                else { states[id] = State.CANCELLED_BEFORE_START; true }
+            }
         }
     }
 
