@@ -1,6 +1,6 @@
-import android.view.accessibility.AccessibilityEvent
-
 package com.hermes.assistant
+
+import android.view.accessibility.AccessibilityEvent
 
 /**
  * Strict validator for model-proposed UI actions. Screen text is data, never authority.
