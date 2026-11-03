@@ -2112,3 +2112,35 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 3. Separate code implemented, automated test passed, GitHub workflow passed, owner phone-tested, and production accepted. These are different evidence levels.
 4. Never label a Factory task `running` without a real worker run ID plus live lease/heartbeat; never label it `completed` without verified outputs/tests and an append-only completion event.
 5. Continue only on `feature/memory-intelligence`; do not touch Android `main`, Render, Hermes backend or production Supabase. No APK until all M1 gates and exact-head CI are satisfied.
+
+
+## Factory execution architecture audit — 2026-11-03
+
+### Source evidence inspected
+- `VyomFactoryGitHubClient.kt` (blob SHA `3345e3c0ea0912cf4cc79250fd994069e563794c`): task registry is GitHub Issues REST API; list reads up to 10 pages × 100; create performs list-by-idempotency-key then POST; update PATCHes issue title/body/open-vs-closed and writes a separate issue comment; history reads up to 50 comments.
+- `VyomFactoryStatus.kt` (blob SHA `10ed57fecd6532810a0abafa970ff28e8eb952870`): schema-1 metadata validates source, priority, status, source identity and up to 500 embedded event strings; state machine allows a human/manual `open -> in_progress` transition.
+- `VyomFactoryDialog.kt` (blob SHA `29ff1807d8d19d3742e78ad7472608ca536f193a`): Factory UI's START action directly changes metadata to `in_progress`; UI refresh is 15 seconds; displayed task cards are registry data, not worker run records.
+- `MainActivity.kt` (blob SHA `45b6fb774c1724df968ac3e676855213d0c5d436`): normal-chat complaint prefixes route to `createTask(source="vyom_chat", sourceId=chatMessage.id)`; message moves through local queued/running/done/error while registering the issue. These are complaint-registration states, not coding-worker states.
+- `scripts/vyom-factory.sh` (blob SHA `b394137e064289d50c0f3af6aa1be2c9d2cc8579`): Termux adapter uses `gh` + `jq`, metadata identity `termux:<source-id>`, and same issue body marker. The list fixture test checks status/priority rendering but not full identity validation or concurrency.
+- Workflow inventory currently contains only `vyom-android-ci.yml`, `vyom-android-debug.yml`, and `vyom-android-release.yml`; no task-executor/worker workflow was found in the workflow directory.
+
+### Verified architecture conclusions / defects to carry forward
+1. **No coding worker exists yet.** No task claim, lease, heartbeat, run ID, runner event stream, recovery loop, per-task branch/worktree, code-writing agent, bounded retry, STOP propagation or task-completion verifier is present in the inspected Factory path. GitHub Issues + Android UI are registry/intake only.
+2. **Manual START currently overstates execution.** The Factory UI can set a task to `in_progress` without a worker. Until a real worker exists, this label is not trustworthy. Next code batch must remove/disable this manual transition or introduce a distinct queued/requested state and reserve `in_progress` for a worker claim with evidence.
+3. **Idempotency is not atomic.** Android `createTask` performs read-then-create; two concurrent clients can both see no match and POST duplicate issues. Termux create also POSTs without a preflight lookup. Stable keys help retries only after the first issue is visible. Add a concurrency-safe dedupe/claim design and tests before claiming cross-source exactly-once behavior.
+4. **Audit history is split.** Embedded metadata events and issue comments are separate writes. A successful PATCH followed by a failed comment can leave a mutation without its comment; a successful POST followed by a failed comment can leave a created task even if the caller reports an error. Model canonical event records and reconcile partial failures/idempotent retries.
+5. **Issue #8 remains inconsistent**: GitHub issue state is closed while Factory metadata says in_progress/P2. Do not use it as worker evidence. Explicitly reconcile to a terminal test state with a recorded event, then verify both fields.
+6. **Termux regression test scope is narrow**: it verifies valid status/priority display and exclusion of ordinary/malformed bodies, but not invalid source/key, duplicate markers, malformed event arrays, state-vs-issue-state mismatch or concurrent create behavior.
+7. **Runner availability constraint**: GitHub Actions workflows are finite event-triggered runners, not an always-on daemon. Any implementation must show queued/runner-unavailable/expired states and heartbeat age; do not promise continuous 24/7 execution.
+
+### CI evidence
+- Prior HEAD `f3868bb85861d584fcc3eca8014959ae160becb6`: Debug run `41659785640` completed SUCCESS; Full CI run `41659785658` was CANCELLED after a later branch commit superseded it. This is not a full CI pass.
+- HEAD `5b8503371b6b7ed592ce6f28aebe7d40f971180c`: Debug run `41660581607` and Full CI run `41660581524` were both IN_PROGRESS when inspected. Their jobs had started; no result claimed.
+- No APK delivered. No Factory worker milestone accepted.
+
+### Next implementation order
+1. Check exact-head CI for `5b850337...`; inspect logs on any failure.
+2. Correct Issue #8 metadata state to a terminal test state and retain the event/comment evidence.
+3. Stop presenting manual `START -> in_progress` as a worker. Add a distinct queue/dispatch state or disable the transition until an executor can claim it.
+4. Implement and test atomic task claim/dedupe and durable run lifecycle on a real available executor. Record run ID, lease owner/expiry, heartbeat, attempts, STOP/cancel, recovery and event history. If GitHub Actions is the executor, clearly model its finite runner lifecycle and availability.
+5. Add isolated task branch/worktree execution and conflict protection; only then add code-writing agent integration and verified output/CI completion.
