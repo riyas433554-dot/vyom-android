@@ -648,7 +648,7 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, dp(24)))
         val githubProposalTokenInput = EditText(this).apply {
-            hint = "GitHub token: Contents + Pull requests write (encrypted on device)"
+            hint = "GitHub token: Contents + Pull requests + Issues read/write (encrypted on device)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
             setTextColor(Color.WHITE)
@@ -658,7 +658,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(githubProposalTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
         val selfChangeNotice = TextView(this).apply {
-            text = "AI-assisted self-update: inspect one allowed Kotlin file → generate a proposal → separate branch → PR. CI/review required; no auto-merge or auto-install. Policy and STOP files stay protected."
+            text = "AI-assisted self-update: inspect one allowed Kotlin file → generate a proposal → separate branch → PR. CI/review required; no auto-merge or auto-install. Factory also needs Issues read/write. Policy and STOP files stay protected."
             textSize = 10f
             setTextColor(Color.LTGRAY)
         }
@@ -1204,6 +1204,11 @@ class MainActivity : Activity() {
         panel.requestLayout()
     }
 
+    private fun showVyomFactory() {
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        VyomFactoryDialog(this, token) { showTab(false, true) }.show()
+    }
+
     private fun showProfileMenu() {
         val memoryState = if (memoryStore.isEnabled()) "MEMORY ON" else "MEMORY OFF"
         VyomDrawer(this, "v${BuildConfig.VERSION_NAME} · ${BuildConfig.GIT_COMMIT_SHORT} · $memoryState", ::navigateDrawerItem).show()
@@ -1216,6 +1221,7 @@ class MainActivity : Activity() {
             "live" -> toggleVoiceInput()
             "profile" -> showTab(false, true)
             "automations" -> showAutomationsPanel()
+            "factory" -> showVyomFactory()
             "tasks" -> showTab(true)
             "control", "assistant_control" -> showTab(false, false, false, true)
             "skills" -> showSkillsRegistry()
