@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION_NAME="0.3.1-ci.${GITHUB_RUN_NUMBER}"
-          VERSION_CODE="$((1000000 + GITHUB_RUN_NUMBER))"
+          VERSION_CODE="$((GITHUB_RUN_ID % 2000000000))"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
       - name: Build and test APKs
