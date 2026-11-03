@@ -44,6 +44,14 @@ M1 APK gate: all above items must be reachable, end-to-end, tested and represent
 - Do not expose signing secrets, GitHub tokens or private keys in logs, chat, diffs or artifacts.
 - Report only current full 40-char HEAD, CI run IDs/results, and ID rows changed. For milestone delivery, include one APK's artifact/checksum/certificate evidence and Diagnostics/phone-test checklist.
 
+
+### Update pipeline / Shizuku install compile correction — 2026-11-03
+- Exact source SHA `24b325571b653d376120a224cae4f7946d8187fa`: Debug `41600380211` and Full CI `41600380229` both FAILED at Kotlin compilation.
+- Actual compiler error from both logs: `MainActivity.kt:3998:35 No value passed for parameter 'expectedSha256'`. The client API had been hardened to require the expected SHA-256, but the UI call site still used the previous one-argument signature.
+- Corrected the UI call to pass the exact `expectedHash` already computed from the verified APK. This preserves the shell-private staging hash read-back gate; it does not weaken signing/hash checks.
+- The previous source SHA `3387385b76d03aa3d43a0e657458182c2c20cb3f` had passed the release signing/certificate verification stage but GitHub Release publication failed with HTTP 403. Workflow now supports `VYOM_RELEASE_TOKEN` (preferred) or `GITHUB_TOKEN`, and uploads artifacts before release publication. Repository workflow permission still must allow Contents: write for release publishing.
+- No M1 acceptance ID rows changed. No APK delivered. Next: exact-head CI, inspect real logs; then validate update paths, UI bundle, and wiring/Diagnostics inventory. Signing fingerprint observed in CI is `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`; installed-device certificate match is still unverified.
+
 ---
 
 ### M1 / P1 Power Mode read-back and termination checkpoint — 2026-11-03

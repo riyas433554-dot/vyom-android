@@ -3995,7 +3995,7 @@ class MainActivity : Activity() {
         }
         settingsPrefs.edit().putInt("pending_silent_update_version_code", targetVersionCode).apply()
         updateNotice.text = "Power Mode verified. Installing the checksum-verified APK through Shizuku…"
-        client.installVerifiedApk(publicPath) { result ->
+        client.installVerifiedApk(publicPath, expectedHash) { result ->
             val installed = result.startsWith("exit=0;") && result.contains("Success", ignoreCase = true)
             if (installed) {
                 updateNotice.text = "Shizuku install command succeeded. Reopen Vyom to verify the installed version."
