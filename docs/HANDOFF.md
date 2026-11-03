@@ -22,6 +22,16 @@ This is the newest owner instruction. It supersedes the milestone order in the e
 
 M1 APK gate: all above items must be reachable, end-to-end, tested and represented in Diagnostics; exact-head Debug + Full CI green; release artifact SHA-256 and certificate verified; certificate matches installed app before update; deliver one APK and owner phone-test guide.
 
+## A17 — GENERIC CONTROL ENGINE (M1 SCOPE CLARIFICATION — 2026-11-03)
+
+A17 is mandatory M1 scope. A1 Play Store install and `whatsapp_send` are acceptance probes only, not the definition of full phone control. Required generic loop: Accessibility tree + screenshot/vision/OCR observe → plan → act → verify post-condition → recover. Use authorized ShellExecutor/Power Mode when available; otherwise Accessibility. Generic action vocabulary includes tap/long-press/swipe/scroll-until-found/type, Back/Home/Recents, gestures, key events, clipboard, share sheet, intents and deep links. Re-observe after every action; retry/alternative paths must be bounded and based on fresh state.
+
+Unknown app/screen invokes Learn Anywhere (research → bounded try → verify → save tested skill), not a hard-coded per-app script. Capability manifest must reflect live grants and identify the exact missing permission plus one-tap Settings fix. Never answer only “I can't”.
+
+Coverage matrix has 20 rows: (1) app lifecycle/install; (2) arbitrary app UI; (3) system toggles; (4) notifications; (5) calls/SMS/contacts; (6) camera/photos/video/screenshots/recording; (7) file manager; (8) alarms/timers/calendar/reminders; (9) messaging apps/email; (10) browser; (11) clipboard/text; (12) per-app permissions; (13) battery/storage/app info/settings; (14) Termux bridge; (15) location/maps; (16) media; (17) pinch/drag/multi-step gestures; (18) popups/ads/permission dialogs; (19) multi-app data handoff; (20) scheduling. Every row requires reachable implementation + named automated test + Diagnostics check.
+
+Hard limits: FLAG_SECURE, biometrics/lock-screen credentials, Play Protect, payment/banking/OTP/Authenticator apps, Vyom kill-switch and protected files. No bypass. Control Suite must run 20 varied safe tasks across different apps/domains with PASS/FAIL/SKIP and evidence. M1 remains open until all rows are covered and an owner-runnable real-device subset passes on the actual phone. The existing UI Agent is partial groundwork, not A17 completion.
+
 ## MILESTONE 2 — APK 2
 - UI through hot-swappable bundle. Combine Grok-style composer (+, model pill, mic, Speak), Voice Settings, drawer and Automations with the owner's last Claude Design files. The supplied design is authoritative; do not redesign it. Drawer and Profile are separate screens. Add activity timeline, source chips and stop button.
 - Advanced memory: CORE + episodic + semantic, embeddings, 500+ facts, conflict handling.
