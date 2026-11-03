@@ -69,7 +69,14 @@ internal class VyomShizukuShellClient(
             return
         }
         val identity = if (uid == 2000) "ADB shell" else if (uid == 0) "root" else "unknown identity"
-        emit("Shizuku binder connected (UID $uid; $identity).")
+        val authorized = try {
+            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        } catch (_: Exception) { false }
+        if (!authorized) {
+            emit("Shizuku binder connected (UID $uid; $identity), but Vyom is NOT authorized. LEVEL 2 is unavailable; tap AUTHORIZE VYOM IN SHIZUKU and approve Android's prompt.")
+            return
+        }
+        emit("Shizuku binder connected (UID $uid; $identity). Owner authorization is granted. Read-back commands remain limited to the allowlist; no arbitrary shell input is accepted.")
     }
 
     fun requestOwnerAuthorization(activity: Activity) {
