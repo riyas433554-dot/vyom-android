@@ -3789,8 +3789,6 @@ class MainActivity : Activity() {
             "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30",
             512 * 1024
         ))
-        var newest: JSONObject? = null
-        var newestVersionCode = BuildConfig.VERSION_CODE
         for (index in 0 until releases.length()) {
             val release = releases.optJSONObject(index) ?: continue
             if (release.optBoolean("draft", false)) continue
@@ -3812,15 +3810,21 @@ class MainActivity : Activity() {
             val commit = manifest.optString("commit")
             val apkUrl = manifest.optString("apk")
             if (expectedCommit != null && commit != expectedCommit) continue
-            if (versionCode <= newestVersionCode) continue
             if (!checksum.matches(Regex("^[a-f0-9]{64}$"))) continue
             if (!certificate.matches(Regex("^[a-f0-9]{64}$"))) continue
             if (!commit.matches(Regex("^[a-f0-9]{40}$"))) continue
-            validateReleaseUrl(apkUrl)
-            newest = manifest
-            newestVersionCode = versionCode
+            try {
+                validateReleaseUrl(apkUrl)
+            } catch (_: Exception) {
+                continue
+            }
+            // GitHub returns releases newest-first and versionCode is derived from
+            // the repository-wide increasing run ID. Older releases cannot supersede
+            // an installed newer build, so stop rather than fetching every old manifest.
+            if (versionCode <= BuildConfig.VERSION_CODE) break
+            return manifest
         }
-        return newest ?: JSONObject()
+        return JSONObject()
             .put("versionCode", BuildConfig.VERSION_CODE)
             .put("versionName", BuildConfig.VERSION_NAME)
     }
