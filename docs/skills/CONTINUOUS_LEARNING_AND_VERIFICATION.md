@@ -43,6 +43,7 @@ Track pass@1 and repeated reliability for critical workflows. A green unit suite
 ## Current Vyom implementation status
 
 - [x] Permanent identity instruction tells Vyom to learn before guessing, inspect license/source/dependencies/security, test safely and persist verified skills.
+- [x] On startup, seed the user's learn-before-act preference into encrypted on-device memory when memory is enabled; it is additive and does not overwrite existing facts.
 - [x] Owner-authorized Android permission readiness policy and setup UI added.
 - [ ] Repository/ZIP ingestion, source provenance and skill extraction pipeline.
 - [ ] Encrypted skill registry with experimental/verified/stale states.
