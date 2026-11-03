@@ -88,6 +88,18 @@ internal class VyomFactoryGitHubClient(
         return task
     }
 
+    fun listEvents(issueNumber: Int): List<String> {
+        require(issueNumber > 0)
+        val array = JSONArray(execute("GET", "/issues/$issueNumber/comments?per_page=50&sort=created&direction=desc"))
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val author = item.optJSONObject("user")?.optString("login").orEmpty()
+            val date = item.optString("created_at")
+            val body = item.optString("body").take(1000)
+            if (body.isBlank()) null else "$date · ${author.ifBlank { "unknown" }}\\n$body"
+        }
+    }
+
     fun addEvent(issueNumber: Int, message: String) {
         require(issueNumber > 0 && message.isNotBlank() && message.length <= 1000)
         execute("POST", "/issues/$issueNumber/comments",
