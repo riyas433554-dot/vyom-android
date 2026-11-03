@@ -111,6 +111,7 @@ class MainActivity : Activity() {
     private lateinit var settingsContent: LinearLayout
     private var updateManifest: JSONObject? = null
     private var pendingUpdateApk: File? = null
+    private var pendingSilentInstallPath: String? = null
     private var pendingDocumentSource = "app"
     private var pendingDocumentCallback: ((String) -> Unit)? = null
     private var updateCheckInFlight = false
@@ -890,6 +891,17 @@ class MainActivity : Activity() {
         })
         root.addView(panel, FrameLayout.LayoutParams(-1, dp(440), Gravity.BOTTOM))
         setContentView(root)
+        val expectedSilentVersion = settingsPrefs.getInt("pending_silent_update_version_code", 0)
+        if (expectedSilentVersion > 0) {
+            val installed = BuildConfig.VERSION_CODE >= expectedSilentVersion
+            Toast.makeText(
+                this,
+                if (installed) "Vyom update verified after Shizuku install (v${BuildConfig.VERSION_NAME})."
+                else "Silent update did not complete; use the verified Android installer.",
+                Toast.LENGTH_LONG
+            ).show()
+            settingsPrefs.edit().remove("pending_silent_update_version_code").apply()
+        }
         applyDesignSystem(root)
         textToSpeech = TextToSpeech(this) { result ->
             if (result == TextToSpeech.SUCCESS) {
@@ -3905,6 +3917,79 @@ class MainActivity : Activity() {
             updateNotice.text = "No verified APK is ready. Check for updates first."
             return
         }
+        val targetVersionCode = updateManifest?.optInt("versionCode", 0) ?: 0
+        if (tryInstallWithPowerMode(file, targetVersionCode)) return
+        openAndroidInstaller(file)
+    }
+
+    private fun currentVyomAccessibilityEnabled(): Boolean {
+        val component = ComponentName(this, VyomAccessibilityService::class.java).flattenToString()
+        return AccessibilityReconnectPolicy.isEffectivelyEnabled(
+            globalEnabled = Settings.Secure.getInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1,
+            enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+            component = component
+        )
+    }
+
+    private fun copyVerifiedUpdateForShizukuInstall(source: File, expectedHash: String): String {
+        if (Build.VERSION.SDK_INT < 29) throw IllegalStateException("Shizuku update staging requires Android 10+ shared Downloads")
+        val displayName = "vyom-update-${expectedHash.take(12)}.apk"
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.android.package-archive")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/VyomUpdates")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw IllegalStateException("Could not stage verified APK in Downloads for Shizuku")
+        try {
+            contentResolver.openOutputStream(uri, "w")?.use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+            } ?: throw IllegalStateException("Could not write staged update APK")
+            val stagedHash = sha256Uri(uri)
+            if (!MessageDigest.isEqual(expectedHash.toByteArray(), stagedHash.toByteArray())) {
+                throw IllegalStateException("Staged APK SHA-256 changed before Shizuku install")
+            }
+            val ready = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            contentResolver.update(uri, ready, null, null)
+            return "/storage/emulated/0/Download/VyomUpdates/$displayName"
+        } catch (error: Exception) {
+            try { contentResolver.delete(uri, null, null) } catch (_: Exception) {}
+            throw error
+        }
+    }
+
+    private fun tryInstallWithPowerMode(file: File, targetVersionCode: Int): Boolean {
+        val client = shizukuShellClient ?: return false
+        if (targetVersionCode <= BuildConfig.VERSION_CODE) return false
+        if (checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return false
+        if (client.capabilityLevel(currentVyomAccessibilityEnabled()) != PowerModePolicy.CapabilityLevel.LEVEL_2) return false
+        val expectedHash = sha256(file)
+        val publicPath = try {
+            copyVerifiedUpdateForShizukuInstall(file, expectedHash)
+        } catch (error: Exception) {
+            updateNotice.text = "Shizuku staging unavailable; Android installer will be used: ${error.message ?: "storage error"}"
+            return false
+        }
+        pendingSilentInstallPath = publicPath
+        settingsPrefs.edit().putInt("pending_silent_update_version_code", targetVersionCode).apply()
+        updateNotice.text = "Power Mode verified. Installing the checksum-verified APK through Shizuku…"
+        client.installVerifiedApk(publicPath) { result ->
+            val installed = result.startsWith("exit=0;") && result.contains("Success", ignoreCase = true)
+            if (installed) {
+                updateNotice.text = "Shizuku install command succeeded. Reopen Vyom to verify the installed version."
+                logControlAction("Self-update", "Shizuku pm install returned Success; post-relaunch version read-back pending", "app")
+            } else {
+                settingsPrefs.edit().remove("pending_silent_update_version_code").apply()
+                pendingSilentInstallPath = null
+                updateNotice.text = "Shizuku install failed; falling back to Android installer: $result"
+                runOnUiThread { openAndroidInstaller(file) }
+            }
+        }
+        return true
+    }
+
+    private fun openAndroidInstaller(file: File) {
         if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
             updateNotice.text = "Allow Vyom to install this verified update, then tap INSTALL VERIFIED UPDATE again."
             startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
@@ -3917,7 +4002,7 @@ class MainActivity : Activity() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
-            logControlAction("Self-update", "installer opened after SHA-256 and signing-certificate verification", "app")
+            logControlAction("Self-update", "Android installer opened after SHA-256 and signing-certificate verification", "app")
             updateNotice.text = "Android installer opened. Existing Vyom remains installed unless you confirm replacement."
         } catch (error: Exception) {
             logControlAction("Self-update", "installer failed: ${error.message ?: "unknown error"}", "app")
