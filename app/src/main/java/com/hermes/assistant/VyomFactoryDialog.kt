@@ -40,6 +40,7 @@ internal class VyomFactoryDialog(
     private lateinit var descriptionInput: EditText
     private lateinit var createButton: Button
     private var selectedPriority = "P2"
+    private var pendingSourceId: String? = null
     private var busy = false
 
     fun show() {
@@ -204,7 +205,10 @@ internal class VyomFactoryDialog(
         busy = true
         createButton.isEnabled = false
         status.text = "Registering complaint in GitHub Issues…"
-        val sourceId = UUID.randomUUID().toString()
+        val prefs = activity.getSharedPreferences("vyom_factory", Activity.MODE_PRIVATE)
+        val sourceId = pendingSourceId ?: prefs.getString("pending_draft_id", null) ?: UUID.randomUUID().toString()
+        pendingSourceId = sourceId
+        prefs.edit().putString("pending_draft_id", sourceId).apply()
         worker.execute {
             try {
                 val task = client.createTask(title, description, selectedPriority, "factory", sourceId)
@@ -212,6 +216,8 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     titleInput.setText("")
                     descriptionInput.setText("")
+                    pendingSourceId = null
+                    prefs.edit().remove("pending_draft_id").apply()
                     status.text = "Registered as #${task.number} · saved to shared registry"
                     createButton.isEnabled = true
                     busy = false
@@ -277,6 +283,10 @@ internal class VyomFactoryDialog(
                 setOnClickListener { choosePriority(task) }
             }
             controls.addView(priority, LinearLayout.LayoutParams(dp(78), dp(36)))
+            controls.addView(Button(activity).apply {
+                text = "EDIT"; textSize = 8f
+                setOnClickListener { editTask(task) }
+            }, LinearLayout.LayoutParams(dp(64), dp(36)).apply { leftMargin = dp(3) })
             card.addView(controls)
             card.setOnClickListener {
                 AlertDialog.Builder(activity).setTitle("Factory task #${task.number}")
@@ -286,6 +296,60 @@ internal class VyomFactoryDialog(
                     }.setNegativeButton("CLOSE", null).show()
             }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+    }
+
+    private fun editTask(task: VyomFactoryGitHubClient.Task) {
+        val form = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(4))
+        }
+        val title = EditText(activity).apply {
+            setSingleLine(true)
+            setText(task.title.replace(Regex("^\\[VYOM FACTORY\\]\\[[Pp][0-3]\\]\\s*"), ""))
+            hint = "Task title"
+        }
+        val description = EditText(activity).apply {
+            minLines = 3
+            maxLines = 8
+            setText(task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim())
+            hint = "Complaint details"
+        }
+        form.addView(title)
+        form.addView(description)
+        AlertDialog.Builder(activity).setTitle("Edit Factory task #${task.number}")
+            .setView(form)
+            .setPositiveButton("SAVE") { _, _ ->
+                val newTitle = title.text.toString().trim()
+                val newDescription = description.text.toString().trim()
+                if (newTitle.length < 4 || newDescription.isBlank()) {
+                    status.text = "Edit not saved: title and description are required."
+                } else {
+                    saveEdit(task, newTitle, newDescription)
+                }
+            }.setNegativeButton("CANCEL", null).show()
+    }
+
+    private fun saveEdit(task: VyomFactoryGitHubClient.Task, title: String, description: String) {
+        if (busy) return
+        busy = true
+        status.text = "Saving edits to task #${task.number}…"
+        worker.execute {
+            try {
+                client.updateTask(task, newTitle = title, newDescription = description)
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = "Task #${task.number} edited and saved."
+                    busy = false
+                    refresh()
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = errorMessage(error)
+                    busy = false
+                }
+            }
         }
     }
 
