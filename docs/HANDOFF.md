@@ -1418,3 +1418,10 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - The exact-head Debug run `41553588766` for `9ba2cc7f5e3c4a5a5385f7f569d04828c4041399` completed Gradle tests and APK builds successfully, then failed only at certificate fingerprint extraction. The log did not include stderr in the saved certificate output.
 - Workflow now captures both stdout and stderr from `apksigner`, then extracts the first 64-hex digest from the SHA-256 line. The expected certificate SHA-256 remains unchanged; mismatch still blocks publication.
 - This is a CI workflow fix only. It is not yet verified until the latest exact-head Debug run completes. Do not claim the packaging issue fixed before that run passes.
+
+
+### P1 manifest permission correction — 2026-11-03
+- Commit: `d2d8a355c34f67ef39b0ebe2683e408d207259bd`.
+- Declared `android.permission.WRITE_SECURE_SETTINGS` in the manifest. This declaration is required before the owner-run `pm grant` command can grant the permission to this package; the grant remains owner-initiated and must be read back.
+- The app does not yet auto-enable or auto-reconnect its Accessibility service. That remains a separate explicit-owner-opt-in implementation step gated on the actual runtime grant check. Never silently re-enable a service the owner has disabled.
+- This manifest correction is awaiting exact-head CI.
