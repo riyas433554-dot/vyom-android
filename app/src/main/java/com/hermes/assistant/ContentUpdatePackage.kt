@@ -85,7 +85,7 @@ internal data class ContentUpdateManifest(
                 errors += "Performance probe requires a stored baseline key"
             }
         }
-        if (!isVersion(rollbackTo)) errors += "Invalid rollback_to version"
+        if (rollbackTo != "previous" && !isVersion(rollbackTo)) errors += "Invalid rollback_to version"
         return errors.distinct()
     }
 
