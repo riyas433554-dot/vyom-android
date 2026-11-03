@@ -2187,7 +2187,7 @@ class MainActivity : Activity() {
             .show()
     }
 
-    private fun performControlAction(label: String, action: String) {
+    private fun performControlAction(label: String, action: String, data: Uri? = null) {
         if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
             logControlAction(label, "blocked-by-kill-switch", "app")
             return
@@ -2195,7 +2195,7 @@ class MainActivity : Activity() {
         val intent = if (action == "app-details") {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         } else {
-            Intent(action)
+            Intent(action).apply { if (data != null) this.data = data }
         }
         try {
             if (intent.resolveActivity(packageManager) == null) {
@@ -4322,6 +4322,9 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 701
+        private const val REQUEST_CONTROL_MICROPHONE = 711
+        private const val REQUEST_CONTROL_CAMERA = 712
+        private const val REQUEST_CONTROL_NOTIFICATIONS = 713
         private const val REQUEST_DELETE_DOCUMENT = 705
         private const val REQUEST_INSTALL_DOCUMENT = 706
         private const val TASK_POLL_MS = 4_000L
