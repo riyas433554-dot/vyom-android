@@ -120,9 +120,9 @@ internal class VyomFactoryGitHubClient(
         if (token.isBlank() || token.length > 500) throw IllegalStateException("GitHub token is missing or invalid")
         val normalized = path.removePrefix("/")
         val base = apiBaseUrl.trimEnd('/')
-        val url = if (normalized.isBlank()) "$"+"{base}/repos/$"+"{repository}"
-            else if (normalized == "user") "$"+"{base}/user"
-            else "$"+"{base}/repos/$"+"{repository}/$"+"{normalized}"
+        val url = if (normalized.isBlank()) "${base}/repos/${repository}"
+            else if (normalized == "user") "${base}/user"
+            else "${base}/repos/${repository}/${normalized}"
         val builder = Request.Builder().url(url)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
