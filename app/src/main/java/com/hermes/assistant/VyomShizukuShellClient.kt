@@ -289,6 +289,47 @@ internal class VyomShizukuShellClient(
         }
     }
 
+    fun executeUiAction(
+        commandId: String,
+        args: List<String>,
+        ownerConfirmed: Boolean,
+        callback: (String) -> Unit
+    ) {
+        val allowed = ShizukuCommandPolicy.command(
+            commandId = commandId,
+            args = args,
+            ownerConfirmed = ownerConfirmed,
+            packageName = "com.vyom.assistant"
+        )
+        if (allowed == null) {
+            callback("rejected: UI input action is not allowlisted or failed coordinate/text validation")
+            return
+        }
+        val service = remote
+        if (service == null || !hasLiveServiceAuthorization(service)) {
+            callback("unavailable: live Shizuku shell authorization and bound service are required")
+            return
+        }
+        val requestId = UUID.randomUUID().toString()
+        activeRequests.add(requestId)
+        worker.execute {
+            val result = try {
+                if (!hasLiveServiceAuthorization(service)) {
+                    "rejected: Shizuku authorization or service connection was lost before UI input"
+                } else {
+                    service.execute(
+                        requestId, commandId, args.toTypedArray(), allowed.timeoutMs, ownerConfirmed
+                    )
+                }
+            } catch (error: Exception) {
+                "failed: ${error.javaClass.simpleName}"
+            } finally {
+                activeRequests.remove(requestId)
+            }
+            mainHandler.post { callback(result) }
+        }
+    }
+
     fun cancelAll() {
         val service = remote ?: return
         if (!hasLiveServiceAuthorization(service)) {
