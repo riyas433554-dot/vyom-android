@@ -2015,3 +2015,40 @@ A17: all 20 coverage-matrix rows remain PARTIAL; no row has a complete implement
 - A17 app-management progress: added owner-requested `UNINSTALL` intent parsing, protected-app rejection, exact installed-app label/package resolution, `QUERY_ALL_PACKAGES` visibility and Android's own uninstall confirmation intent. Tests: `ActionEngineTest.uninstallIsOwnerRequestedButProtectedAppsRemainBlocked`. Force-stop and clear-data are still missing; the A17 20-row matrix remains partial.
 - F4 correction: `MainActivity.sendMessage` and voice prompt dispatch already call `memoryStore.learnFrom`; capture is reachable but `MemoryCapturePolicy` currently extracts explicit remember/keep-in-mind patterns only. This is not passive/semantic automatic capture of all useful facts.
 - Source checkpoint before this docs update: `ce5b2821194d40affd30ce2234a7b93d7f985603`; Debug `41645669377` IN PROGRESS, Full CI `41645669237` PENDING. Exact-head green proof is still required after this docs update.
+
+
+## Vyom Factory Termux registry acceptance — 2026-11-03
+
+### Owner-run live results
+- Owner confirmed `jq` is installed at the Termux binary path.
+- `bash -n ~/bin/vyom-factory` returned `SYNTAX PASS`.
+- First `vyom-factory list` returned no rows (empty registry; no error text).
+- Created controlled test task using source ID `factory-termux-test-001`: GitHub Issue #8.
+- Subsequent `list` showed issue #8 with open state and P3.
+- Priority mutation P3 → P2 succeeded.
+- Factory status mutation open → in_progress succeeded.
+- Comment operation succeeded.
+- Edit operation updated title and description successfully.
+- Independent GitHub issue read confirmed metadata survived edit: schema=1, priority=P2, status=in_progress, source=termux, source_id=factory-termux-test-001, idempotency key present, and event history retained created/priority/status/edited events.
+- GitHub Issue #8 was then closed as completed to clean up the temporary acceptance task.
+- This verifies the Termux CLI ↔ GitHub Issues registry path for create/list/priority/status/comment/edit. It does NOT yet prove the Android app and ChatGPT intake create identical records, nor a worker that executes tasks.
+
+### Current Factory milestone status
+- **M0 registry/CLI integration: PASS for the tested Termux path.**
+- **M1 durable worker/orchestrator: NOT IMPLEMENTED / NOT ACCEPTED.** No continuous task claimant, lease/heartbeat, worker run state, bounded retry/recovery, cancellation, or safe multi-worker scheduler is proven.
+- **M2 execution safety: NOT ACCEPTED.** Need isolated task branches/worktrees, conflict serialization, policy gates, exact-head tests/CI, and audited completion evidence.
+- **M3 skills/repository learning: NOT ACCEPTED.** Need repository/skill discovery, source + SKILL.md inspection, licence/security checks, pinned revision/hash, controlled install and validation.
+- **M4 schedules/availability: NOT ACCEPTED.** No 24/7 guarantee; need scheduled runner/heartbeat and explicit offline reporting.
+- **Factory UI: partial.** A screen/registry path is not proof of live worker events, all intake sources, or complete operator controls.
+
+### Immediate next engineering work
+1. Inspect the current Factory Android source, registry adapters, task/event models, and GitHub Actions workflows. Identify the exact active intake paths for Android chat, Factory UI, Termux and ChatGPT/connector-created issues; do not assume they already converge.
+2. Implement a durable worker lifecycle on the existing trusted execution infrastructure: claim with compare-and-set lease, unique run ID, heartbeat/expiry, append-only events, bounded retry/backoff, cancellation/STOP and restart recovery. Do not use an always-on claim unless a runner actually remains available.
+3. Add safe execution boundaries: per-task branch/worktree, file ownership/conflict detection, approval/policy checks, test commands, exact-HEAD CI and verified completion artifact.
+4. Implement skill/repository intake with pinned source revision, manifest/hash, licence/security review, allowlisted install destination and smoke test.
+5. Wire Factory dashboard to persisted task/event/run data; add filters, unlimited durable registration with pagination, priority/dependency editing, complaint source attribution, logs, retry/pause/cancel and transparent failure states.
+6. Add schedules only after runner lifecycle is reliable; expose next run, last heartbeat and offline state.
+7. Add cross-channel acceptance tests and run exact-head Debug + Full CI before any APK release. Do not require uninstall; preserve signing identity and the A18 no-APK update channel gates.
+
+### Test cleanup
+- Temporary acceptance issue #8 (`factory-termux-test-001`) closed after all tested mutations and independent metadata read passed.
