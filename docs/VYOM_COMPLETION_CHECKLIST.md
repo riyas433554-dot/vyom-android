@@ -1,3 +1,7 @@
+# OWNER RESET MILESTONE PLAN — 2026-11-03
+
+The controlling milestone order and branch/safety constraints are recorded at the top of `docs/HANDOFF.md` and `docs/MASTER_ORDERS.md`. Milestone 1 order: P1 Power Mode; A12 structured tool calls/no raw JSON; A14 TRUSTED default/no blanket confirmations; A1 verified Play Store install; verified whatsapp_send skill; A8/A16 floating orb during control tasks; F4 persisted memory auto-capture visible in Memory; R4 Diagnostics/RUN ALL CHECKS. M2 WebView exact supplied Claude Design HTML with scoped Kotlin bridge starts only after M1. M3 Learn Anywhere, ledger, attachments, real automations, human-like voice, floating bubble. Former one-final-APK rule is cancelled: one verified APK per milestone.
+
 # Vyom Completion Checklist — Evidence-Based Audit
 
 > Scope: Android app only. This is a source audit and implementation acceptance checklist, not a claim that these features are complete.
