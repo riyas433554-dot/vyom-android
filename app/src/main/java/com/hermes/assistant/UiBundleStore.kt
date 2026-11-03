@@ -54,6 +54,14 @@ internal class UiBundleStore(context: Context) {
         return File(directory, "index.html")
     }
 
+    fun activeFiles(): Map<String, ByteArray> {
+        val index = activeIndexFile()
+        val directory = index.parentFile ?: error("Active UI bundle directory is unavailable")
+        return UiBundleIntegrity.allowedAssetNames().associateWith { name ->
+            File(directory, name).readBytes()
+        }
+    }
+
     fun installBundle(version: String, files: Map<String, ByteArray>, expectedHashes: Map<String, String>): File {
         require(isValidVersion(version)) { "Invalid UI bundle version" }
         require(files.keys == UiBundleIntegrity.allowedAssetNames()) { "UI bundle must contain exactly index.html, styles.css and app.js" }

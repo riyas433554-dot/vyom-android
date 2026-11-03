@@ -3549,7 +3549,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private inner class UpdateCenterBridge(private val store: UiBundleStore) {
+    private inner class UpdateCenterBridge(
+        private val store: UiBundleStore,
+        private val webView: WebView
+    ) {
         @JavascriptInterface
         fun bundleVersion(): String = store.activeVersion()
 
@@ -3568,6 +3571,26 @@ class MainActivity : Activity() {
                 selfChangeButton.performClick()
             }
         }
+
+        @JavascriptInterface
+        fun applyUiPrompt(prompt: String) {
+            val apiKey = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+            val model = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
+            runOnUiThread { updateNotice.text = "Preparing a minimal, hash-verified UI patch…" }
+            io.execute {
+                try {
+                    val version = UiBundleEditor(store).applyPrompt(apiKey, model, prompt)
+                    runOnUiThread {
+                        updateNotice.text = "UI bundle v$version installed. Reloading without an APK update."
+                        webView.loadUrl(store.activeIndexFile().toURI().toString())
+                    }
+                } catch (error: Exception) {
+                    runOnUiThread {
+                        updateNotice.text = "UI patch rejected; active bundle unchanged: ${error.message ?: "patch error"}"
+                    }
+                }
+            }
+        }
     }
 
     private fun openUpdateCenter() {
@@ -3581,7 +3604,7 @@ class MainActivity : Activity() {
             webView.settings.allowContentAccess = false
             webView.settings.allowFileAccessFromFileURLs = false
             webView.settings.allowUniversalAccessFromFileURLs = false
-            webView.addJavascriptInterface(UpdateCenterBridge(store), "VyomBridge")
+            webView.addJavascriptInterface(UpdateCenterBridge(store, webView), "VyomBridge")
             webView.webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val uri = request.url
@@ -3657,7 +3680,13 @@ class MainActivity : Activity() {
                 }
                 rows += "PARTIAL · In-app patch flow · Minimal diff preview and PR creation are wired; CI wait and signed artifact handoff remain unfinished"
                 rows += "PARTIAL · External update flow · Signed-release discovery and certificate gate are wired; end-to-end release publication is awaiting CI verification"
-                rows += "PARTIAL · Hot-swappable UI bundle · Runtime loader, JS bridge and rollback are not implemented yet"
+                try {
+                    val activeBundle = UiBundleStore(this).seedBundledVersion()
+                    rows += "PASS · Hot-swappable UI bundle · v${UiBundleStore(this).activeVersion()} loaded from app-private storage; entry=${activeBundle.name}"
+                } catch (bundleError: Exception) {
+                    rows += "FAIL · Hot-swappable UI bundle · ${bundleError.message ?: "bundle verification failed"}"
+                }
+                rows += "PARTIAL · UI bundle prompt editing · Minimal prompt patches, hash verification and page-load rollback are wired; full native app UI migration remains unfinished"
             } catch (error: Exception) {
                 rows += "FAIL · Update diagnostics · ${error.message ?: "Unknown verification error"}"
             }
