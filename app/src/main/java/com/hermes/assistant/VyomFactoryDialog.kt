@@ -174,11 +174,10 @@ internal class VyomFactoryDialog(
         status.text = "Refreshing live tasks from GitHub…"
         worker.execute {
             try {
-                val identity = client.verifyConnection()
                 val tasks = client.listTasks()
                 main.post {
                     if (!dialog.isShowing) return@post
-                    status.text = "$identity · ${tasks.size} Factory tasks loaded"
+                    status.text = "GitHub Issues · ${tasks.size} Factory tasks loaded"
                     render(tasks)
                     busy = false
                 }
