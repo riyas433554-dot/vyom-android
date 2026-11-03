@@ -1,18 +1,18 @@
 package com.hermes.assistant
 
+import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Runs as Shizuku's shell identity only after the owner starts Shizuku and grants Vyom access.
- * Commands are argv arrays from ShizukuCommandPolicy; no shell parser or arbitrary command text.
+ * Shizuku shell-only executor. Requests are fixed command IDs, bounded and owner-authorized.
+ * STOP and execute share an atomic lifecycle registry to close startup/completion races.
  */
 class VyomShizukuUserService : IVyomShellService.Stub() {
     private val running = ConcurrentHashMap<String, Process>()
-    private val cancelled = ConcurrentHashMap.newKeySet<String>()
-    private val completed = ConcurrentHashMap.newKeySet<String>()
+    private val requests = ShizukuRequestRegistry()
 
     override fun execute(
         requestId: String,
@@ -22,23 +22,27 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         ownerConfirmed: Boolean
     ): String {
         if (!requestId.matches(Regex("^[A-Za-z0-9-]{1,64}$"))) return "rejected: invalid request id"
-        if (completed.contains(requestId)) return "rejected: request id already completed"
-        if (cancelled.remove(requestId)) return "cancelled: STOP arrived before execution"
-        if (running.containsKey(requestId)) return "rejected: duplicate request id"
         val command = ShizukuCommandPolicy.command(
             commandId = commandId,
             args = args.toList(),
             ownerConfirmed = ownerConfirmed,
             packageName = "com.vyom.assistant"
         ) ?: return "rejected: command is not allowlisted or owner confirmation is missing"
+
+        when (requests.begin(requestId)) {
+            ShizukuRequestRegistry.Begin.CANCELLED_BEFORE_START -> return "cancelled: STOP arrived before execution"
+            ShizukuRequestRegistry.Begin.DUPLICATE -> return "rejected: duplicate or previously completed request id"
+            ShizukuRequestRegistry.Begin.ACCEPTED -> Unit
+        }
         val boundedTimeout = timeoutMs.coerceIn(100L, command.timeoutMs)
+        var process: Process? = null
         return try {
-            val process = ProcessBuilder(command.argv).redirectErrorStream(true).start()
+            process = ProcessBuilder(command.argv).redirectErrorStream(true).start()
             if (running.putIfAbsent(requestId, process) != null) {
                 process.destroyForcibly()
                 return "rejected: duplicate request id"
             }
-            if (cancelled.contains(requestId)) {
+            if (!requests.markRunning(requestId)) {
                 process.destroyForcibly()
                 return "cancelled: STOP interrupted command startup"
             }
@@ -52,14 +56,13 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
                             val count = input.read(buffer)
                             if (count < 0) break
                             if (captured.size() < MAX_OUTPUT_BYTES) {
-                                val allowed = minOf(count, MAX_OUTPUT_BYTES - captured.size())
-                                captured.write(buffer, 0, allowed)
+                                captured.write(buffer, 0, minOf(count, MAX_OUTPUT_BYTES - captured.size()))
                             }
                         }
                         output.set(captured.toString(Charsets.UTF_8.name()))
                     }
                 } catch (_: Exception) {
-                    // Output is best-effort; exit state remains authoritative.
+                    // Exit state remains authoritative; output is best-effort.
                 }
             }.apply { name = "VyomShizukuOutput"; isDaemon = true; start() }
 
@@ -67,11 +70,11 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
             if (!finished) {
                 process.destroyForcibly()
                 process.waitFor(300, TimeUnit.MILLISECONDS)
-                if (cancelled.remove(requestId)) "cancelled: STOP interrupted the command"
+                if (requests.isCancelled(requestId)) "cancelled: STOP interrupted the command"
                 else "timeout: command exceeded ${boundedTimeout}ms"
             } else {
                 reader.join(300)
-                if (cancelled.remove(requestId)) "cancelled: STOP interrupted the command"
+                if (requests.isCancelled(requestId)) "cancelled: STOP interrupted the command"
                 else "exit=${process.exitValue()}; output=${output.get().take(MAX_OUTPUT_BYTES)}"
             }
         } catch (e: InterruptedException) {
@@ -80,20 +83,23 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
         } catch (e: Exception) {
             "failed: ${e.javaClass.simpleName}"
         } finally {
-            running.remove(requestId)?.let { process ->
-                if (process.isAlive) process.destroyForcibly()
+            running.remove(requestId)?.let { child ->
+                if (child.isAlive) child.destroyForcibly()
             }
-            cancelled.remove(requestId)
-            completed.add(requestId)
-            if (completed.size > 256) completed.clear()
+            if (requests.isCancelled(requestId)) {
+                Log.i(TAG, "request=$requestId command=$commandId outcome=cancelled")
+            } else {
+                Log.i(TAG, "request=$requestId command=$commandId outcome=completed")
+            }
+            requests.complete(requestId)
         }
     }
 
     override fun cancel(requestId: String) {
         if (!requestId.matches(Regex("^[A-Za-z0-9-]{1,64}$"))) return
-        if (completed.contains(requestId)) return
-        cancelled.add(requestId)
-        running[requestId]?.let { process ->
+        val accepted = requests.cancel(requestId)
+        val process = running[requestId]
+        if (process != null) {
             try {
                 process.destroy()
                 if (!process.waitFor(250, TimeUnit.MILLISECONDS)) process.destroyForcibly()
@@ -101,6 +107,7 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
                 process.destroyForcibly()
             }
         }
+        if (accepted) Log.i(TAG, "request=$requestId outcome=STOP_requested")
     }
 
     override fun destroy() {
@@ -109,6 +116,7 @@ class VyomShizukuUserService : IVyomShellService.Stub() {
     }
 
     private companion object {
+        const val TAG = "VyomShizuku"
         const val MAX_OUTPUT_BYTES = 8 * 1024
     }
 }
