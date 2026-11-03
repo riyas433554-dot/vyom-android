@@ -7,11 +7,15 @@ package com.hermes.assistant
 internal object DeviceActionSafetyPolicy {
     enum class Decision { STOP_CONTROL, BLOCK, REQUIRE_CONFIRMATION, ALLOW }
 
-    fun evaluate(killSwitchEnabled: Boolean, risk: ActionEngine.Risk): Decision {
+    fun evaluate(
+        killSwitchEnabled: Boolean,
+        risk: ActionEngine.Risk,
+        trustedDefault: Boolean = true
+    ): Decision {
         if (killSwitchEnabled) return Decision.STOP_CONTROL
         return when (risk) {
             ActionEngine.Risk.BLOCKED -> Decision.BLOCK
-            ActionEngine.Risk.CONFIRM -> Decision.REQUIRE_CONFIRMATION
+            ActionEngine.Risk.CONFIRM -> if (trustedDefault) Decision.ALLOW else Decision.REQUIRE_CONFIRMATION
             ActionEngine.Risk.SAFE -> Decision.ALLOW
         }
     }
