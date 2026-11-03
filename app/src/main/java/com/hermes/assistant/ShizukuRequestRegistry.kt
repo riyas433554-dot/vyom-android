@@ -33,7 +33,7 @@ internal class ShizukuRequestRegistry(private val maxEntries: Int = 256) {
     @Synchronized fun cancel(id: String): Boolean {
         return when (states[id]) {
             State.COMPLETED -> false
-            State.CANCEL_REQUESTED -> true
+            State.CANCEL_REQUESTED, State.CANCELLED_BEFORE_START -> true
             State.STARTING, State.RUNNING -> { states[id] = State.CANCEL_REQUESTED; true }
             null -> {
                 trim()
