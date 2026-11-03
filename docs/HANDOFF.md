@@ -1391,3 +1391,23 @@ One overlay service shared with A16. Show “How can I help you today?” sheet 
 - Shizuku UserService/ShellExecutor integration is NOT implemented yet. The UI explicitly says it is not enabled. Remaining P1 work: Shizuku API integration, explicit Shizuku authorization/binder state, strict command allowlist, bounded execution, audit/redaction, STOP cancellation, live permission/app-op read-back and verified Accessibility reconnect gating.
 - No physical Galaxy A06 test has been performed. P1 is not complete; no APK is approved.
 - Current branch source head at time of this note: `6cb6d6f5b53fdff4caf62abb4d99689639a56721`.
+
+
+### P1 Shizuku executor progress — 2026-11-03 (not yet accepted)
+- Additional source commits:
+  - Shizuku command-policy tests: `fecf058a7271e093a6b3e2b2539f8354c336ab75`.
+  - Strict command allowlist: `6825d09c38090b42b88259577dcfc3dde38bedaa`.
+  - AIDL contract: `41fdd50939710033c03038f506bd4ff8a45a245b`.
+  - Bounded UserService: `c7e174ef00c36b84a2f6e89f6ba222ecb76af7ff`.
+  - Shizuku 13.1.5 API/provider dependencies: `07850af4d6227ec169d0a88ec3be5b214af1c43c`.
+  - Provider registration: `89df7549d67f1de501ed52660796a78f328b31cc`.
+  - Owner authorization/read-back UI and STOP hook: `58c03d8b045aa060e02e4f04f4b4db53dd04b8b8`.
+  - Pre-start/active STOP cancellation race hardening: `ee9f5be8471cb819508d098236454afa79a4d3b7`.
+- Tests: `ShizukuCommandPolicyTest` covers fixed read-back argv, explicit owner confirmation for the one overlay mutation, injection/unknown-command rejection and bounded timeout. `PowerModePolicyTest` covers ADB endpoints, generated owner commands and capability-level boundaries. Exact-head CI has not yet completed; no pass is claimed.
+- UserService accepts command IDs only. It does not parse or execute arbitrary shell strings. It captures at most 8 KiB output, bounds each command to 4 seconds, and exposes request-ID cancellation. STOP CONTROL calls `cancelAll()`; Activity destruction also closes/unbinds the client.
+- Current app UI exposes Shizuku status, explicit owner authorization, read-back for secure settings/overlay/Accessibility and a separate STOP command control.
+- The only mutating Shizuku allowlist entry is `set_overlay`, and it requires an explicit ownerConfirmed flag plus the exact `allow` or `default` mode. Current UI does not expose that mutation; overlay grant remains an owner-run Termux command.
+- Shizuku v13.1.5 is the documented API dependency. Official project guidance states non-root Shizuku runs with ADB shell UID 2000, not root, and must be restarted after reboot. UserService is used rather than deprecated `newProcess`.
+- Auto Blocker cannot be reliably identified through a documented public Android API in this implementation. Therefore the wizard gives Samsung's official manual Settings route and does not falsely claim automatic detection or disablement. Wireless ADB is preferred; Samsung documents USB command blocking and unauthorized-source install blocking.
+- Important: Shizuku status/binder and command behavior still need exact-head CI and physical Galaxy A06 validation. P1 remains incomplete. Do not advance to P2 until P1 acceptance is satisfied.
+- Current source head: `ee9f5be8471cb819508d098236454afa79a4d3b7`.
