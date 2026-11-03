@@ -42,6 +42,8 @@ Current statuses below are deliberately conservative. They are not release claim
 | A14 | Default TRUSTED authorization follows explicit user intent for ordinary actions; ask only for ambiguous targets and hard-block/non-delegable actions. STOP always works. | UNVERIFIED |
 | A15 | Interrupted/cancelled task preserves its own context and can resume; cancelling one task does not erase others. | UNVERIFIED |
 | A16 | When a control task leaves Vyom, floating orb appears and provides caption, mute and STOP without bypassing missing permissions. | UNVERIFIED |
+| A17 | One app-agnostic Android control engine covers all 20 domains through observe/plan/act/verify/recover; unknown screens invoke Learn Anywhere; every row has a named test + Control Suite Diagnostics evidence; owner-run real-device subset passes. A1 and whatsapp_send are acceptance probes only. | PARTIAL — existing UI Agent and Power Mode coordinate subset are foundations; 20-row coverage and device suite remain open. |
+| A18 | Signed content-only updates work without APK: pinned signature + file hashes + min_app_version; inactive staging slot; 1–2 shipped presence/performance probes; atomic switch; previous-slot retention; automatic rollback on failed probe/load or 2 crashes/60s; result card/history/manual rollback; self-generated package staging; protected paths rejected. | UNVERIFIED — current UI bundle store is not yet a signed transactional package channel. |
 | M1 | Semantic retrieval finds paraphrases, not only exact words; lexical fallback works offline. | PARTIAL — memory implementation exists; semantic acceptance tests pending. |
 | M2 | CORE + episodic summary + recent turns preserve names and task context across multiple messages. | PARTIAL |
 | M3 | Chat always opens at the latest message and preserves the selected conversation. | PARTIAL |
@@ -167,3 +169,16 @@ No evidence means **UNVERIFIED**. A green CI build does not replace physical-dev
 - Test-first evidence/fixes: test-only SHA `aebba60158c7d1bc45b59c597798cd709134beaa` Debug `41631188888` FAILED with unresolved `SCROLL_UNTIL_FOUND` / `maxScrolls` (expected RED). Production commit `0ed83c1ee6f6a158bc14fdb0693c681213211333`. Debug `41631445760` and `41631573291` then FAILED with JUnit `UiAgentPolicyTestKt > initializationError` because the appended test was outside the class; fixed by `6dfc27d01caf7e7123dc9dc63a7f1f93e878d93e`. Debug `41632805000` FAILED because the new test fixture omitted `powerModeLevel2`; fixed in `8a64f127813a89b636a99ae626bb2c332e499ecc`. Later app-access gate test/implementation commits: `c8c043a294671bd43f5f149df4a40615038c7380`, `0d5cf6b2d8aff0c5272c0479a90fdf678c4d3e86`.
 - Latest source SHA before this documentation commit: `0d5cf6b2d8aff0c5272c0479a90fdf678c4d3e86`. Debug `41633460021` queued; Full CI `41633459928` pending. Earlier runs are superseded and do not prove this head green.
 - A17 remains PARTIAL. No coverage row is FIXED. Generic ShellExecutor input, remaining action adapters, Learn Anywhere runtime, full capability inventory, 20-task Control Suite and physical-device subset are still open. Do not deliver M1 APK.
+
+
+## A18 no-APK update-channel test plan (M1, immediately after signing)
+
+- `A18ManifestTest`: parses the required fields; rejects malformed versions, unsupported `min_app_version`, duplicate/unsafe paths, missing probes and protected-file paths.
+- `A18SignatureTest`: accepts only packages signed by the public key pinned in native core; rejects tampering, unknown keys and altered file bytes.
+- `A18StagingTest`: verifies package files in a new inactive slot; active slot remains byte-identical until probes pass.
+- `A18ProbeTest`: exactly 1–2 probes; presence probe observes the intended behavior; performance probe records elapsed time and compares persisted baseline as faster/same/slower +X ms.
+- `A18ActivationTest`: atomically switches active slot only after every probe passes and retains the previous slot.
+- `A18RollbackTest`: failed probe, page/skill load failure and 2 crashes within 60 seconds restore previous slot and record result/history.
+- `A18ProtectedPathTest`: kill-switch, policy engine, update verifier and signing configuration cannot be updated by content packages or self-generated packages.
+- Demo acceptance: one visible UI element changes with both probes PASS; intentionally failing probe returns to previous UI; result-card screenshot is saved in CI artifact or Diagnostics.
+- Ordinary update execution must run only the package's 1–2 probes. Full A17 Control Suite runs only at milestone or owner request.
