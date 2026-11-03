@@ -205,4 +205,13 @@ class PowerModePolicyTest {
             )
         )
     }
+    @Test fun authorizationLossInvalidatesEveryBoundServiceState() {
+        assertTrue(PowerModePolicy.mustInvalidateShizukuUserService(false, true, 2000, true, true))
+        assertTrue(PowerModePolicy.mustInvalidateShizukuUserService(true, false, 2000, true, true))
+        assertTrue(PowerModePolicy.mustInvalidateShizukuUserService(true, true, 0, true, true))
+        assertTrue(PowerModePolicy.mustInvalidateShizukuUserService(true, true, 2000, false, true))
+        assertTrue(PowerModePolicy.mustInvalidateShizukuUserService(true, true, 2000, true, false))
+        assertFalse(PowerModePolicy.mustInvalidateShizukuUserService(true, true, 2000, true, true))
+    }
+
 }
