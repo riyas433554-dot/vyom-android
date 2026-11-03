@@ -33,6 +33,39 @@ The setup UI reports current grants and the Accessibility service connection. Mi
 
 Not every permission is a global prerequisite. App switching and UI automation do not require microphone/camera/notification grants. Speech input needs microphone; camera capture needs camera; background notification display needs notification permission on Android 13+; brightness changes need Modify System Settings. The UI Agent progress overlay uses `TYPE_ACCESSIBILITY_OVERLAY` and is covered by the Accessibility service grant; Vyom must not ask for redundant Draw Over Other Apps access for that overlay.
 
+## A17 owner scope — 20-row coverage requirements
+
+A17 is M1 scope. The current UI Agent is partial baseline, not universal control. A1 Play Store and `whatsapp_send` are acceptance tests only. Each row below must have (a) a reachable generic adapter, (b) named automated test, (c) a Control Suite Diagnostics check, and (d) physical-device evidence where Android/OEM behavior is involved.
+
+| # | Domain | Required generic operations | Status |
+|---:|---|---|---|
+| 1 | App lifecycle | Open/close/force-stop/clear/uninstall/install any app | PARTIAL |
+| 2 | Arbitrary app UI | Forms, lists, search, dialogs, pickers, web pages | PARTIAL |
+| 3 | System controls | Wi-Fi/Bluetooth/mobile data/hotspot/brightness/volume/DND/rotation/flashlight/airplane mode where allowed | PARTIAL |
+| 4 | Notifications | Read/filter/act/dismiss | PARTIAL |
+| 5 | Communications | Calls/SMS/contacts | PARTIAL |
+| 6 | Camera and media files | Camera/photos/videos/screenshots/screen recording | PARTIAL |
+| 7 | File manager | Browse/create/move/delete/zip/share | PARTIAL |
+| 8 | Time and calendar | Alarms/timers/calendar/reminders | PARTIAL |
+| 9 | Messaging | WhatsApp/Instagram/Telegram/email through generic UI | PARTIAL |
+| 10 | Browser | Search/open/fill/download | PARTIAL |
+| 11 | Clipboard and text | Clipboard and text entry in arbitrary fields | PARTIAL |
+| 12 | Permissions | Per-app grant/revoke via authorized Power Mode where Android permits | PARTIAL |
+| 13 | Device settings | Battery/storage/app info/settings pages | PARTIAL |
+| 14 | Termux | Commands through owner-enabled bridge | PARTIAL |
+| 15 | Location and maps | Location/map tasks with permission-aware routing | PARTIAL |
+| 16 | Media control | Music/video/volume | PARTIAL |
+| 17 | Complex gestures | Pinch/drag/multi-step | PARTIAL |
+| 18 | Transient UI | Wait for and handle popups/ads/permission dialogs in ordinary apps | PARTIAL |
+| 19 | Multi-app workflows | Pass data between apps and verify both ends | PARTIAL |
+| 20 | Scheduling | Schedule supported tasks above and verify execution | PARTIAL |
+
+## Control Suite and acceptance gate
+
+Diagnostics → Control Suite must run 20 varied safe tasks across different apps/domains and show per-task PASS/FAIL/SKIP plus evidence. No default destructive actions, sends, calls, permission changes or sensitive settings. Every row needs implementation + named automated test + Diagnostics row. M1 stays open until all 20 rows have coverage and an owner-runnable physical-device subset passes on the actual phone.
+
+Hard limits: FLAG_SECURE screens; biometrics and lock-screen credentials; Play Protect prompts; payments/banking/OTP/Authenticator apps; Vyom kill-switch and protected files. Never bypass these; report the exact blocked capability/permission and one-tap repair route if a permission is missing.
+
 ## Non-negotiable platform boundaries
 
 - Accessibility cannot bypass secure windows, lock screens, biometrics, OTP/password fields, permission prompts, Play Protect or Android security confirmations.
