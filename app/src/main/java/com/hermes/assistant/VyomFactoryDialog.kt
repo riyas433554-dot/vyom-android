@@ -274,16 +274,18 @@ internal class VyomFactoryDialog(
         worker.execute {
             val outcome = try {
                 val session = workerSession
+                val journal = VyomFactoryExecutionJournal(activity.applicationContext)
+                val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val hostActivity = activity as? MainActivity ?: throw IllegalStateException("Factory execution requires MainActivity")
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity)
                 val runner = VyomFactoryExecutionRunner(
-                    claimNext = { session.claimNext() },
+                    claimNext = { session.claimNext { remote -> isEligibleForRunner(remote, journal, retrySchedules, adapter) } },
                     isClaimCurrent = { session.isCurrent(it) },
                     releaseClaim = { session.release(it) },
                     fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
-                    journal = VyomFactoryExecutionJournal(activity.applicationContext),
+                    journal = journal,
                     adapters = VyomFactoryExecutionAdapterRegistry(listOf(adapter)),
-                    retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext),
+                    retrySchedules = retrySchedules,
                     newAttemptId = { UUID.randomUUID().toString() },
                     prepareExecution = { envelope -> prepareAndroidAction(envelope) },
                     externalStopRequested = { stopRunRequested.get() }
@@ -327,6 +329,43 @@ internal class VyomFactoryDialog(
                 releaseClaimButton.isEnabled = false
                 busy = false
             }
+        }
+    }
+
+    /**
+     * RUN NEXT must skip manual-review/terminal/not-yet-due tasks during selection,
+     * otherwise one high-priority ineligible issue would starve every later task.
+     * The task remains in the shared inbox for manual review or a later retry.
+     */
+    private fun isEligibleForRunner(
+        task: VyomFactoryGitHubClient.Task,
+        journal: VyomFactoryExecutionJournal,
+        retrySchedules: VyomFactoryRetryScheduleStore,
+        adapter: VyomFactoryAndroidActionAdapter
+    ): Boolean {
+        if (task.state != "open" || task.metadata.status != "open") return false
+        val envelope = VyomFactoryExecutionEnvelope.parse(task.body)
+        if (!envelope.isExecutable ||
+            envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
+            envelope.operation != "set_media_volume" ||
+            envelope.arguments.has("confirmation_id")
+        ) return false
+
+        val history = journal.all().filter { it.issueNumber == task.number }
+        if (history.any { it.operationKey == "legacy:unknown" }) return false
+        val operationKey = "android_action:set_media_volume"
+        val previous = history.lastOrNull { it.operationKey == operationKey } ?: return true
+        return when (previous.state) {
+            VyomFactoryExecutionJournal.State.SUCCEEDED,
+            VyomFactoryExecutionJournal.State.INTERRUPTED,
+            VyomFactoryExecutionJournal.State.CLAIMED,
+            VyomFactoryExecutionJournal.State.RUNNING,
+            VyomFactoryExecutionJournal.State.STOP_REQUESTED -> false
+            VyomFactoryExecutionJournal.State.FAILED -> adapter.isIdempotent &&
+                retrySchedules.all().any {
+                    it.issueNumber == task.number && it.operationKey == operationKey &&
+                        it.nextAttemptAt <= System.currentTimeMillis()
+                }
         }
     }
 

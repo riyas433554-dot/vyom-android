@@ -24,7 +24,7 @@ internal class VyomFactoryWorkerSession(
      * Refreshes the shared registry before every claim. Network/read failure is
      * propagated; no claim is created from stale cached GitHub data.
      */
-    fun claimNext(): VyomFactoryWorkerClaimCoordinator.Claim? {
+    fun claimNext(eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }): VyomFactoryWorkerClaimCoordinator.Claim? {
         val snapshot = fetchRemoteTasks()
         val timestamp = now()
         val openTasks = snapshot.filter { it.state == "open" && it.metadata.status == "open" }
@@ -37,7 +37,7 @@ internal class VyomFactoryWorkerSession(
                 enqueuedAt = timestamp
             )
         })
-        return coordinator.claimNext(snapshot, ownerId, timestamp, leaseDurationMs)
+        return coordinator.claimNext(snapshot.filter(eligible), ownerId, timestamp, leaseDurationMs)
     }
 
     fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
