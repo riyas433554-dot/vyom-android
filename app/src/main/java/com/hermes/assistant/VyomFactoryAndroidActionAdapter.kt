@@ -12,6 +12,7 @@ import org.json.JSONObject
  */
 internal class VyomFactoryAndroidActionAdapter(
     private val isForeground: () -> Boolean,
+    private val isForegroundSessionValid: () -> Boolean = isForeground,
     private val consumeConfirmation: (String) -> Boolean,
     private val setMediaVolume: (Int) -> String
 ) : VyomFactoryExecutionAdapter {
@@ -52,7 +53,7 @@ internal class VyomFactoryAndroidActionAdapter(
         }
 
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
-        check(isForeground()) { "Android action requires the Vyom screen to be foregrounded" }
+        check(isForeground() && isForegroundSessionValid()) { "Android action requires the same foreground Activity session" }
         if (!consumeConfirmation(confirmationId)) {
             throw SecurityException("Explicit in-app confirmation is missing, expired, or already consumed")
         }
@@ -60,7 +61,7 @@ internal class VyomFactoryAndroidActionAdapter(
         // Re-check both cooperative STOP and foreground state immediately before
         // the only allowed side effect.
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
-        check(isForeground()) { "Vyom left the foreground before the action could run" }
+        check(isForeground() && isForegroundSessionValid()) { "Vyom left its approved foreground Activity session before the action could run" }
 
         val result = setMediaVolume(rawPercent)
         if (!isVerifiedResult(result)) {
@@ -74,9 +75,13 @@ internal class VyomFactoryAndroidActionAdapter(
         private val REQUIRED_ARGUMENTS = setOf("percent", "confirmation_id")
 
         /** Production binding; confirmation IDs are issued only by the foreground Activity UI. */
-        fun forActivity(activity: MainActivity): VyomFactoryAndroidActionAdapter =
+        fun forActivity(
+            activity: MainActivity,
+            expectedForegroundGeneration: Long = activity.factoryForegroundGate.generation()
+        ): VyomFactoryAndroidActionAdapter =
             VyomFactoryAndroidActionAdapter(
                 isForeground = activity.factoryForegroundGate::isForeground,
+                isForegroundSessionValid = { activity.factoryForegroundGate.isForegroundSession(expectedForegroundGeneration) },
                 consumeConfirmation = activity.factoryOneTimeApprovals::consume,
                 setMediaVolume = { percent ->
                     DeviceActionExecutor.execute(
