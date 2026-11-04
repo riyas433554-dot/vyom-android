@@ -138,12 +138,33 @@ class VyomFactoryExecutionRunnerTest {
         assertEquals(1, fixture.retryStore.all().single().failedAttempts)
     }
 
+    @Test fun unverifiedAdapterOutcomeCannotBecomeTerminalSuccess() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(
+            fail = false,
+            isIdempotent = true,
+            verified = false
+        )
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Failed(71, "attempt-1", "execution_error"),
+            outcome
+        )
+        assertEquals(VyomFactoryExecutionJournal.State.FAILED, fixture.journal.get("attempt-1")?.state)
+        assertNull(fixture.journal.get("attempt-1")?.result)
+        assertTrue(fixture.retryStore.all().isEmpty())
+        assertNull(fixture.activeLease())
+    }
+
     @Test fun adapterCanObserveStopSignalBeforeSideEffect() {
         val fixture = Fixture()
         var sideEffects = 0
         val adapter = object : VyomFactoryExecutionAdapter {
             override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
             override val isIdempotent = true
+            override fun isVerifiedResult(result: String) = true
             override fun run(
                 envelope: VyomFactoryExecutionEnvelope,
                 control: VyomFactoryExecutionControl
@@ -229,10 +250,12 @@ class VyomFactoryExecutionRunnerTest {
 
     private class RecordingAdapter(
         private val fail: Boolean,
-        override val isIdempotent: Boolean
+        override val isIdempotent: Boolean,
+        private val verified: Boolean = true
     ) : VyomFactoryExecutionAdapter {
         override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
         var calls = 0
+        override fun isVerifiedResult(result: String) = verified
         override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
             calls++
             if (fail) throw IOException("temporary network timeout")
