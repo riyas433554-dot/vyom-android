@@ -83,3 +83,18 @@ Choose one before sending real user complaints:
 2. Change repository visibility to private in GitHub → Repository Settings → General → Danger Zone → Change repository visibility, then verify GitHub Actions and the app's issue token still have access.
 
 Do not paste credentials, OTPs, private messages or personal screenshots into public issue bodies. The seeded matrix issues are generic requirement records and contain no device evidence.
+
+## OWNER ACTION NEEDED — use the Factory complaint-to-code proposal flow (after the matching APK passes CI)
+
+This is a guarded proposal workflow, not autonomous repair. It does not edit Android `main`, merge a PR, or install an APK.
+
+1. In Vyom Settings, enter a GitHub token with repository Contents read/write, Pull requests read/write, and Issues read/write permission. Tap **SAVE GITHUB TOKEN**.
+2. Enter the NVIDIA API key and select a supported code model; tap **SAVE VOICE SETTINGS**. Do not send either secret in chat or GitHub issues.
+3. Open Vyom Factory and select an active complaint. Tap **PROPOSE REVIEWED CODE FIX**.
+4. Choose the exact allowed Kotlin source path that should be changed. The app intentionally does not guess a file. Protected files (MainActivity, control/action dispatch, policy, STOP, audit, accessibility, signing and update-security files) are rejected.
+5. Review the generated minimal patch diff before creating the PR. Cancel if the diff is unrelated, broader than needed, or changes security-sensitive behavior.
+6. Wait for both required CI workflows. The PR URL and exact passing SHA should be recorded back on the originating complaint. A passing PR is still unmerged and is not an installable release.
+7. Owner must review/merge the PR through GitHub. Only after a separate signed release is produced should the normal update verifier be used; installation remains a separate explicit owner action.
+
+Limitations: one Kotlin file per proposal; user chooses the source path; no automatic worker selection of files, no autonomous merge, no automatic install, and no physical-device verification. If issue-comment write fails, record the PR URL on the complaint manually.
+
