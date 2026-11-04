@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `82e2a52be6a8a7d8fd2b7cbdba2e82cd693bbb01` (process-wide single execution slot + runner regression coverage; exact-head Debug + Full CI must be polled after this handoff commit). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source commit: `d14ddb7554101872526aa3306361435a5d7fd926` (Factory execution is now permanently invalidated when its owning Activity pauses, including pause/resume before the worker's next STOP check). Handoff update and exact-head CI are pending.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -289,3 +289,13 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Concurrency remains intentionally capped at **1**. No thread pool >1 or concurrent Android side effects were enabled. To increase the cap later, first introduce resource-keyed adapter serialization and prove isolation for shared device resources (especially media volume), plus STOP/lease/journal race tests. This completes the safe bounded-admission baseline, not multi-action parallel execution.
 - Exact previous-head CI success does not verify these new commits. Poll fresh Debug + Full CI on the handoff-updated exact HEAD. If either fails, fix only from real logs. Do not deliver a final APK until canonical stages are complete and exact-head artifact is verified.
 - No backend/Render/production Supabase/Android main changes. No physical device or app-closed execution test claimed.
+
+
+## Activity pause invalidation hardening (2026-11-04)
+
+- Audit found a lifecycle gap: dialog dismissal set the runner's cooperative STOP flag, and the Android adapter independently checked foreground state immediately before its device side effect, but Activity pause itself was not wired into the runner's STOP callback.
+- Source commit: `d14ddb7554101872526aa3306361435a5d7fd926`. RUN NEXT captures the Activity foreground-gate generation when constructing the runner. The external STOP predicate now becomes true if the user presses STOP, the Activity is not resumed, or the foreground generation changes. A pause followed by resume cannot silently revive the old run; it remains cancelled for that run.
+- Existing runner regression tests already cover external STOP before journal/adapter work and STOP observed by the adapter before its side effect. The production UI wiring changed; no claim of an Android instrumentation/lifecycle test is made.
+- This is a STOP/pause safety correction, not background execution. The adapter still rechecks foreground state and one-time approval before changing media volume.
+- Exact current source HEAD: `d14ddb7554101872526aa3306361435a5d7fd926`. Debug and Full CI must be run on the final handoff-updated HEAD. No final APK or physical-device test is claimed.
+- Next: verify exact-head Debug + Full CI, inspect any real failures, then continue stage 5/6 coverage and retain the one-runner cap. Stage 8 still requires physical app-closed verification.
