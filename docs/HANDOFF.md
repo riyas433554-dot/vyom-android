@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest branch HEAD before this handoff update: `655299948da8edbc2b9f30e76898dbb15e5f44d0` (retry due-time and no-replay tests). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest branch HEAD before this handoff update: `284789f16619e935b11782c43487a8353a32f130` (retry due-time and no-replay tests). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -32,6 +32,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Lease fencing is local to one app process/device; it is not distributed CAS.
 - Claim session refreshes GitHub before each claim and reconciles only issues whose GitHub state and metadata status are both `open`.
 - Factory dialog still exposes foreground CLAIM NEXT / RELEASE CLAIM only; execution runner is implemented as an orchestration component but is not wired into UI or background scheduling.
+- Journal entries now persist the exact operation key. Runner replay checks are scoped to issue + operation; legacy entries with unknown operation identity block further automatic work on that issue and require manual review.
 - `VyomFactoryExecutionRunner` performs one foreground claim, re-fetches the issue, verifies open status + source identity + valid execution envelope + registered adapter, begins a fenced journal attempt, checks lease/STOP before dispatch, records terminal result, and schedules transient retry only when the adapter declares idempotency.
 - `VyomFactoryExecutionControl.shouldStop()` is passed into adapters; adapter contract requires bounded execution and cooperative checks before each side effect. No concrete adapters are registered in production, so current app still cannot autonomously execute Factory tasks.
 - Retry schedule cleanup after terminal success is best-effort and reported separately; cleanup failure does not rewrite a successful side effect as FAILED.
