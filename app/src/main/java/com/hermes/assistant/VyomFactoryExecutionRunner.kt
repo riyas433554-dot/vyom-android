@@ -18,17 +18,28 @@ internal class VyomFactoryExecutionRunner(
     private val now: () -> Long = System::currentTimeMillis,
     private val newAttemptId: () -> String,
     private val prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
-    private val externalStopRequested: () -> Boolean = { false }
+    private val externalStopRequested: () -> Boolean = { false },
+    private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit.PROCESS
 ) {
     sealed class Outcome {
         data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String, val retryScheduleCleared: Boolean) : Outcome()
         data class Failed(val issueNumber: Int, val attemptId: String, val category: String) : Outcome()
         data class Skipped(val issueNumber: Int, val reason: String) : Outcome()
         object NoWork : Outcome()
+        object Busy : Outcome()
         data class Fenced(val issueNumber: Int) : Outcome()
     }
 
     fun runNext(): Outcome {
+        if (!executionPermit.tryAcquire()) return Outcome.Busy
+        return try {
+            runNextWithPermit()
+        } finally {
+            executionPermit.release()
+        }
+    }
+
+    private fun runNextWithPermit(): Outcome {
         // Recover expired/non-current attempts before the claim selector filters
         // terminal history, so stale RUNNING work cannot starve the inbox.
         journal.interruptExpired(now())
