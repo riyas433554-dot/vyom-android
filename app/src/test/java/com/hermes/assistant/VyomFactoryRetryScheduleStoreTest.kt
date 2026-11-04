@@ -16,6 +16,18 @@ class VyomFactoryRetryScheduleStoreTest {
         assertEquals(first, VyomFactoryRetryScheduleStore(prefs).all().single())
     }
 
+    @Test fun jitterIsStablePerIssueButSpreadAcrossDifferentIssues() {
+        val first = VyomFactoryRetryScheduleStore(MemoryPrefs())
+            .recordFailure(21, "repo-change:abc", "network_timeout", 10_000, true)!!
+        val sameIssue = VyomFactoryRetryScheduleStore(MemoryPrefs())
+            .recordFailure(21, "repo-change:abc", "network_timeout", 10_000, true)!!
+        val otherIssue = VyomFactoryRetryScheduleStore(MemoryPrefs())
+            .recordFailure(22, "repo-change:abc", "network_timeout", 10_000, true)!!
+
+        assertEquals(first.nextAttemptAt, sameIssue.nextAttemptAt)
+        assertNotEquals(first.nextAttemptAt, otherIssue.nextAttemptAt)
+    }
+
     @Test fun incrementsAttemptsAndStopsAfterPolicyLimit() {
         val store = VyomFactoryRetryScheduleStore(MemoryPrefs())
         store.recordFailure(21, "repo-change:abc", "server_unavailable", 1_000, true)
