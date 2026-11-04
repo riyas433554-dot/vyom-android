@@ -48,6 +48,29 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun successfulExecutionClearsOnlyItsMatchingRetrySchedule() {
+        val fixture = Fixture()
+        fixture.retryStore.recordFailure(71, "android_action:safe_action", "network_timeout", 1_000, true)
+
+        val outcome = fixture.runner(RecordingAdapter(fail = false, idempotent = true)).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertTrue((outcome as VyomFactoryExecutionRunner.Outcome.Succeeded).retryScheduleCleared)
+        assertTrue(fixture.retryStore.all().isEmpty())
+    }
+
+    @Test fun expiredOrReplacedLeasePreventsAdapterInvocation() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = false, idempotent = true)
+        fixture.releaseLease()
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertEquals(VyomFactoryExecutionRunner.Outcome.Fenced(71), outcome)
+        assertEquals(0, adapter.calls)
+        assertNull(fixture.journal.get("attempt-1"))
+    }
+
     @Test fun adapterCanObserveStopSignalBeforeSideEffect() {
         val fixture = Fixture()
         var sideEffects = 0
@@ -93,6 +116,10 @@ class VyomFactoryExecutionRunnerTest {
 
         fun requestStop() {
             assertTrue(journal.requestStop(lease, "attempt-1", 2_001))
+        }
+
+        fun releaseLease() {
+            assertTrue(leaseStore.release(lease))
         }
 
         init {
