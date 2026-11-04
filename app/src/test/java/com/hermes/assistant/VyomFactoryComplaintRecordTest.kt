@@ -35,6 +35,13 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("P3", item.priority)
     }
 
+    @Test fun personalityAreaRequiresAnExplicitPersonaSignal() {
+        val generic = VyomFactoryComplaintRecord.fromFreeText("termux", "unexpected behavior")
+        val explicit = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "assistant tone is wrong")
+        assertEquals("other", generic.area)
+        assertEquals("personality", explicit.area)
+    }
+
     @Test fun markdownContainsEveryRequiredRegisterFieldAndOriginalText() {
         val original = "voice: Hinglish STT drops words"
         val item = VyomFactoryComplaintRecord.fromFreeText("vyom_voice", original)
