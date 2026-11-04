@@ -36,16 +36,18 @@ internal class VyomFactoryExecutionJournal internal constructor(
         val result: String? = null,
         val errorCategory: String? = null,
         val errorMessage: String? = null,
-        val stopRequestedAt: Long? = null
+        val stopRequestedAt: Long? = null,
+        val operationKey: String = "legacy:unknown"
     ) {
         val isTerminal: Boolean
             get() = state == State.SUCCEEDED || state == State.FAILED || state == State.INTERRUPTED
     }
 
     /** Creates a unique attempt only while the exact supplied lease is current. */
-    fun begin(lease: VyomFactoryWorkerLeaseStore.Lease, attemptId: String, now: Long): Entry =
+    fun begin(lease: VyomFactoryWorkerLeaseStore.Lease, attemptId: String, now: Long, operationKey: String = "legacy:unknown"): Entry =
         synchronized(VyomFactoryExecutionLock.LOCK) {
             validateAttemptId(attemptId)
+            require(OPERATION_KEY.matches(operationKey))
             require(now >= 0)
             requireCurrentLease(lease, now)
             val entries = readAll().toMutableMap()
@@ -72,7 +74,8 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 ownerId = lease.ownerId,
                 state = State.CLAIMED,
                 startedAt = now,
-                updatedAt = now
+                updatedAt = now,
+                operationKey = operationKey
             )
             entries[attemptId] = entry
             persist(entries.values)
@@ -227,11 +230,13 @@ internal class VyomFactoryExecutionJournal internal constructor(
                         result = item.optNullableString("result"),
                         errorCategory = item.optNullableString("error_category"),
                         errorMessage = item.optNullableString("error_message"),
-                        stopRequestedAt = if (item.isNull("stop_requested_at")) null else item.getLong("stop_requested_at")
+                        stopRequestedAt = if (item.isNull("stop_requested_at")) null else item.getLong("stop_requested_at"),
+                        operationKey = item.optString("operation_key", "legacy:unknown")
                     )
                     require(entry.issueNumber > 0 && ATTEMPT_ID.matches(entry.attemptId) &&
                         entry.leaseId.isNotBlank() && entry.ownerId.isNotBlank() &&
-                        entry.startedAt >= 0 && entry.updatedAt >= entry.startedAt)
+                        entry.startedAt >= 0 && entry.updatedAt >= entry.startedAt &&
+                        OPERATION_KEY.matches(entry.operationKey))
                     require(put(entry.attemptId, entry) == null) { "Duplicate execution attempt ID" }
                 }
             }
@@ -254,7 +259,8 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 .put("result", entry.result)
                 .put("error_category", entry.errorCategory)
                 .put("error_message", entry.errorMessage)
-                .put("stop_requested_at", entry.stopRequestedAt))
+                .put("stop_requested_at", entry.stopRequestedAt)
+                .put("operation_key", entry.operationKey))
         }
         check(prefs.edit().putString(KEY_ATTEMPTS, array.toString()).commit()) {
             "Execution journal could not be persisted"
@@ -274,5 +280,6 @@ internal class VyomFactoryExecutionJournal internal constructor(
         private const val MAX_JOURNAL_ENTRIES = 500
         private val ATTEMPT_ID = Regex("[A-Za-z0-9][A-Za-z0-9._:-]{0,159}")
         private val ERROR_CATEGORY = Regex("[a-z][a-z0-9_]{1,79}")
+        private val OPERATION_KEY = Regex("[A-Za-z0-9][A-Za-z0-9._:-]{0,159}")
     }
 }
