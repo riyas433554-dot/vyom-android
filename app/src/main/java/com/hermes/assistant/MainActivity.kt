@@ -728,6 +728,12 @@ class MainActivity : Activity() {
                     .setNegativeButton("CANCEL") { _, _ ->
                         pendingSelfChangeIssueNumber = null
                     }
+                    .setOnCancelListener {
+                        pendingSelfChangeIssueNumber = null
+                    }
+                    .setOnDismissListener {
+                        pendingSelfChangeIssueNumber = null
+                    }
                     .setPositiveButton("CREATE PR") { _, _ ->
                         val title = proposalTitle.text.toString().trim()
                         val path = proposalPath.text.toString().trim()
