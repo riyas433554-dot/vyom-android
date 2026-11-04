@@ -18,6 +18,19 @@ class VyomFactoryWorkerSessionTest {
         assertTrue(session.isCurrent(claim))
     }
 
+    @Test fun startedInProgressComplaintsRemainClaimableByFactoryWorker() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        val session = session(queue, listOf(
+            remote(29, "P0", "source-29", metadataStatus = "in_progress")
+        ))
+
+        val claim = session.claimNext()
+
+        assertNotNull(claim)
+        assertEquals(29, claim!!.task.issueNumber)
+        assertTrue(queue.contains(29))
+    }
+
     @Test fun doesNotImportOrClaimPausedOrClosedTasks() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         val session = session(queue, listOf(
