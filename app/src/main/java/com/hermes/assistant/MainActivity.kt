@@ -3026,8 +3026,10 @@ class MainActivity : Activity() {
         io.execute {
             try {
                 val client = VyomFactoryGitHubClient(token)
-                val task = client.listTasks().firstOrNull { it.number == issueNumber }
-                    ?: throw IllegalArgumentException("Factory complaint #$issueNumber was not found")
+                val task = client.listTasks().firstOrNull {
+                    it.number == issueNumber && it.state == "open" &&
+                        it.metadata.status in setOf("open", "in_progress")
+                } ?: throw IllegalArgumentException("Open Factory complaint #$issueNumber was not found")
                 client.updateTask(task, newPriority = "P0")
                 runOnUiThread {
                     item.state = "done"
