@@ -96,7 +96,7 @@ class VyomFactoryAndroidActionAdapterTest {
         var consumed = 0
         var executed = 0
         val adapter = adapter(
-            foregroundSessionValid = false,
+            foregroundSessionValid = { false },
             consume = { consumed++; true },
             setVolume = { executed++; "Verified: ok" }
         )
