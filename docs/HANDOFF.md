@@ -472,3 +472,14 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Fixed both response fixtures with JSONObject.toString() in d0b4430ffbad9fc0f81c7b0f6f499bd6c9791eb5. Test-only change; no production behavior changed.
 - Previous note claiming all three sites were fixed was inaccurate: line 33 was fixed, but lines 107 and 121 remained. Await exact-head CI and actual test execution before claiming green.
 - Next: verify exact-head Debug and Full CI, then continue the missing-GitHub-token complaint retry audit.
+
+## Missing-token complaint retry correction — 2026-11-04
+
+- Confirmed source defect: `submitFactoryComplaint()` marked an intake item `error` when the encrypted GitHub token was absent. `resumeQueuedChatMessages()` intentionally retries only `queued` items, so saving a token and reconnecting could never resume that complaint.
+- Test-first regression: `VyomFactoryComplaintSubmissionPolicyTest.missingGitHubTokenKeepsComplaintQueuedForReconnectRetry` added in `dec212514416b5845cd370045c0da254a9b7d670`.
+- Production correction: `VyomFactoryComplaintSubmissionPolicy.missingGitHubToken()` now returns a queued/pending decision; `MainActivity.submitFactoryComplaint()` uses that decision instead of marking the complaint as a terminal error. The existing stable item ID and reconnect retry routing remain unchanged.
+- Commits: `71291f76107982e818998fb15b75a1e773a365ea` (policy), `4be1871f7a31f85e1654012c6572eedee430c848` (Activity integration).
+- This only fixes the missing-token path. Network/API exceptions were already kept queued and retried with the same item ID; no duplicate retry mechanism was added.
+- Exact new HEAD `4be1871f7a31f85e1654012c6572eedee430c848` has no CI result yet. Parent Debug run `41846518242` is still IN_PROGRESS on `28e65663f082286ae7e3829458fc27aea6007158`; it is not evidence for this new source. Parent Full CI `41846518438` SUCCESS also does not validate this new source.
+- No backend, Render, Supabase, or Android `main` changes. No APK delivery authorized.
+- Next: run/poll exact-head Debug + Full CI; inspect the real emulator instrumentation result from the parent run if it finishes. Then continue auditing Stage 1 complaint/worker failure paths without duplicating existing Diagnostics or worker exception intake.
