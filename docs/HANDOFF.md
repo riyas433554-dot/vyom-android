@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7` (consent/retry ordering and regression-test refinements; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `eac97f2d868e25d6876588ce34c67a429ea8b8b7` (foreground STOP control + MainActivity typing correction; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -185,3 +185,17 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact source HEAD `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7`: Debug run `41816150471` (job `126527286001`) and Full CI run `41816150476` (job `126527331868`) are both in progress. Debug was at Gradle build/test; Full CI was at secret scan. No current green result or APK artifact is claimed.
 - Earlier source runs `41815865975`, `41815957307`, `41815957380`, and `41816087082` / `41816087209` were superseded by later commits; several Full CI runs were cancelled by newer pushes. Do not use them as final verification.
 - Next: poll the exact-head runs above. If any Kotlin/test failure appears, inspect the actual job log and fix it. Keep the current one-adapter scope; next functional work is explicit STOP/pause UI and cancellation tests. Heartbeat still waits until an actual long-running adapter needs renewal.
+
+
+## Foreground STOP control + verified terminal semantics (2026-11-04)
+
+- Test-first commit: `0385c1e8326ea5b13094c60f6e050b0176e3f449` adds coverage that an external STOP after consent prevents journal creation/adapter invocation, and that an adapter sees STOP before its side effect.
+- Foreground STOP UI and runner external-stop hook: `3e73abf7ad61d24479953d1350652d27b563e7e6`.
+  - RUN NEXT enables STOP CURRENT RUN.
+  - STOP sets an external cooperative flag and dismisses any pending confirmation prompt. If consent is pending, the runner returns `stopped_before_execution`, writes no journal attempt, and releases the claim.
+  - If the attempt has begun, the adapter's pre-side-effect STOP checks see the flag and the journal records a stopped failure with no retry.
+  - Dismissing the Factory dialog also requests STOP and cancels pending confirmation.
+- Added late-stop regression test in `8fa7a8cf447e51e121ff8aebaf3de706d37f1017`: if an adapter has already completed and verified its side effect, a STOP arriving afterward must not rewrite that verified outcome as FAILED. Runner correction: `69b67a640495caba07bfc6d6d154f625284252d8`. This is important because STOP cannot undo a side effect that already completed.
+- CI on earlier source HEAD `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7`: Debug run `41816150471` failed at Kotlin compilation. Real errors: `VyomFactoryDialog.kt:262` passed generic `Activity` to `forActivity(MainActivity)`; line 387 dereferenced nullable `MainActivity?`. Corrected by binding a non-null `hostActivity` before adapter construction/confirmation UI in `eac97f2d868e25d6876588ce34c67a429ea8b8b7`. The corresponding Full CI run `41816150476` was cancelled; it is not a pass.
+- Exact latest source HEAD `eac97f2d868e25d6876588ce34c67a429ea8b8b7`: Debug run `41816675456` is IN_PROGRESS; Full CI run `41816675469` is PENDING. No green result or artifact is claimed. Older runs `41816575411`, `41816529872`, `41816482281` and `41816482477` are on superseded source commits and must not be used as final verification.
+- Next: inspect exact-head logs/results. If green, proceed to retry due-work consumer only after ensuring each retry obtains fresh GitHub state, a new lease, fresh explicit approval, and checks STOP. Do not add heartbeat for this fast synchronous volume adapter; heartbeat remains deferred until a genuinely long-running adapter exists. Crash recovery, bounded parallel workers and app-closed verification remain pending.
