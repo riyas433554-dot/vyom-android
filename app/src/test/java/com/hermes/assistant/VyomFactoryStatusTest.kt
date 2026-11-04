@@ -4,6 +4,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VyomFactoryStatusTest {
+    @Test fun ownerPromoteFirstCommandRequiresAnExplicitIssueNumber() {
+        assertEquals(42, VyomFactoryOwnerCommand.promoteFirstIssueNumber("ye complaint pehle #42"))
+        assertEquals(91, VyomFactoryOwnerCommand.promoteFirstIssueNumber("issue 91 first"))
+        assertNull(VyomFactoryOwnerCommand.promoteFirstIssueNumber("ye complaint pehle"))
+        assertNull(VyomFactoryOwnerCommand.promoteFirstIssueNumber("complaint: tap is broken"))
+    }
+
     @Test fun metadataRoundTrips() {
         val key = VyomFactoryStatus.idempotencyKey("vyom_chat", "message-42")!!
         val metadata = VyomFactoryStatus.Metadata("P1", "in_progress", "vyom_chat", "message-42", key, listOf("created"))
