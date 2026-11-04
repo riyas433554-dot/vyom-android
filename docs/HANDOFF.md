@@ -2475,3 +2475,14 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - No backend, Render, production Supabase, or `main` changes. No APK produced.
 - Verification: pending CI on this branch's exact latest HEAD. Do not accept this foundation until Debug and Full CI pass on the same SHA.
 - Next: inspect current model-routing options available in the Android app without changing backend contracts; add an explicit interpreter adapter only if an existing supported model endpoint can return validated structured output. Otherwise keep this contract disconnected and report the capability gap. In parallel, resume Factory Stage 1 persistence/reconciliation tests before implementing the worker sequence.
+
+
+## 2026-11-04 — Factory Stage 1 persistence tests
+
+- Added `VyomFactoryTaskStorePersistenceTest` using an in-memory `SharedPreferences` implementation. Covers persisted queue across store recreation, priority ordering after recreation, duplicate rejection without overwriting, persisted removal, malformed JSON fail-closed without data overwrite, and failed commit reporting.
+- Refactored `VyomFactoryTaskStore` to accept injected `SharedPreferences` for deterministic JVM testing; the existing Context constructor remains the production entry point and uses the same app-private preferences file.
+- Commits: `1f0d86cec78aaffbfc76031883d2f8fb6dc2ccec` (tests first), `df003ecfab600d1366f7a5af54683d2af3306992` (initial injection), `b23118ce2dbbe061fc9187ff17f4c0eb0e94b9f1` (constructor correction), `2a0657c241262d562f6f380efcc8e8bae0b7e984` (final constructor cleanup).
+- Prior multilingual contract PR CI passed: Debug run `41779756383` and Full run `41779756385` on `e56c84aa122cadcb1b4c37585390baa6fb6a0e56`. These do not verify the newer persistence-test commits.
+- Current persistence-test branch HEAD: `2a0657c241262d562f6f380efcc8e8bae0b7e984`. CI pending; no local Gradle execution performed in this session.
+- Scope remains Android-only. No WorkManager, worker claim/lease, heartbeat, retry, STOP, recovery, or app-closed execution is implemented yet. No APK.
+- Next: run CI against this exact branch HEAD and fix actual logs. If green, proceed with queue reconciliation for the GitHub-create/local-enqueue crash window before adding a worker.
