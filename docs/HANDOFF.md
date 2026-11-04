@@ -2429,3 +2429,36 @@ Owner-approved fixed order:
 - Wired successful Factory Dialog registration and successful chat complaint registration to persist the returned canonical GitHub issue number/title/priority/source ID in the device-local queue (commits `a0fda90cff7d019bd8f4123e801b8946e2eff043`, `c041f2d2156ed630c541d6bbf10104154e8a92c9`). This is an inbox, not execution. A process death in the narrow interval after GitHub create succeeds but before local enqueue can still leave a registry task absent locally; later reconciliation/retry is required. No worker has been introduced yet.
 - Queue hardening: process-wide lock now serializes read/modify/write across distinct store instances; malformed persisted JSON/entries now fail closed instead of silently appearing empty and being overwritten. Commits `3f6bedcc2a0f3cd19c0752ac94c98e05cc9af4f3` and follow-up recorded in next HEAD.
 - Stage 1 remains incomplete pending successful exact-head CI and persistence tests. Queue writes are device-local and still do not establish a remote lease or run work.
+
+
+## 2026-11-04 — Multilingual natural-language Factory intake requirement
+
+Owner requirement: Factory must accept natural-language task requests beyond English/Hinglish. Initial coverage includes Bengali/Bangla regional and colloquial variants, Romanized Bangla, Urdu (script and Roman Urdu), Japanese, and Simplified/Traditional Chinese, while retaining Hindi, Hinglish and English.
+
+### Current verified limitation
+- MainActivity.extractFactoryComplaint() only recognizes six English prefixes: factory complaint:, register complaint:, complaint:, report bug:, factory:, and issue:.
+- Chat complaint registration assigns fixed P2 and stores extracted text as description. This path has no language detection, semantic intent extraction, structured plan generation, ambiguity handling, or acceptance-criteria extraction.
+- Therefore current Factory intake is NOT multilingual natural-language understanding. Do not describe it as such.
+
+### Required behavior and guardrails
+- Accept free-form text without requiring command prefixes; preserve exact original Unicode text as canonical source.
+- Treat language/script detection as a hint, not a gate. Support mixed-language/code-switched input and uncertain detection.
+- Produce a schema-validated draft: intent, title, objective, constraints/non-goals, grounded affected files/components, priority plus rationale, subtasks/dependencies, and measurable acceptance criteria.
+- Preserve filenames, paths, commands, URLs, stack traces, identifiers, symbols and quoted strings verbatim. Never translate technical literals.
+- Ask one focused clarification when meaning or consequential constraints are ambiguous. Require confirmation for destructive, broad, costly, security-sensitive or low-confidence tasks.
+- Store original request and structured interpretation separately. Interpreter failure must preserve the original text and use a safe clarification fallback.
+- A translated-prefix list is not semantic understanding. Interpretation/registration must never imply worker execution.
+
+### Required language test matrix
+- Bengali: standard written, colloquial/regional (West Bengal and Bangladesh), Romanized Bangla, Bangla-English code switching.
+- Urdu: Urdu-script RTL, Roman Urdu, Urdu-English code switching, punctuation/digit direction.
+- Japanese: kana, kanji, polite/casual phrasing, Latin technical identifiers.
+- Chinese: Simplified and Traditional, punctuation variants, Latin technical identifiers.
+- Regression: Hindi/Devanagari, Hinglish/Roman Hindi, English.
+- Tests must assert semantic intent, constraints, original text and technical-literal preservation, subtasks, priority rationale, acceptance criteria, ambiguity behavior and safe failure—not just script detection.
+
+### Implementation gate
+- Android-only. Do not touch Render, Hermes backend, production Supabase or main.
+- Inspect existing Android chat/API/model routing before choosing the interpreter. If the current API cannot provide structured interpretation, expose the gap and build a testable contract/fallback rather than claiming semantic support.
+- Multilingual intake is a separate track from the approved persistent queue/worker sequence. Both tracks remain incomplete until their own tests and exact-head CI pass.
+- Requirements document: docs/VYOM_FACTORY_MULTILINGUAL_INTAKE.md (commit 3bcd3eb2eba59fffd9cc21cac8387c21b6b64380).
