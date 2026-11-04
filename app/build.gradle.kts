@@ -17,6 +17,7 @@ android {
         applicationId = "com.vyom.assistant"
         minSdk = 26
         targetSdk = 35
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = androidVersionCode
         versionName = androidVersionName
         buildConfigField("String", "HERMES_BASE_URL", "\"$hermesBaseUrl\"")
@@ -60,6 +61,9 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.10.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.security:security-crypto:1.1.0")
