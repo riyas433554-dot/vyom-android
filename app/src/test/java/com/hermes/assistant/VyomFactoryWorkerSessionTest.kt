@@ -52,12 +52,20 @@ class VyomFactoryWorkerSessionTest {
 
     @Test fun releaseFencesClaimAndMakesTaskClaimableAgain() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
-        val session = session(queue, listOf(remote(26, "P1", "source-26")))
-        val claim = session.claimNext()!!
+        val leases = VyomFactoryWorkerLeaseStore(MemoryPrefs())
+        val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
+        val remoteTasks = listOf(remote(26, "P1", "source-26"))
+        val firstSession = VyomFactoryWorkerSession(
+            queue, coordinator, "worker-a", { remoteTasks }, { 1_000L }, 10_000L
+        )
+        val claim = firstSession.claimNext()!!
 
-        assertTrue(session.release(claim))
-        assertFalse(session.isCurrent(claim))
-        val next = session(queue, listOf(remote(26, "P1", "source-26")), "worker-b").claimNext()
+        assertTrue(firstSession.release(claim))
+        assertFalse(firstSession.isCurrent(claim))
+        val secondSession = VyomFactoryWorkerSession(
+            queue, coordinator, "worker-b", { remoteTasks }, { 1_002L }, 10_000L
+        )
+        val next = secondSession.claimNext()
         assertNotNull(next)
         assertEquals(26, next!!.task.issueNumber)
     }
