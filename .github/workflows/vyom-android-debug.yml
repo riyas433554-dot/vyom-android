@@ -196,6 +196,7 @@ jobs:
       # APK artifacts are published before this optional lifecycle suite; it cannot gate APK delivery.
       - name: Run deferred Android foreground lifecycle instrumentation
         continue-on-error: true
+        timeout-minutes: 15
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35

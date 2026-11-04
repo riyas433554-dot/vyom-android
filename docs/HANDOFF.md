@@ -483,3 +483,15 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact new HEAD `4be1871f7a31f85e1654012c6572eedee430c848` has no CI result yet. Parent Debug run `41846518242` is still IN_PROGRESS on `28e65663f082286ae7e3829458fc27aea6007158`; it is not evidence for this new source. Parent Full CI `41846518438` SUCCESS also does not validate this new source.
 - No backend, Render, Supabase, or Android `main` changes. No APK delivery authorized.
 - Next: run/poll exact-head Debug + Full CI; inspect the real emulator instrumentation result from the parent run if it finishes. Then continue auditing Stage 1 complaint/worker failure paths without duplicating existing Diagnostics or worker exception intake.
+
+
+## Exact-head CI and artifact audit — 2026-11-04
+
+- Audited source: `e54badb24ced6a5bd76bbdd1acbaefb8e4d6aaa9` on `feature/memory-intelligence`.
+- Full CI `41849546572`: SUCCESS on the exact source SHA above.
+- Debug CI `41849546727`: build/unit-test/package/upload steps all SUCCESS; deferred foreground lifecycle instrumentation remained IN_PROGRESS when checked. It is marked `continue-on-error: true` and is outside the APK 1 gate, but lacked a timeout, allowing a stalled emulator to hold the workflow open.
+- Artifact `13336505140` (`vyom-0.3.1-e54badb24ced6a5bd76bbdd1acbaefb8e4d6aaa9`) was downloaded for integrity inspection. ZIP SHA-256 matches GitHub's advertised digest `83ca774b4b7ab45cdbc1959235416b836996ba15663f32f618e5602905f0c39f`. Debug and signed APK checksum files both validate. Release-signing metadata reports `releaseSigning=true`; signed APK certificate report verifies APK Signature Scheme v2 with SHA-256 `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`. Eight content-update rollback tests report zero failures/errors. These checks verify the uploaded artifact package, not the still-running Debug workflow conclusion.
+- Source audit reconfirmed every worker claim refreshes the live GitHub registry before creating a device-local claim; claim/read failures do not create a false claim. RUN NEXT routes runner/infrastructure exceptions through the existing idempotent `task_failure` complaint path. No duplicate intake path was added.
+- Confirmed workflow reliability gap: optional emulator instrumentation had no bounded timeout. This commit adds a 15-minute step timeout; it remains non-gating through `continue-on-error: true`.
+- No APK delivered. APK 1 still requires exact-HEAD Full CI and Debug CI success plus artifact integrity checks. No Android `main`, Render, Hermes backend, or production Supabase changes.
+- Next: verify exact-head Full CI and Debug CI for this timeout/handoff commit. Then continue remaining Factory-first Stage 1 gaps and refresh this ledger.
