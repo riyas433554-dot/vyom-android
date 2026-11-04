@@ -50,6 +50,26 @@ internal class VyomFactoryDialog(
     private var selectedPriority = "P2"
     private var pendingSourceId: String? = null
     private var busy = false
+    private lateinit var claimButton: Button
+    private lateinit var releaseClaimButton: Button
+    private lateinit var claimStatus: TextView
+    private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
+    private val workerOwnerId: String by lazy {
+        val prefs = activity.getSharedPreferences("vyom_factory_worker_identity", Activity.MODE_PRIVATE)
+        prefs.getString("owner_id", null)?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().also {
+            check(prefs.edit().putString("owner_id", it).commit()) { "Could not persist Factory worker identity" }
+        }
+    }
+    private val workerSession by lazy {
+        val store = VyomFactoryTaskStore(activity.applicationContext)
+        val leases = VyomFactoryWorkerLeaseStore(activity.applicationContext)
+        VyomFactoryWorkerSession(
+            store,
+            VyomFactoryWorkerClaimCoordinator(store, leases),
+            workerOwnerId,
+            fetchRemoteTasks = { client.listTasks() }
+        )
+    }
 
     fun show() {
         dialog = Dialog(activity)
@@ -91,6 +111,37 @@ internal class VyomFactoryDialog(
             setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(8), 0, dp(10))
         }
         root.addView(status)
+
+        val workerPanel = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            background = GradientDrawable().apply { setColor(0x22213A54); cornerRadius = dp(12).toFloat() }
+        }
+        claimStatus = TextView(activity).apply {
+            text = "WORKER IDLE · foreground claim only"
+            textSize = 9f; typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+        }
+        workerPanel.addView(claimStatus)
+        val workerActions = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        claimButton = Button(activity).apply {
+            text = "CLAIM NEXT"; textSize = 9f
+            setOnClickListener { claimNextTask() }
+        }
+        workerActions.addView(claimButton, LinearLayout.LayoutParams(0, dp(40), 1f))
+        releaseClaimButton = Button(activity).apply {
+            text = "RELEASE CLAIM"; textSize = 9f
+            isEnabled = false
+            setOnClickListener { releaseActiveClaim() }
+        }
+        workerActions.addView(releaseClaimButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+            leftMargin = dp(8)
+        })
+        workerPanel.addView(workerActions)
+        root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val composer = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -148,7 +199,7 @@ internal class VyomFactoryDialog(
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val footer = TextView(activity).apply {
-            text = "Changes are saved to GitHub Issues. ChatGPT and Termux can use the same issue IDs."
+            text = "GitHub Issues is shared. Claim/release is device-local; task execution and background worker are not wired yet."
             textSize = 9f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(2), dp(8), dp(2), 0)
         }
@@ -177,6 +228,76 @@ internal class VyomFactoryDialog(
         } else {
             refresh()
             main.postDelayed(refreshRunnable, 15_000)
+        }
+    }
+
+    private fun claimNextTask() {
+        if (busy || token.isBlank()) return
+        busy = true
+        claimButton.isEnabled = false
+        releaseClaimButton.isEnabled = false
+        claimStatus.text = "REFRESHING REGISTRY · CLAIMING NEXT OPEN TASK…"
+        worker.execute {
+            try {
+                val claim = workerSession.claimNext()
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    activeClaim = claim
+                    if (claim == null) {
+                        claimStatus.text = "NO ELIGIBLE OPEN TASK · inbox checked against fresh GitHub data"
+                        status.text = "No open queued task is currently claimable."
+                    } else {
+                        claimStatus.text = "CLAIMED #${claim.task.issueNumber} · DEVICE-LOCAL · NOT EXECUTING"
+                        status.text = "Claim acquired for #${claim.task.issueNumber}; execution has not started."
+                    }
+                    releaseClaimButton.isEnabled = claim != null
+                    claimButton.isEnabled = true
+                    busy = false
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    claimStatus.text = "CLAIM FAILED · NO NEW CLAIM REPORTED"
+                    status.text = errorMessage(error)
+                    claimButton.isEnabled = true
+                    releaseClaimButton.isEnabled = activeClaim != null
+                    busy = false
+                }
+            }
+        }
+    }
+
+    private fun releaseActiveClaim() {
+        if (busy) return
+        val claim = activeClaim ?: return
+        busy = true
+        claimButton.isEnabled = false
+        releaseClaimButton.isEnabled = false
+        worker.execute {
+            try {
+                val released = workerSession.release(claim)
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    if (released) {
+                        activeClaim = null
+                        claimStatus.text = "CLAIM RELEASED · TASK REMAINS QUEUED"
+                        status.text = "Claim released. Task #${claim.task.issueNumber} remains eligible for retry."
+                    } else {
+                        claimStatus.text = "CLAIM NO LONGER OWNED · REFRESH REQUIRED"
+                        status.text = "Lease token is no longer current; no successor claim was changed."
+                    }
+                    claimButton.isEnabled = true
+                    busy = false
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = errorMessage(error)
+                    claimButton.isEnabled = true
+                    releaseClaimButton.isEnabled = true
+                    busy = false
+                }
+            }
         }
     }
 
