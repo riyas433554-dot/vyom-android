@@ -800,7 +800,21 @@ class MainActivity : Activity() {
                                                         }
                                                     }
                                                 } catch (error: Exception) {
-                                                    runOnUiThread { selfChangeNotice.text = "PR creation failed: ${error.message ?: "GitHub error"}" }
+                                                    val failureCommentSaved = linkedFactoryIssueNumber?.let { issueNumber ->
+                                                        runCatching {
+                                                            VyomFactoryGitHubClient(token).addEvent(
+                                                                issueNumber,
+                                                                "Code-fix proposal pipeline did not complete successfully (${error.javaClass.simpleName}). No merge or install was performed; inspect any opened PR/checks before retrying."
+                                                            )
+                                                        }.isSuccess
+                                                    } ?: true
+                                                    runOnUiThread {
+                                                        selfChangeNotice.text = if (failureCommentSaved) {
+                                                            "Proposal pipeline failed (${error.javaClass.simpleName}); originating Factory complaint updated. No merge or install occurred."
+                                                        } else {
+                                                            "Proposal pipeline failed (${error.javaClass.simpleName}); Factory issue comment also failed. Check GitHub before retrying."
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
