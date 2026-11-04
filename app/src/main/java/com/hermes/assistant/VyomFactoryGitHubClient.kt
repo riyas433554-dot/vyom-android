@@ -96,7 +96,11 @@ internal class VyomFactoryGitHubClient(
             JSONObject().put("title", "[VYOM FACTORY][$newPriority] $cleanTitle")
                 .put("body", body).put("state", if (closed) "closed" else "open")))
         val task = updated.toTask(metadata)
-        addEvent(task.number, "Status: " + current.metadata.status + " -> " + newStatus + " · Priority: " + newPriority)
+        // The issue body/metadata PATCH is canonical. A comment failure must not
+        // make callers believe the already-persisted state change was rejected.
+        runCatching {
+            addEvent(task.number, "Status: " + current.metadata.status + " -> " + newStatus + " · Priority: " + newPriority)
+        }
         return task
     }
 
@@ -113,9 +117,7 @@ internal class VyomFactoryGitHubClient(
         }
         val event = VyomFactoryVerificationPolicy.resultEvent(probe, cleanEvidence, passed)
         val updatedDescription = VyomFactoryVerificationPolicy.appendEvidence(description, probe, cleanEvidence, passed)
-        val updated = updateTask(current, newDescription = updatedDescription, additionalEvent = event)
-        addEvent(current.number, "Owner-reported device probe ${if (passed) "PASS" else "FAIL"}: $probe")
-        return updated
+        return updateTask(current, newDescription = updatedDescription, additionalEvent = event)
     }
 
     fun listEvents(issueNumber: Int): List<String> {
