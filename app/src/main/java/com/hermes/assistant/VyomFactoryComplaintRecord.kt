@@ -63,7 +63,12 @@ internal data class VyomFactoryComplaintRecord(
             }
             val severity = when {
                 listOf("security", "unsafe", "data loss", "crash", "credential leak").any { lower.contains(it) } -> "critical"
-                listOf("fail", "failed", "broken", "error", "not working", "does not work", "doesn't work").any { lower.contains(it) } -> "high"
+                listOf(
+                    "fail", "failed", "broken", "error", "not working", "does not work", "doesn't work",
+                    "nahi ho raha", "nahi ho rahi", "nahi hota", "nahi hoti",
+                    "nahi chal raha", "nahi chal rahi", "send nahi", "install nahi",
+                    "kaam nahi kar", "not sending", "unable to send", "cannot send", "can't send"
+                ).any { lower.contains(it) } -> "high"
                 else -> "medium"
             }
             val priority = when (area) {
