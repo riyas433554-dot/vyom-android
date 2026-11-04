@@ -2501,3 +2501,15 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Current acceptance still requires new exact-head Debug + Full CI for the changes above. The previous successful CI does not verify them.
 - Remaining limitations: retry happens on reconnect, not continuously in the background; Factory dialog retains its pending draft ID for user retry but does not yet run a durable reconciliation worker; GitHub create idempotency remains read-before-create and is not atomic across clients. No claim of worker execution is made.
 - Next: verify CI for the new exact HEAD, fix real failures, then finish Stage 1 reconciliation design/tests before worker claim + lease. No backend, Render, production Supabase, or `main` changes.
+
+
+## 2026-11-04 — Factory local inbox reconciliation (implementation batch; CI pending)
+
+- Added `VyomFactoryTaskStore.reconcileOpen()`: validates candidates, merges only identities not already present by issue number or source ID, and commits all additions in one SharedPreferences write under the existing process lock. A failed commit throws and leaves the prior persisted value intact.
+- Added persistence tests for restoring missing registry tasks, idempotent repeated reconciliation, issue/source identity conflicts without overwriting existing tasks, and failed batch commit preserving the previous queue.
+- Wired best-effort reconciliation after successful Android pairing/reconnect. It reads GitHub Issues and imports only issues where both GitHub issue state and Factory metadata status are `open`. Paused, blocked, completed, cancelled, and `in_progress` metadata are not imported. Registry/token failures are deliberately non-fatal to pairing/chat and retry on the next reconnect.
+- Commits: `395b08e834644e5f7cea2104dae1c44c24cb7d62` (atomic reconciliation API); `ed67d8aab1dd5cd04eabbfa8d48686fddbb06722` (persistence tests); `cb12e47080b1b0e68b3ed5312de168101cd5b2d3` (pair/reconnect wiring).
+- This is still Stage 1 inbox recovery, NOT a Factory worker. There is no claim/lease, heartbeat, retry/backoff worker, STOP/pause execution control, crash recovery worker, bounded parallel execution, or app-closed execution verification yet. Queue data remains device-local; GitHub read-before-create remains non-atomic across concurrent clients.
+- Verification: CI for prior exact HEAD `b19687a555b9097846676b43437f846d0af1e9ff` was still running when this batch began (Debug `41781513162`, Full CI `41781513083`). Those runs do not verify this batch. New exact-head CI must be checked after the final HANDOFF commit.
+- No APK delivered. No backend, Render, production Supabase, or `main` changes.
+- Next fixed step after exact-head CI: inspect actual worker prerequisites and implement worker claim + lease protocol before heartbeat or later stages. Do not jump ahead.
