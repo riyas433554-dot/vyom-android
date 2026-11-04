@@ -31,7 +31,8 @@ internal class VyomFactoryDialog(
     private val activity: Activity,
     private val token: String,
     private val onOpenSettings: () -> Unit,
-    private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {}
+    private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {},
+    private val onRunnerFailure: (String) -> Unit = {}
 ) {
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int) = (value * density).toInt()
@@ -321,6 +322,7 @@ internal class VyomFactoryDialog(
                 )
                 runner.runNext()
             } catch (error: Exception) {
+                main.post { onRunnerFailure(error.javaClass.simpleName) }
                 null
             }
             val auditComment = outcome?.let(VyomFactoryExecutionAudit::comment)
