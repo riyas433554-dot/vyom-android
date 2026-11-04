@@ -62,7 +62,7 @@ class VyomFactoryExecutionRunnerTest {
         )
         assertEquals(0, earlyAdapter.calls)
 
-        fixture.advanceTo(100_000)
+        fixture.advanceTo(fixture.retryStore.all().single().nextAttemptAt)
         val retryAdapter = RecordingAdapter(fail = false, isIdempotent = true)
         val retried = fixture.runner(retryAdapter).runNext()
         assertTrue(retried is VyomFactoryExecutionRunner.Outcome.Succeeded)
@@ -146,7 +146,8 @@ class VyomFactoryExecutionRunnerTest {
     private class Fixture(remoteState: String = "open") {
         private val prefs = MemoryPrefs()
         private val leaseStore = VyomFactoryWorkerLeaseStore(prefs)
-        private val lease = leaseStore.claim(71, "runner-test", 1_000, 100_000)!!
+        private var lease = leaseStore.claim(71, "runner-test", 1_000, 100_000)!!
+        private var preserveReleasedLeaseForNextClaim = false
         private val task = VyomFactoryTaskStore.QueuedTask(71, "Test execution", "P2", "src-71", 900)
         private val metadata = VyomFactoryStatus.Metadata(
             "P2", "open", "factory", "src-71", "factory:src-71", listOf("created")
@@ -178,6 +179,7 @@ class VyomFactoryExecutionRunnerTest {
 
         fun releaseLease() {
             assertTrue(leaseStore.release(lease))
+            preserveReleasedLeaseForNextClaim = true
         }
 
         init {
@@ -187,8 +189,13 @@ class VyomFactoryExecutionRunnerTest {
         fun runner(adapter: VyomFactoryExecutionAdapter): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
-                claimNext = { VyomFactoryWorkerClaimCoordinator.Claim(task, remote, lease) },
-                isClaimCurrent = { leaseStore.active(71, 2_000) == lease },
+                claimNext = {
+                    val current = if (preserveReleasedLeaseForNextClaim) lease else
+                        leaseStore.claim(71, "runner-test", clock, 100_000)!!
+                    lease = current
+                    VyomFactoryWorkerClaimCoordinator.Claim(task, remote, current)
+                },
+                isClaimCurrent = { claim -> leaseStore.active(71, clock) == claim.lease },
                 releaseClaim = { leaseStore.release(it.lease) },
                 fetchFreshTask = { if (it == 71) remote else null },
                 journal = journal,
