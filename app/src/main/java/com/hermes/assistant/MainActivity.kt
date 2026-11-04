@@ -1284,7 +1284,39 @@ class MainActivity : Activity() {
     }
 
     private fun showAutomationsPanel() {
-        VyomAutomationsDialog(this, tasksById.values.toList(), ::navigateDrawerItem).show()
+        val localTasks = tasksById.values.toList()
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        if (token.isBlank()) {
+            VyomAutomationsDialog(
+                this, localTasks, ::navigateDrawerItem,
+                factoryRegistryError = "GitHub token missing"
+            ).show()
+            return
+        }
+        io.execute {
+            try {
+                val complaints = VyomFactoryGitHubClient(token).listTasks().map { task ->
+                    JSONObject()
+                        .put("source", "factory")
+                        .put("issueNumber", task.number)
+                        .put("priority", task.metadata.priority)
+                        .put("status", task.metadata.status)
+                        .put("title", task.title)
+                }
+                runOnUiThread {
+                    if (!isFinishing) VyomAutomationsDialog(
+                        this, localTasks, ::navigateDrawerItem, complaints
+                    ).show()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    if (!isFinishing) VyomAutomationsDialog(
+                        this, localTasks, ::navigateDrawerItem,
+                        factoryRegistryError = error.javaClass.simpleName
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun showVoiceDiagnostics() {
