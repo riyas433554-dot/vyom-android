@@ -682,9 +682,22 @@ internal class VyomFactoryDialog(
                 }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { rightMargin = dp(3) })
             }
             when (task.metadata.status) {
-                "open" -> { action("PAUSE", "paused"); action("BLOCK", "blocked") }
-                "in_progress" -> { action("PAUSE", "paused"); action("BLOCK", "blocked"); action("DONE", "completed") }
-                "paused" -> { action("REOPEN", "open"); action("CANCEL", "cancelled") }
+                "open" -> { action("START", "in_progress"); action("PAUSE", "paused"); action("BLOCK", "blocked") }
+                "in_progress" -> {
+                    action("PAUSE", "paused")
+                    action("BLOCK", "blocked")
+                    if (VyomFactoryVerificationPolicy.canComplete(
+                            task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim(), task.metadata.events
+                        )) {
+                        action("DONE", "completed")
+                    } else {
+                        controls.addView(Button(activity).apply {
+                            text = "VERIFY"; textSize = 8f
+                            setOnClickListener { showVerificationDialog(task) }
+                        }, LinearLayout.LayoutParams(dp(72), dp(36)))
+                    }
+                }
+                "paused" -> { action("RESUME", "in_progress"); action("CANCEL", "cancelled") }
                 "blocked" -> { action("REOPEN", "open"); action("CANCEL", "cancelled") }
                 else -> Unit
             }
@@ -700,6 +713,59 @@ internal class VyomFactoryDialog(
             card.addView(controls)
             card.setOnClickListener { showTaskHistory(task) }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+    }
+
+    private fun showVerificationDialog(task: VyomFactoryGitHubClient.Task) {
+        val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+        val probe = VyomFactoryVerificationPolicy.assignedProbe(description)
+        if (probe == null) {
+            AlertDialog.Builder(activity)
+                .setTitle("Verification probe required")
+                .setMessage("Edit this complaint and replace the UNASSIGNED Verification probe with one exact, observable device check before recording a result.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
+        val evidence = EditText(activity).apply {
+            hint = "What did you observe on the device? Do not include private data."
+            minLines = 3
+            maxLines = 5
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        }
+        AlertDialog.Builder(activity)
+            .setTitle("OWNER DEVICE VERIFICATION")
+            .setMessage("Assigned probe:\\n$probe\\n\\nOnly choose PASS after checking the real device. Evidence is added to the shared GitHub issue.")
+            .setView(evidence)
+            .setPositiveButton("PROBE PASSED") { _, _ -> recordVerification(task, true, evidence.text.toString()) }
+            .setNegativeButton("PROBE FAILED") { _, _ -> recordVerification(task, false, evidence.text.toString()) }
+            .setNeutralButton("CANCEL", null)
+            .show()
+    }
+
+    private fun recordVerification(task: VyomFactoryGitHubClient.Task, passed: Boolean, evidence: String) {
+        if (busy) return
+        busy = true
+        status.text = "Recording device probe result for #${task.number}…"
+        worker.execute {
+            try {
+                val fresh = client.listTasks().firstOrNull { it.number == task.number }
+                    ?: throw IllegalArgumentException("Complaint #${task.number} is no longer in the shared registry")
+                client.recordVerificationResult(fresh, passed, evidence)
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = if (passed) "Probe PASS recorded. DONE is now available for #${task.number}."
+                        else "Probe FAIL recorded. Complaint #${task.number} remains open."
+                    busy = false
+                    refresh()
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = errorMessage(error)
+                    busy = false
+                }
+            }
         }
     }
 
