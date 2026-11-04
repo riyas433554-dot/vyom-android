@@ -72,5 +72,23 @@ internal class VyomFactoryAndroidActionAdapter(
     companion object {
         private const val SET_MEDIA_VOLUME = "set_media_volume"
         private val REQUIRED_ARGUMENTS = setOf("percent", "confirmation_id")
+
+        /** Production binding; confirmation IDs are issued only by the foreground Activity UI. */
+        fun forActivity(activity: MainActivity): VyomFactoryAndroidActionAdapter =
+            VyomFactoryAndroidActionAdapter(
+                isForeground = activity.factoryForegroundGate::isForeground,
+                consumeConfirmation = activity.factoryOneTimeApprovals::consume,
+                setMediaVolume = { percent ->
+                    DeviceActionExecutor.execute(
+                        activity,
+                        ActionEngine.Intent(
+                            name = "Set media volume",
+                            risk = ActionEngine.Risk.SAFE,
+                            operation = ActionEngine.Operation.VOLUME_SET,
+                            value = percent
+                        )
+                    )
+                }
+            )
     }
 }
