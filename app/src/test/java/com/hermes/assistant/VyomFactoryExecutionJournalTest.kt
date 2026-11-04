@@ -11,10 +11,11 @@ class VyomFactoryExecutionJournalTest {
         val lease = leases.claim(41, "worker-a", 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
 
-        val entry = journal.begin(lease, "attempt-1", 1_100)
+        val entry = journal.begin(lease, "attempt-1", 1_100, "factory.sync")
 
         assertEquals(41, entry.issueNumber)
         assertEquals("attempt-1", entry.attemptId)
+        assertEquals("factory.sync", entry.operationKey)
         assertEquals(lease.leaseId, entry.leaseId)
         assertEquals(VyomFactoryExecutionJournal.State.CLAIMED, entry.state)
         assertEquals(entry, VyomFactoryExecutionJournal(prefs, leases).get("attempt-1"))
