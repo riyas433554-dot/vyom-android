@@ -8,7 +8,7 @@ import java.io.IOException
 class VyomFactoryExecutionRunnerTest {
     @Test fun executesOnlyFreshOpenTaskAndPersistsTerminalSuccess() {
         val fixture = Fixture()
-        val adapter = RecordingAdapter(fail = false, idempotent = true)
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
         val runner = fixture.runner(adapter)
         val outcome = runner.runNext()
 
@@ -19,7 +19,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun skipsTaskThatWasClosedOrChangedBeforeExecution() {
         val fixture = Fixture(remoteState = "closed")
-        val adapter = RecordingAdapter(fail = false, idempotent = true)
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
         val outcome = fixture.runner(adapter).runNext()
 
         assertEquals(
@@ -32,7 +32,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun transientFailureSchedulesRetryOnlyForIdempotentAdapter() {
         val fixture = Fixture()
-        val adapter = RecordingAdapter(fail = true, idempotent = true)
+        val adapter = RecordingAdapter(fail = true, isIdempotent = true)
         val outcome = fixture.runner(adapter).runNext()
 
         assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Failed)
@@ -42,7 +42,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun nonIdempotentAdapterFailureNeverSchedulesReplay() {
         val fixture = Fixture()
-        val adapter = RecordingAdapter(fail = true, idempotent = false)
+        val adapter = RecordingAdapter(fail = true, isIdempotent = false)
         fixture.runner(adapter).runNext()
 
         assertTrue(fixture.retryStore.all().isEmpty())
@@ -50,11 +50,11 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun idempotentFailureWaitsUntilPersistedRetryIsDue() {
         val fixture = Fixture()
-        val firstAdapter = RecordingAdapter(fail = true, idempotent = true)
+        val firstAdapter = RecordingAdapter(fail = true, isIdempotent = true)
         val first = fixture.runner(firstAdapter)
         assertTrue(first.runNext() is VyomFactoryExecutionRunner.Outcome.Failed)
 
-        val earlyAdapter = RecordingAdapter(fail = false, idempotent = true)
+        val earlyAdapter = RecordingAdapter(fail = false, isIdempotent = true)
         val early = fixture.runner(earlyAdapter).runNext()
         assertEquals(
             VyomFactoryExecutionRunner.Outcome.Skipped(71, "retry_not_due_or_manual_review_required"),
@@ -63,7 +63,7 @@ class VyomFactoryExecutionRunnerTest {
         assertEquals(0, earlyAdapter.calls)
 
         fixture.advanceTo(100_000)
-        val retryAdapter = RecordingAdapter(fail = false, idempotent = true)
+        val retryAdapter = RecordingAdapter(fail = false, isIdempotent = true)
         val retried = fixture.runner(retryAdapter).runNext()
         assertTrue(retried is VyomFactoryExecutionRunner.Outcome.Succeeded)
         assertEquals(1, retryAdapter.calls)
@@ -71,7 +71,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun failedNonIdempotentOperationIsNeverAutomaticallyReplayed() {
         val fixture = Fixture()
-        val adapter = RecordingAdapter(fail = true, idempotent = false)
+        val adapter = RecordingAdapter(fail = true, isIdempotent = false)
         fixture.runner(adapter).runNext()
 
         val second = fixture.runner(adapter).runNext()
@@ -87,7 +87,7 @@ class VyomFactoryExecutionRunnerTest {
         val fixture = Fixture()
         fixture.retryStore.recordFailure(71, "android_action:safe_action", "network_timeout", 1_000, true)
 
-        val outcome = fixture.runner(RecordingAdapter(fail = false, idempotent = true)).runNext()
+        val outcome = fixture.runner(RecordingAdapter(fail = false, isIdempotent = true)).runNext()
 
         assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
         assertTrue((outcome as VyomFactoryExecutionRunner.Outcome.Succeeded).retryScheduleCleared)
@@ -96,7 +96,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun expiredOrReplacedLeasePreventsAdapterInvocation() {
         val fixture = Fixture()
-        val adapter = RecordingAdapter(fail = false, idempotent = true)
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
         fixture.releaseLease()
 
         val outcome = fixture.runner(adapter).runNext()
