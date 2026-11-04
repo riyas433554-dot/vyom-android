@@ -93,4 +93,29 @@ class VyomFactoryExecutionEnvelopeTest {
             VyomFactoryExecutionEnvelope.parse("  ").target
         )
     }
+    @Test fun duplicateExecutionMarkersFailClosed() {
+        val marker = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"android_action","action":"open_settings","request":"x","arguments":{}} -->"""
+        val envelope = VyomFactoryExecutionEnvelope.parse("$marker\\n$marker")
+
+        assertEquals(VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW, envelope.target)
+        assertFalse(envelope.isExecutable)
+    }
+
+    @Test fun oversizedArgumentsFailClosed() {
+        val large = "x".repeat(8_100)
+        val body = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"android_action","action":"open_settings","request":"x","arguments":{"data":"$large"}} -->"""
+        val envelope = VyomFactoryExecutionEnvelope.parse(body)
+
+        assertEquals(VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW, envelope.target)
+        assertFalse(envelope.isExecutable)
+    }
+
+    @Test fun targetSpecificOperationFieldIsRequired() {
+        val body = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"android_action","operation":"open_settings","request":"x","arguments":{}} -->"""
+        val envelope = VyomFactoryExecutionEnvelope.parse(body)
+
+        assertEquals(VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW, envelope.target)
+        assertFalse(envelope.isExecutable)
+    }
+
 }
