@@ -23,7 +23,8 @@ internal object VyomFactoryRetryOverview {
         val due = ordered.count { it.nextAttemptAt <= now }
         val waiting = ordered.size - due
         // Highlight the next future retry even when another task is already due.
-        val next = ordered.firstOrNull { it.nextAttemptAt > now } ?: ordered.firstOrNull()
+        val next = ordered.firstOrNull { it.nextAttemptAt > now }
+            ?: ordered.filter { it.nextAttemptAt <= now }.minByOrNull { it.issueNumber }
         val label = if (next == null) {
             "RETRIES · NONE"
         } else {
