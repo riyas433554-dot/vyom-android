@@ -7,11 +7,42 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest implementation checkpoint before this handoff refresh: `bd570879d2ce050ef35c36502b5773814f5e58bb`; exact-head Debug `41833179854` IN_PROGRESS, Full CI `41833179918` PENDING. Full CI on earlier checkpoint `2bf3d1de72f0e7c72dc6c6ecebff40c425a529f5` (`41832686802`) passed Termux shell syntax + complaint schema tests, then was cancelled during Gradle unit-test/build step when later commits arrived. Earlier Termux test source-path failure was fixed from the real log. Owner privacy actions are in docs/OWNER_ACTIONS.md. Lifecycle instrumentation is after artifact upload and `continue-on-error: true`, so it cannot gate APK artifact publication. Previous verified parent `34d14881a7e6b8278d03389c01ac29f65aee18ba`: Debug `41825573775` SUCCESS; Full CI `41825573748` SUCCESS; artifact `vyom-0.3.1-34d14881a7e6b8278d03389c01ac29f65aee18ba`, ID `13318513312`, 88,121,760 bytes, digest `sha256:3bfbd5ec9384ff091bb3914f8bcc7afe30d124802c0290322f0fe53ce007733d`. Parent artifact is not approved milestone APK delivery. Exact-head CI must be refreshed after this HANDOFF commit.
+- Latest source checkpoint before this controlling-plan update: `725edddf4bc6f8d5a2ec46e775d7779363ac40fa`; owner-action correction commit `1d4c17209fa16eadbb25fad4de45ab0a71c54fb8`. Fresh exact-head CI is pending. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate is ORDER v2: complaint intake + triage/register seed, A18 signed no-APK update channel with passing and rollback demo, A17 control engine + required diagnostics, exact-head CI green, signing/artifact checks. Do NOT wait for Factory lifecycle stages 5/6/8 or physical process-death testing.
 - Report only verified tests, CI, artifacts, and physical-device results.
+
+## Current controlling plan — Factory-first (2026-11-04)
+
+This section supersedes older APK gates and Factory ordering text below where they conflict with the user's latest instruction.
+
+- Make **Vyom Factory itself** reliable before implementing the full Android-control feature list.
+- Stage 1 complaint intake, triage, canonical register, priority ordering, fix routing, evidence, and verification lifecycle is the primary deliverable.
+- Implement only the A18 signed no-APK update/probe/rollback and A17 execution/verification capabilities that Factory itself needs. Do not complete every A17 Android operation merely to satisfy an old milestone list.
+- Play Store installation and WhatsApp messaging remain Factory-managed complaints for later fixing. Do not implement those product features directly in this Factory-first batch.
+- APK 1 may be delivered when Stage 1 works end-to-end and the minimum A18/A17 safety-critical pieces required by Factory are verified, with exact-HEAD CI green and artifact integrity checked. Do not block on unrelated full-control operations or Factory lifecycle stages 5/6/8.
+- Keep work only on `feature/memory-intelligence`. Never touch Android `main`, Render/Hermes backend, or production Supabase.
+
+### Latest source audit and CI (2026-11-04)
+
+- Code fix commits: classifier regression test `520e4fce532923d9040e439229eb704146431574`; classifier correction `725edddf4bc6f8d5a2ec46e775d7779363ac40fa`.
+- Owner Actions status correction: `1d4c17209fa16eadbb25fad4de45ab0a71c54fb8`.
+- Last CI on pre-fix SHA `4d601133fe86f3c7c29276ac7bd312fbbc098f5c`: Debug `41833220819` and Full CI `41833220519` both failed at the same unit test, `VyomFactoryComplaintRecordTest.unknownComplaintIsNotGuessedIntoAFeatureArea`; 424 tests ran, one failed. Cause: generic word `behavior` incorrectly classified a complaint as `personality`. Test now explicitly requires generic behavior to remain `other`, while explicit `tone` still maps to personality. Production keyword list no longer treats generic `behavior` as a personality signal. Fresh CI on the updated code + handoff HEAD is required.
+- Source-wired Stage 1 intake: GitHub Issues canonical register with schema/idempotency; chat complaint prefix; voice transcript complaint prefix; Diagnostics failures sanitized and deduplicated by result digest; chat task failures create separate privacy-reduced complaints; Termux complaint script has shell/schema CI coverage; Automation screen reads shared Factory issues.
+- Stage 1 is **not complete**: Termux install/auth smoke test and Android phone acceptance remain owner-side; screenshot share-sheet receiver is not implemented because repository is public and screenshot privacy storage is unresolved; `ye complaint pehle #N` currently raises an issue to P0 but does not provide a fully reorderable ordered list; generic task failure capture is presently wired for chat failures, not proven for every worker/diagnostics path. Complaint intake currently assigns the verification probe as UNASSIGNED until triage, so no general device-probe closure workflow is proven.
+- A17 currently has the safe execution envelope, issue/lease/journal/retry/STOP/foreground consent machinery, process-wide one-runner permit, and one concrete `set_media_volume` adapter. It does **not** provide general Android actions or repository-change execution. Do not call it a complete fix engine.
+- A18 content-update/signing code exists in the branch, but its exact Factory acceptance contract (valid package apply, post-update probe, failed-probe rollback) must be checked against source/tests/demo before marking it complete.
+- No final APK has been delivered and no physical phone acceptance is claimed.
+
+### Next work (mandatory order)
+
+1. Poll and fix exact-head Debug + Full CI after classifier fix; do not weaken tests.
+2. Complete Stage 1 owner priority ordering and make complaint status/evidence/probe/closure semantics reliable; inspect Automation and Factory UI consistency.
+3. Close or explicitly document owner-only blockers: Termux smoke test and public/private evidence decision. Continue all source work that does not depend on those choices.
+4. Audit A18 and implement only missing Factory-required signed apply + probe + rollback behavior, with demo tests.
+5. Audit A17 and implement only the narrow safe execution route Factory needs to perform a bounded fix, verify its outcome, and leave unsupported tasks in manual review. No shell execution and no false success.
+6. Update this handoff after each meaningful batch. Deliver APK 1 once the revised Factory-first gate above passes.
 
 ## Superseded legacy Factory order — historical context only; DO NOT FOLLOW
 
