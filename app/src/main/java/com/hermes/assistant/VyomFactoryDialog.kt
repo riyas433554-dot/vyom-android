@@ -389,7 +389,7 @@ internal class VyomFactoryDialog(
         retrySchedules: VyomFactoryRetryScheduleStore,
         adapter: VyomFactoryAndroidActionAdapter
     ): Boolean {
-        if (task.state != "open" || task.metadata.status != "open") return false
+        if (task.state != "open" || task.metadata.status !in setOf("open", "in_progress")) return false
         val envelope = VyomFactoryExecutionEnvelope.parse(task.body)
         if (!envelope.isExecutable ||
             envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
