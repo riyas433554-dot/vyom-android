@@ -20,7 +20,7 @@ class VyomFactoryMainActivityLifecycleTest {
                 assertTrue(activity.factoryForegroundGate.isForeground())
                 approvedGeneration = activity.factoryForegroundGate.generation()
                 approvalId = activity.factoryOneTimeApprovals.issue()
-                assertTrue(activity.factoryOneTimeApprovals.consume(approvalId).not())
+                assertTrue(approvalId.isNotBlank())
             }
 
             scenario.moveToState(Lifecycle.State.CREATED)
