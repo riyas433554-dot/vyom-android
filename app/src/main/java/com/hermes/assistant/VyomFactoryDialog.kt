@@ -223,6 +223,9 @@ internal class VyomFactoryDialog(
         worker.execute {
             try {
                 val task = client.createTask(title, description, selectedPriority, "factory", sourceId)
+                VyomFactoryTaskStore(activity).enqueue(
+                    VyomFactoryTaskStore.QueuedTask(task.number, task.title, task.metadata.priority, sourceId, System.currentTimeMillis())
+                )
                 main.post {
                     if (!dialog.isShowing) return@post
                     titleInput.setText("")
