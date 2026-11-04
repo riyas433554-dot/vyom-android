@@ -200,6 +200,23 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            val recoveredAttempts = VyomFactoryExecutionJournal(applicationContext)
+                .recoverAtStartup(System.currentTimeMillis())
+            if (recoveredAttempts > 0) {
+                android.util.Log.i(
+                    "VyomFactoryRecovery",
+                    "Interrupted $recoveredAttempts expired execution attempt(s); no work was replayed"
+                )
+            }
+        } catch (error: Exception) {
+            // Fail closed: preserve the journal and never replay an uncertain side effect.
+            android.util.Log.e(
+                "VyomFactoryRecovery",
+                "Startup recovery unavailable; execution history was not overwritten",
+                error
+            )
+        }
         DeviceCommandConfig.initialize(applicationContext)
         val voiceStopFilter = IntentFilter().apply { addAction(VoiceForegroundService.ACTION_SESSION_STOP); addAction(VoiceForegroundService.ACTION_SESSION_MUTE); addAction(VoiceForegroundService.ACTION_SESSION_CONTROL_STOP) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(voiceStopReceiver, voiceStopFilter, Context.RECEIVER_NOT_EXPORTED)
