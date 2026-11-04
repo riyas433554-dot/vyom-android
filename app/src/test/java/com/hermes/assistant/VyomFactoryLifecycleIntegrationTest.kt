@@ -30,7 +30,7 @@ class VyomFactoryLifecycleIntegrationTest {
             val startedBody = VyomFactoryStatus.withMetadata(description, startedMetadata)
 
             // START persists the in-progress state before the worker is allowed to claim.
-            server.enqueue(json(issue(issueNumber, startedMetadata, startedBody, "open")))
+            server.enqueue(json(issue(issueNumber, startedMetadata, startedBody, "open").toString()))
             server.enqueue(json("""{"id":1}"""))
             val client = VyomFactoryGitHubClient(
                 token = "test-token",
