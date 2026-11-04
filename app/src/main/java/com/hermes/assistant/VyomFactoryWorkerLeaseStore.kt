@@ -1,15 +1,16 @@
 package com.hermes.assistant
 
-internal object VyomFactoryExecutionLock {
-    /** Serializes lease and journal fencing within this single app process. */
-    val LOCK = Any()
-}
-
 import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+
+internal object VyomFactoryExecutionLock {
+    /** Serializes lease and journal fencing within this single app process. */
+    val LOCK = Any()
+}
+
 
 /**
  * Durable, device-local execution lease registry.
