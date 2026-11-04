@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `e2e10724bfcf759ae59bed82fcae114c1a06c9e9` (expired-attempt recovery before claim selection; exact-HEAD CI is pending). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `3aee6fc05b8682daf34e2bfe9d7a48cf574eb626` (retry jitter herd prevention + Kotlin test-source correction; exact-source Debug run is in progress). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -37,7 +37,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - `VyomFactoryExecutionControl.shouldStop()` is passed into adapters; adapter contract requires bounded execution and cooperative checks before each side effect. The production registry now registers only the media-volume adapter from the foreground RUN NEXT flow; repository changes and every other Android operation remain unsupported.
 - Retry schedule cleanup after terminal success is best-effort and reported separately; cleanup failure does not rewrite a successful side effect as FAILED.
 - `VyomFactoryRetryPolicy` retries only known transient categories, only when the concrete adapter explicitly declares idempotency, caps at three failed attempts, uses 30s then 120s base backoff, and saturates timestamps safely.
-- `VyomFactoryRetryScheduleStore` durably persists per-issue/per-operation failed-attempt counts and next-eligible timestamps, applies deterministic bounded jitter (0–25% of base delay), exposes due entries, and supports clearing on verified completion. It fails closed on malformed data/commit failure and caps at 500 entries. It does NOT run work: a future consumer must fetch fresh GitHub state, acquire a current lease, check STOP/permissions, and invoke an idempotent adapter before any side effect.
+- `VyomFactoryRetryScheduleStore` durably persists per-issue/per-operation failed-attempt counts and next-eligible timestamps, applies deterministic bounded jitter (0–25% of base delay), exposes due entries, and supports clearing on verified completion. It fails closed on malformed data/commit failure and caps at 500 entries. The store does NOT run work itself; the foreground RUN NEXT consumer filters for due schedules, then the runner fetches fresh GitHub state, acquires a current lease, checks STOP/consent and invokes only the registered idempotent adapter.
 - No autonomous worker or WorkManager scheduler exists. The foreground runner can execute only the one bounded media-volume adapter after a local user tap; the journal remains persistence/state machinery and does not itself execute or cancel work.
 
 ## Execution routing work just added
@@ -237,3 +237,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Retry jitter herd prevention remains in source commit `a61c5a74356843ee9598c306adc4d4357c1786dc`: deterministic issue+operation seed instead of operation-only seed.
 - Latest source HEAD is `3aee6fc05b8682daf34e2bfe9d7a48cf574eb626`. The previous Debug run `41817783421` was on the parent handoff SHA and is not verification for this fix; parent Full CI `41817783410` was cancelled. New exact-head Debug + Full CI runs must be checked; do not claim green until they complete.
 - Next: inspect exact-head CI compiler/test output, fix any further real errors, then add retry queue status UI only after compile/test stability. No final APK.
+
+
+## Latest source verification snapshot (2026-11-04)
+
+- Retry jitter spread fix: source commit `a61c5a74356843ee9598c306adc4d4357c1786dc`; deterministic jitter now incorporates issue identity, not just operation identity.
+- Debug run `41817304881` on older source `aad1445228d55914f3bbefe6f1c477a671470f9a` FAILED at `compileDebugUnitTestKotlin`. Actual syntax errors were literal `\\n` sequences in `VyomFactoryExecutionRunnerTest.kt` fixture/runner signatures. Corrected in source commit `3aee6fc05b8682daf34e2bfe9d7a48cf574eb626`.
+- Source-equivalent Debug run `41817853816` on `3aee6fc...` is still IN_PROGRESS at Gradle build/test; Full CI run `41817853867` was cancelled by the subsequent handoff update and is not a pass.
+- Latest handoff HEAD before this update: `22e911bed58b30a207e0b5c77d9e311beffe5a01`. Exact-head Debug `41817904327` and Full CI `41817904289` are IN_PROGRESS (Debug at Gradle build/test; Full CI at unit tests/debug APK). No green result or APK artifact is claimed.
+- Next: finish exact-head CI inspection; fix any actual compile/test failures before proceeding. Retry queue status UI remains a later item; do not claim Factory completion or produce a final APK.
