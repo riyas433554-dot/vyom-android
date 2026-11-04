@@ -17,7 +17,8 @@ internal class VyomFactoryExecutionRunner(
     private val retrySchedules: VyomFactoryRetryScheduleStore,
     private val now: () -> Long = System::currentTimeMillis,
     private val newAttemptId: () -> String,
-    private val prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it }
+    private val prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
+    private val externalStopRequested: () -> Boolean = { false }
 ) {
     sealed class Outcome {
         data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String, val retryScheduleCleared: Boolean) : Outcome()
@@ -48,6 +49,7 @@ internal class VyomFactoryExecutionRunner(
         }
         if (!adapters.supports(envelope.target)) return skip("adapter_unsupported")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
+        if (externalStopRequested()) return skip("stopped_before_execution")
 
         // Expired leases never authorize replay. Only a persisted due retry for
         // this exact issue/operation and an adapter still declaring idempotency can retry.
@@ -84,7 +86,7 @@ internal class VyomFactoryExecutionRunner(
             prepareExecution(envelope)
         } catch (_: Exception) {
             null
-        } ?: return skip("confirmation_declined_or_unavailable")
+        } ?: return if (externalStopRequested()) skip("stopped_before_execution") else skip("confirmation_declined_or_unavailable")
         if (!isValidPreparedEnvelope(envelope, prepared)) {
             return skip("invalid_prepared_execution")
         }
@@ -98,7 +100,7 @@ internal class VyomFactoryExecutionRunner(
             override fun shouldStop(): Boolean {
                 val entry = journal.get(attemptId)
                 return entry?.state == VyomFactoryExecutionJournal.State.STOP_REQUESTED ||
-                    entry?.isTerminal != false || !isClaimCurrent(claim)
+                    entry?.isTerminal != false || externalStopRequested() || !isClaimCurrent(claim)
             }
         }
 

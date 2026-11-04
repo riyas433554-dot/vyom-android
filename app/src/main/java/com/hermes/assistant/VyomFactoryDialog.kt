@@ -57,6 +57,8 @@ internal class VyomFactoryDialog(
     private lateinit var claimButton: Button
     private lateinit var releaseClaimButton: Button
     private lateinit var runButton: Button
+    private lateinit var stopButton: Button
+    private val stopRunRequested = AtomicBoolean(false)
     private var pendingConfirmationDialog: AlertDialog? = null
     private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
@@ -153,6 +155,16 @@ internal class VyomFactoryDialog(
             setOnClickListener { runNextTask() }
         }
         workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
+        stopButton = Button(activity).apply {
+            text = "STOP CURRENT RUN"; textSize = 9f; isEnabled = false
+            setOnClickListener {
+                stopRunRequested.set(true)
+                cancelPendingConfirmation?.invoke()
+                status.text = "STOP requested. Any action not yet started will be blocked; a completed volume change cannot be undone."
+                isEnabled = false
+            }
+        }
+        workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val composer = LinearLayout(activity).apply {
@@ -220,6 +232,7 @@ internal class VyomFactoryDialog(
         dialog.setContentView(root)
         dialog.setOnDismissListener {
             main.removeCallbacks(refreshRunnable)
+            stopRunRequested.set(true)
             cancelPendingConfirmation?.invoke()
             pendingConfirmationDialog?.dismiss()
             worker.shutdownNow()
@@ -252,7 +265,9 @@ internal class VyomFactoryDialog(
             return
         }
         busy = true
+        stopRunRequested.set(false)
         runButton.isEnabled = false
+        stopButton.isEnabled = true
         claimButton.isEnabled = false
         releaseClaimButton.isEnabled = false
         claimStatus.text = "RUNNER ACTIVE · FETCHING FRESH ISSUE AND VALIDATING ACTION…"
@@ -269,7 +284,8 @@ internal class VyomFactoryDialog(
                     adapters = VyomFactoryExecutionAdapterRegistry(listOf(adapter)),
                     retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext),
                     newAttemptId = { UUID.randomUUID().toString() },
-                    prepareExecution = { envelope -> prepareAndroidAction(envelope) }
+                    prepareExecution = { envelope -> prepareAndroidAction(envelope) },
+                    externalStopRequested = { stopRunRequested.get() }
                 )
                 runner.runNext()
             } catch (error: Exception) {
@@ -305,6 +321,7 @@ internal class VyomFactoryDialog(
                     }
                 }
                 runButton.isEnabled = true
+                stopButton.isEnabled = false
                 claimButton.isEnabled = true
                 releaseClaimButton.isEnabled = false
                 busy = false
