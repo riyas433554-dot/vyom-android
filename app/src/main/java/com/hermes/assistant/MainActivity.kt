@@ -2921,6 +2921,12 @@ class MainActivity : Activity() {
             selfChangeButton.post { selfChangeButton.performClick() }
             return
         }
+        val promoteFirstIssue = VyomFactoryOwnerCommand.promoteFirstIssueNumber(message)
+        if (promoteFirstIssue != null) {
+            chatInput.setText("")
+            promoteFactoryComplaintToFirst(promoteFirstIssue)
+            return
+        }
         val factoryComplaint = extractFactoryComplaint(message)
         if (factoryComplaint != null) {
             val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
@@ -2953,6 +2959,43 @@ class MainActivity : Activity() {
         val prefixes = listOf("factory complaint:", "register complaint:", "complaint:", "report bug:", "factory:", "issue:")
         val prefix = prefixes.firstOrNull { normalized.startsWith(it) } ?: return null
         return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
+    }
+
+    private fun promoteFactoryComplaintToFirst(issueNumber: Int) {
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        val item = ChatMessage(UUID.randomUUID().toString(), "ye complaint pehle #$issueNumber", "running")
+        chatMessages.add(item)
+        persistChatMessages()
+        renderChatMessages()
+        if (token.isBlank()) {
+            item.state = "error"
+            item.reply = "Factory reorder needs a GitHub token with repository Issues write permission."
+            persistChatMessages()
+            renderChatMessages()
+            return
+        }
+        io.execute {
+            try {
+                val client = VyomFactoryGitHubClient(token)
+                val task = client.listTasks().firstOrNull { it.number == issueNumber }
+                    ?: throw IllegalArgumentException("Factory complaint #$issueNumber was not found")
+                client.updateTask(task, newPriority = "P0")
+                client.addEvent(issueNumber, "Owner promote-first request: priority raised to P0")
+                runOnUiThread {
+                    item.state = "done"
+                    item.reply = "Complaint #$issueNumber promoted to P0 (top priority tier). Items within P0 still use the existing queue tie-order."
+                    persistChatMessages()
+                    renderChatMessages()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    item.state = "error"
+                    item.reply = "Could not reprioritize complaint #$issueNumber: ${error.message ?: "GitHub update failed"}"
+                    persistChatMessages()
+                    renderChatMessages()
+                }
+            }
+        }
     }
 
     private fun submitAutomaticTaskFailure(sourceItem: ChatMessage, failure: Throwable) {
