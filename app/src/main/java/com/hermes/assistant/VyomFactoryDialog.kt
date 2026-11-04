@@ -30,7 +30,8 @@ import java.util.concurrent.atomic.AtomicReference
 internal class VyomFactoryDialog(
     private val activity: Activity,
     private val token: String,
-    private val onOpenSettings: () -> Unit
+    private val onOpenSettings: () -> Unit,
+    private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {}
 ) {
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int) = (value * density).toInt()
@@ -724,6 +725,16 @@ internal class VyomFactoryDialog(
                 setOnClickListener { editTask(task) }
             }, LinearLayout.LayoutParams(dp(64), dp(36)).apply { leftMargin = dp(3) })
             card.addView(controls)
+            if (task.state == "open" && task.metadata.status in setOf("open", "in_progress")) {
+                card.addView(Button(activity).apply {
+                    text = "PROPOSE REVIEWED CODE FIX"
+                    textSize = 9f
+                    setOnClickListener {
+                        dialog.dismiss()
+                        onProposeFix(task)
+                    }
+                }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+            }
             card.setOnClickListener { showTaskHistory(task) }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
