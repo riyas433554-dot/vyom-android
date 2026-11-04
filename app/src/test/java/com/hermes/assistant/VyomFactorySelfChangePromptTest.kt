@@ -17,6 +17,16 @@ class VyomFactorySelfChangePromptTest {
         assertFalse(prompt.contains("VYOM_FACTORY_META"))
     }
 
+    @Test fun proposalPromptRejectsSensitiveComplaintTitle() {
+        val task = task("Safe description").copy(title = "token=sk-private-value")
+        try {
+            VyomFactorySelfChangePrompt.build(task)
+            fail("Sensitive complaint title must not be sent to the code model")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message.orEmpty().contains("Sensitive"))
+        }
+    }
+
     @Test fun proposalPromptRejectsSensitiveComplaintText() {
         val task = task("api_key=sk-secret-value should never be sent")
         try {
