@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `edf2d347bbe52cccd29dbeeb038e186fd18839ca` (retry overview UI + STOP-after-consent safety correction; exact-source Debug `41818674188` in progress and Full CI `41818673943` pending). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `102e98f5198b5a0ee37c48f12a9f2e758fab1ee8` (retry overview expectation/selection fixes; exact-source Debug verification is pending). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -261,3 +261,18 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - The retry overview is visibility only. Retry execution still requires foreground RUN NEXT, a fresh GitHub snapshot, new lease, STOP checks, and a new one-time approval. No automatic scheduler, WorkManager, heartbeat or background execution was added.
 - No APK artifact is claimed. No physical device test is claimed. Factory stages 7 (bounded parallel workers) and 8 (app-closed physical verification) remain pending; heartbeat remains deferred because the only adapter is a short synchronous volume operation.
 - Next: verify latest handoff-updated exact-HEAD Debug + Full CI, inspect real failures and fix them. Then proceed with safe bounded-worker design only after stage dependencies; do not deliver a final APK until all canonical stages and exact-head CI/artifact checks are complete.
+
+
+## Retry overview CI corrections (2026-11-04)
+
+- Exact-source Debug run `41818674188` on `edf2d347bbe52cccd29dbeeb038e186fd18839ca` compiled and packaged the debug APK locally, but 406 unit tests had two failures in the newly added retry overview tests:
+  - `dueOnlyQueueDoesNotShowMisleadingFutureCountdown`: when all entries are due, choose a stable due issue by lowest issue number rather than the oldest timestamp.
+  - `countdownRoundsUpAndSwitchesToMinutes`: the 1-second-ahead entry is scheduled, not already due; corrected the expected due count from 1 to 0.
+- Corrected test expectation commit: `a576e7ae0041637c8666d78d4b30282abe5d7c48`.
+- Corrected overview selection commit: `102e98f5198b5a0ee37c48f12a9f2e758fab1ee8`. When future schedules exist, display the earliest future retry; when all schedules are already due, display the lowest issue number as the next immediately eligible retry.
+- Additional hardening in parent source commit `c47c23d9aa08fddff365b3da899a6f189182c529`: avoid overflow when rounding a saturated `Long.MAX_VALUE` retry timestamp; refresh the overview after a RUN NEXT result so newly-created/cleared schedules appear immediately.
+- Test imports for the retry overview assertions were corrected in `5927931e0612853388a043c757564760c9e511d4`. The saturated timestamp case is covered.
+- Latest source HEAD before this handoff update: `102e98f5198b5a0ee37c48f12a9f2e758fab1ee8`. Debug run `41819203837` was started on parent test commit `a576e7a...`; it does not include the final helper selection correction. Full CI on that parent was cancelled. The exact latest source SHA must receive new Debug + Full CI verification; do not treat parent runs as proof.
+- STOP-after-consent production fix remains in `edf2d347bbe52cccd29dbeeb038e186fd18839ca`; test expectation correction in `74f59f2ae3a3268277e9f632e0c49ca54de4e0ef`.
+- No final APK. No physical device verification. Retry status is read-only UI; no scheduler or background execution was added.
+- Next: run Debug + Full CI on the handoff-updated exact HEAD and fix only failures confirmed by logs. Then resume canonical Factory order; bounded parallel workers and app-closed verification are still pending.
