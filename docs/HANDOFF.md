@@ -2539,3 +2539,14 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Follow-up source hardening: null-safe lease-token fencing in renew/release. Commit: `475bda1943177fef88e801dc8ad2669a6c77e022`.
 - Current implementation HEAD before this HANDOFF record: `475bda1943177fef88e801dc8ad2669a6c77e022`.
 - Workflow discovery for this commit returned no associated runs yet; the workflow is configured for push to `feature/memory-intelligence`. Recheck the branch's latest Actions runs before treating CI as triggered or complete.
+
+## 2026-11-04 — Device-local worker claim coordinator (verification pending)
+
+- Added `VyomFactoryWorkerClaimCoordinator` to select the highest-priority task from the durable local inbox only when a supplied fresh GitHub snapshot still contains the same issue/source identity with both GitHub state and Factory metadata status `open`.
+- Claim flow acquires the existing fenced device-local lease, verifies the persisted active lease token and inbox membership, and returns a claim. It does not remove the task from the inbox; release leaves it available for retry. Same-owner claim is idempotent; another owner is rejected while the lease is live.
+- Added five named JVM tests covering priority selection, stale/paused/mismatched task exclusion, competing local owners, idempotency/expiry, fenced release and retry eligibility.
+- Critical limits: this coordinator is not yet consumed by an autonomous worker loop or UI action. It does not execute code, change GitHub issue status, or establish a distributed claim. It must be called only with a fresh GitHub task snapshot. Cross-device/Termux/ChatGPT/GitHub Actions races remain possible because the lease is device-local and no atomic shared lease service exists.
+- New source commit: `07209fe0de7bce146ea0643d45e20c6b3c5ec36f`; test-first commit: `0c0c24a2d753f6051d36c53069cce3166f7fc103`.
+- CI for test-first commit: Debug run `41785588576` and Full CI run `41785588573` were in progress at HANDOFF update time. Source commit Debug run `41785606926` and Full CI run `41785606868` were also in progress. No results claimed yet.
+- Earlier lease-only exact-head CI at `713eefa640fad6c21c40293bdab68790631091ec`: Debug run `41784286723` SUCCESS (unit tests + assembleDebug + APK artifact); Full CI run `41784286780` SUCCESS (signed build, content-update package checks, prerelease publication). This verifies lease primitive/tests only, not the new coordinator.
+- Next: inspect actual CI logs for both coordinator commits. Fix any failures. Then wire this coordinator into a real task consumer/runner with explicit status and STOP behavior; only then start heartbeat. No APK delivery.
