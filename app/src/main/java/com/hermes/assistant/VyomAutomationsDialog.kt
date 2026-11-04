@@ -21,7 +21,7 @@ internal class VyomAutomationsDialog(
     private val factoryComplaints: List<JSONObject> = emptyList(),
     private val factoryRegistryError: String? = null
 ) {
-    private val allTasks = tasks + factoryComplaints
+    private val allTasks = VyomAutomationsTaskOrdering.sort(tasks, factoryComplaints)
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int): Int = (value * density).toInt()
     private val activeStates = setOf("queued", "pending", "running", "in_progress", "processing", "working")
@@ -204,7 +204,7 @@ internal class VyomAutomationsDialog(
                 "failed" -> state in setOf("failed", "error", "blocked", "paused")
                 else -> true
             }
-        }.asReversed()
+        }
         countLine.text = "Showing ${filtered.size} of ${allTasks.size} live task and complaint records"
         if (filtered.isEmpty()) {
             list.addView(TextView(activity).apply {
