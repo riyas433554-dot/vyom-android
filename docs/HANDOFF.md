@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source checkpoint before this handoff refresh: `2f9e2ed31de2e669a9a7ff3716bd8a09841a73ea`. Exact branch-tip CI must be refreshed after this documentation commit. Earlier successful artifacts listed below are historical only, not current source proof.
+- Latest source checkpoint before this handoff refresh: `b24063de806f451e993f29d96a8c634a8c806a1e`. Exact branch-tip CI must be refreshed after this documentation commit. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the current Factory-first plan below: Stage 1 end-to-end behavior plus only the A18/A17 safety-critical pieces Factory itself needs, exact-head CI green and artifact integrity. Do not require the entire Android-control list, Play Store/WhatsApp feature implementation, or unrelated lifecycle stages 5/6/8.
@@ -26,7 +26,7 @@ This section supersedes older APK gates and Factory ordering text below where th
 
 ### Latest source audit and CI (2026-11-04)
 
-- Latest source branch tip before this handoff refresh: `2f9e2ed31de2e669a9a7ff3716bd8a09841a73ea`. `docs/OWNER_ACTIONS.md` now includes the guarded complaint-to-code proposal acceptance steps.
+- Latest source branch tip before this handoff refresh: `b24063de806f451e993f29d96a8c634a8c806a1e`. `docs/OWNER_ACTIONS.md` now includes guarded complaint-to-code proposal acceptance steps. Proposal pipeline failures/timeouts are also recorded back to the originating complaint (without exposing exception message/request text); cancellation/back-dismissal clears the pending issue link.
 - Complaint triage: generic `behavior` no longer implies personality; explicit tone/persona terms still do. Play Store installation and WhatsApp message complaints classify as `control / P0`; Hinglish failure phrases (`nahi ho raha`, `send nahi`, `install nahi`, etc.) raise severity to high. Regression/fix commits: `520e4fce532923d9040e439229eb704146431574`, `725edddf4bc6f8d5a2ec46e775d7779363ac40fa`, `1eb496089c2e0b1f34b6af59dacf9c79a9011088`, `0fdebdd9f31d80a8f90e53b1de1a4c4c2ab1efec`, `c5a818a311ad7810fec626e4c776e149fcb881a4`, `b050bcdbb590641a055f045a9ffab367b8c7dbbb`.
 - Priority order is shared by Factory UI, Automations and worker selection: P0→P3, newest GitHub update first within each tier, issue number as deterministic tie-break. `ye complaint pehle #N` promotes only active open/in-progress complaints to P0.
 - Complaint lifecycle: open issues can START, paused issues can RESUME, and DONE is blocked until a named Verification probe has a recorded PASS for that exact probe. VERIFY records owner-reported device evidence (PASS/FAIL); changing the probe invalidates old PASS. This is manual owner attestation, not autonomous device verification. Existing legacy completed issues remain editable without requiring a newly created probe event.
