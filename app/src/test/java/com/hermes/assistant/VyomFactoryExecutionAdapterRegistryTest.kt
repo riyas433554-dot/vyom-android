@@ -34,7 +34,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
         val envelope = executable("repository_change", "change_with_tests")
 
-        val result = registry.dispatch(envelope)
+        val result = registry.dispatch(envelope, NeverStop)
 
         assertEquals(
             VyomFactoryExecutionAdapterRegistry.Outcome.Unsupported(
