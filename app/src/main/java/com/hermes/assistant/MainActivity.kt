@@ -981,6 +981,7 @@ class MainActivity : Activity() {
             io.execute {
                 try {
                     api.reconnect()
+                    reconcileFactoryInbox()
                     runOnUiThread {
                         status.text = "VYOM  •  READY"
                         chatReady = true
@@ -2865,6 +2866,7 @@ class MainActivity : Activity() {
         io.execute {
             try {
                 api.pair(code)
+                reconcileFactoryInbox()
                 runOnUiThread {
                     status.text = "VYOM  •  READY"
                     pairingInput.visibility = View.GONE
@@ -3037,6 +3039,27 @@ class MainActivity : Activity() {
             renderChatMessages()
         } catch (_: Exception) {
             // Keep the stored history intact if it cannot be parsed.
+        }
+    }
+
+    /** Best-effort recovery from the shared registry; never blocks pairing/chat readiness. */
+    private fun reconcileFactoryInbox() {
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        if (token.isBlank()) return
+        try {
+            val remoteOpenTasks = VyomFactoryGitHubClient(token).listTasks()
+                .asSequence()
+                .filter { it.state == "open" && it.metadata.status == "open" }
+                .map {
+                    VyomFactoryTaskStore.QueuedTask(
+                        it.number, it.title, it.metadata.priority, it.metadata.sourceId,
+                        System.currentTimeMillis()
+                    )
+                }
+                .toList()
+            VyomFactoryTaskStore(applicationContext).reconcileOpen(remoteOpenTasks)
+        } catch (_: Exception) {
+            // Registry outages must not break chat/pairing. The next reconnect retries reconciliation.
         }
     }
 
