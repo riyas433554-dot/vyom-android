@@ -23,6 +23,14 @@ internal object VyomFactoryVerificationPolicy {
         return events.any { it.startsWith(prefix) }
     }
 
+    fun blocksCompletion(
+        currentStatus: String,
+        newStatus: String,
+        description: String,
+        events: List<String>
+    ): Boolean = newStatus == "completed" && currentStatus != "completed" &&
+        !canComplete(description, events)
+
     fun appendEvidence(description: String, probe: String, evidence: String, passed: Boolean): String =
         description.trimEnd() + "\n\n## Owner-reported device verification\n" +
             "- **Probe:** $probe\n" +
