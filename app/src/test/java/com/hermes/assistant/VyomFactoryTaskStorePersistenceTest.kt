@@ -32,6 +32,45 @@ class VyomFactoryTaskStorePersistenceTest {
         assertFalse(VyomFactoryTaskStore(prefs).contains(41))
     }
 
+    @Test fun reconciliationRestoresMissingTasksAndIsIdempotent() {
+        val prefs = InMemorySharedPreferences()
+        val store = VyomFactoryTaskStore(prefs)
+        assertTrue(store.enqueue(task(41, "P2", "existing", 10)))
+
+        val restored = listOf(task(42, "P1", "remote-42", 20), task(43, "P3", "remote-43", 30))
+        assertEquals(2, store.reconcileOpen(restored))
+        assertEquals(0, VyomFactoryTaskStore(prefs).reconcileOpen(restored))
+        assertEquals(listOf(42, 41, 43), VyomFactoryTaskStore(prefs).pending().map { it.issueNumber })
+    }
+
+    @Test fun reconciliationSkipsIssueAndSourceIdentityConflictsWithoutOverwriting() {
+        val prefs = InMemorySharedPreferences()
+        val store = VyomFactoryTaskStore(prefs)
+        assertTrue(store.enqueue(task(41, "P2", "source-41", 10)))
+
+        val added = store.reconcileOpen(listOf(
+            task(41, "P0", "different-source", 20),
+            task(42, "P0", "source-41", 21),
+            task(43, "P1", "new-source", 22)
+        ))
+        assertEquals(1, added)
+        assertEquals(listOf(41, 43), store.pending().map { it.issueNumber })
+        assertEquals("P2", store.pending().first { it.issueNumber == 41 }.priority)
+    }
+
+    @Test fun reconciliationCommitFailureLeavesPreviousQueueIntact() {
+        val prefs = InMemorySharedPreferences()
+        val store = VyomFactoryTaskStore(prefs)
+        assertTrue(store.enqueue(task(41, "P2", "existing", 10)))
+        val before = prefs.getString("pending_tasks_v1", null)
+        prefs.failCommits = true
+
+        assertThrows(IllegalStateException::class.java) {
+            store.reconcileOpen(listOf(task(42, "P1", "remote-42", 20)))
+        }
+        assertEquals(before, prefs.getString("pending_tasks_v1", null))
+    }
+
     @Test fun malformedPersistedJsonFailsClosedWithoutOverwritingData() {
         val prefs = InMemorySharedPreferences().apply {
             edit().putString("pending_tasks_v1", "{broken-json").commit()
