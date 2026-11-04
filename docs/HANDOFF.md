@@ -2535,3 +2535,7 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Verification: exact-head Debug + Full CI have not yet been triggered for this batch. No test/compile success is claimed.
 - Next: run exact-head CI, inspect real logs, fix any failures. Then design the worker claim boundary that honestly coordinates only this device until a supported atomic shared lease backend exists; do not proceed to heartbeat until claim/lease acceptance is verified.
 - No APK delivered.
+
+- Follow-up source hardening: null-safe lease-token fencing in renew/release. Commit: `475bda1943177fef88e801dc8ad2669a6c77e022`.
+- Current implementation HEAD before this HANDOFF record: `475bda1943177fef88e801dc8ad2669a6c77e022`.
+- Workflow discovery for this commit returned no associated runs yet; the workflow is configured for push to `feature/memory-intelligence`. Recheck the branch's latest Actions runs before treating CI as triggered or complete.
