@@ -64,6 +64,8 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
+    internal val factoryForegroundGate = VyomFactoryForegroundGate()
+    internal val factoryOneTimeApprovals = VyomFactoryOneTimeApprovalStore()
     private lateinit var orb: OrbSurfaceView
     private lateinit var status: TextView
     private lateinit var buildInfo: TextView
@@ -5347,6 +5349,7 @@ class MainActivity : Activity() {
         (value * resources.displayMetrics.density).toInt()
 
     override fun onPause() {
+        factoryForegroundGate.onPaused()
         tasksTabVisible = false
         mainHandler.removeCallbacks(refreshTasksRunnable)
         if (!voiceLoopEnabled) stopVoiceInput(cancel = true)
@@ -5356,6 +5359,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        factoryForegroundGate.onResumed()
         if (::orb.isInitialized) orb.onResume()
         if (voiceLoopEnabled && voiceDialog?.isShowing != true) showVoiceMode()
         if (tasksTabVisible) {
