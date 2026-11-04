@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest branch HEAD before this handoff update: `cf526e2245ab7e361169d09b705b1efd003f354a` (retry policy implementation). This handoff commit will advance HEAD; verify the resulting exact SHA and CI before further implementation.
+- Latest branch HEAD before this handoff update: `ff2c228c57078d8dd7285bc156727688778f519f` (durable retry schedule store). This handoff commit will advance HEAD; verify the resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -18,7 +18,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 1. Persistent task store/queue — implemented and tested.
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
 3. Heartbeat — pending; never renew idle claims.
-4. Retry/backoff — bounded, idempotency-gated retry decision policy added; durable scheduling/attempt counter and executor integration remain pending.
+4. Retry/backoff — bounded, idempotency-gated policy plus durable local schedule/attempt counter and deterministic bounded jitter implemented; due-list is eligibility only. Worker/executor integration and fresh-registry/lease/STOP revalidation remain pending.
 5. STOP/pause — durable journal stop request is now fenced to the exact current lease + attempt and only transitions RUNNING work; actual cooperative cancellation remains pending until an executor exists.
 6. Crash recovery — pending.
 7. Bounded parallel workers — pending.
@@ -32,7 +32,8 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Lease fencing is local to one app process/device; it is not distributed CAS.
 - Claim session refreshes GitHub before each claim and reconciles only issues whose GitHub state and metadata status are both `open`.
 - Factory dialog exposes foreground CLAIM NEXT / RELEASE CLAIM only. It does not execute tasks.
-- `VyomFactoryRetryPolicy` is a pure decision policy: retries only known transient categories, only when the concrete adapter explicitly declares idempotency, caps at three failed attempts, uses 30s then 120s backoff, and saturates timestamps safely. It does not persist retry counts/schedule work and is not an operational retry executor.
+- `VyomFactoryRetryPolicy` retries only known transient categories, only when the concrete adapter explicitly declares idempotency, caps at three failed attempts, uses 30s then 120s base backoff, and saturates timestamps safely.
+- `VyomFactoryRetryScheduleStore` durably persists per-issue/per-operation failed-attempt counts and next-eligible timestamps, applies deterministic bounded jitter (0–25% of base delay), exposes due entries, and supports clearing on verified completion. It fails closed on malformed data/commit failure and caps at 500 entries. It does NOT run work: a future consumer must fetch fresh GitHub state, acquire a current lease, check STOP/permissions, and invoke an idempotent adapter before any side effect.
 - No autonomous worker, WorkManager scheduler, or concrete Android/repository action adapter exists yet. The journal is persistence/state machinery only; it does not execute or cancel work.
 
 ## Execution routing work just added
@@ -75,10 +76,10 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 
 ## Immediate next actions
 
-1. Verify Debug and Full CI for the current retry-policy HEAD and repair only failures shown in real logs.
-2. Connect the retry policy to durable retry metadata only after a concrete adapter and idempotency contract exist; never replay arbitrary side effects.
-3. Implement one narrowly scoped concrete adapter only after task schemas and capability permissions are validated.
-4. Add heartbeat only while that executor is actively making progress; add WorkManager only after a concrete bounded adapter exists.
-5. Implement cooperative STOP, crash recovery, bounded workers, and physical app-closed verification in canonical order; update this file after each batch.
+1. Verify Debug and Full CI for the durable retry-schedule HEAD and repair failures from real logs.
+2. Implement a narrowly scoped foreground executor around an explicit safe adapter; reject confirmation-required, blocked, unsupported, or ambiguous operations.
+3. Integrate due retries only after executor idempotency is proven and each attempt re-fetches registry state, acquires a lease, and checks STOP/permissions.
+4. Add heartbeat only while that executor is actively making progress; WorkManager only after a concrete bounded adapter exists.
+5. Complete cooperative STOP, crash recovery, bounded workers, and physical app-closed verification in canonical order.
 
 No backend, Render, production Supabase, or Android `main` changes. No physical Android app-closed test claimed.
