@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest branch HEAD before this handoff update: `ff2c228c57078d8dd7285bc156727688778f519f` (durable retry schedule store). This handoff commit will advance HEAD; verify the resulting exact SHA and CI before further implementation.
+- Latest branch HEAD before this handoff update: `f7b433f7f0fc94f9d34ec3d82523b1b4cdb3e4e3` (foreground execution runner + cooperative STOP tests). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -17,9 +17,9 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 1. Persistent task store/queue — implemented and tested.
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
-3. Heartbeat — pending; never renew idle claims.
-4. Retry/backoff — bounded, idempotency-gated policy plus durable local schedule/attempt counter and deterministic bounded jitter implemented; due-list is eligibility only. Worker/executor integration and fresh-registry/lease/STOP revalidation remain pending.
-5. STOP/pause — durable journal stop request is now fenced to the exact current lease + attempt and only transitions RUNNING work; actual cooperative cancellation remains pending until an executor exists.
+3. Heartbeat — pending; runner is synchronous foreground-only and has no heartbeat. Add heartbeat only after an actual bounded adapter runs long enough to need lease renewal.
+4. Retry/backoff — bounded, idempotency-gated policy plus durable local schedule/attempt counter and deterministic bounded jitter implemented. Foreground runner records transient failures only for adapters explicitly declaring idempotency and clears schedule on success. No due-retry consumer/scheduler exists yet.
+5. STOP/pause — journal STOP is fenced to exact lease + attempt; foreground runner exposes cooperative control, and adapters must poll it before each side effect. No production adapter yet; cancellation behavior verified only with fake test adapter.
 6. Crash recovery — pending.
 7. Bounded parallel workers — pending.
 8. App-closed execution verification — pending physical Android testing.
@@ -31,7 +31,10 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Multilingual intake is schema validation only, not semantic multilingual interpretation.
 - Lease fencing is local to one app process/device; it is not distributed CAS.
 - Claim session refreshes GitHub before each claim and reconciles only issues whose GitHub state and metadata status are both `open`.
-- Factory dialog exposes foreground CLAIM NEXT / RELEASE CLAIM only. It does not execute tasks.
+- Factory dialog still exposes foreground CLAIM NEXT / RELEASE CLAIM only; execution runner is implemented as an orchestration component but is not wired into UI or background scheduling.
+- `VyomFactoryExecutionRunner` performs one foreground claim, re-fetches the issue, verifies open status + source identity + valid execution envelope + registered adapter, begins a fenced journal attempt, checks lease/STOP before dispatch, records terminal result, and schedules transient retry only when the adapter declares idempotency.
+- `VyomFactoryExecutionControl.shouldStop()` is passed into adapters; adapter contract requires bounded execution and cooperative checks before each side effect. No concrete adapters are registered in production, so current app still cannot autonomously execute Factory tasks.
+- Retry schedule cleanup after terminal success is best-effort and reported separately; cleanup failure does not rewrite a successful side effect as FAILED.
 - `VyomFactoryRetryPolicy` retries only known transient categories, only when the concrete adapter explicitly declares idempotency, caps at three failed attempts, uses 30s then 120s base backoff, and saturates timestamps safely.
 - `VyomFactoryRetryScheduleStore` durably persists per-issue/per-operation failed-attempt counts and next-eligible timestamps, applies deterministic bounded jitter (0–25% of base delay), exposes due entries, and supports clearing on verified completion. It fails closed on malformed data/commit failure and caps at 500 entries. It does NOT run work: a future consumer must fetch fresh GitHub state, acquire a current lease, check STOP/permissions, and invoke an idempotent adapter before any side effect.
 - No autonomous worker, WorkManager scheduler, or concrete Android/repository action adapter exists yet. The journal is persistence/state machinery only; it does not execute or cancel work.
@@ -44,7 +47,7 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 - Existing schema-1 task metadata, missing/malformed/duplicate/unknown/oversized execution envelopes, invalid operations, and missing arguments fail closed to `manual_review`.
 - Explicit supported targets: `android_action` and `repository_change`; operation identifiers are bounded and arguments must be a bounded JSON object.
 - Original request is carried separately and bounded. Parser does not execute anything.
-- `VyomFactoryExecutionAdapterRegistry` routes only to one adapter registered for the exact target. Duplicate adapters are rejected; manual-review tasks never route; missing adapter returns Unsupported; adapter exceptions propagate and cannot be converted to success.
+- `VyomFactoryExecutionAdapterRegistry` routes only to one adapter registered for the exact target. Duplicate adapters are rejected; manual-review tasks never route; missing adapter returns Unsupported; adapter exceptions propagate and cannot be converted to success. Adapters now declare `isIdempotent` and receive cooperative `VyomFactoryExecutionControl`.
 - There are no concrete adapters yet. A task must not be marked completed merely because it parsed or routed.
 
 ## Recent commits and CI
@@ -76,10 +79,9 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 
 ## Immediate next actions
 
-1. Verify Debug and Full CI for the durable retry-schedule HEAD and repair failures from real logs.
-2. Implement a narrowly scoped foreground executor around an explicit safe adapter; reject confirmation-required, blocked, unsupported, or ambiguous operations.
-3. Integrate due retries only after executor idempotency is proven and each attempt re-fetches registry state, acquires a lease, and checks STOP/permissions.
-4. Add heartbeat only while that executor is actively making progress; WorkManager only after a concrete bounded adapter exists.
-5. Complete cooperative STOP, crash recovery, bounded workers, and physical app-closed verification in canonical order.
+1. Verify Debug and Full CI on the handoff-updated exact HEAD; fix source/test failures from real logs.
+2. Implement one narrow concrete adapter only after defining explicit allowlisted operations, argument schemas, permission/confirmation gates, and bounded timeouts. Do not add shell execution.
+3. Add UI/foreground invocation only after the concrete adapter is tested; due retries must re-fetch GitHub, acquire a fresh lease, check STOP, and require adapter idempotency.
+4. Add heartbeat only during real active progress; then complete crash recovery, bounded parallelism, and physical app-closed tests in canonical order.
 
 No backend, Render, production Supabase, or Android `main` changes. No physical Android app-closed test claimed.
