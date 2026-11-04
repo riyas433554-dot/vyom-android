@@ -3,8 +3,40 @@
 Last reviewed: 2026-11-04
 Controlling source: docs/HANDOFF.md (ORDER V2)
 
-## No immediate owner action
-Do not run any command for an intake source that has not shipped yet. The Termux command `vyom-complain`, voice complaint registration, automatic Diagnostics/task-failure issue creation, and Android screenshot share-sheet receiver are not yet implemented and verified.
+## OWNER ACTION NEEDED — enable the Termux complaint command
+
+The command is now in the feature branch as scripts/vyom-complain. Install it in Termux and authenticate GitHub CLI once:
+
+```bash
+pkg install -y gh jq curl
+gh auth login -h github.com
+mkdir -p "$PREFIX/bin"
+curl -fsSL https://raw.githubusercontent.com/riyas433554-dot/vyom-android/feature/memory-intelligence/scripts/vyom-factory.sh -o "$PREFIX/bin/vyom-factory.sh"
+curl -fsSL https://raw.githubusercontent.com/riyas433554-dot/vyom-android/feature/memory-intelligence/scripts/vyom-complain -o "$PREFIX/bin/vyom-complain"
+chmod 700 "$PREFIX/bin/vyom-factory.sh" "$PREFIX/bin/vyom-complain"
+vyom-complain --help
+```
+
+Then register one test complaint (this creates a real GitHub Issue):
+
+```bash
+vyom-complain \
+  --title "Factory Termux intake smoke test" \
+  --area other \
+  --severity low \
+  --priority P3 \
+  --evidence "No evidence; command smoke test only" \
+  --repro "Run the vyom-complain command with the supplied arguments" \
+  --expected "One canonical GitHub issue is created" \
+  --probe "Read the issue back and confirm all required fields and metadata" \
+  --fix-type "native change needing an APK" \
+  --source-id "termux:owner-smoke-test-001"
+```
+
+Re-running the exact command with the same --source-id must return the existing issue number, not create a duplicate. Do not reuse this source ID for a different complaint.
+
+## Other intake sources still awaiting implementation
+Voice complaint registration, automatic Diagnostics/task-failure issue creation, and the Android screenshot share-sheet receiver are not yet implemented/verified. Do not claim these paths work yet.
 
 ## Required when Stage 1 implementation is ready
 These are deliberately deferred until the corresponding feature is present in an exact-head APK; they are not current blockers to source work.
