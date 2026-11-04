@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest branch HEAD before this handoff update: `284789f16619e935b11782c43487a8353a32f130` (retry due-time and no-replay tests). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `eaa1f93648b3d69ac263a0e0c3aa000820a3ffa0` (foreground approval UI + runner integration; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -31,14 +31,14 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Multilingual intake is schema validation only, not semantic multilingual interpretation.
 - Lease fencing is local to one app process/device; it is not distributed CAS.
 - Claim session refreshes GitHub before each claim and reconciles only issues whose GitHub state and metadata status are both `open`.
-- Factory dialog still exposes foreground CLAIM NEXT / RELEASE CLAIM only; execution runner is implemented as an orchestration component but is not wired into UI or background scheduling.
+- Factory dialog exposes CLAIM NEXT / RELEASE CLAIM and RUN NEXT VERIFIED ACTION. The foreground runner is wired to the UI with one concrete allowlisted Android adapter (`set_media_volume`) and an explicit one-time confirmation prompt. There is still no background scheduling or autonomous worker.
 - Journal entries now persist the exact operation key. Runner replay checks are scoped to issue + operation; legacy entries with unknown operation identity block further automatic work on that issue and require manual review.
 - `VyomFactoryExecutionRunner` performs one foreground claim, re-fetches the issue, verifies open status + source identity + valid execution envelope + registered adapter, begins a fenced journal attempt, checks lease/STOP before dispatch, records terminal result, and schedules transient retry only when the adapter declares idempotency.
-- `VyomFactoryExecutionControl.shouldStop()` is passed into adapters; adapter contract requires bounded execution and cooperative checks before each side effect. No concrete adapters are registered in production, so current app still cannot autonomously execute Factory tasks.
+- `VyomFactoryExecutionControl.shouldStop()` is passed into adapters; adapter contract requires bounded execution and cooperative checks before each side effect. The production registry now registers only the media-volume adapter from the foreground RUN NEXT flow; repository changes and every other Android operation remain unsupported.
 - Retry schedule cleanup after terminal success is best-effort and reported separately; cleanup failure does not rewrite a successful side effect as FAILED.
 - `VyomFactoryRetryPolicy` retries only known transient categories, only when the concrete adapter explicitly declares idempotency, caps at three failed attempts, uses 30s then 120s base backoff, and saturates timestamps safely.
 - `VyomFactoryRetryScheduleStore` durably persists per-issue/per-operation failed-attempt counts and next-eligible timestamps, applies deterministic bounded jitter (0–25% of base delay), exposes due entries, and supports clearing on verified completion. It fails closed on malformed data/commit failure and caps at 500 entries. It does NOT run work: a future consumer must fetch fresh GitHub state, acquire a current lease, check STOP/permissions, and invoke an idempotent adapter before any side effect.
-- No autonomous worker, WorkManager scheduler, or concrete Android/repository action adapter exists yet. The journal is persistence/state machinery only; it does not execute or cancel work.
+- No autonomous worker or WorkManager scheduler exists. The foreground runner can execute only the one bounded media-volume adapter after a local user tap; the journal remains persistence/state machinery and does not itself execute or cancel work.
 
 ## Execution routing work just added
 
@@ -49,7 +49,7 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 - Explicit supported targets: `android_action` and `repository_change`; operation identifiers are bounded and arguments must be a bounded JSON object.
 - Original request is carried separately and bounded. Parser does not execute anything.
 - `VyomFactoryExecutionAdapterRegistry` routes only to one adapter registered for the exact target. Duplicate adapters are rejected; manual-review tasks never route; missing adapter returns Unsupported; adapter exceptions propagate and cannot be converted to success. Adapters now declare `isIdempotent` and receive cooperative `VyomFactoryExecutionControl`.
-- There are no concrete adapters yet. A task must not be marked completed merely because it parsed or routed.
+- The only concrete adapter is `android_action:set_media_volume`, registered by the foreground RUN NEXT flow after the UI obtains one-time consent. `repository_change` and all other Android operations remain unsupported. A task must not be marked completed merely because it parsed or routed.
 
 ## Recent commits and CI
 
@@ -158,3 +158,17 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Still not complete: VyomFactoryDialog has not yet been wired to create and consume approval tokens, show an explicit action-specific confirmation, construct the registry/runner, or dispatch the claimed issue. Therefore no Android action is yet executable from the UI. The adapter factory is only the production binding primitive. No heartbeat, WorkManager, or background execution claim.
 - CI: no workflow runs were returned for the new commits when queried; do not infer pass/fail. Previous run 41813499913 remained in Gradle build/test on older source 130a750cfd0b47a2c880e84e4a3864c15e76c914, and 41813500083 was cancelled. The adapter and lifecycle changes are not covered by those runs.
 - Next: implement a user-visible foreground confirmation flow in VyomFactoryDialog. It must display the exact action and percentage, mint the one-time token only after affirmative tap, run on the foreground worker, and never execute if dialog/Activity leaves foreground or the claim/STOP fence is lost. Then fetch fresh issue body, instantiate runner/registry with only this adapter, and test cancellation, expiry, dialog dismissal, and no-side-effect paths before CI.
+
+
+## Foreground approval UI + runner integration (2026-11-04)
+
+- Test-first commit: `6999d28ca00beacd02959d4af6bc2071492cc634`. Added runner tests for consent decline (no journal attempt, no adapter call, exact claim released), locally-added approval token, and rejection if preparation changes the requested operation. Added foreground-epoch invalidation test.
+- Source commit: `eaa1f93648b3d69ac263a0e0c3aa000820a3ffa0`.
+- `VyomFactoryExecutionRunner` now accepts a preparation boundary after fresh GitHub fetch and adapter allowlist checks but before journal begin. Null/throwing preparation skips safely and releases the claim. Prepared envelopes must preserve target, operation, original request and all original arguments; only `confirmation_id` may be added for `set_media_volume`. A remote issue cannot pre-supply that token.
+- Factory UI now exposes RUN NEXT VERIFIED ACTION. It creates a foreground runner with only `VyomFactoryAndroidActionAdapter.forActivity(activity)`, fetches a fresh GitHub Issues snapshot for the claimed issue, and dispatches through the existing journal/lease/retry safety path.
+- Before journaling/dispatch, the UI displays the exact requested media percentage. The one-time token is issued only inside the positive button callback. Cancel/dismiss/timeout/worker interruption returns no approval and creates no execution journal attempt. The adapter still consumes the token once, rechecks STOP + Activity foreground immediately before the side effect, and verifies media volume readback.
+- Activity pause increments the foreground epoch, clears all pending approvals, and cancels the visible confirmation prompt. Returning to foreground cannot revive a prompt from an earlier foreground epoch. Factory dialog dismissal also cancels a pending prompt and interrupts its worker.
+- Scope remains deliberately narrow: only absolute media-volume set (0–100%) is executable. Other Android operations and repository changes are manual review/unsupported. This is foreground execution, not a background worker or 24/7 agent.
+- Exact-head CI: Debug run `41815865975` and Full CI run `41815865798` were started on source HEAD `eaa1f93648b3d69ac263a0e0c3aa000820a3ffa0`. Debug job `126526327504` was at Gradle build/test; Full CI run had no job snapshot at the time of this update. No green result or APK artifact is claimed.
+- Earlier test-only runs `41815671472` and `41815671555` targeted `6999d28ca00beacd02959d4af6bc2071492cc634` and were still in Gradle test/build when superseded. The source commit CI above is the required exact-head verification.
+- Next: inspect exact-head Debug + Full CI results and fix any real failures. Then add STOP/pause UI and cooperative cancellation tests before heartbeat. Do not add heartbeat until an actual long-running bounded executor needs renewal; crash recovery, bounded parallelism and app-closed execution remain pending.
