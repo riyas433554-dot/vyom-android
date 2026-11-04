@@ -17,6 +17,16 @@ class VyomFactoryExecutionRunnerTest {
         assertEquals(VyomFactoryExecutionJournal.State.SUCCEEDED, fixture.journal.get("attempt-1")?.state)
     }
 
+    @Test fun executesOwnerStartedInProgressComplaint() {
+        val fixture = Fixture(remoteMetadataStatus = "in_progress")
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertEquals(1, adapter.calls)
+    }
+
     @Test fun skipsTaskThatWasClosedOrChangedBeforeExecution() {
         val fixture = Fixture(remoteState = "closed")
         val adapter = RecordingAdapter(fail = false, isIdempotent = true)
@@ -329,6 +339,7 @@ class VyomFactoryExecutionRunnerTest {
     }
     private class Fixture(
         remoteState: String = "open",
+        remoteMetadataStatus: String = "open",
         executionOperation: String = "safe_action",
         executionArguments: String = "{}",
         private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit()
@@ -340,7 +351,7 @@ class VyomFactoryExecutionRunnerTest {
         private var preserveReleasedLeaseForNextClaim = false
         private val task = VyomFactoryTaskStore.QueuedTask(71, "Test execution", "P2", "src-71", 900)
         private val metadata = VyomFactoryStatus.Metadata(
-            "P2", "open", "factory", "src-71", "factory:src-71", listOf("created")
+            "P2", remoteMetadataStatus, "factory", "src-71", "factory:src-71", listOf("created")
         )
         val remote = VyomFactoryGitHubClient.Task(
             71, "Test execution",
@@ -386,7 +397,7 @@ class VyomFactoryExecutionRunnerTest {
         }
 
         init {
-            assertEquals("open", metadata.status)
+            assertEquals(remoteMetadataStatus, metadata.status)
         }
 
         fun runner(
