@@ -18,7 +18,8 @@ internal class VyomAutomationsDialog(
     private val activity: Activity,
     private val tasks: List<JSONObject>,
     private val onNavigate: (String) -> Unit,
-    private val factoryComplaints: List<JSONObject> = emptyList()
+    private val factoryComplaints: List<JSONObject> = emptyList(),
+    private val factoryRegistryError: String? = null
 ) {
     private val allTasks = tasks + factoryComplaints
     private val density = activity.resources.displayMetrics.density
@@ -110,6 +111,14 @@ internal class VyomAutomationsDialog(
             setPadding(0, dp(2), 0, dp(8))
         }
         root.addView(countLine)
+        factoryRegistryError?.let { error ->
+            root.addView(TextView(activity).apply {
+                text = "FACTORY REGISTER UNAVAILABLE · $error"
+                textSize = 10f
+                setTextColor(VyomDesignSpec.ROSE)
+                setPadding(0, dp(0), 0, dp(8))
+            })
+        }
 
         val filters = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
