@@ -21,53 +21,55 @@ internal class VyomFactoryTaskStore(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    @Synchronized
-    fun enqueue(task: QueuedTask): Boolean {
+    
+    fun enqueue(task: QueuedTask): Boolean = synchronized(PROCESS_LOCK) {
         require(task.issueNumber > 0)
         require(task.title.isNotBlank() && task.title.length <= 200)
         require(task.priority in setOf("P0", "P1", "P2", "P3"))
         require(task.sourceId.isNotBlank() && task.sourceId.length <= 160)
         val current = readAll().toMutableList()
-        if (!VyomFactoryTaskQueuePolicy.isUnique(current, task)) return false
+        if (!VyomFactoryTaskQueuePolicy.isUnique(current, task)) return@synchronized false
         current += task
         persist(current)
         return true
     }
 
-    @Synchronized
-    fun pending(): List<QueuedTask> = VyomFactoryTaskQueuePolicy.order(readAll())
+    
+    fun pending(): List<QueuedTask> = synchronized(PROCESS_LOCK) { VyomFactoryTaskQueuePolicy.order(readAll()) }
 
-    @Synchronized
-    fun remove(issueNumber: Int): Boolean {
+    
+    fun remove(issueNumber: Int): Boolean = synchronized(PROCESS_LOCK) {
         val current = readAll()
         val remaining = current.filterNot { it.issueNumber == issueNumber }
-        if (remaining.size == current.size) return false
+        if (remaining.size == current.size) return@synchronized false
         persist(remaining)
         return true
     }
 
-    @Synchronized
-    fun contains(issueNumber: Int): Boolean = readAll().any { it.issueNumber == issueNumber }
+    
+    fun contains(issueNumber: Int): Boolean = synchronized(PROCESS_LOCK) { readAll().any { it.issueNumber == issueNumber } }
 
     private fun readAll(): List<QueuedTask> {
         val raw = prefs.getString(KEY_QUEUE, null) ?: return emptyList()
-        return runCatching {
+        return try {
             val array = JSONArray(raw)
             buildList {
                 for (index in 0 until array.length()) {
-                    val item = array.optJSONObject(index) ?: continue
+                    val item = array.optJSONObject(index)
+                        ?: throw IllegalStateException("Factory queue entry $index is invalid")
                     val issue = item.optInt("issue_number", -1)
                     val title = item.optString("title")
                     val priority = item.optString("priority")
                     val sourceId = item.optString("source_id")
                     val enqueuedAt = item.optLong("enqueued_at", -1)
-                    if (issue > 0 && title.isNotBlank() && priority in setOf("P0", "P1", "P2", "P3") &&
-                        sourceId.isNotBlank() && enqueuedAt >= 0) {
-                        add(QueuedTask(issue, title, priority, sourceId, enqueuedAt))
-                    }
+                    require(issue > 0 && title.isNotBlank() && priority in setOf("P0", "P1", "P2", "P3") &&
+                        sourceId.isNotBlank() && enqueuedAt >= 0) { "Factory queue entry $index failed validation" }
+                    add(QueuedTask(issue, title, priority, sourceId, enqueuedAt))
                 }
             }
-        }.getOrDefault(emptyList())
+        } catch (error: Exception) {
+            throw IllegalStateException("Factory queue data is unreadable; refusing to overwrite it", error)
+        }
     }
 
     private fun persist(tasks: List<QueuedTask>) {
@@ -88,5 +90,6 @@ internal class VyomFactoryTaskStore(context: Context) {
     companion object {
         private const val PREFS = "vyom_factory_execution"
         private const val KEY_QUEUE = "pending_tasks_v1"
+        private val PROCESS_LOCK = Any()
     }
 }
