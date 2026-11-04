@@ -139,6 +139,65 @@ class VyomFactoryExecutionJournalTest {
         assertEquals(emptyList<VyomFactoryExecutionJournal.Entry>(), journal.replayable())
     }
 
+
+    @Test fun reopenedJournalRecoversExpiredStopRequestedAttemptWithoutReplay() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val lease = leases.claim(52, "worker-a", 1_000, 5_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(lease, "attempt-after-process-restart", 1_100, "factory.sync")
+        assertTrue(journal.markRunning(lease, "attempt-after-process-restart", 1_200))
+        assertTrue(journal.requestStop(lease, "attempt-after-process-restart", 1_300))
+
+        // Re-open the durable journal as a new process would after a crash.
+        val reopened = VyomFactoryExecutionJournal(prefs, leases)
+        assertEquals(1, reopened.interruptExpired(6_000))
+
+        val recovered = reopened.get("attempt-after-process-restart")!!
+        assertEquals(VyomFactoryExecutionJournal.State.INTERRUPTED, recovered.state)
+        assertEquals(1_300L, recovered.stopRequestedAt)
+        assertTrue(reopened.replayable().isEmpty())
+    }
+
+    @Test fun recoveryInterruptsOnlyExpiredAttemptsAndPreservesLiveAndTerminalHistory() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val expired = leases.claim(54, "worker-a", 1_000, 5_000)!!
+        val live = leases.claim(55, "worker-b", 1_000, 20_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(expired, "expired-running", 1_100, "factory.expired")
+        assertTrue(journal.markRunning(expired, "expired-running", 1_200))
+        journal.begin(live, "still-running", 1_100, "factory.live")
+        assertTrue(journal.markRunning(live, "still-running", 1_200))
+
+        assertEquals(1, journal.interruptExpired(6_000))
+
+        assertEquals(VyomFactoryExecutionJournal.State.INTERRUPTED, journal.get("expired-running")!!.state)
+        assertEquals(VyomFactoryExecutionJournal.State.RUNNING, journal.get("still-running")!!.state)
+    }
+
+    @Test fun failedRecoveryCommitLeavesExpiredAttemptUntouchedAndReadable() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val lease = leases.claim(56, "worker-a", 1_000, 5_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(lease, "attempt-recovery-commit", 1_100)
+        assertTrue(journal.markRunning(lease, "attempt-recovery-commit", 1_200))
+        val before = prefs.getString("attempts_v1", null)
+
+        prefs.failCommit = true
+        assertThrows(IllegalStateException::class.java) {
+            VyomFactoryExecutionJournal(prefs, leases).interruptExpired(6_000)
+        }
+        prefs.failCommit = false
+
+        assertEquals(before, prefs.getString("attempts_v1", null))
+        assertEquals(
+            VyomFactoryExecutionJournal.State.RUNNING,
+            VyomFactoryExecutionJournal(prefs, leases).get("attempt-recovery-commit")!!.state
+        )
+    }
+
     @Test fun corruptPersistenceAndFailedCommitFailClosed() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
