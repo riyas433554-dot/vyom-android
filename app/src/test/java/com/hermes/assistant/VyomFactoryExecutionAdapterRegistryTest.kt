@@ -83,7 +83,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         private val failure: Exception? = null
     ) : VyomFactoryExecutionAdapter {
         var calls = 0
-        override fun execute(envelope: VyomFactoryExecutionEnvelope): String {
+        override fun run(envelope: VyomFactoryExecutionEnvelope): String {
             calls++
             failure?.let { throw it }
             return "${target.name.lowercase()}: ${envelope.operation}"
