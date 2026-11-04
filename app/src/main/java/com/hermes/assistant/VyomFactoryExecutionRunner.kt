@@ -93,6 +93,9 @@ internal class VyomFactoryExecutionRunner(
         if (!isValidPreparedEnvelope(envelope, prepared)) {
             return skip("invalid_prepared_execution")
         }
+        // Consent UI can remain open while STOP is pressed. Recheck before
+        // journaling so a stop after approval still creates no execution attempt.
+        if (externalStopRequested()) return skip("stopped_before_execution")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
 
         val attemptId = newAttemptId()
