@@ -3029,7 +3029,6 @@ class MainActivity : Activity() {
                 val task = client.listTasks().firstOrNull { it.number == issueNumber }
                     ?: throw IllegalArgumentException("Factory complaint #$issueNumber was not found")
                 client.updateTask(task, newPriority = "P0")
-                client.addEvent(issueNumber, "Owner promote-first request: priority raised to P0")
                 runOnUiThread {
                     item.state = "done"
                     item.reply = "Complaint #$issueNumber moved to the top of the P0 queue. Factory list and worker selection use priority, then latest owner update."
