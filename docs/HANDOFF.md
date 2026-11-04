@@ -415,3 +415,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Added API 35 Google APIs x86_64 emulator execution (`connectedDebugAndroidTest`) to `.github/workflows/vyom-android-debug.yml`; this is CI emulator coverage, not a substitute for physical phone acceptance.
 - Startup crash-recovery integration from HEAD `f44d214522aa0d88bc4f30057c8a517d8a1586e9` remains in place. Stage #6 remains PARTIAL until process-kill/relaunch acceptance on a real device; Stage #5 remains PARTIAL until emulator instrumentation and physical lifecycle acceptance pass; Stage #8 remains PENDING.
 - Latest source HEAD before this HANDOFF update: `c5c657c4723bfd5ef4b116be59ad136adf0f0b94`. Debug `41829739822` IN_PROGRESS; Full CI `41829739866` PENDING. Recheck exact-head runs after this documentation commit; no APK delivery is authorized.
+
+## Factory lifecycle integration test batch (2026-11-04)
+
+- Added `VyomFactoryLifecycleIntegrationTest` to exercise the complaint lifecycle across the real GitHub client, worker session/claim coordinator, execution runner/journal, and verification policy using MockWebServer and in-memory preferences.
+- The scenario covers START to `in_progress`, fresh registry claim, verified runner outcome, worker audit event, rejection of DONE before owner verification, exact assigned-probe PASS, and final DONE/closed state on the same canonical issue.
+- Test source is present at source checkpoint `1c790d3918c1060791949ceb096cc8e054daaf11`. The initial test-only commit had a wrong MockWebServer import and was immediately corrected; the later test fixture also models the START PATCH response as `in_progress`. Do not claim this integration test passed until CI executes the corrected source.
+- Exact corrected-source CI: Full CI `41840844317` PENDING; Debug `41840844507` QUEUED at handoff refresh. Earlier Full CI `41839292627` SUCCESS verifies only parent source `832f49e406953aead5032d1f9d7b091be29f2bab`, not the new test. The parent Debug run `41839292787` remains QUEUED and is not current verification.
+- Additional audit finding: `VyomAutomationsDialog.renderTasks()` reverses the already-canonical Factory complaint list with `.asReversed()`. Factory and Automations therefore can show opposite complaint order. Fix with a regression test after the lifecycle integration test result is known.
+- Next: poll corrected-source CI; fix only actual test/compiler failures. Then correct Automations ordering while preserving the existing reverse-chronological order for local tasks. Refresh this handoff after that batch.
