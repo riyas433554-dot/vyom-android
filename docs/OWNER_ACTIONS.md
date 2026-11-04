@@ -58,3 +58,13 @@ From GPT, Claude and Codex, create a complaint through each agent's connected Gi
 - Never paste GitHub tokens, signing passwords, keystore contents or private keys into chat, issue bodies, screenshots or logs.
 - No new token or secret is requested at this stage.
 - Do not change Android main, Render, Hermes backend or production Supabase.
+
+## OWNER ACTION NEEDED — choose safe screenshot evidence storage
+
+The source repository is public. Screenshots from the Android share sheet can contain notifications, names, messages, account details or other private data. I will not upload them into this public repository or embed them in public issue bodies.
+
+Before implementing screenshot-to-issue attachment, choose one:
+1. Provide the name of a private GitHub evidence repository and authorize the app/CLI token to create/read issue evidence there; or
+2. Explicitly approve public screenshot uploads only after the owner manually redacts each image.
+
+Until this is decided, share-sheet screenshots must not be uploaded remotely. Local-only paths are not considered shared evidence because GPT/Claude/Codex agents cannot access them.
