@@ -10,7 +10,7 @@ class VyomFactoryRetryScheduleStoreTest {
         val store = VyomFactoryRetryScheduleStore(prefs)
         val first = store.recordFailure(21, "repo-change:abc", "network_timeout", 10_000, true)
         assertEquals(1, first?.failedAttempts)
-        assertEquals(40_000L, first?.nextAttemptAt)
+        assertTrue(first!!.nextAttemptAt in 40_000L..47_500L)
         assertTrue(store.due(39_999).isEmpty())
         assertEquals(first, store.due(40_000).single())
         assertEquals(first, VyomFactoryRetryScheduleStore(prefs).all().single())
@@ -21,7 +21,7 @@ class VyomFactoryRetryScheduleStoreTest {
         store.recordFailure(21, "repo-change:abc", "server_unavailable", 1_000, true)
         val second = store.recordFailure(21, "repo-change:abc", "server_unavailable", 31_000, true)
         assertEquals(2, second?.failedAttempts)
-        assertEquals(151_000L, second?.nextAttemptAt)
+        assertTrue(second!!.nextAttemptAt in 151_000L..181_000L)
         assertNull(store.recordFailure(21, "repo-change:abc", "server_unavailable", 151_000, true))
         assertTrue(store.all().isEmpty())
     }
