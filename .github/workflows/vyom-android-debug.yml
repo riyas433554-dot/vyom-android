@@ -119,6 +119,16 @@ jobs:
           if [[ "${{ steps.signing.outputs.available }}" == "true" ]]; then
             gradle assembleRelease --no-daemon
           fi
+      - name: Run Android foreground lifecycle instrumentation
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: gradle connectedDebugAndroidTest --no-daemon
       - name: Package versioned APKs and checksums
         id: package
         shell: bash
