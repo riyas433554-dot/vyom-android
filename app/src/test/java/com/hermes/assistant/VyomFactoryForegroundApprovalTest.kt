@@ -1,0 +1,35 @@
+package com.hermes.assistant
+
+import org.junit.Assert.*
+import org.junit.Test
+
+class VyomFactoryForegroundApprovalTest {
+    @Test fun foregroundGateTracksResumeAndPause() {
+        val gate = VyomFactoryForegroundGate()
+        assertFalse(gate.isForeground())
+        gate.onResumed()
+        assertTrue(gate.isForeground())
+        gate.onPaused()
+        assertFalse(gate.isForeground())
+    }
+
+    @Test fun approvalCanBeConsumedOnlyOnce() {
+        val approvals = VyomFactoryOneTimeApprovalStore()
+        val id = approvals.issue()
+        assertTrue(approvals.consume(id))
+        assertFalse(approvals.consume(id))
+    }
+
+    @Test fun unknownAndBlankApprovalIdsAreRejected() {
+        val approvals = VyomFactoryOneTimeApprovalStore()
+        assertFalse(approvals.consume(""))
+        assertFalse(approvals.consume("not-issued"))
+    }
+
+    @Test fun approvalIsNotConsumedByWrongToken() {
+        val approvals = VyomFactoryOneTimeApprovalStore()
+        val id = approvals.issue()
+        assertFalse(approvals.consume("wrong"))
+        assertTrue(approvals.consume(id))
+    }
+}
