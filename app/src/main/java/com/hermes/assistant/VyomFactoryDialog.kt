@@ -280,14 +280,25 @@ internal class VyomFactoryDialog(
         stopButton.isEnabled = true
         claimButton.isEnabled = false
         releaseClaimButton.isEnabled = false
+        val hostActivity = activity as? MainActivity
+        if (hostActivity == null || !hostActivity.factoryForegroundGate.isForeground()) {
+            busy = false
+            runButton.isEnabled = true
+            stopButton.isEnabled = false
+            claimButton.isEnabled = true
+            status.text = "RUN NEXT requires the active Vyom screen."
+            return
+        }
+        // Capture on the UI thread at the moment the owner taps RUN NEXT.
+        // Capturing inside the executor would let a pause+resume that happens
+        // while the job is queued adopt a fresh generation and revive old consent.
+        val foregroundGeneration = hostActivity.factoryForegroundGate.generation()
         claimStatus.text = "RUNNER ACTIVE · FETCHING FRESH ISSUE AND VALIDATING ACTION…"
         worker.execute {
             val outcome = try {
                 val session = workerSession
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
-                val hostActivity = activity as? MainActivity ?: throw IllegalStateException("Factory execution requires MainActivity")
-                val foregroundGeneration = hostActivity.factoryForegroundGate.generation()
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity, foregroundGeneration)
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = { session.claimNext { remote -> isEligibleForRunner(remote, journal, retrySchedules, adapter) } },
