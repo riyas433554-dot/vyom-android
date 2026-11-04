@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `3aee6fc05b8682daf34e2bfe9d7a48cf574eb626` (retry jitter herd prevention + Kotlin test-source correction; exact-source Debug run is in progress). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `edf2d347bbe52cccd29dbeeb038e186fd18839ca` (retry overview UI + STOP-after-consent safety correction; exact-source Debug `41818674188` in progress and Full CI `41818673943` pending). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -246,3 +246,18 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Source-equivalent Debug run `41817853816` on `3aee6fc...` is still IN_PROGRESS at Gradle build/test; Full CI run `41817853867` was cancelled by the subsequent handoff update and is not a pass.
 - Latest handoff HEAD before this update: `22e911bed58b30a207e0b5c77d9e311beffe5a01`. Exact-head Debug `41817904327` and Full CI `41817904289` are IN_PROGRESS (Debug at Gradle build/test; Full CI at unit tests/debug APK). No green result or APK artifact is claimed.
 - Next: finish exact-head CI inspection; fix any actual compile/test failures before proceeding. Retry queue status UI remains a later item; do not claim Factory completion or produce a final APK.
+
+
+## Retry queue observability + post-consent STOP correction (2026-11-04)
+
+- Test-first retry overview contract: `0e69a1b9510a94f4c62e88d13456f31118a56b6b` (branch recovery snapshot included the new test without dropping existing tracked files).
+- Retry overview implementation: `8ba017cea65ab08d9d9c9e82a6a1f0e1b5d3b00a`. Pure read-only summary reports total, due, waiting, and the next scheduled issue with a rounded-up countdown. It does not schedule or start work.
+- Factory dialog integration: `813f0b69aa7c5e17712794d59abf585d3b18d2f1`. Worker panel shows persisted retry status; status refreshes on opening and after GitHub task refresh. Store read errors are shown as unavailable/manual review, not silently treated as an empty queue.
+- Corrected overview ordering/label in `c14eea1a488e02404b001f95a43ab395866c6865`: when some retries are already due, the line highlights the next future scheduled retry rather than incorrectly labelling that future issue "DUE NOW".
+- Exact-head Debug run `41818023297` on `36662759219b74ffaf6f395701b88f420ed619b8` FAILED after compilation and 402 unit tests: two failures. Real logs:
+  - `foregroundPreparationMayAddOnlyLocalApprovalWithoutChangingRequestedAction` had an incorrect expected operation string (`safe_action`) despite the fixture explicitly requesting `set_media_volume`. Corrected expectation and added original percentage preservation assertion in `74f59f2ae3a3268277e9f632e0c49ca54de4e0ef`.
+  - `externalStopAfterConsentSkipsBeforeJournalAndSideEffect` exposed a real race: STOP arriving while consent UI was open was not rechecked after preparation and before journal creation. Runner now rechecks external STOP after validating the prepared envelope and before journaling; STOP releases the claim without creating an attempt or invoking the adapter. Fix: `edf2d347bbe52cccd29dbeeb038e186fd18839ca`.
+- Current source HEAD before this handoff update: `edf2d347bbe52cccd29dbeeb038e186fd18839ca`. Debug `41818674188` is IN_PROGRESS; Full CI `41818673943` is PENDING at last poll. Parent runs `41818640405` / `41818640497` are on test-only parent SHA `74f59f2...` and are not final verification. Retry UI tests and source tests must pass on the final handoff-updated exact HEAD.
+- The retry overview is visibility only. Retry execution still requires foreground RUN NEXT, a fresh GitHub snapshot, new lease, STOP checks, and a new one-time approval. No automatic scheduler, WorkManager, heartbeat or background execution was added.
+- No APK artifact is claimed. No physical device test is claimed. Factory stages 7 (bounded parallel workers) and 8 (app-closed physical verification) remain pending; heartbeat remains deferred because the only adapter is a short synchronous volume operation.
+- Next: verify latest handoff-updated exact-HEAD Debug + Full CI, inspect real failures and fix them. Then proceed with safe bounded-worker design only after stage dependencies; do not deliver a final APK until all canonical stages and exact-head CI/artifact checks are complete.
