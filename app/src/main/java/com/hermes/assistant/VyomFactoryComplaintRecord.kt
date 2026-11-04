@@ -28,7 +28,7 @@ internal data class VyomFactoryComplaintRecord(
         appendLine("- **Verification probe:** $verificationProbe")
         appendLine("- **Fix type:** $fixType")
         appendLine()
-        appendLine("### Original complaint (preserved verbatim)")
+        appendLine("### Original complaint (sensitive text redacted when detected)")
         appendLine(originalText)
         appendLine()
         append("### Closure rule\nClose only after the named verification probe passes on the device; otherwise keep/reopen with the observed result.")
@@ -73,14 +73,17 @@ internal data class VyomFactoryComplaintRecord(
             val fixType = if (area in setOf("skill", "personality") &&
                 listOf("prompt", "wording", "persona", "skill content", "routing rule").any { lower.contains(it) }
             ) "content update with no APK" else "native change needing an APK"
+            val sensitive = MemoryCapturePolicy.isSensitive(original)
+            val safeOriginal = if (sensitive) "[REDACTED: sensitive complaint text withheld from the shared issue]" else original
             val evidence = when {
+                sensitive -> "Sensitive text was redacted before shared issue registration; review the original locally in Vyom."
                 Regex("(?im)^\\s*(log|screenshot|diagnostics result):").containsMatchIn(original) ->
                     "Owner-supplied evidence is included in the original complaint; review and attach it to this issue."
                 else -> "No log, screenshot or Diagnostics result supplied at intake; collect during reproduction."
             }
             return VyomFactoryComplaintRecord(
                 source = source,
-                originalText = original,
+                originalText = safeOriginal,
                 area = area,
                 severity = severity,
                 priority = priority,
