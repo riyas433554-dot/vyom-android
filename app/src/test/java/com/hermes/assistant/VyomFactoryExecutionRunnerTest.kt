@@ -94,6 +94,20 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun legacyJournalEntryBlocksReplayWhenOperationIdentityIsUnknown() {
+        val fixture = Fixture()
+        fixture.seedLegacySuccess()
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "legacy_attempt_requires_review"),
+            outcome
+        )
+        assertEquals(0, adapter.calls)
+    }
+
     @Test fun expiredOrReplacedLeasePreventsAdapterInvocation() {
         val fixture = Fixture()
         val adapter = RecordingAdapter(fail = false, isIdempotent = true)
@@ -154,6 +168,12 @@ class VyomFactoryExecutionRunnerTest {
 
         fun requestStop() {
             assertTrue(journal.requestStop(lease, "attempt-1", 2_001))
+        }
+
+        fun seedLegacySuccess() {
+            journal.begin(lease, "legacy-attempt", 1_500)
+            assertTrue(journal.markRunning(lease, "legacy-attempt", 1_600))
+            assertTrue(journal.succeed(lease, "legacy-attempt", 1_700, "old result"))
         }
 
         fun releaseLease() {
