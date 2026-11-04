@@ -3158,8 +3158,9 @@ class MainActivity : Activity() {
     private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat") {
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         if (token.isBlank()) {
-            item.state = "error"
-            item.reply = "Factory complaint not registered: GitHub token missing. Save a token with repository Issues read/write permission in Settings."
+            val pending = VyomFactoryComplaintSubmissionPolicy.missingGitHubToken()
+            item.state = pending.state
+            item.reply = pending.reply
             persistChatMessages()
             renderChatMessages()
             return
