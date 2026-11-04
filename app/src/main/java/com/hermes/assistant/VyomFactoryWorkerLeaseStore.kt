@@ -55,7 +55,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
         }
 
     /** Extends only the exact, still-live lease; stale owners cannot revive expired work. */
-    fun renew(lease: Lease, now: Long, durationMs: Long): Lease? = synchronized(PROCESS_LOCK) {
+    fun renew(lease: Lease, now: Long, durationMs: Long): Lease? = synchronized(VyomFactoryExecutionLock.LOCK) {
         validate(lease.issueNumber, lease.ownerId, now, durationMs)
         val leases = readAll().toMutableMap()
         val current = leases[lease.issueNumber]
@@ -69,7 +69,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
     }
 
     /** Releases only the exact lease token, so an old worker cannot release a successor's claim. */
-    fun release(lease: Lease): Boolean = synchronized(PROCESS_LOCK) {
+    fun release(lease: Lease): Boolean = synchronized(VyomFactoryExecutionLock.LOCK) {
         val leases = readAll().toMutableMap()
         val current = leases[lease.issueNumber]
         if (current == null || current.leaseId != lease.leaseId || current.ownerId != lease.ownerId) return@synchronized false
@@ -79,7 +79,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
     }
 
     /** Returns only an unexpired lease at the supplied clock time. */
-    fun active(issueNumber: Int, now: Long): Lease? = synchronized(PROCESS_LOCK) {
+    fun active(issueNumber: Int, now: Long): Lease? = synchronized(VyomFactoryExecutionLock.LOCK) {
         require(issueNumber > 0 && now >= 0)
         readAll()[issueNumber]?.takeIf { it.expiresAt > now }
     }
