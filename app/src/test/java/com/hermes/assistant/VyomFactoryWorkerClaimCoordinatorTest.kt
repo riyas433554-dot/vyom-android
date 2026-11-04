@@ -40,6 +40,20 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         assertEquals(22, claim?.task?.issueNumber)
     }
 
+    @Test fun claimsInProgressIssueAfterOwnerStartsIt() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        queue.enqueue(task(16, "P0", "source-16"))
+        val coordinator = VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs()))
+
+        val claim = coordinator.claimNext(
+            listOf(remote(16, "P0", "source-16", status = "in_progress")),
+            "device-worker", 1_000, 10_000
+        )
+
+        assertNotNull(claim)
+        assertEquals(16, claim!!.task.issueNumber)
+    }
+
     @Test fun skipsRemoteTasksThatAreNotOpenOrDoNotMatchLocalIdentity() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         queue.enqueue(task(10, "P0", "local-source"))
