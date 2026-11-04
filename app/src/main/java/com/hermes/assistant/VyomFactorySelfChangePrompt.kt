@@ -7,8 +7,8 @@ internal object VyomFactorySelfChangePrompt {
 
     fun build(task: VyomFactoryGitHubClient.Task): String {
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        require(!MemoryCapturePolicy.isSensitive(description)) {
-            "Sensitive complaint text cannot be sent to the code-generation model"
+        require(!MemoryCapturePolicy.isSensitive(task.title) && !MemoryCapturePolicy.isSensitive(description)) {
+            "Sensitive complaint title or text cannot be sent to the code-generation model"
         }
         val prompt = buildString {
             appendLine("Fix Factory complaint #${task.number}: ${task.title}")
