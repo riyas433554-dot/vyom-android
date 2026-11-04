@@ -434,3 +434,14 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact-head Full CI `41842466230` PENDING; Debug `41842466165` QUEUED. Previous corrected lifecycle-test CI was repeatedly cancelled/queued due to newer pushes before its Android test step completed. The lifecycle integration test and Automations regression tests remain unverified until a stable-head run finishes.
 - Note: earlier Full CI `41839292627` SUCCESS is only for ancestor `832f49e...`; it does not validate these later tests or the current source.
 - Next: poll exact-head workflows; obtain real test logs and fix compile/test failures. After stable green CI, inspect Factory proposal workflow tests and continue remaining Stage 1 gaps. Do not issue APK until the agreed Factory-first gate and exact-head Debug artifact checks pass.
+
+## Factory worker infrastructure-failure intake (2026-11-04)
+
+- Closed a Stage 1 gap found in `VyomFactoryDialog.runNextTask()`: exceptions thrown before the runner could return a typed `Outcome` were previously swallowed into `null`, leaving no canonical Factory complaint.
+- Added an optional `onRunnerFailure` callback. The dialog now reports only the exception class name (never raw exception text, request text, or credentials) to the Activity on the main thread.
+- `MainActivity.showVyomFactory()` creates a unique `task_failure` complaint using the existing idempotent GitHub issue intake, with private request/exception details withheld. This is specifically for worker infrastructure exceptions; typed runner `Failed` outcomes still audit the original issue.
+- Source checkpoint before this handoff refresh: `01c161b4baff97f920783eb8df5167e77207d7ca`.
+- Current exact-head CI: Debug `41843156481` QUEUED; Full CI `41843156742` PENDING. No build/test result is yet available for this source. The immediately prior source `30dfc0db49d9d53f171e1d09a589da8906ceec4a` Full CI `41843123386` was cancelled when the next commit arrived; it is not verification.
+- Earlier run `41842588194` on `b844d262dacea9768092acadc527fb8359a0b587` was cancelled and must not be reported as success. Runners appear delayed/queued; continue checking exact-head jobs and logs, do not infer failure or success from queue time.
+- Existing integration/regression tests remain unverified until a stable exact-head CI run completes: Factory START→claim→run→probe PASS→DONE; Automations canonical priority order; runner failure intake UI wiring.
+- Next: poll exact-head CI, fix only actual failures; then audit remaining Stage 1 gaps (external-agent source acceptance, Diagnostics auto-intake, screenshot evidence owner decision, Termux smoke and physical-device acceptance). Keep APK 1 blocked until Factory-first gate and exact-head Debug artifact are verified.
