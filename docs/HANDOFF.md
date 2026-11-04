@@ -2513,3 +2513,12 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Verification: CI for prior exact HEAD `b19687a555b9097846676b43437f846d0af1e9ff` was still running when this batch began (Debug `41781513162`, Full CI `41781513083`). Those runs do not verify this batch. New exact-head CI must be checked after the final HANDOFF commit.
 - No APK delivered. No backend, Render, production Supabase, or `main` changes.
 - Next fixed step after exact-head CI: inspect actual worker prerequisites and implement worker claim + lease protocol before heartbeat or later stages. Do not jump ahead.
+
+
+### CI failure correction — 2026-11-04
+
+- Exact-head CI on `b87ec931f08fb97984b63db251cc85089848f6fe` failed in both Debug run `41781945678` and Full CI run `41781945713`.
+- Actual failure: `VyomFactoryTaskStorePersistenceTest.reconciliationSkipsIssueAndSourceIdentityConflictsWithoutOverwriting`; the assertion expected issue 41 before issue 43 even though the existing queue contract correctly sorts P1 before P2.
+- Corrected only the test's expected order to `[43, 41]`; production queue policy was not changed. Commit: `c7833dcf55e0e9de7e790f5dade65ed00ec3166c`.
+- This is a test expectation correction, not a new feature. Reconciliation implementation from the preceding batch remains the implementation; do not recreate it.
+- CI for this correction's new exact HEAD is pending. Worker claim + lease remains next only after verifying CI and re-inspecting current worker code.
