@@ -228,3 +228,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - CI for prior source HEAD `aad1445228d55914f3bbefe6f1c477a671470f9a`: Debug `41817304881` and Full CI `41817304876` were still running in Gradle unit-test/build steps when this follow-up landed; neither was green at last poll. They are superseded by the new source commit and cannot verify it.
 - New exact source HEAD `a61c5a74356843ee9598c306adc4d4357c1786dc`: poll its Debug + Full CI runs. No green CI or APK artifact is claimed.
 - Next: inspect exact-head CI. Then continue bounded retry status/observability and remaining Factory stages. Do not introduce heartbeat for the current short media-volume adapter.
+
+
+## CI compile failure and test-source correction (2026-11-04)
+
+- Exact log from Debug run `41817304881` (source HEAD `aad1445228d55914f3bbefe6f1c477a671470f9a`, job `126531225422`) identified Kotlin syntax errors in `VyomFactoryExecutionRunnerTest.kt` lines 314, 370 and 387. The test-fixture signature and constructor arguments contained literal backslash-n sequences rather than actual line breaks, producing cascading unresolved references. This was a real compile failure; no artifact was uploaded.
+- Corrected the test source in commit `3aee6fc05b8682daf34e2bfe9d7a48cf574eb626`. Production code was not changed by this fix.
+- Retry jitter herd prevention remains in source commit `a61c5a74356843ee9598c306adc4d4357c1786dc`: deterministic issue+operation seed instead of operation-only seed.
+- Latest source HEAD is `3aee6fc05b8682daf34e2bfe9d7a48cf574eb626`. The previous Debug run `41817783421` was on the parent handoff SHA and is not verification for this fix; parent Full CI `41817783410` was cancelled. New exact-head Debug + Full CI runs must be checked; do not claim green until they complete.
+- Next: inspect exact-head CI compiler/test output, fix any further real errors, then add retry queue status UI only after compile/test stability. No final APK.
