@@ -104,7 +104,7 @@ class VyomFactoryLifecycleIntegrationTest {
                 description, probe, evidence, passed = true
             )
             val verifiedBody = VyomFactoryStatus.withMetadata(verifiedDescription, verifiedMetadata)
-            server.enqueue(json(issue(issueNumber, verifiedMetadata, verifiedBody, "open")))
+            server.enqueue(json(issue(issueNumber, verifiedMetadata, verifiedBody, "open").toString()))
             server.enqueue(json("""{"id":3}"""))
             val verified = client.recordVerificationResult(freshForVerification, passed = true, evidence = evidence)
             assertTrue(VyomFactoryVerificationPolicy.canComplete(
@@ -118,7 +118,7 @@ class VyomFactoryLifecycleIntegrationTest {
                 events = verifiedMetadata.events + "updated:completed:P2"
             )
             val completedBody = VyomFactoryStatus.withMetadata(verifiedDescription, completedMetadata)
-            server.enqueue(json(issue(issueNumber, completedMetadata, completedBody, "closed")))
+            server.enqueue(json(issue(issueNumber, completedMetadata, completedBody, "closed").toString()))
             server.enqueue(json("""{"id":4}"""))
             val completed = client.updateTask(verified, newStatus = "completed")
             assertEquals(issueNumber, completed.number)
