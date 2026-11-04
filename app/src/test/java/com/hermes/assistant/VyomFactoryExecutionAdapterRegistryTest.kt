@@ -14,7 +14,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
 
         val result = registry.dispatch(envelope)
 
-        assertEquals(VyomFactoryExecutionAdapterRegistry.Outcome.Executed("android_action:open_settings"), result)
+        assertEquals(VyomFactoryExecutionAdapterRegistry.Outcome.Executed("android_action: open_settings"), result)
         assertEquals(1, android.calls)
         assertEquals(0, repository.calls)
     }
