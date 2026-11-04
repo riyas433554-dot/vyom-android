@@ -3700,6 +3700,11 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     if (liveCaptionsEnabled) liveCaptionView?.text = recognized
                     if (voiceLoopEnabled && !voiceMuted && recognized.isNotBlank()) {
+                        val voicePromoteFirstIssue = VyomFactoryOwnerCommand.promoteFirstIssueNumber(recognized)
+                        if (voicePromoteFirstIssue != null) {
+                            promoteFactoryComplaintToFirst(voicePromoteFirstIssue)
+                            return@runOnUiThread
+                        }
                         val voiceComplaint = extractFactoryComplaint(recognized)
                         if (voiceComplaint != null) {
                             val complaintItem = ChatMessage(UUID.randomUUID().toString(), recognized, "queued")
