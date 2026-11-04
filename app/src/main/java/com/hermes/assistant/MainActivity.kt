@@ -2993,6 +2993,23 @@ class MainActivity : Activity() {
         return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
     }
 
+    private fun submitAutomaticDiagnosticFailure(result: String) {
+        val safeResult = VyomAuditPolicy.sanitize(result)
+        val sourceId = VyomFactoryStatus.diagnosticFailureSourceId(safeResult)
+        val itemId = "diagnostics:$sourceId"
+        val existing = chatMessages.firstOrNull { it.id == itemId }
+        if (existing != null) {
+            if (existing.state == "queued") submitFactoryComplaint(existing, existing.text, "diagnostics")
+            return
+        }
+        val report = "Automatic Diagnostics failure: $safeResult"
+        val item = ChatMessage(itemId, report, "queued")
+        chatMessages.add(item)
+        persistChatMessages()
+        renderChatMessages()
+        submitFactoryComplaint(item, report, "diagnostics")
+    }
+
     private fun promoteFactoryComplaintToFirst(issueNumber: Int) {
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         val item = ChatMessage(UUID.randomUUID().toString(), "ye complaint pehle #$issueNumber", "running")
@@ -3181,6 +3198,7 @@ class MainActivity : Activity() {
             val complaint = extractFactoryComplaint(item.text)
             when {
                 item.id.startsWith("task-failure:") -> submitFactoryComplaint(item, item.text, "task_failure")
+                item.id.startsWith("diagnostics:") -> submitFactoryComplaint(item, item.text, "diagnostics")
                 complaint != null -> submitFactoryComplaint(item, complaint)
                 else -> scheduleChatMessage(item)
             }
@@ -4261,6 +4279,7 @@ class MainActivity : Activity() {
                 rows += "FAIL · Update diagnostics · ${error.message ?: "Unknown verification error"}"
             }
             runOnUiThread {
+                rows.filter { it.startsWith("FAIL ·") }.forEach(::submitAutomaticDiagnosticFailure)
                 resultView.text = rows.joinToString("\n")
                 runButton.isEnabled = true
             }
