@@ -458,7 +458,7 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 
 ## Debug CI failure correction (2026-11-04)
 
-- Exact-head Debug CI 41843876699 on parent SHA 9a164bf3b460ef7e149dacf4a0bc2afcdd9e114 completed FAILURE. The log shows :app:compileDebugKotlin completed, but :app:compileDebugUnitTestKotlin failed at VyomFactoryLifecycleIntegrationTest.kt lines 33, 107, and 121: JSONObject was passed where the helper requires a String.
+- Exact-head Debug CI 41843876699 on parent SHA 9a164bf3b460b750029057bd287d43dd53e1b9c2 completed FAILURE. The log shows :app:compileDebugKotlin completed, but :app:compileDebugUnitTestKotlin failed at VyomFactoryLifecycleIntegrationTest.kt lines 33, 107, and 121: JSONObject was passed where the helper requires a String.
 - Corrected all three MockWebServer response calls to serialize the JSONObject with .toString(). Commit: bbae296400390ef7e149dacf4a0bc2afcdd9e114.
 - This is a test-source compile correction only; no app behavior changed. The corrected test has not yet been executed by CI.
 - Parent Full CI 41843876818 was still IN_PROGRESS on the old parent SHA when this correction was pushed; it does not validate the corrected commit. Poll its final result separately.
