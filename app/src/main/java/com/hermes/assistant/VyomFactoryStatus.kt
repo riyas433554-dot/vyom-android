@@ -27,6 +27,15 @@ internal object VyomFactoryStatus {
         return "$normalizedSource:$normalizedId"
     }
 
+    fun diagnosticFailureSourceId(result: String): String {
+        val clean = result.trim()
+        require(clean.isNotEmpty()) { "Diagnostic failure result is required" }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(clean.toByteArray(Charsets.UTF_8))
+        val suffix = digest.take(16).joinToString("") { byte -> "%02x".format(byte) }
+        return "diag-$suffix"
+    }
+
     fun readMetadata(body: String?): Metadata? {
         if (body.isNullOrBlank()) return null
         val match = Regex("<!--\\s*$MARKER(.*?)\\s*-->", setOf(RegexOption.DOT_MATCHES_ALL))
