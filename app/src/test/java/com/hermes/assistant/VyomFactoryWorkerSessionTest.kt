@@ -57,7 +57,7 @@ class VyomFactoryWorkerSessionTest {
 
         assertTrue(session.release(claim))
         assertFalse(session.isCurrent(claim))
-        val next = session("worker-b").claimNext()
+        val next = session(queue, listOf(remote(26, "P1", "source-26")), "worker-b").claimNext()
         assertNotNull(next)
         assertEquals(26, next!!.task.issueNumber)
     }
