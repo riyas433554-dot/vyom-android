@@ -7,13 +7,13 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD: `c5c657c4723bfd5ef4b116be59ad136adf0f0b94` (startup recovery + MainActivity lifecycle instrumentation harness). Exact-head Debug `41829739822` IN_PROGRESS; exact-head Full CI `41829739866` PENDING at handoff edit time. Previous verified parent `34d14881a7e6b8278d03389c01ac29f65aee18ba`: Debug `41825573775` SUCCESS; Full CI `41825573748` SUCCESS; artifact `vyom-0.3.1-34d14881a7e6b8278d03389c01ac29f65aee18ba`, ID `13318513312`, 88,121,760 bytes, digest `sha256:3bfbd5ec9384ff091bb3914f8bcc7afe30d124802c0290322f0fe53ce007733d`. Parent artifact is not approved milestone APK delivery. Exact-head CI must be refreshed after this HANDOFF commit.
+- Last implementation checkpoint before ORDER v2 documentation: `19450f332cc1a7e57a607b3ba5c9d0d6fba982d6`. Exact-head Debug `41829822238` is IN_PROGRESS (Gradle build/tests SUCCESS; Android lifecycle instrumentation still running); exact-head Full CI `41829822263` SUCCESS. Owner says lifecycle instrumentation must not gate APK 1. Previous verified parent `34d14881a7e6b8278d03389c01ac29f65aee18ba` has a non-milestone artifact only. Previous verified parent `34d14881a7e6b8278d03389c01ac29f65aee18ba`: Debug `41825573775` SUCCESS; Full CI `41825573748` SUCCESS; artifact `vyom-0.3.1-34d14881a7e6b8278d03389c01ac29f65aee18ba`, ID `13318513312`, 88,121,760 bytes, digest `sha256:3bfbd5ec9384ff091bb3914f8bcc7afe30d124802c0290322f0fe53ce007733d`. Parent artifact is not approved milestone APK delivery. Exact-head CI must be refreshed after this HANDOFF commit.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
-- No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
+- APK 1 gate is ORDER v2: complaint intake + triage/register seed, A18 signed no-APK update channel with passing and rollback demo, A17 control engine + required diagnostics, exact-head CI green, signing/artifact checks. Do NOT wait for Factory lifecycle stages 5/6/8 or physical process-death testing.
 - Report only verified tests, CI, artifacts, and physical-device results.
 
-## Canonical Factory order
+## Superseded legacy Factory order — historical context only; DO NOT FOLLOW
 
 1. Persistent task store/queue — implemented and tested.
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
