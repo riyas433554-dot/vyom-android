@@ -12,7 +12,7 @@ import org.json.JSONObject
  * to this app process's lease operations. It is not a multi-process or cross-device
  * transaction. Expired attempts are marked interrupted and are never auto-replayed.
  */
-internal class VyomFactoryExecutionJournal private constructor(
+internal class VyomFactoryExecutionJournal internal constructor(
     private val prefs: SharedPreferences,
     private val leases: VyomFactoryWorkerLeaseStore
 ) {
@@ -20,14 +20,6 @@ internal class VyomFactoryExecutionJournal private constructor(
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
         VyomFactoryWorkerLeaseStore(context.applicationContext.getSharedPreferences(LEASE_PREFS, Context.MODE_PRIVATE))
     )
-
-    internal constructor(prefs: SharedPreferences, leases: VyomFactoryWorkerLeaseStore) : this(prefs, leases, true)
-
-    private constructor(
-        prefs: SharedPreferences,
-        leases: VyomFactoryWorkerLeaseStore,
-        @Suppress("UNUSED_PARAMETER") marker: Boolean
-    ) : this(prefs, leases)
 
     enum class State {
         CLAIMED, RUNNING, STOP_REQUESTED, SUCCEEDED, FAILED, INTERRUPTED
@@ -169,7 +161,10 @@ internal class VyomFactoryExecutionJournal private constructor(
         transform: (Entry) -> Entry?
     ): Boolean = synchronized(VyomFactoryExecutionLock.LOCK) {
         require(now >= 0)
-        requireCurrentLease(lease, now)
+        val active = leases.active(lease.issueNumber, now)
+        if (active == null || active.leaseId != lease.leaseId || active.ownerId != lease.ownerId) {
+            return@synchronized false
+        }
         val entries = readAll().toMutableMap()
         val current = entries[attemptId] ?: return@synchronized false
         if (current.issueNumber != lease.issueNumber ||
