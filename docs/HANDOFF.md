@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest branch HEAD after journal-test correction: `e58a843807795d2a544aff8f049f40e28e00aa76`.
+- Latest branch HEAD: `0f9e9c02f7015e7dab2ea1c366e56f08325a5809`.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -19,7 +19,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
 3. Heartbeat — pending; never renew idle claims.
 4. Retry/backoff — pending.
-5. STOP/pause — pending for actual running work; current release button only releases an unstarted claim.
+5. STOP/pause — durable journal stop request is now fenced to the exact current lease + attempt and only transitions RUNNING work; actual cooperative cancellation remains pending until an executor exists.
 6. Crash recovery — pending.
 7. Bounded parallel workers — pending.
 8. App-closed execution verification — pending physical Android testing.
@@ -32,7 +32,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Lease fencing is local to one app process/device; it is not distributed CAS.
 - Claim session refreshes GitHub before each claim and reconciles only issues whose GitHub state and metadata status are both `open`.
 - Factory dialog exposes foreground CLAIM NEXT / RELEASE CLAIM only. It does not execute tasks.
-- No autonomous worker, WorkManager scheduler, or concrete Android/repository action adapter exists yet.
+- No autonomous worker, WorkManager scheduler, or concrete Android/repository action adapter exists yet. The journal is persistence/state machinery only; it does not execute or cancel work.
 
 ## Execution routing work just added
 
@@ -64,12 +64,18 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 - Fixed all remaining lease lock references to use `VyomFactoryExecutionLock.LOCK` in `bffee52a8d0859ec7aa99ebde7439cbc889d1925`.
 - Exact HEAD `09028f1bbec6fba4f6cd80b78907fa5722fed2e7`: Debug `41805255577` FAILURE and Full CI `41805255325` FAILURE. Both compiled Kotlin and built the debug APK, then failed the same unit test: `VyomFactoryExecutionJournalTest.terminalAttemptRejectsDuplicateOrConflictingWrites` at line 59. 352 tests ran, 1 failed; packaging/upload skipped. The test attempted `succeed()` while the journal state was still `CLAIMED`, but implementation/ADR requires `CLAIMED -> RUNNING -> terminal`.
 - Corrected that test to call `markRunning()` before `succeed()` in `e58a843807795d2a544aff8f049f40e28e00aa76`. This is a test-fixture correction; production journal behavior was not weakened. Exact-HEAD CI for this correction is pending.
+- Exact HEAD `4da63479f400ae000348521431bbd02a9181867e`: Debug `41806744377` SUCCESS and Full CI `41806744491` SUCCESS. Both runs checked out that exact SHA.
+- Journal edge-case RED tests added in `7b44842a4cf5a6e8f8b2da731e77238377be70fc`: reject a second nonterminal attempt for the same issue/lease; allow a new attempt after terminal completion; require STOP to target a running attempt using the exact lease token; stale attempts become INTERRUPTED when a successor lease begins.
+- Journal implementation hardening: `0ca4076e156649882b9e79c3e9047a10195891f2`; stale-attempt test expectation corrected in `759bbbaeb0437a75020a335f17b9b4b0e1dd93f7`; duplicate-active conflict now uses an IllegalStateException in `0f9e9c02f7015e7dab2ea1c366e56f08325a5809`.
+- Current journal behavior: only one nonterminal attempt per issue/lease; when a successor lease takes over, previous nonterminal attempt is fenced and marked INTERRUPTED, never replayed. STOP now requires `(lease, attemptId, now)`, verifies the active lease token and exact attempt, and only transitions RUNNING → STOP_REQUESTED (repeated request is idempotent). CLAIMED work cannot be mislabeled as running/stopped.
+- Journal storage now has a hard 500-entry ceiling. It fails closed rather than deleting audit history; this is a deliberate safety cap, not an automatic archival policy.
+- Exact current HEAD `0f9e9c02f7015e7dab2ea1c366e56f08325a5809`: Debug `41807931917` IN_PROGRESS and Full CI `41807931989` PENDING at last poll. Test-only commit `7b44842...` workflows `41807848949` / `41807848960` were still IN_PROGRESS at last poll; later implementation commits superseded those runs. Do not claim the journal edge-case suite green until exact-HEAD CI finishes.
 - Earlier Full CI `41786551264` failed before compilation due Maven Central HTTP 403; this was dependency resolution infrastructure, not a demonstrated source/test failure.
 
 ## Immediate next actions
 
-1. Verify exact-HEAD Debug and Full CI for `e58a843807795d2a544aff8f049f40e28e00aa76`; fix any failures from real logs.
-2. Once green, review journal edge cases (including duplicate active attempts per issue/lease and bounded journal growth) before implementing bounded retry/backoff.
+1. Verify exact-HEAD Debug and Full CI for `0f9e9c02f7015e7dab2ea1c366e56f08325a5809`; fix failures from real logs. The two prior green runs on `4da6347...` do not validate these new journal changes.
+2. Once green, implement and test bounded retry/backoff; do not add heartbeat until a real executor is active.
 3. Implement one narrowly scoped concrete adapter only after task schemas and capability permissions are validated.
 4. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
 5. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
