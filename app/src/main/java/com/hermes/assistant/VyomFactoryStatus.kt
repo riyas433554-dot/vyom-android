@@ -17,7 +17,7 @@ internal object VyomFactoryStatus {
     private const val MARKER = "VYOM_FACTORY_META:"
     private val priorities = setOf("P0", "P1", "P2", "P3")
     private val statuses = setOf("open", "in_progress", "blocked", "paused", "completed", "cancelled")
-    private val sources = setOf("factory", "vyom_chat", "chatgpt", "termux")
+    private val sources = setOf("factory", "vyom_chat", "vyom_voice", "diagnostics", "task_failure", "chatgpt", "claude", "codex", "termux", "share_sheet")
 
     fun idempotencyKey(source: String, sourceId: String): String? {
         val normalizedSource = source.trim().lowercase()
