@@ -2985,8 +2985,9 @@ class MainActivity : Activity() {
         renderChatMessages()
         io.execute {
             try {
-                val title = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
-                    .ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
+                val rawTitle = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
+                val title = if (MemoryCapturePolicy.isSensitive(rawTitle)) "Sensitive complaint details redacted"
+                    else rawTitle.ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
                 val record = VyomFactoryComplaintRecord.fromFreeText(source, complaint)
                 val task = VyomFactoryGitHubClient(token).createTask(
                     title = title,
