@@ -31,7 +31,7 @@ internal class VyomFactoryTaskStore(context: Context) {
         if (!VyomFactoryTaskQueuePolicy.isUnique(current, task)) return@synchronized false
         current += task
         persist(current)
-        return true
+        true
     }
 
     
