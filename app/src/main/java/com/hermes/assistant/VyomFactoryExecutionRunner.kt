@@ -107,6 +107,8 @@ internal class VyomFactoryExecutionRunner(
                     retrySchedules.clear(issue, envelope.operationKey())
                     true
                 }.getOrDefault(false)
+                // A terminal journal record is durable before the exact claim is released.
+                releaseTerminalClaim(claim)
                 Outcome.Succeeded(issue, attemptId, result, retryScheduleCleared = cleared)
             }
         } catch (error: Exception) {
@@ -126,16 +128,27 @@ internal class VyomFactoryExecutionRunner(
                 return Outcome.Fenced(issue)
             }
             if (category != "stopped") {
-                retrySchedules.recordFailure(
-                    issueNumber = issue,
-                    operationKey = envelope.operationKey(),
-                    errorCategory = category,
-                    now = now(),
-                    adapterIdempotent = adapters.isIdempotent(envelope.target)
-                )
+                // Retry persistence is best-effort after the durable FAILED journal entry.
+                // A storage failure must not strand the terminal worker claim.
+                runCatching {
+                    retrySchedules.recordFailure(
+                        issueNumber = issue,
+                        operationKey = envelope.operationKey(),
+                        errorCategory = category,
+                        now = now(),
+                        adapterIdempotent = adapters.isIdempotent(envelope.target)
+                    )
+                }
             }
+            releaseTerminalClaim(claim)
             Outcome.Failed(issue, attemptId, category)
         }
+    }
+
+    private fun releaseTerminalClaim(claim: VyomFactoryWorkerClaimCoordinator.Claim) {
+        // Release is fenced by the exact lease token; cleanup failure never rewrites
+        // an already-persisted terminal execution result.
+        runCatching { releaseClaim(claim) }
     }
 
     private fun VyomFactoryExecutionEnvelope.operationKey(): String =
