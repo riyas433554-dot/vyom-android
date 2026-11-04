@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest known HEAD: `930152c5e2e043c1f7e7271e550304f0d5ada730`
+- Latest implementation HEAD before the latest test correction: `aad88b0d58c563c6729a5516e11defcaab016306` (docs-only handoff update); latest test correction commit: `99f4a121cd52fa9faf70df168a35e3df51fcd0c2`.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -55,17 +55,16 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 - Adapter routing tests: `f0b6f288dedcb25c143c8c9e9dd5f36c406dd9dc`, expectation correction `719d75b4f8a13be579120add51f5eafbbcde36d8`, method alignment `12d28eccc4496a6bfc396177a72d5259e39043c7`.
 - Adapter registry implementation: `a3c1e0284aa519a98f6a3530d62dcad7e39d9c73`.
 - Additional parser edge tests (duplicate markers, oversized arguments, target-specific field mismatch): `de9eb5fa64a12b4def4a58ef1c772909d9496fee`.
-- Latest source/test commits have not yet had verified CI results. Do not claim tests pass.
+- Debug CI run `41788314857` on `aad88b0d58c563c6729a5516e11defcaab016306` failed only at `VyomFactoryExecutionAdapterRegistryTest.routesOnlyToAdapterMatchingExplicitTarget`: test expected `android_action:open_settings`, while the recording adapter actually returns `android_action: open_settings`. Build and Kotlin compilation succeeded; 345 tests ran, 1 failed.
+- Test expectation corrected in `99f4a121cd52fa9faf70df168a35e3df51fcd0c2`; exact-head CI for this correction is pending.
 - Earlier Full CI `41786551264` failed before compilation due Maven Central HTTP 403; this was dependency resolution infrastructure, not a demonstrated source/test failure.
 
 ## Immediate next actions
 
-1. Verify current branch HEAD `930152c5e2e043c1f7e7271e550304f0d5ada730` and obtain exact-HEAD CI results.
-2. Inspect CI logs; fix actual parser/registry compile or test failures.
-3. Run exact-HEAD CI and fix any actual compile/test failures.
-4. Add a durable execution journal and idempotency/result fencing before concrete adapters.
-5. Implement one narrowly scoped concrete adapter only after task schemas and capability permissions are validated.
-6. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
-7. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
+1. Verify exact-head CI for test correction `99f4a121cd52fa9faf70df168a35e3df51fcd0c2` and fix only real failures.
+2. Add a durable execution journal and idempotency/result fencing before concrete adapters.
+3. Implement one narrowly scoped concrete adapter only after task schemas and capability permissions are validated.
+4. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
+5. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
 
 No backend, Render, production Supabase, or Android `main` changes. No physical Android app-closed test claimed.
