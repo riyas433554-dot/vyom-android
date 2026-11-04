@@ -79,10 +79,10 @@ internal object VyomFactoryStatus {
     fun canTransition(from: String, to: String): Boolean {
         if (from !in statuses || to !in statuses || from == to) return false
         return when (from) {
-            "open" -> to in setOf("blocked", "paused", "cancelled")
+            "open" -> to in setOf("in_progress", "blocked", "paused", "cancelled")
             "in_progress" -> to in setOf("open", "blocked", "paused", "completed", "cancelled")
             "blocked" -> to in setOf("open", "cancelled")
-            "paused" -> to in setOf("open", "cancelled")
+            "paused" -> to in setOf("in_progress", "open", "cancelled")
             else -> false
         }
     }
