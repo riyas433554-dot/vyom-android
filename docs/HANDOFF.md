@@ -218,3 +218,13 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Scope: recovery occurs when the user taps foreground RUN NEXT after the app is available. It marks expired/replaced attempts interrupted and requires manual review; it does not replay a side effect, run on app startup independently, or provide background execution.
 - Exact source HEAD `e2e10724bfcf759ae59bed82fcae114c1a06c9e9`: Debug run `41817236650` is QUEUED; Full CI run `41817236425` is PENDING. No green result or APK artifact is claimed. Older runs on `80b2df6...` and prior source SHAs are superseded; some Full CI jobs were cancelled while multiple pushes were being tested.
 - Next: poll the exact-head Debug + Full CI. If green, review the filtered retry path and add bounded retry/attempt status UI. Bounded parallelism and app-closed verification remain pending. Heartbeat remains deferred until an adapter has a measurable long-running phase.
+
+
+## Retry jitter herd prevention (2026-11-04)
+
+- Test-first commit: `03a6314dde76e1c9993941a1b2792da124f204ee` verifies that the same issue/operation receives deterministic retry jitter while different issue IDs receive different offsets.
+- Implementation commit: `a61c5a74356843ee9598c306adc4d4357c1786dc`. Retry jitter identity now hashes issue number + operation key. Previously it hashed only operation key, causing every issue using the same adapter to receive the same delay and potentially retry in synchronized bursts.
+- Delay remains bounded to the existing 0–25% jitter window; only the stable seed changed. This does not create a scheduler or background retries.
+- CI for prior source HEAD `aad1445228d55914f3bbefe6f1c477a671470f9a`: Debug `41817304881` and Full CI `41817304876` were still running in Gradle unit-test/build steps when this follow-up landed; neither was green at last poll. They are superseded by the new source commit and cannot verify it.
+- New exact source HEAD `a61c5a74356843ee9598c306adc4d4357c1786dc`: poll its Debug + Full CI runs. No green CI or APK artifact is claimed.
+- Next: inspect exact-head CI. Then continue bounded retry status/observability and remaining Factory stages. Do not introduce heartbeat for the current short media-volume adapter.
