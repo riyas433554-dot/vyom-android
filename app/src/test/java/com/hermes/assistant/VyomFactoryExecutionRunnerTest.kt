@@ -48,7 +48,7 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
-    @Test fun adapterMustCooperateWithStopSignalBeforeSideEffect() {
+    @Test fun adapterCanObserveStopSignalBeforeSideEffect() {
         val fixture = Fixture()
         var sideEffects = 0
         val adapter = object : VyomFactoryExecutionAdapter {
@@ -58,17 +58,17 @@ class VyomFactoryExecutionRunnerTest {
                 envelope: VyomFactoryExecutionEnvelope,
                 control: VyomFactoryExecutionControl
             ): String {
+                fixture.requestStop()
                 if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
                 sideEffects++
                 return "done"
             }
         }
         val runner = fixture.runner(adapter)
-        // STOP is requested by the runner's journal state before adapter execution.
-        // A dedicated runner hook is intentionally not exposed; adapter control is
-        // exercised by a control implementation in the registry tests.
-        assertTrue(runner.runNext() is VyomFactoryExecutionRunner.Outcome.Succeeded)
-        assertEquals(1, sideEffects)
+        val outcome = runner.runNext()
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Failed)
+        assertEquals(0, sideEffects)
+        assertTrue(fixture.retryStore.all().isEmpty())
     }
 
     private class Fixture(remoteState: String = "open") {
@@ -90,6 +90,10 @@ class VyomFactoryExecutionRunnerTest {
         val journal = VyomFactoryExecutionJournal(prefs, leaseStore)
         val retryStore = VyomFactoryRetryScheduleStore(MemoryPrefs())
         private var claimed = false
+
+        fun requestStop() {
+            assertTrue(journal.requestStop(lease, "attempt-1", 2_001))
+        }
 
         init {
             assertEquals("open", metadata.status)
