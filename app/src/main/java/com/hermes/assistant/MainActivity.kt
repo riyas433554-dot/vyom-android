@@ -2955,7 +2955,7 @@ class MainActivity : Activity() {
         return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
     }
 
-    private fun submitFactoryComplaint(item: ChatMessage, complaint: String) {
+    private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat") {
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         if (token.isBlank()) {
             item.state = "error"
@@ -2972,12 +2972,12 @@ class MainActivity : Activity() {
             try {
                 val title = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
                     .ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
-                val record = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
+                val record = VyomFactoryComplaintRecord.fromFreeText(source, complaint)
                 val task = VyomFactoryGitHubClient(token).createTask(
                     title = title,
                     description = record.toIssueDescription(),
                     priority = record.priority,
-                    source = "vyom_chat",
+                    source = source,
                     sourceId = item.id
                 )
                 VyomFactoryTaskStore(applicationContext).enqueue(
@@ -3636,6 +3636,15 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     if (liveCaptionsEnabled) liveCaptionView?.text = recognized
                     if (voiceLoopEnabled && !voiceMuted && recognized.isNotBlank()) {
+                        val voiceComplaint = extractFactoryComplaint(recognized)
+                        if (voiceComplaint != null) {
+                            val complaintItem = ChatMessage(UUID.randomUUID().toString(), recognized, "queued")
+                            chatMessages.add(complaintItem)
+                            persistChatMessages()
+                            renderChatMessages()
+                            submitFactoryComplaint(complaintItem, voiceComplaint, "vyom_voice")
+                            return@runOnUiThread
+                        }
                         if (liveLaneEnabled) {
                             val item = ChatMessage(UUID.randomUUID().toString(), recognized, "running")
                             chatMessages.add(item)
