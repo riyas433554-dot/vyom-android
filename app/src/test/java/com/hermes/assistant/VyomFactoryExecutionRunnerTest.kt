@@ -182,6 +182,49 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun externalStopAfterConsentSkipsBeforeJournalAndSideEffect() {
+        val fixture = Fixture()
+        val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+        val outcome = fixture.runner(
+            adapter,
+            prepareExecution = { stop.set(true); it },
+            externalStopRequested = { stop.get() }
+        ).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "stopped_before_execution"),
+            outcome
+        )
+        assertEquals(0, adapter.calls)
+        assertTrue(fixture.journal.all().isEmpty())
+        assertNull(fixture.activeLease())
+    }
+
+    @Test fun externalStopIsVisibleToAdapterBeforeItsSideEffect() {
+        val fixture = Fixture()
+        val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+        var sideEffects = 0
+        val adapter = object : VyomFactoryExecutionAdapter {
+            override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
+            override val isIdempotent = true
+            override fun isVerifiedResult(result: String) = true
+            override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
+                stop.set(true)
+                if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
+                sideEffects++
+                return "completed"
+            }
+        }
+
+        val outcome = fixture.runner(adapter, externalStopRequested = { stop.get() }).runNext()
+
+        assertEquals(VyomFactoryExecutionRunner.Outcome.Failed(71, "attempt-1", "stopped"), outcome)
+        assertEquals(0, sideEffects)
+        assertTrue(fixture.retryStore.all().isEmpty())
+        assertNull(fixture.activeLease())
+    }
+
     @Test fun previousVerifiedSuccessSkipsBeforeRequestingNewConsent() {
         val fixture = Fixture()
         fixture.seedVerifiedSuccess()
@@ -280,7 +323,7 @@ class VyomFactoryExecutionRunnerTest {
             assertEquals("open", metadata.status)
         }
 
-        fun runner(adapter: VyomFactoryExecutionAdapter, prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it }): VyomFactoryExecutionRunner {
+        fun runner(\n            adapter: VyomFactoryExecutionAdapter,\n            prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },\n            externalStopRequested: () -> Boolean = { false }\n        ): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
                 claimNext = {
@@ -297,7 +340,7 @@ class VyomFactoryExecutionRunnerTest {
                 retrySchedules = retryStore,
                 now = { clock },
                 newAttemptId = { "attempt-${++attemptSequence}" },
-                prepareExecution = prepareExecution
+                prepareExecution = prepareExecution,\n                externalStopRequested = externalStopRequested
             )
         }
     }
