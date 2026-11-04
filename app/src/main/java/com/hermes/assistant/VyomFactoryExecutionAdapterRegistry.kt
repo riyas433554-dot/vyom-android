@@ -1,8 +1,13 @@
 package com.hermes.assistant
 
+internal interface VyomFactoryExecutionControl {
+    /** Adapters must check before each side effect and while waiting on long work. */
+    fun shouldStop(): Boolean
+}
+
 internal interface VyomFactoryExecutionAdapter {
     val target: VyomFactoryExecutionEnvelope.Target
-    fun run(envelope: VyomFactoryExecutionEnvelope): String
+    fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String
 }
 
 internal class VyomFactoryExecutionAdapterRegistry(
@@ -22,12 +27,20 @@ internal class VyomFactoryExecutionAdapterRegistry(
         byTarget = adapters.associateBy { it.target }
     }
 
-    fun dispatch(envelope: VyomFactoryExecutionEnvelope): Outcome {
+    fun supports(target: VyomFactoryExecutionEnvelope.Target): Boolean = target in byTarget
+
+    fun dispatch(
+        envelope: VyomFactoryExecutionEnvelope,
+        control: VyomFactoryExecutionControl
+    ): Outcome {
         if (!envelope.isExecutable ||
             envelope.target == VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW
         ) return Outcome.ManualReview
 
         val adapter = byTarget[envelope.target] ?: return Outcome.Unsupported(envelope.target)
-        return Outcome.Executed(adapter.run(envelope))
+        if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
+        return Outcome.Executed(adapter.run(envelope, control))
     }
 }
+
+internal class VyomFactoryExecutionStoppedException : Exception("Execution stop requested")
