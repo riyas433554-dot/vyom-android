@@ -19,7 +19,7 @@ internal class VyomFactoryExecutionRunner(
     private val newAttemptId: () -> String
 ) {
     sealed class Outcome {
-        data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String) : Outcome()
+        data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String, val retryScheduleCleared: Boolean) : Outcome()
         data class Failed(val issueNumber: Int, val attemptId: String, val category: String) : Outcome()
         data class Skipped(val issueNumber: Int, val reason: String) : Outcome()
         object NoWork : Outcome()
@@ -73,8 +73,12 @@ internal class VyomFactoryExecutionRunner(
             if (!journal.succeed(claim.lease, attemptId, now(), result)) {
                 Outcome.Fenced(issue)
             } else {
-                retrySchedules.clear(issue, envelope.operationKey())
-                Outcome.Succeeded(issue, attemptId, result)
+                // Do not rewrite an already successful side effect as FAILED if cleanup fails.
+                val cleared = runCatching {
+                    retrySchedules.clear(issue, envelope.operationKey())
+                    true
+                }.getOrDefault(false)
+                Outcome.Succeeded(issue, attemptId, result, retryScheduleCleared = cleared)
             }
         } catch (error: Exception) {
             val category = when (error) {
