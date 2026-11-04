@@ -98,6 +98,9 @@ internal class VyomFactoryExecutionRunner(
                 is VyomFactoryExecutionAdapterRegistry.Outcome.Unsupported ->
                     throw IllegalStateException("No adapter for ${dispatched.target}")
             }
+            if (!adapters.isVerifiedResult(envelope.target, result)) {
+                throw IllegalStateException("Adapter returned without verifying the requested postcondition")
+            }
             if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
             if (!journal.succeed(claim.lease, attemptId, now(), result)) {
                 Outcome.Fenced(issue)
