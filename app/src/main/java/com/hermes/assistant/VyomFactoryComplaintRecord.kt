@@ -52,7 +52,7 @@ internal data class VyomFactoryComplaintRecord(
                 listOf("update", "apk", "rollback", "content package", "a18").any { lower.contains(it) } -> "update"
                 listOf("memory", "remember", "forgot", "saved fact", "recall").any { lower.contains(it) } -> "memory"
                 listOf("design", "layout", "theme", "spacing", "screen ui", "composer").any { lower.contains(it) } -> "design"
-                listOf("personality", "persona", "tone", "behavior").any { lower.contains(it) } -> "personality"
+                listOf("personality", "persona", "tone").any { lower.contains(it) } -> "personality"
                 listOf("github", "repository", "repo", "commit", "pull request", "code").any { lower.contains(it) } -> "repo"
                 listOf("skill", "teach", "learned procedure").any { lower.contains(it) } -> "skill"
                 listOf("schedule", "automation", "reminder", "timer", "recurring").any { lower.contains(it) } -> "schedule"
