@@ -28,6 +28,12 @@ class VyomFactoryStatusTest {
 
     @Test fun sourceKeysAreValidated() {
         assertEquals("termux:issue-18", VyomFactoryStatus.idempotencyKey("TERMUX", "issue-18"))
+        assertEquals("vyom_voice:voice-1", VyomFactoryStatus.idempotencyKey("vyom_voice", "voice-1"))
+        assertEquals("diagnostics:check-1", VyomFactoryStatus.idempotencyKey("diagnostics", "check-1"))
+        assertEquals("task_failure:task-1", VyomFactoryStatus.idempotencyKey("task_failure", "task-1"))
+        assertEquals("share_sheet:share-1", VyomFactoryStatus.idempotencyKey("share_sheet", "share-1"))
+        assertEquals("claude:agent-1", VyomFactoryStatus.idempotencyKey("claude", "agent-1"))
+        assertEquals("codex:agent-1", VyomFactoryStatus.idempotencyKey("codex", "agent-1"))
         assertNull(VyomFactoryStatus.idempotencyKey("unknown", "1"))
         assertNull(VyomFactoryStatus.idempotencyKey("factory", " "))
     }
