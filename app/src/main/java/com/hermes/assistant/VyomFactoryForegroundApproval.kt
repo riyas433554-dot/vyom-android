@@ -11,6 +11,8 @@ internal class VyomFactoryForegroundGate {
     fun onPaused() { resumed.set(false); foregroundEpoch.incrementAndGet() }
     fun isForeground(): Boolean = resumed.get()
     fun generation(): Long = foregroundEpoch.get()
+    fun isForegroundSession(expectedGeneration: Long): Boolean =
+        resumed.get() && foregroundEpoch.get() == expectedGeneration
 }
 
 /**
