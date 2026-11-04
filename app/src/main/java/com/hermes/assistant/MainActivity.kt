@@ -1295,7 +1295,7 @@ class MainActivity : Activity() {
         }
         io.execute {
             try {
-                val complaints = VyomFactoryGitHubClient(token).listTasks().map { task ->
+                val complaints = VyomFactoryTaskOrdering.sort(VyomFactoryGitHubClient(token).listTasks()).map { task ->
                     JSONObject()
                         .put("source", "factory")
                         .put("issueNumber", task.number)
