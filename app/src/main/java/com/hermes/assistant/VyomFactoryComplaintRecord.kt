@@ -48,20 +48,20 @@ internal data class VyomFactoryComplaintRecord(
             val area = when {
                 listOf("open_app", "tap", "swipe", "scroll", "type", "read_screen", "screenshot",
                     "clipboard", "intent", "force_stop", "control", "accessibility", "android control")
-                    .any(lower::contains) -> "control"
-                listOf("update", "apk", "rollback", "content package", "a18").any(lower::contains) -> "update"
-                listOf("memory", "remember", "forgot", "saved fact", "recall").any(lower::contains) -> "memory"
-                listOf("design", "layout", "theme", "spacing", "screen ui", "composer").any(lower::contains) -> "design"
-                listOf("personality", "persona", "tone", "behavior").any(lower::contains) -> "personality"
-                listOf("github", "repository", "repo", "commit", "pull request", "code").any(lower::contains) -> "repo"
-                listOf("skill", "teach", "learned procedure").any(lower::contains) -> "skill"
-                listOf("schedule", "automation", "reminder", "timer", "recurring").any(lower::contains) -> "schedule"
-                listOf("voice", "speech", "microphone", "stt", "tts", "transcription").any(lower::contains) -> "voice"
+                    .any { lower.contains(it) } -> "control"
+                listOf("update", "apk", "rollback", "content package", "a18").any { lower.contains(it) } -> "update"
+                listOf("memory", "remember", "forgot", "saved fact", "recall").any { lower.contains(it) } -> "memory"
+                listOf("design", "layout", "theme", "spacing", "screen ui", "composer").any { lower.contains(it) } -> "design"
+                listOf("personality", "persona", "tone", "behavior").any { lower.contains(it) } -> "personality"
+                listOf("github", "repository", "repo", "commit", "pull request", "code").any { lower.contains(it) } -> "repo"
+                listOf("skill", "teach", "learned procedure").any { lower.contains(it) } -> "skill"
+                listOf("schedule", "automation", "reminder", "timer", "recurring").any { lower.contains(it) } -> "schedule"
+                listOf("voice", "speech", "microphone", "stt", "tts", "transcription").any { lower.contains(it) } -> "voice"
                 else -> "other"
             }
             val severity = when {
-                listOf("security", "unsafe", "data loss", "crash", "credential leak").any(lower::contains) -> "critical"
-                listOf("fail", "failed", "broken", "error", "not working", "does not work", "doesn't work").any(lower::contains) -> "high"
+                listOf("security", "unsafe", "data loss", "crash", "credential leak").any { lower.contains(it) } -> "critical"
+                listOf("fail", "failed", "broken", "error", "not working", "does not work", "doesn't work").any { lower.contains(it) } -> "high"
                 else -> "medium"
             }
             val priority = when (area) {
@@ -71,7 +71,7 @@ internal data class VyomFactoryComplaintRecord(
                 else -> "P3"
             }
             val fixType = if (area in setOf("skill", "personality") &&
-                listOf("prompt", "wording", "persona", "skill content", "routing rule").any(lower::contains)
+                listOf("prompt", "wording", "persona", "skill content", "routing rule").any { lower.contains(it) }
             ) "content update with no APK" else "native change needing an APK"
             val evidence = when {
                 Regex("(?im)^\\s*(log|screenshot|diagnostics result):").containsMatchIn(original) ->
