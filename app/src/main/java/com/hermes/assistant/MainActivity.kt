@@ -2968,12 +2968,15 @@ class MainActivity : Activity() {
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    item.state = "error"
+                    // Keep the original message retryable. The issue may already exist if GitHub
+                    // accepted POST but the response or local queue commit failed. createTask()
+                    // searches by the same stable source ID before creating, then enqueue() retries.
+                    item.state = "queued"
                     val code = (error as? VyomFactoryGitHubClient.FactoryApiException)?.code
                     item.reply = when (code) {
-                        401 -> "Complaint not registered: GitHub token rejected. Replace it in Settings."
-                        403 -> "Complaint not registered: GitHub denied Issues access. Token needs Issues read/write permission."
-                        else -> "Complaint not registered: ${error.message ?: "GitHub request failed"}"
+                        401 -> "Factory registration pending: GitHub token rejected. Replace it in Settings, then reconnect to retry."
+                        403 -> "Factory registration pending: GitHub denied Issues access. Grant repository Issues read/write permission, then reconnect to retry."
+                        else -> "Factory registration pending: ${error.message ?: "GitHub request failed"}. Reconnect to retry; the same request ID will be reused."
                     }
                     persistChatMessages()
                     renderChatMessages()
