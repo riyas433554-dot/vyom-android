@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD: `73876f0af7643f8b43db3dccc8fc03315a7644ee` (Activity-session side-effect fence + test fixture correction). Debug run `41823174698` is IN_PROGRESS; Full CI run `41823174672` is IN_PROGRESS at last poll. Prior source `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` CI was superseded by this test fixture correction; do not use it as final verification. Reconfirm exact HEAD and both current runs before treating this entry as current.
+- Latest source HEAD before this handoff update: `4f9dea810ea0387c6df365dfa5deb7818e22c4e3` (RUN NEXT generation captured on UI thread; crash-recovery regression coverage). Debug `41823371366` and Full CI `41823371481` SUCCESS on parent `9d4ad60aeac5db3382ff6113f144ea521fc911a9`; new exact-head runs must be checked after this batch. Reconfirm exact HEAD and both current runs before treating this entry as current.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -19,8 +19,8 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
 3. Heartbeat — intentionally deferred: the only production adapter is a synchronous media-volume set with readback, too short to need lease renewal. Add heartbeat only when a real bounded long-running adapter exists.
 4. Retry/backoff — bounded idempotency-gated policy, durable schedule/attempt counter and deterministic bounded jitter implemented. Foreground RUN NEXT consumes only due retries after fresh GitHub fetch, fresh lease, STOP checks and a new one-time UI approval. No automatic/background retry scheduler.
-5. STOP/pause — partial: foreground STOP button cancels pending consent or sets a cooperative stop flag; runner/adapter check before side effects. Activity pause now invalidates the active run using the captured foreground-gate generation, so pause followed by resume cannot revive it. A late STOP cannot rewrite an already verified side effect as failure. Journal STOP remains lease+attempt fenced. Lifecycle instrumentation/physical validation remains pending.
-6. Crash recovery — partial foreground recovery: runner marks expired/replaced nonterminal attempts INTERRUPTED before selecting the next task; never replays them. No background/startup scheduler.
+5. STOP/pause — partial: foreground STOP button cancels pending consent or sets a cooperative stop flag; runner/adapter check before side effects. Activity pause invalidates the active run using the captured foreground-gate generation. The generation is now captured synchronously on the UI thread at the RUN NEXT tap, before executor queueing; capturing inside the worker had a pause+resume window before worker start. Adapter still checks the same generation before consuming approval and immediately before the volume side effect. A late STOP cannot rewrite verified success as failure. Journal STOP remains lease+attempt fenced. Android lifecycle instrumentation/physical validation remains pending.
+6. Crash recovery — partial foreground recovery: runner marks expired/replaced nonterminal attempts INTERRUPTED before selecting the next task; never replays them. Tests now cover journal reopen after simulated process restart, STOP_REQUESTED recovery, preservation of a still-live lease, and fail-closed behavior when recovery persistence fails. No background/startup scheduler; physical process-kill/relaunch acceptance remains pending.
 7. Bounded workers — one process-wide execution slot is now enforced; actual parallelism above one remains disabled until adapters declare/lock shared device resources and concurrency tests prove isolation.
 8. App-closed execution verification — pending physical Android testing.
 
@@ -337,3 +337,14 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact branch-tip (documentation-only commit `739adcbfa84146d23dd45441e2f74ce3125d08c6`) CI: Debug `41823206360` IN_PROGRESS; Full CI `41823206324` PENDING at last poll.
 - Logs for the active Gradle jobs were not yet downloadable (GitHub returned BlobNotFound while jobs were running); this is not evidence of a build failure.
 - Next: poll exact branch-tip runs, inspect real Gradle output when available, and do not use any superseded run as final verification.
+
+
+## RUN NEXT lifecycle capture race + crash-recovery coverage (2026-11-04)
+
+- Audit found the foreground generation was being captured inside the executor worker, not at the owner's RUN NEXT tap. If the Activity paused and resumed while the worker was queued, the worker could capture the new generation and mistakenly treat the old tap/consent as a fresh foreground run.
+- Test strengthened in `10e50e72b1339ea59554444a352e912a880d2a40`: the previously approved generation must remain invalid after pause+resume even though the Activity is foreground again.
+- Fix in `1573eec0a397067e7e0b9fcb414966ed2e1c2409`: capture Activity + generation synchronously on the UI thread before `worker.execute`; refuse RUN NEXT if Activity is not foreground. Worker and adapter receive that immutable generation.
+- Crash-recovery tests added in `4f9dea810ea0387c6df365dfa5deb7818e22c4e3`: reopen journal after simulated process restart and recover STOP_REQUESTED attempt; interrupt only expired attempts while preserving a live lease; fail closed without overwriting journal when recovery commit fails.
+- Parent exact branch-tip `9d4ad60aeac5db3382ff6113f144ea521fc911a9`: Debug `41823371366` SUCCESS and Full CI `41823371481` SUCCESS; Debug artifact `vyom-0.3.1-9d4ad60aeac5db3382ff6113f144ea521fc911a9` (artifact ID `13318995039`, 88,119,554 bytes); Full CI artifact `vyom-phase6-9d4ad60aeac5db3382ff6113f144ea521fc911a9` (artifact ID `13318800342`, 46,195,921 bytes). These artifacts predate the current changes and are not final delivery.
+- New source HEAD `4f9dea810ea0387c6df365dfa5deb7818e22c4e3` has no verified CI result yet. Handoff-only commit follows; exact branch-tip CI must be polled before claiming success.
+- Factory stages changed: #5 STOP/pause test coverage + queued-run generation race closed; #6 crash-recovery test coverage strengthened. No production background execution added; stage #8 physical app-closed verification remains owner/device-only.
