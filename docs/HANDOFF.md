@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest known HEAD: `c82f95d6b9a0146a1ee63c9de7240abc8750d832`
+- Latest known HEAD: `12d28eccc4496a6bfc396177a72d5259e39043c7`
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -32,38 +32,38 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Lease fencing is local to one app process/device; it is not distributed CAS.
 - Claim session refreshes GitHub before each claim and reconciles only issues whose GitHub state and metadata status are both `open`.
 - Factory dialog exposes foreground CLAIM NEXT / RELEASE CLAIM only. It does not execute tasks.
-- No autonomous worker, WorkManager scheduler, execution adapter, or code/action execution exists yet.
-- Existing issue metadata is schema 1 and has no validated execution target. Existing free-form descriptions must not be executed as shell or arbitrary Android actions.
+- No autonomous worker, WorkManager scheduler, or concrete Android/repository action adapter exists yet.
 
-## Execution architecture decision
+## Execution routing work just added
 
-See [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_ARCHITECTURE.md), commit `c82f95d6b9a0146a1ee63c9de7240abc8750d832`.
+Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_ARCHITECTURE.md), commit `c82f95d6b9a0146a1ee63c9de7240abc8750d832`.
 
-- Use separate explicit `android_action` and `repository_change` adapters.
-- Existing schema-1 and unknown/ambiguous task types default to `manual_review`; no silent inference or fallback.
-- WorkManager is considered only after a concrete bounded adapter exists; it is not a 24/7 guarantee.
-- Current local leases cannot safely coordinate multiple devices. Keep execution single-installation or use a remote atomic executor.
-- Persist execution journal/results with fencing and idempotency before terminal status updates.
-- STOP checked before each side effect; heartbeat only while active work makes progress.
-- Start parallelism at one; physical app-closed verification remains mandatory.
+- `VyomFactoryExecutionEnvelope` parses a separate versioned `VYOM_FACTORY_EXECUTION` marker.
+- Existing schema-1 task metadata, missing/malformed/duplicate/unknown/oversized execution envelopes, invalid operations, and missing arguments fail closed to `manual_review`.
+- Explicit supported targets: `android_action` and `repository_change`; operation identifiers are bounded and arguments must be a bounded JSON object.
+- Original request is carried separately and bounded. Parser does not execute anything.
+- `VyomFactoryExecutionAdapterRegistry` routes only to one adapter registered for the exact target. Duplicate adapters are rejected; manual-review tasks never route; missing adapter returns Unsupported; adapter exceptions propagate and cannot be converted to success.
+- There are no concrete adapters yet. A task must not be marked completed merely because it parsed or routed.
 
 ## Recent commits and CI
 
-- Foreground claim/session source HEAD: `5fa5745e218c4eecd69a790100828b3a26048ccd`.
-- Handoff compaction and reference correction: `e40a9009d70be9a303bf3cd8bf5d0cbe9884861b`, `56efc35772dfbb538818559394f82003919d0285`.
 - Exact HEAD `56efc35772dfbb538818559394f82003919d0285`: Debug workflow run `41787089042` SUCCESS; build/test, APK packaging and upload steps all SUCCESS.
-- Artifact: `vyom-phase6-56efc35772dfbb538818559394f82003919d0285`, artifact ID `13302535151`, SHA-256 `0e335fcfaeac3b44b3ed241208a1cc991437f5cc961d924a5d768bd25d988d6b`.
-- This verifies the debug workflow at that exact source-equivalent HEAD only. It does not mean Factory is complete or that the artifact is a final release.
-- Earlier Full CI `41786551264` failed before compilation due Maven Central HTTP 403; do not treat that as a source/test failure.
-- New architecture doc commit `c82f95d6b9a0146a1ee63c9de7240abc8750d832` needs exact-HEAD CI verification.
+- Artifact from that source-equivalent HEAD: `vyom-phase6-56efc35772dfbb538818559394f82003919d0285`, artifact ID `13302535151`, SHA-256 `0e335fcfaeac3b44b3ed241208a1cc991437f5cc961d924a5d768bd25d988d6b`. Not a final release.
+- Architecture doc: `c82f95d6b9a0146a1ee63c9de7240abc8750d832`.
+- Envelope contract tests: `c131b68c7ddca1b6d32746c58aaaef1496b9c106`.
+- Envelope parser implementation: `919a13d1fea3e7661a8df13dc040b8e397f1dfcc`.
+- Adapter routing tests: `f0b6f288dedcb25c143c8c9e9dd5f36c406dd9dc`, expectation correction `719d75b4f8a13be579120add51f5eafbbcde36d8`, method alignment `12d28eccc4496a6bfc396177a72d5259e39043c7`.
+- Adapter registry implementation: `a3c1e0284aa519a98f6a3530d62dcad7e39d9c73`.
+- Latest source/test commits have not yet had verified CI results. Do not claim tests pass.
+- Earlier Full CI `41786551264` failed before compilation due Maven Central HTTP 403; this was dependency resolution infrastructure, not a demonstrated source/test failure.
 
 ## Immediate next actions
 
-1. Verify latest branch HEAD and CI for `c82f95d6b9a0146a1ee63c9de7240abc8750d832`.
-2. Implement schema-versioned execution-envelope parser and tests (test-first). Schema-1/missing/unknown target must resolve to `manual_review`.
-3. Implement adapter registry with strict routing and fail-closed tests.
-4. Then durable execution journal/idempotency; only after a real adapter exists add WorkManager scheduling.
-5. Continue canonical order, update this file after each batch, commit/push each batch, and inspect actual CI logs.
-6. No APK until Factory acceptance stages and physical verification are complete.
+1. Verify current branch HEAD `12d28eccc4496a6bfc396177a72d5259e39043c7` and obtain exact-HEAD CI results.
+2. Inspect CI logs; fix actual parser/registry compile or test failures.
+3. Extend envelope validation tests for duplicate markers, oversized arguments, and target-specific field mismatch.
+4. Add a durable execution journal and idempotency/result fencing before concrete adapters.
+5. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
+6. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
 
 No backend, Render, production Supabase, or Android `main` changes. No physical Android app-closed test claimed.
