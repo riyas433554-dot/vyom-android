@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest branch HEAD before this handoff update: `f7b433f7f0fc94f9d34ec3d82523b1b4cdb3e4e3` (foreground execution runner + cooperative STOP tests). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest branch HEAD before this handoff update: `82ab8838bc7e8efd3ba03ba3239fa4f2e1a0219c` (runner stale-lease and retry-cleanup tests). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
