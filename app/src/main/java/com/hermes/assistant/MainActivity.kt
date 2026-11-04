@@ -2957,6 +2957,9 @@ class MainActivity : Activity() {
                     source = "vyom_chat",
                     sourceId = item.id
                 )
+                VyomFactoryTaskStore(applicationContext).enqueue(
+                    VyomFactoryTaskStore.QueuedTask(task.number, task.title, task.metadata.priority, item.id, System.currentTimeMillis())
+                )
                 runOnUiThread {
                     item.state = "done"
                     item.reply = "Registered in Vyom Factory as #${task.number}. The same GitHub issue can be edited from Factory, ChatGPT or Termux."
