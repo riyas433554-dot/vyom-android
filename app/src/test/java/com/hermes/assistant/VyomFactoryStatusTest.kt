@@ -33,6 +33,13 @@ class VyomFactoryStatusTest {
         assertEquals("P0", VyomFactoryStatus.readMetadata(body)?.priority)
     }
 
+    @Test fun diagnosticFailureIdentityIsStableAndContentSpecific() {
+        val first = VyomFactoryStatus.diagnosticFailureSourceId("FAIL · signer mismatch")
+        assertEquals(first, VyomFactoryStatus.diagnosticFailureSourceId("FAIL · signer mismatch"))
+        assertNotEquals(first, VyomFactoryStatus.diagnosticFailureSourceId("FAIL · update manifest"))
+        assertTrue(first.length <= 120)
+    }
+
     @Test fun sourceKeysAreValidated() {
         assertEquals("termux:issue-18", VyomFactoryStatus.idempotencyKey("TERMUX", "issue-18"))
         assertEquals("vyom_voice:voice-1", VyomFactoryStatus.idempotencyKey("vyom_voice", "voice-1"))
