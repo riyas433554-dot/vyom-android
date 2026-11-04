@@ -73,7 +73,7 @@ class VyomFactoryExecutionJournalTest {
         journal.begin(successor, "attempt-new", 6_100)
 
         assertFalse(journal.succeed(oldLease, "attempt-old", 6_200, "stale result"))
-        assertEquals(VyomFactoryExecutionJournal.State.RUNNING, journal.get("attempt-old")!!.state)
+        assertEquals(VyomFactoryExecutionJournal.State.INTERRUPTED, journal.get("attempt-old")!!.state)
         assertTrue(journal.markRunning(successor, "attempt-new", 6_200))
     }
 
