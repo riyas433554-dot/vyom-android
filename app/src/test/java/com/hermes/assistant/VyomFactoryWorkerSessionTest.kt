@@ -29,6 +29,21 @@ class VyomFactoryWorkerSessionTest {
         assertTrue(queue.pending().isEmpty())
     }
 
+    @Test fun filteredClaimSkipsHigherPriorityTasksWithoutRemovingThemFromInbox() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        val session = session(queue, listOf(
+            remote(27, "P0", "source-27"),
+            remote(28, "P1", "source-28")
+        ))
+
+        val claim = session.claimNext { it.number == 28 }
+
+        assertNotNull(claim)
+        assertEquals(28, claim!!.task.issueNumber)
+        assertTrue(queue.contains(27))
+        assertTrue(queue.contains(28))
+    }
+
     @Test fun registryReadFailureDoesNotCreateAClaimOrChangeTheInbox() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         queue.enqueue(VyomFactoryTaskStore.QueuedTask(25, "Existing", "P1", "source-25", 100))
