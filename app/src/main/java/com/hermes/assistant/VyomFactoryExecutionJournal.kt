@@ -167,6 +167,13 @@ internal class VyomFactoryExecutionJournal internal constructor(
         expired.size
     }
 
+    /**
+     * Startup recovery is deliberately conservative: only attempts whose exact
+     * lease is no longer current are interrupted. Live leases remain untouched,
+     * and this method never replays a side effect.
+     */
+    fun recoverAtStartup(now: Long): Int = interruptExpired(now)
+
     /** Deliberately empty until adapter-level idempotency makes replay safe. */
     fun replayable(): List<Entry> = emptyList()
 
