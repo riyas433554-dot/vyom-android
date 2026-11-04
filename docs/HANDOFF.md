@@ -464,3 +464,11 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Parent Full CI 41843876818 was still IN_PROGRESS on the old parent SHA when this correction was pushed; it does not validate the corrected commit. Poll its final result separately.
 - Next: wait for exact-head Debug and Full CI for the correction commit; inspect real logs. Do not call APK ready until both exact-head workflows succeed and the expected artifact is present and verified.
 - Separate audit note: automatic complaint registration returns early with error when the GitHub token is missing, while reconnect retries only queued items. This token-recovery retry gap is confirmed by source inspection but is not yet changed; add a regression test before modifying it.
+
+
+## Latest CI fixture correction (2026-11-04)
+
+- Exact HEAD 12f6cf0009de1764a5f03b41d816cfba2bbb7d46 failed Debug 41845283985 and Full CI 41845286085. Both logs show two remaining JSONObject-to-String test fixture compile errors at VyomFactoryLifecycleIntegrationTest.kt lines 107 and 121.
+- Fixed both response fixtures with JSONObject.toString() in d0b4430ffbad9fc0f81c7b0f6f499bd6c9791eb5. Test-only change; no production behavior changed.
+- Previous note claiming all three sites were fixed was inaccurate: line 33 was fixed, but lines 107 and 121 remained. Await exact-head CI and actual test execution before claiming green.
+- Next: verify exact-head Debug and Full CI, then continue the missing-GitHub-token complaint retry audit.
