@@ -7,6 +7,7 @@ internal interface VyomFactoryExecutionControl {
 
 internal interface VyomFactoryExecutionAdapter {
     val target: VyomFactoryExecutionEnvelope.Target
+    val isIdempotent: Boolean
     fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String
 }
 
@@ -28,6 +29,9 @@ internal class VyomFactoryExecutionAdapterRegistry(
     }
 
     fun supports(target: VyomFactoryExecutionEnvelope.Target): Boolean = target in byTarget
+
+    fun isIdempotent(target: VyomFactoryExecutionEnvelope.Target): Boolean =
+        byTarget[target]?.isIdempotent == true
 
     fun dispatch(
         envelope: VyomFactoryExecutionEnvelope,
