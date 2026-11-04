@@ -32,7 +32,7 @@ class VyomFactoryRetryOverviewTest {
     }
 
     @Test fun countdownRoundsUpAndSwitchesToMinutes() {
-        assertEquals("1 DUE · 0 SCHEDULED · NEXT #4 IN 1s",
+        assertEquals("0 DUE · 1 SCHEDULED · NEXT #4 IN 1s",
             VyomFactoryRetryOverview.summarize(listOf(schedule(4, 10_001)), 10_000).label)
         assertEquals("0 DUE · 1 SCHEDULED · NEXT #4 IN 2m 1s",
             VyomFactoryRetryOverview.summarize(listOf(schedule(4, 130_001)), 10_000).label)
