@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `4f9dea810ea0387c6df365dfa5deb7818e22c4e3` (RUN NEXT generation captured on UI thread; crash-recovery regression coverage). Debug `41823371366` and Full CI `41823371481` SUCCESS on parent `9d4ad60aeac5db3382ff6113f144ea521fc911a9`; new exact-head runs must be checked after this batch. Reconfirm exact HEAD and both current runs before treating this entry as current.
+- Verified source HEAD: `34d14881a7e6b8278d03389c01ac29f65aee18ba` (queued RUN NEXT lifecycle-generation fence + crash-recovery regression coverage). Exact-head Debug `41825573775` SUCCESS; exact-head Full CI `41825573748` SUCCESS. Debug artifact `vyom-0.3.1-34d14881a7e6b8278d03389c01ac29f65aee18ba`, artifact ID `13318513312`, size 88,121,760 bytes, archive digest `sha256:3bfbd5ec9384ff091bb3914f8bcc7afe30d124802c0290322f0fe53ce007733d`. Artifact is a CI output, not approved milestone APK delivery. The next HANDOFF-only commit will require fresh exact-head CI.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -348,3 +348,13 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Parent exact branch-tip `9d4ad60aeac5db3382ff6113f144ea521fc911a9`: Debug `41823371366` SUCCESS and Full CI `41823371481` SUCCESS; Debug artifact `vyom-0.3.1-9d4ad60aeac5db3382ff6113f144ea521fc911a9` (artifact ID `13318995039`, 88,119,554 bytes); Full CI artifact `vyom-phase6-9d4ad60aeac5db3382ff6113f144ea521fc911a9` (artifact ID `13318800342`, 46,195,921 bytes). These artifacts predate the current changes and are not final delivery.
 - New source HEAD `4f9dea810ea0387c6df365dfa5deb7818e22c4e3` has no verified CI result yet. Handoff-only commit follows; exact branch-tip CI must be polled before claiming success.
 - Factory stages changed: #5 STOP/pause test coverage + queued-run generation race closed; #6 crash-recovery test coverage strengthened. No production background execution added; stage #8 physical app-closed verification remains owner/device-only.
+
+
+## Exact-head verification refresh — 2026-11-04
+
+- Branch tip before this documentation refresh: `34d14881a7e6b8278d03389c01ac29f65aee18ba`.
+- Debug workflow `41825573775`: SUCCESS. Build/tests, APK packaging/checksum, signed no-APK content-update demo, artifact upload, and signed CI update release steps all completed successfully.
+- Full CI workflow `41825573748`: SUCCESS. Termux Factory adapter syntax/status checks, secret scan, unit tests/debug APK, packaging/checksum and artifact upload completed successfully.
+- Debug artifact: `vyom-0.3.1-34d14881a7e6b8278d03389c01ac29f65aee18ba`, ID `13318513312`, 88,121,760 bytes, archive digest `sha256:3bfbd5ec9384ff091bb3914f8bcc7afe30d124802c0290322f0fe53ce007733d`.
+- Factory stage #5 remains PARTIAL: source-level STOP/pause fencing and tests pass, but Android lifecycle instrumentation / physical pause-resume acceptance has not been run. Stage #6 remains PARTIAL: journal restart/recovery tests pass, but actual process-kill/relaunch phone acceptance and startup recovery scheduling are not verified. Stage #8 remains PENDING physical device verification. Do not mark any of these complete based on JVM CI.
+- No APK delivered. No Android `main`, Render, Hermes backend, or production Supabase changes.
