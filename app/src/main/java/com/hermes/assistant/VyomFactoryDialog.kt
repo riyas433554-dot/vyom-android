@@ -337,6 +337,7 @@ internal class VyomFactoryDialog(
                 stopButton.isEnabled = false
                 claimButton.isEnabled = true
                 releaseClaimButton.isEnabled = false
+                refreshRetryOverview()
                 busy = false
             }
         }

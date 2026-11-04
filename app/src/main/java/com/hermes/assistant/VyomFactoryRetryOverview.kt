@@ -35,7 +35,8 @@ internal object VyomFactoryRetryOverview {
     }
 
     private fun remaining(millis: Long): String {
-        val seconds = ((millis.coerceAtLeast(0) + 999) / 1_000)
+        val safeMillis = millis.coerceAtLeast(0)
+        val seconds = safeMillis / 1_000 + if (safeMillis % 1_000 == 0L) 0 else 1
         val minutes = seconds / 60
         val remainder = seconds % 60
         return if (minutes > 0) "${minutes}m ${remainder}s" else "${seconds}s"
