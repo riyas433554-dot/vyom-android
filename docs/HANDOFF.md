@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest known HEAD: `de9eb5fa64a12b4def4a58ef1c772909d9496fee`
+- Latest known HEAD: `2a49ae1197b0d54df87eca49f8962dca8d0e5e0e`
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -60,7 +60,7 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 
 ## Immediate next actions
 
-1. Verify current branch HEAD `12d28eccc4496a6bfc396177a72d5259e39043c7` and obtain exact-HEAD CI results.
+1. Verify current branch HEAD `2a49ae1197b0d54df87eca49f8962dca8d0e5e0e` and obtain exact-HEAD CI results.
 2. Inspect CI logs; fix actual parser/registry compile or test failures.
 3. Run exact-HEAD CI and fix any actual compile/test failures.
 4. Add a durable execution journal and idempotency/result fencing before concrete adapters.
