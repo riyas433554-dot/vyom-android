@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source checkpoint before this handoff refresh: `b050bcdbb590641a055f045a9ffab367b8c7dbbb`. Exact branch-tip CI must be refreshed after this documentation commit. Earlier successful artifacts listed below are historical only, not current source proof.
+- Latest source checkpoint before this handoff refresh: `80d8a0fd092eec4d0e37e850b601dbedc1dd00dd`. Exact branch-tip CI must be refreshed after this documentation commit. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the current Factory-first plan below: Stage 1 end-to-end behavior plus only the A18/A17 safety-critical pieces Factory itself needs, exact-head CI green and artifact integrity. Do not require the entire Android-control list, Play Store/WhatsApp feature implementation, or unrelated lifecycle stages 5/6/8.
@@ -39,7 +39,7 @@ This section supersedes older APK gates and Factory ordering text below where th
 - Stage 1 remains **incomplete**: Termux install/auth/idempotency smoke test and physical phone acceptance are owner-side; screenshot share-sheet receiver is not implemented because repo is public and safe evidence storage is unresolved; automatic new-complaint capture is proven only for chat failures, while Factory worker failures are comments on the existing issue; GPT/Claude/Codex source acceptance is not device-verified. Public issue bodies are visible to everyone; evidence must be sanitized.
 - Complaint intake starts with UNASSIGNED probe. Owner must edit it to one exact observable probe, START the complaint, check the real phone, then record sanitized PASS/FAIL evidence. This is manual owner attestation, not an automated probe.
 - A17 has versioned safe execution envelope, lease/journal/retry/STOP/foreground-consent controls, one process-wide runner, and one concrete `set_media_volume` adapter. It does not yet execute general Android actions or repository code changes. A Factory-safe bounded code-fix route is still missing.
-- A18 has signed package verification against the installed APK signing certificate, file hashes/path allowlist, inactive-slot staging, presence probes, atomic activation only after probes pass, rollback on failed probe, WebView presence-failure rollback, and crash-triggered rollback. CI builds a signed no-APK demo and rollback test results when signing secrets are available. Optional PERFORMANCE probe measures content-file read time, not actual WebView render latency.
+- A18 has signed package verification against the installed APK signing certificate, file hashes/path allowlist, inactive-slot staging, presence probes, atomic activation only after probes pass, rollback on failed probe, WebView presence-failure rollback, and crash-triggered rollback. CI signs the package with the same persistent Android release keystore alias used for the APK, then self-verifies the detached signature; CI builds a no-APK demo and rollback test results when signing secrets are available. Optional PERFORMANCE probe measures content-file read time, not actual WebView render latency.
 - No final APK has been delivered and no physical phone acceptance is claimed.
 
 ### Next work (mandatory order)
