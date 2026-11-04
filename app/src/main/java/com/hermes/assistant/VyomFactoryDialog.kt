@@ -396,6 +396,7 @@ internal class VyomFactoryDialog(
         busy = true
         claimButton.isEnabled = false
         releaseClaimButton.isEnabled = false
+        runButton.isEnabled = false
         claimStatus.text = "REFRESHING REGISTRY · CLAIMING NEXT OPEN TASK…"
         worker.execute {
             try {
@@ -435,6 +436,7 @@ internal class VyomFactoryDialog(
         busy = true
         claimButton.isEnabled = false
         releaseClaimButton.isEnabled = false
+        runButton.isEnabled = false
         worker.execute {
             try {
                 val released = workerSession.release(claim)

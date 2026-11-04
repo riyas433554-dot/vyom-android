@@ -184,7 +184,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun previousVerifiedSuccessSkipsBeforeRequestingNewConsent() {
         val fixture = Fixture()
-        fixture.seedLegacySuccess()
+        fixture.seedVerifiedSuccess()
         var prompts = 0
         val adapter = RecordingAdapter(fail = false, isIdempotent = true)
 
@@ -263,6 +263,12 @@ class VyomFactoryExecutionRunnerTest {
             journal.begin(lease, "legacy-attempt", 1_500)
             assertTrue(journal.markRunning(lease, "legacy-attempt", 1_600))
             assertTrue(journal.succeed(lease, "legacy-attempt", 1_700, "old result"))
+        }
+
+        fun seedVerifiedSuccess() {
+            journal.begin(lease, "verified-attempt", 1_500, "android_action:safe_action")
+            assertTrue(journal.markRunning(lease, "verified-attempt", 1_600))
+            assertTrue(journal.succeed(lease, "verified-attempt", 1_700, "old result"))
         }
 
         fun releaseLease() {
