@@ -110,6 +110,8 @@ class MainActivity : Activity() {
     private lateinit var updateButton: Button
     private lateinit var selfChangeButton: Button
     private var pendingSelfChangeTask = ""
+    private var pendingSelfChangeTitle = ""
+    private var pendingSelfChangeIssueNumber: Int? = null
     private lateinit var updateNotice: TextView
     private lateinit var rollbackButton: Button
     private lateinit var personaButton: Button
@@ -702,9 +704,8 @@ class MainActivity : Activity() {
                     setSingleLine(true)
                 }
                 val proposalPath = EditText(this@MainActivity).apply {
-                    hint = "Kotlin source path"
+                    hint = "Allowed Kotlin source path (choose explicitly)"
                     setSingleLine(true)
-                    setText("app/src/main/java/com/hermes/assistant/NemotronLiveClient.kt")
                 }
                 val proposalTask = EditText(this@MainActivity).apply {
                     hint = "Describe what Vyom should improve in this file (max 2,000 characters)"
@@ -713,6 +714,8 @@ class MainActivity : Activity() {
                     gravity = Gravity.TOP or Gravity.START
                     inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 }
+                proposalTitle.setText(pendingSelfChangeTitle)
+                pendingSelfChangeTitle = ""
                 form.addView(proposalTitle, LinearLayout.LayoutParams(-1, dp(48)))
                 form.addView(proposalPath, LinearLayout.LayoutParams(-1, dp(48)))
                 proposalTask.setText(pendingSelfChangeTask)
@@ -722,11 +725,15 @@ class MainActivity : Activity() {
                     .setTitle("Create review-only proposal")
                     .setMessage("Vyom reads the current source and asks the configured NVIDIA model for exact minimal edits and shows a diff before creating a PR. Only non-policy Kotlin files are allowed. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
                     .setView(form)
-                    .setNegativeButton("CANCEL", null)
+                    .setNegativeButton("CANCEL") { _, _ ->
+                        pendingSelfChangeIssueNumber = null
+                    }
                     .setPositiveButton("CREATE PR") { _, _ ->
                         val title = proposalTitle.text.toString().trim()
                         val path = proposalPath.text.toString().trim()
                         val task = proposalTask.text.toString().trim()
+                        val linkedFactoryIssueNumber = pendingSelfChangeIssueNumber
+                        pendingSelfChangeIssueNumber = null
                         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
                         val nvidiaKey = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
                         val model = LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", ""))
@@ -753,15 +760,33 @@ class MainActivity : Activity() {
                                                 try {
                                                     val proposalClient = SelfModificationClient()
                                                     val proposal = proposalClient.createProposal(token, draft)
+                                                    val issueCommentSaved = linkedFactoryIssueNumber?.let { issueNumber ->
+                                                        runCatching {
+                                                            VyomFactoryGitHubClient(token).addEvent(
+                                                                issueNumber,
+                                                                "Code-fix proposal opened: ${proposal.pullRequestUrl}. Exact-commit CI is pending; owner review is required; no merge or install has occurred."
+                                                            )
+                                                        }.isSuccess
+                                                    } ?: true
                                                     runOnUiThread {
                                                         logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
-                                                        selfChangeNotice.text = "PR created; waiting for both proposal CI workflows…"
+                                                        selfChangeNotice.text = if (issueCommentSaved) {
+                                                            "PR created; linked Factory complaint updated. Waiting for both proposal CI workflows…"
+                                                        } else {
+                                                            "PR created, but Factory issue comment failed. Record PR ${proposal.pullRequestUrl} manually on the complaint."
+                                                        }
                                                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
                                                     }
                                                     val verifiedSha = proposalClient.waitForProposalCi(token, proposal.branch)
+                                                    if (linkedFactoryIssueNumber != null) runCatching {
+                                                        VyomFactoryGitHubClient(token).addEvent(
+                                                            linkedFactoryIssueNumber,
+                                                            "Both required CI workflows passed for exact proposal commit ${verifiedSha}. Owner review and explicit install approval are still required."
+                                                        )
+                                                    }
                                                     runOnUiThread {
-                                                        selfChangeNotice.text = "CI passed for ${verifiedSha.take(12)}. Finding and verifying its signed APK…"
-                                                        checkForUpdate(expectedCommit = verifiedSha, autoInstallWhenReady = true)
+                                                        selfChangeNotice.text = "CI passed for ${verifiedSha.take(12)}. Signed update is available for owner review; no automatic install was started."
+                                                        checkForUpdate(expectedCommit = verifiedSha, autoInstallWhenReady = false)
                                                     }
                                                 } catch (error: Exception) {
                                                     runOnUiThread { selfChangeNotice.text = "PR creation failed: ${error.message ?: "GitHub error"}" }
@@ -1227,7 +1252,24 @@ class MainActivity : Activity() {
 
     private fun showVyomFactory() {
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
-        VyomFactoryDialog(this, token) { showTab(false, true) }.show()
+        VyomFactoryDialog(
+            this,
+            token,
+            onOpenSettings = { showTab(false, true) },
+            onProposeFix = ::openFactoryCodeProposal
+        ).show()
+    }
+
+    private fun openFactoryCodeProposal(task: VyomFactoryGitHubClient.Task) {
+        pendingSelfChangeTitle = VyomFactorySelfChangePrompt.title(task)
+        pendingSelfChangeTask = VyomFactorySelfChangePrompt.build(task)
+        pendingSelfChangeIssueNumber = task.number
+        showTab(false, true)
+        if (this::selfChangeButton.isInitialized) {
+            selfChangeButton.post { selfChangeButton.performClick() }
+        } else {
+            pendingSelfChangeIssueNumber = null
+        }
     }
 
     private fun showProfileMenu() {
