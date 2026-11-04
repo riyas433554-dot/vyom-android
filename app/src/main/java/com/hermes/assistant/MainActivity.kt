@@ -66,6 +66,7 @@ import java.util.concurrent.Executors
 class MainActivity : Activity() {
     internal val factoryForegroundGate = VyomFactoryForegroundGate()
     internal val factoryOneTimeApprovals = VyomFactoryOneTimeApprovalStore()
+    internal var factoryPendingConfirmationCancel: (() -> Unit)? = null
     private lateinit var orb: OrbSurfaceView
     private lateinit var status: TextView
     private lateinit var buildInfo: TextView
@@ -5350,6 +5351,9 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         factoryForegroundGate.onPaused()
+        factoryOneTimeApprovals.clear()
+        factoryPendingConfirmationCancel?.invoke()
+        factoryPendingConfirmationCancel = null
         tasksTabVisible = false
         mainHandler.removeCallbacks(refreshTasksRunnable)
         if (!voiceLoopEnabled) stopVoiceInput(cancel = true)

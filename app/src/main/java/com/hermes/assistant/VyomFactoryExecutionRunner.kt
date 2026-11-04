@@ -16,7 +16,8 @@ internal class VyomFactoryExecutionRunner(
     private val adapters: VyomFactoryExecutionAdapterRegistry,
     private val retrySchedules: VyomFactoryRetryScheduleStore,
     private val now: () -> Long = System::currentTimeMillis,
-    private val newAttemptId: () -> String
+    private val newAttemptId: () -> String,
+    private val prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it }
 ) {
     sealed class Outcome {
         data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String, val retryScheduleCleared: Boolean) : Outcome()
@@ -46,6 +47,18 @@ internal class VyomFactoryExecutionRunner(
             return skip("manual_review_required")
         }
         if (!adapters.supports(envelope.target)) return skip("adapter_unsupported")
+        if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
+
+        // Consent is collected before an attempt is journaled. A declined or
+        // unavailable foreground prompt leaves the task queued and replayable.
+        val prepared = try {
+            prepareExecution(envelope)
+        } catch (_: Exception) {
+            null
+        } ?: return skip("confirmation_declined_or_unavailable")
+        if (!isValidPreparedEnvelope(envelope, prepared)) {
+            return skip("invalid_prepared_execution")
+        }
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
 
         // Expired leases never authorize replay. Only a persisted due retry for
@@ -91,7 +104,7 @@ internal class VyomFactoryExecutionRunner(
 
         return try {
             if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
-            val result = when (val dispatched = adapters.dispatch(envelope, control)) {
+            val result = when (val dispatched = adapters.dispatch(prepared, control)) {
                 is VyomFactoryExecutionAdapterRegistry.Outcome.Executed -> dispatched.result
                 VyomFactoryExecutionAdapterRegistry.Outcome.ManualReview ->
                     throw IllegalStateException("Execution envelope requires manual review")
@@ -146,6 +159,28 @@ internal class VyomFactoryExecutionRunner(
             releaseTerminalClaim(claim)
             Outcome.Failed(issue, attemptId, category)
         }
+    }
+
+    private fun isValidPreparedEnvelope(
+        original: VyomFactoryExecutionEnvelope,
+        prepared: VyomFactoryExecutionEnvelope
+    ): Boolean {
+        if (!prepared.isExecutable || prepared.target != original.target ||
+            prepared.operation != original.operation ||
+            prepared.originalRequest != original.originalRequest
+        ) return false
+
+        val originalArguments = org.json.JSONObject(original.arguments.toString())
+        val preparedArguments = org.json.JSONObject(prepared.arguments.toString())
+        if (original.target == VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION &&
+            original.operation == "set_media_volume"
+        ) {
+            if (originalArguments.has("confirmation_id")) return false
+            val approvalId = preparedArguments.opt("confirmation_id") as? String
+            if (approvalId.isNullOrBlank() || approvalId.length > 128) return false
+            preparedArguments.remove("confirmation_id")
+        }
+        return preparedArguments.toString() == originalArguments.toString()
     }
 
     private fun releaseTerminalClaim(claim: VyomFactoryWorkerClaimCoordinator.Claim) {

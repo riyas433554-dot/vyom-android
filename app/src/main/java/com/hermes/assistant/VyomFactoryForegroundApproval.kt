@@ -6,9 +6,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Activity-owned gate; execution is permitted only while the host Activity is resumed. */
 internal class VyomFactoryForegroundGate {
     private val resumed = AtomicBoolean(false)
+    private val foregroundEpoch = java.util.concurrent.atomic.AtomicLong(0)
     fun onResumed() { resumed.set(true) }
-    fun onPaused() { resumed.set(false) }
+    fun onPaused() { resumed.set(false); foregroundEpoch.incrementAndGet() }
     fun isForeground(): Boolean = resumed.get()
+    fun generation(): Long = foregroundEpoch.get()
 }
 
 /**
@@ -34,7 +36,8 @@ internal class VyomFactoryOneTimeApprovalStore(
         return newId().also { id ->
             require(id.isNotBlank() && id.length <= 128)
             check(!approvals.containsKey(id)) { "Approval ID collision" }
-            approvals[id] = now() + ttlMillis
+            val currentTime = now()
+            approvals[id] = if (Long.MAX_VALUE - currentTime < ttlMillis) Long.MAX_VALUE else currentTime + ttlMillis
         }
     }
 
@@ -45,6 +48,9 @@ internal class VyomFactoryOneTimeApprovalStore(
         val expiry = approvals.remove(id) ?: return false
         return expiry > now()
     }
+
+    @Synchronized
+    fun clear() { approvals.clear() }
 
     @Synchronized
     private fun prune() {

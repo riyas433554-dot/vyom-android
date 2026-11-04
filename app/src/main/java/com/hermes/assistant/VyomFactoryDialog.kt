@@ -21,6 +21,10 @@ import android.os.Handler
 import android.os.Looper
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /** Live Factory workspace. All visible task data is read from GitHub Issues, never demo fixtures. */
 internal class VyomFactoryDialog(
@@ -52,6 +56,9 @@ internal class VyomFactoryDialog(
     private var busy = false
     private lateinit var claimButton: Button
     private lateinit var releaseClaimButton: Button
+    private lateinit var runButton: Button
+    private var pendingConfirmationDialog: AlertDialog? = null
+    private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerOwnerId: String by lazy {
@@ -141,6 +148,11 @@ internal class VyomFactoryDialog(
             leftMargin = dp(8)
         })
         workerPanel.addView(workerActions)
+        runButton = Button(activity).apply {
+            text = "RUN NEXT VERIFIED ACTION"; textSize = 9f
+            setOnClickListener { runNextTask() }
+        }
+        workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val composer = LinearLayout(activity).apply {
@@ -199,7 +211,7 @@ internal class VyomFactoryDialog(
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val footer = TextView(activity).apply {
-            text = "GitHub Issues is shared. Claim/release is device-local; task execution and background worker are not wired yet."
+            text = "GitHub Issues is shared. RUN NEXT supports only explicitly confirmed media-volume changes while Vyom stays foregrounded."
             textSize = 9f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(2), dp(8), dp(2), 0)
         }
@@ -208,6 +220,8 @@ internal class VyomFactoryDialog(
         dialog.setContentView(root)
         dialog.setOnDismissListener {
             main.removeCallbacks(refreshRunnable)
+            cancelPendingConfirmation?.invoke()
+            pendingConfirmationDialog?.dismiss()
             worker.shutdownNow()
         }
         dialog.window?.apply {
@@ -231,6 +245,155 @@ internal class VyomFactoryDialog(
         }
     }
 
+    private fun runNextTask() {
+        if (busy || token.isBlank()) return
+        if (activeClaim != null) {
+            status.text = "Release the manually-held claim before starting RUN NEXT."
+            return
+        }
+        busy = true
+        runButton.isEnabled = false
+        claimButton.isEnabled = false
+        releaseClaimButton.isEnabled = false
+        claimStatus.text = "RUNNER ACTIVE · FETCHING FRESH ISSUE AND VALIDATING ACTION…"
+        worker.execute {
+            val outcome = try {
+                val store = VyomFactoryTaskStore(activity.applicationContext)
+                val leaseStore = VyomFactoryWorkerLeaseStore(activity.applicationContext)
+                val coordinator = VyomFactoryWorkerClaimCoordinator(store, leaseStore)
+                val session = workerSession
+                val adapter = VyomFactoryAndroidActionAdapter.forActivity(activity)
+                val runner = VyomFactoryExecutionRunner(
+                    claimNext = { session.claimNext() },
+                    isClaimCurrent = { session.isCurrent(it) },
+                    releaseClaim = { session.release(it) },
+                    fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
+                    journal = VyomFactoryExecutionJournal(activity.applicationContext),
+                    adapters = VyomFactoryExecutionAdapterRegistry(listOf(adapter)),
+                    retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext),
+                    newAttemptId = { UUID.randomUUID().toString() },
+                    prepareExecution = { envelope -> prepareAndroidAction(envelope) }
+                )
+                runner.runNext()
+            } catch (error: Exception) {
+                null
+            }
+            main.post {
+                if (!dialog.isShowing) return@post
+                activeClaim = null
+                when (outcome) {
+                    is VyomFactoryExecutionRunner.Outcome.Succeeded -> {
+                        claimStatus.text = "VERIFIED · #${outcome.issueNumber} · ATTEMPT ${outcome.attemptId.take(8)}"
+                        status.text = outcome.result
+                    }
+                    is VyomFactoryExecutionRunner.Outcome.Failed -> {
+                        claimStatus.text = "EXECUTION FAILED · #${outcome.issueNumber} · ${outcome.category}"
+                        status.text = "No success recorded. Review task #${outcome.issueNumber} before retrying."
+                    }
+                    is VyomFactoryExecutionRunner.Outcome.Skipped -> {
+                        claimStatus.text = "NOT EXECUTED · #${outcome.issueNumber} · ${outcome.reason}"
+                        status.text = "No Android action was reported as completed."
+                    }
+                    is VyomFactoryExecutionRunner.Outcome.Fenced -> {
+                        claimStatus.text = "CLAIM FENCED · #${outcome.issueNumber}"
+                        status.text = "Lease changed or expired. No verified completion was recorded."
+                    }
+                    VyomFactoryExecutionRunner.Outcome.NoWork -> {
+                        claimStatus.text = "WORKER IDLE · NO ELIGIBLE TASK"
+                        status.text = "No open executable Factory task was found."
+                    }
+                    null -> {
+                        claimStatus.text = "RUNNER ERROR · NO SUCCESS REPORTED"
+                        status.text = "Execution could not start: check GitHub connection and foreground state."
+                    }
+                }
+                runButton.isEnabled = true
+                claimButton.isEnabled = true
+                releaseClaimButton.isEnabled = false
+                busy = false
+            }
+        }
+    }
+
+    private fun prepareAndroidAction(
+        envelope: VyomFactoryExecutionEnvelope
+    ): VyomFactoryExecutionEnvelope? {
+        if (envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
+            envelope.operation != "set_media_volume"
+        ) return envelope
+        val percent = envelope.arguments.opt("percent") as? Int ?: return null
+        if (percent !in 0..100) return null
+        val approvalId = requestVolumeApproval(percent) ?: return null
+        return envelope.copy(
+            arguments = org.json.JSONObject(envelope.arguments.toString())
+                .put("confirmation_id", approvalId)
+        )
+    }
+
+    /** Runs on the Factory worker thread; the actual consent dialog is shown on Android's UI thread. */
+    private fun requestVolumeApproval(percent: Int): String? {
+        if (Looper.myLooper() == Looper.getMainLooper()) return null
+        val gate = (activity as? MainActivity)?.factoryForegroundGate ?: return null
+        val epoch = gate.generation()
+        if (!gate.isForeground()) return null
+        val latch = CountDownLatch(1)
+        val result = AtomicReference<String?>(null)
+        val finished = AtomicBoolean(false)
+        val actionRef = AtomicReference<(() -> Unit)?>(null)
+        fun finish(value: String?) {
+            if (finished.compareAndSet(false, true)) {
+                result.set(value)
+                latch.countDown()
+            }
+        }
+        main.post {
+            if (!dialog.isShowing || !gate.isForeground() || gate.generation() != epoch) {
+                finish(null)
+                return@post
+            }
+            val prompt = AlertDialog.Builder(activity)
+                .setTitle("Confirm Android action")
+                .setMessage("Set media volume to ${percent}%?\n\nThis changes only the media stream volume. Vyom will verify the resulting level. This approval is one-time.")
+                .setNegativeButton("CANCEL") { _, _ -> finish(null) }
+                .setPositiveButton("CONFIRM & SET VOLUME") { _, _ ->
+                    val approval = if (dialog.isShowing && gate.isForeground() && gate.generation() == epoch) {
+                        runCatching { (activity as MainActivity).factoryOneTimeApprovals.issue() }.getOrNull()
+                    } else null
+                    finish(approval)
+                }
+                .create()
+            prompt.setOnCancelListener { finish(null) }
+            prompt.setOnDismissListener { finish(null) }
+            pendingConfirmationDialog = prompt
+            val cancel: () -> Unit = {
+                finish(null)
+                prompt.dismiss()
+            }
+            actionRef.set(cancel)
+            cancelPendingConfirmation = cancel
+            (activity as? MainActivity)?.factoryPendingConfirmationCancel = cancel
+            prompt.show()
+        }
+        val completed = try {
+            latch.await(30, TimeUnit.SECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+        if (!completed) {
+            finish(null)
+            main.post { pendingConfirmationDialog?.dismiss() }
+        }
+        main.post {
+            val cancel = actionRef.get()
+            val host = activity as? MainActivity
+            if (host?.factoryPendingConfirmationCancel === cancel) host.factoryPendingConfirmationCancel = null
+            if (cancelPendingConfirmation === cancel) cancelPendingConfirmation = null
+            if (pendingConfirmationDialog?.isShowing != true) pendingConfirmationDialog = null
+        }
+        return result.get()
+    }
+
     private fun claimNextTask() {
         if (busy || token.isBlank()) return
         busy = true
@@ -251,7 +414,9 @@ internal class VyomFactoryDialog(
                         status.text = "Claim acquired for #${claim.task.issueNumber}; execution has not started."
                     }
                     releaseClaimButton.isEnabled = claim != null
+                    runButton.isEnabled = claim == null
                     claimButton.isEnabled = true
+                    runButton.isEnabled = true
                     busy = false
                 }
             } catch (error: Exception) {
@@ -261,6 +426,7 @@ internal class VyomFactoryDialog(
                     status.text = errorMessage(error)
                     claimButton.isEnabled = true
                     releaseClaimButton.isEnabled = activeClaim != null
+                    runButton.isEnabled = activeClaim == null
                     busy = false
                 }
             }
