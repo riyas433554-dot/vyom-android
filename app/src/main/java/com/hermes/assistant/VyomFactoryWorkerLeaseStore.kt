@@ -53,7 +53,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
         validate(lease.issueNumber, lease.ownerId, now, durationMs)
         val leases = readAll().toMutableMap()
         val current = leases[lease.issueNumber]
-        if (current?.leaseId != lease.leaseId || current.ownerId != lease.ownerId || current.expiresAt <= now) {
+        if (current == null || current.leaseId != lease.leaseId || current.ownerId != lease.ownerId || current.expiresAt <= now) {
             return@synchronized null
         }
         val renewed = current.copy(expiresAt = Math.addExact(now, durationMs))
@@ -66,7 +66,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
     fun release(lease: Lease): Boolean = synchronized(PROCESS_LOCK) {
         val leases = readAll().toMutableMap()
         val current = leases[lease.issueNumber]
-        if (current?.leaseId != lease.leaseId || current.ownerId != lease.ownerId) return@synchronized false
+        if (current == null || current.leaseId != lease.leaseId || current.ownerId != lease.ownerId) return@synchronized false
         leases.remove(lease.issueNumber)
         persist(leases.values)
         true
