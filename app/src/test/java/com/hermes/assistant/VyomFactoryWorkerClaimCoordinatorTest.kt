@@ -23,6 +23,23 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         assertEquals(claim.lease, leases.active(11, 1_001))
     }
 
+    @Test fun newestOwnerPromotedIssueWinsWithinTheSamePriorityTier() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        queue.enqueue(VyomFactoryTaskStore.QueuedTask(21, "Older P0", "P0", "source-21", 100))
+        queue.enqueue(VyomFactoryTaskStore.QueuedTask(22, "Promoted P0", "P0", "source-22", 200))
+        val coordinator = VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs()))
+
+        val claim = coordinator.claimNext(
+            listOf(
+                remote(21, "P0", "source-21", updatedAt = "2026-11-04T12:00:00Z"),
+                remote(22, "P0", "source-22", updatedAt = "2026-11-04T14:00:00Z")
+            ),
+            "device-worker", 1_000, 10_000
+        )
+
+        assertEquals(22, claim?.task?.issueNumber)
+    }
+
     @Test fun skipsRemoteTasksThatAreNotOpenOrDoNotMatchLocalIdentity() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         queue.enqueue(task(10, "P0", "local-source"))
@@ -85,11 +102,11 @@ class VyomFactoryWorkerClaimCoordinatorTest {
     private fun task(issue: Int, priority: String, sourceId: String) =
         VyomFactoryTaskStore.QueuedTask(issue, "Task $issue", priority, sourceId, 100)
 
-    private fun remote(issue: Int, priority: String, sourceId: String, status: String = "open"): VyomFactoryGitHubClient.Task {
+    private fun remote(issue: Int, priority: String, sourceId: String, status: String = "open", updatedAt: String = "2026-11-04T00:00:00Z"): VyomFactoryGitHubClient.Task {
         val key = VyomFactoryStatus.idempotencyKey("factory", sourceId)!!
         val metadata = VyomFactoryStatus.Metadata(priority, status, "factory", sourceId, key, emptyList())
         return VyomFactoryGitHubClient.Task(issue, "Task $issue", "Description", "open",
-            "https://github.com/riyas433554-dot/vyom-android/issues/$issue", "2026-11-04T00:00:00Z", metadata)
+            "https://github.com/riyas433554-dot/vyom-android/issues/$issue", updatedAt, metadata)
     }
 
     private class MemoryPrefs : SharedPreferences {
