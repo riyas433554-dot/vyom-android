@@ -2486,3 +2486,18 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Current persistence-test branch HEAD: `2a0657c241262d562f6f380efcc8e8bae0b7e984`. CI pending; no local Gradle execution performed in this session.
 - Scope remains Android-only. No WorkManager, worker claim/lease, heartbeat, retry, STOP, recovery, or app-closed execution is implemented yet. No APK.
 - Next: run CI against this exact branch HEAD and fix actual logs. If green, proceed with queue reconciliation for the GitHub-create/local-enqueue crash window before adding a worker.
+
+
+## 2026-11-04 — Factory Stage 1 exact-head CI and chat registration recovery
+
+- Exact pre-change HEAD `ce3d9cdd761740f777ea9e2ab834446f6b29cb13` completed both workflows successfully:
+  - Debug run `41780598146`: job completed SUCCESS; build/test, versioned APK/checksum packaging, no-APK demo package, and artifact upload steps completed successfully.
+  - Full CI run `41780598004`: job completed SUCCESS; Termux adapter syntax/status checks, unit tests/debug APK, packaging and artifact upload completed successfully.
+- This verifies only `ce3d9c...`, not commits made after it. The workflow artifact is a CI verification artifact only; no APK is being delivered before all Factory acceptance stages.
+- Found a concrete recovery gap: chat complaint registration marked any GitHub-create/local-enqueue exception as terminal `error`. `resumeQueuedChatMessages()` only retries `queued` messages, so a process/storage failure after GitHub accepted the issue could leave the shared issue unqueued locally.
+- Changed the chat complaint failure path to retain the original message UUID and return it to `queued`, with an honest pending/reconnect explanation. On the next reconnect, existing `createTask()` searches by the same source/idempotency key before creating; then local enqueue is retried. This covers retry after response loss and local enqueue failure, subject to the existing non-atomic read-before-create race across concurrent clients.
+- Added a persistence regression test: after a simulated failed commit, retrying the same canonical issue succeeds once, and a duplicate enqueue is rejected.
+- Commits: `73576b74a5d5d8d3e3e7447889f3436b77f0115f` (retryable chat registration failure); `0bb4f8ae90f70b0407cc8c5dd4775fca44c39c64` (queue retry test).
+- Current acceptance still requires new exact-head Debug + Full CI for the changes above. The previous successful CI does not verify them.
+- Remaining limitations: retry happens on reconnect, not continuously in the background; Factory dialog retains its pending draft ID for user retry but does not yet run a durable reconciliation worker; GitHub create idempotency remains read-before-create and is not atomic across clients. No claim of worker execution is made.
+- Next: verify CI for the new exact HEAD, fix real failures, then finish Stage 1 reconciliation design/tests before worker claim + lease. No backend, Render, production Supabase, or `main` changes.
