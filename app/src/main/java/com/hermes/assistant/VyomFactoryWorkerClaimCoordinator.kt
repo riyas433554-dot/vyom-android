@@ -38,13 +38,12 @@ internal class VyomFactoryWorkerClaimCoordinator(
             val remote = remoteByIssue[queued.issueNumber] ?: return@mapNotNull null
             if (remote.metadata.sourceId != queued.sourceId) return@mapNotNull null
             queued to remote
-        }.sortedWith(
-            compareBy<Pair<VyomFactoryTaskStore.QueuedTask, VyomFactoryGitHubClient.Task>> {
-                priorityRank(it.second.metadata.priority)
-            }.thenBy { it.first.enqueuedAt }
-        )
+        }
+        val queuedByIssue = candidates.associateBy { it.second.number }
+        val orderedRemoteTasks = VyomFactoryTaskOrdering.sort(candidates.map { it.second })
 
-        for ((queued, remote) in candidates) {
+        for (remote in orderedRemoteTasks) {
+            val queued = queuedByIssue[remote.number]?.first ?: continue
             val lease = leaseStore.claim(queued.issueNumber, ownerId, now, durationMs) ?: continue
             val persisted = leaseStore.active(queued.issueNumber, now)
             if (persisted != lease || !taskStore.contains(queued.issueNumber)) {
@@ -63,14 +62,6 @@ internal class VyomFactoryWorkerClaimCoordinator(
 
     /** Releases only this claim's fenced lease; the task remains queued for retry. */
     fun release(claim: Claim): Boolean = leaseStore.release(claim.lease)
-
-    private fun priorityRank(priority: String): Int = when (priority) {
-        "P0" -> 0
-        "P1" -> 1
-        "P2" -> 2
-        "P3" -> 3
-        else -> 4
-    }
 
     private companion object {
         val CLAIM_LOCK = Any()
