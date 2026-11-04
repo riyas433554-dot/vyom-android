@@ -27,8 +27,10 @@ internal class VyomFactoryWorkerSession(
     fun claimNext(eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }): VyomFactoryWorkerClaimCoordinator.Claim? {
         val snapshot = fetchRemoteTasks()
         val timestamp = now()
-        val openTasks = snapshot.filter { it.state == "open" && it.metadata.status == "open" }
-        taskStore.reconcileOpen(openTasks.map { remote ->
+        val claimableTasks = snapshot.filter {
+            it.state == "open" && it.metadata.status in setOf("open", "in_progress")
+        }
+        taskStore.reconcileOpen(claimableTasks.map { remote ->
             VyomFactoryTaskStore.QueuedTask(
                 issueNumber = remote.number,
                 title = remote.title,
