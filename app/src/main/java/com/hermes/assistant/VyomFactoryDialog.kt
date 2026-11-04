@@ -322,6 +322,19 @@ internal class VyomFactoryDialog(
             } catch (error: Exception) {
                 null
             }
+            val auditComment = outcome?.let(VyomFactoryExecutionAudit::comment)
+            val auditedIssue = when (outcome) {
+                is VyomFactoryExecutionRunner.Outcome.Succeeded -> outcome.issueNumber
+                is VyomFactoryExecutionRunner.Outcome.Failed -> outcome.issueNumber
+                else -> null
+            }
+            if (auditComment != null && auditedIssue != null) {
+                // Audit persistence is best-effort: it must never rewrite a verified side effect as failure.
+                runCatching {
+                    val current = client.listTasks().firstOrNull { it.number == auditedIssue && it.state == "open" }
+                    if (current != null) client.addEvent(auditedIssue, auditComment)
+                }
+            }
             main.post {
                 if (!dialog.isShowing) return@post
                 activeClaim = null
