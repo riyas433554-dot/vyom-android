@@ -455,3 +455,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - CI runs `41843225962` (Debug) and `41843225983` (Full) were still QUEUED/PENDING at the last poll for parent SHA `204d44abd0161c81110a6c7d0578e0bad0506bc2`. New commits in this batch supersede that SHA; no result from those runs validates the latest source.
 - Source commits in this batch: `304b4f0025ba16f9936daa8f2a3135d1f80f6cf3` (retry routing) and `346b7c33f7e58bb2e279f1e13246dd8d18ad861e` (ChatGPT source identity test).
 - Next: inspect latest exact-head CI; then continue Stage 1 audit and keep screenshot/visibility owner decisions explicit. No APK readiness claim until exact-head Full CI, Debug CI, and artifact are verified.
+
+## Debug CI failure correction (2026-11-04)
+
+- Exact-head Debug CI 41843876699 on parent SHA 9a164bf3b460ef7e149dacf4a0bc2afcdd9e114 completed FAILURE. The log shows :app:compileDebugKotlin completed, but :app:compileDebugUnitTestKotlin failed at VyomFactoryLifecycleIntegrationTest.kt lines 33, 107, and 121: JSONObject was passed where the helper requires a String.
+- Corrected all three MockWebServer response calls to serialize the JSONObject with .toString(). Commit: bbae296400390ef7e149dacf4a0bc2afcdd9e114.
+- This is a test-source compile correction only; no app behavior changed. The corrected test has not yet been executed by CI.
+- Parent Full CI 41843876818 was still IN_PROGRESS on the old parent SHA when this correction was pushed; it does not validate the corrected commit. Poll its final result separately.
+- Next: wait for exact-head Debug and Full CI for the correction commit; inspect real logs. Do not call APK ready until both exact-head workflows succeed and the expected artifact is present and verified.
+- Separate audit note: automatic complaint registration returns early with error when the GitHub token is missing, while reconnect retries only queued items. This token-recovery retry gap is confirmed by source inspection but is not yet changed; add a regression test before modifying it.
