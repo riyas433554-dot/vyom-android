@@ -1,9 +1,9 @@
+package com.hermes.assistant
+
 internal object VyomFactoryExecutionLock {
     /** Serializes lease and journal fencing within this single app process. */
     val LOCK = Any()
 }
-
-package com.hermes.assistant
 
 import android.content.Context
 import android.content.SharedPreferences
