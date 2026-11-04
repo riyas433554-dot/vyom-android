@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest known HEAD: `12d28eccc4496a6bfc396177a72d5259e39043c7`
+- Latest known HEAD: `de9eb5fa64a12b4def4a58ef1c772909d9496fee`
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -54,6 +54,7 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 - Envelope parser implementation: `919a13d1fea3e7661a8df13dc040b8e397f1dfcc`.
 - Adapter routing tests: `f0b6f288dedcb25c143c8c9e9dd5f36c406dd9dc`, expectation correction `719d75b4f8a13be579120add51f5eafbbcde36d8`, method alignment `12d28eccc4496a6bfc396177a72d5259e39043c7`.
 - Adapter registry implementation: `a3c1e0284aa519a98f6a3530d62dcad7e39d9c73`.
+- Additional parser edge tests (duplicate markers, oversized arguments, target-specific field mismatch): `de9eb5fa64a12b4def4a58ef1c772909d9496fee`.
 - Latest source/test commits have not yet had verified CI results. Do not claim tests pass.
 - Earlier Full CI `41786551264` failed before compilation due Maven Central HTTP 403; this was dependency resolution infrastructure, not a demonstrated source/test failure.
 
@@ -61,9 +62,10 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 
 1. Verify current branch HEAD `12d28eccc4496a6bfc396177a72d5259e39043c7` and obtain exact-HEAD CI results.
 2. Inspect CI logs; fix actual parser/registry compile or test failures.
-3. Extend envelope validation tests for duplicate markers, oversized arguments, and target-specific field mismatch.
+3. Run exact-HEAD CI and fix any actual compile/test failures.
 4. Add a durable execution journal and idempotency/result fencing before concrete adapters.
-5. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
-6. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
+5. Implement one narrowly scoped concrete adapter only after task schemas and capability permissions are validated.
+6. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
+7. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
 
 No backend, Render, production Supabase, or Android `main` changes. No physical Android app-closed test claimed.
