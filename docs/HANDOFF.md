@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD: `73876f0af7643f8b43db3dccc8fc03315a7644ee` (Activity-session side-effect fence + test fixture correction). Debug run `41823124708` is IN_PROGRESS; Full CI run `41823124669` is PENDING at last poll. Prior source `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` CI was superseded by this test fixture correction; do not use it as final verification. Reconfirm exact HEAD and both current runs before treating this entry as current.
+- Latest source HEAD: `73876f0af7643f8b43db3dccc8fc03315a7644ee` (Activity-session side-effect fence + test fixture correction). Debug run `41823174698` is IN_PROGRESS; Full CI run `41823174672` is IN_PROGRESS at last poll. Prior source `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` CI was superseded by this test fixture correction; do not use it as final verification. Reconfirm exact HEAD and both current runs before treating this entry as current.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -327,4 +327,13 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 
 - Source review caught a test-only type mismatch before treating CI as evidence: the new helper takes a `() -> Boolean`, while the stale-session test initially passed a Boolean literal. Corrected it to a lambda in `73876f0af7643f8b43db3dccc8fc03315a7644ee`.
 - The correction does not alter production behavior. The exact new HEAD must receive fresh Debug + Full CI; earlier runs on `3d96f7d...` and parents are superseded.
-- Current exact-head runs at handoff update: Debug `41823124708` IN_PROGRESS; Full CI `41823124669` PENDING. No green result or artifact claimed.
+- Current code-HEAD runs at handoff update: Debug `41823174698` IN_PROGRESS; Full CI `41823174672` IN_PROGRESS. A documentation-only handoff commit followed; fresh exact-branch-tip runs are `41823206360` (Debug, IN_PROGRESS) and `41823206324` (Full CI, PENDING). No green result or artifact claimed.
+
+
+## CI follow-up after handoff correction (2026-11-04)
+
+- Code HEAD remains `73876f0af7643f8b43db3dccc8fc03315a7644ee`; the subsequent commit only corrected this handoff's run-ID references.
+- Code-HEAD CI: Debug `41823174698` and Full CI `41823174672` were both IN_PROGRESS at last poll.
+- Exact branch-tip (documentation-only commit `739adcbfa84146d23dd45441e2f74ce3125d08c6`) CI: Debug `41823206360` IN_PROGRESS; Full CI `41823206324` PENDING at last poll.
+- Logs for the active Gradle jobs were not yet downloadable (GitHub returned BlobNotFound while jobs were running); this is not evidence of a build failure.
+- Next: poll exact branch-tip runs, inspect real Gradle output when available, and do not use any superseded run as final verification.
