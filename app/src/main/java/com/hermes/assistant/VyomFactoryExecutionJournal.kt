@@ -53,7 +53,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
             val activeForIssue = entries.values.filter {
                 it.issueNumber == lease.issueNumber && !it.isTerminal
             }
-            require(activeForIssue.none {
+            check(activeForIssue.none {
                 it.leaseId == lease.leaseId && it.ownerId == lease.ownerId
             }) { "An execution attempt is already active for this issue and lease" }
             activeForIssue.forEach { previous ->
