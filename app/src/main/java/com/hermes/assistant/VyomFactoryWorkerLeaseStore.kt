@@ -1,3 +1,8 @@
+internal object VyomFactoryExecutionLock {
+    /** Serializes lease and journal fencing within this single app process. */
+    val LOCK = Any()
+}
+
 package com.hermes.assistant
 
 import android.content.Context
@@ -34,7 +39,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
 
     /** Claims an unleased/expired task, or returns the caller's still-live lease. */
     fun claim(issueNumber: Int, ownerId: String, now: Long, durationMs: Long): Lease? =
-        synchronized(PROCESS_LOCK) {
+        synchronized(VyomFactoryExecutionLock.LOCK) {
             validate(issueNumber, ownerId, now, durationMs)
             val leases = readAll().toMutableMap()
             val existing = leases[issueNumber]
@@ -127,6 +132,5 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
         private const val KEY_LEASES = "leases_v1"
         const val MIN_LEASE_MS = 5_000L
         const val MAX_LEASE_MS = 60 * 60 * 1000L
-        private val PROCESS_LOCK = Any()
     }
 }
