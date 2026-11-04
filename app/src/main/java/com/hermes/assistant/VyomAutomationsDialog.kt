@@ -17,8 +17,10 @@ import org.json.JSONObject
 internal class VyomAutomationsDialog(
     private val activity: Activity,
     private val tasks: List<JSONObject>,
-    private val onNavigate: (String) -> Unit
+    private val onNavigate: (String) -> Unit,
+    private val factoryComplaints: List<JSONObject> = emptyList()
 ) {
+    private val allTasks = tasks + factoryComplaints
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int): Int = (value * density).toInt()
     private val activeStates = setOf("queued", "pending", "running", "in_progress", "processing", "working")
@@ -70,9 +72,9 @@ internal class VyomAutomationsDialog(
         }, LinearLayout.LayoutParams(dp(42), dp(42)))
         root.addView(header)
 
-        val pending = tasks.count { it.optString("status", "queued").lowercase() in setOf("queued", "pending") }
-        val working = tasks.count { it.optString("status", "").lowercase() in setOf("running", "in_progress", "processing", "working") }
-        val done = tasks.count { it.optString("status", "").lowercase() in setOf("done", "success", "completed") }
+        val pending = allTasks.count { it.optString("status", "queued").lowercase() in setOf("queued", "pending", "open") }
+        val working = allTasks.count { it.optString("status", "").lowercase() in setOf("running", "in_progress", "processing", "working") }
+        val done = allTasks.count { it.optString("status", "").lowercase() in setOf("done", "success", "completed") }
         val stats = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, dp(16), 0, dp(12))
@@ -102,7 +104,7 @@ internal class VyomAutomationsDialog(
         root.addView(stats)
 
         countLine = TextView(activity).apply {
-            text = "Showing ${tasks.size} live task records"
+            text = "Showing ${allTasks.size} live task and Factory complaint records"
             textSize = 11f
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(2), 0, dp(8))
@@ -184,20 +186,20 @@ internal class VyomAutomationsDialog(
 
     private fun renderTasks() {
         list.removeAllViews()
-        val filtered = tasks.filter { task ->
+        val filtered = allTasks.filter { task ->
             val state = task.optString("status", "queued").lowercase()
             when (selectedFilter) {
-                "queued" -> state in setOf("queued", "pending")
+                "queued" -> state in setOf("queued", "pending", "open")
                 "running" -> state in setOf("running", "in_progress", "processing", "working")
                 "done" -> state in setOf("done", "success", "completed")
-                "failed" -> state in setOf("failed", "error")
+                "failed" -> state in setOf("failed", "error", "blocked", "paused")
                 else -> true
             }
         }.asReversed()
-        countLine.text = "Showing ${filtered.size} of ${tasks.size} live task records"
+        countLine.text = "Showing ${filtered.size} of ${allTasks.size} live task and complaint records"
         if (filtered.isEmpty()) {
             list.addView(TextView(activity).apply {
-                text = if (tasks.isEmpty()) "No live tasks yet. Create an immediate task from Tasks." else "No tasks in this filter."
+                text = if (allTasks.isEmpty()) "No live tasks or Factory complaints yet." else "No tasks in this filter."
                 textSize = 13f
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(dp(14), dp(28), dp(14), dp(28))
@@ -226,7 +228,7 @@ internal class VyomAutomationsDialog(
                 gravity = Gravity.CENTER_VERTICAL
             }
             row.addView(TextView(activity).apply {
-                text = "TASK #${task.optString("id", "—").takeLast(6)}"
+                text = if (task.optString("source") == "factory") "FACTORY #${task.optString("issueNumber")} · ${task.optString("priority")}" else "TASK #${task.optString("id", "—").takeLast(6)}"
                 textSize = 9f
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
@@ -244,7 +246,7 @@ internal class VyomAutomationsDialog(
             })
             card.addView(row)
             card.addView(TextView(activity).apply {
-                text = task.optString("prompt", "Task details unavailable")
+                text = task.optString("prompt", task.optString("title", "Task details unavailable"))
                 textSize = 14f
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 setTextColor(VyomDesignSpec.TEXT_PRIMARY)
