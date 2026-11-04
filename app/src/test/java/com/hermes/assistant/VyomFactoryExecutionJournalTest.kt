@@ -20,6 +20,34 @@ class VyomFactoryExecutionJournalTest {
         assertEquals(entry, VyomFactoryExecutionJournal(prefs, leases).get("attempt-1"))
     }
 
+    @Test fun beginRejectsSecondNonterminalAttemptForSameIssueAndLease() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val lease = leases.claim(48, "worker-a", 1_000, 10_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(lease, "attempt-active-1", 1_100)
+
+        assertThrows(IllegalStateException::class.java) {
+            journal.begin(lease, "attempt-active-2", 1_200)
+        }
+        assertEquals(1, journal.all().size)
+    }
+
+    @Test fun newAttemptIsAllowedAfterPreviousAttemptIsTerminal() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val lease = leases.claim(49, "worker-a", 1_000, 10_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(lease, "attempt-terminal-1", 1_100)
+        journal.markRunning(lease, "attempt-terminal-1", 1_150)
+        assertTrue(journal.succeed(lease, "attempt-terminal-1", 1_200, "done"))
+
+        assertEquals(
+            "attempt-terminal-2",
+            journal.begin(lease, "attempt-terminal-2", 1_300).attemptId
+        )
+    }
+
     @Test fun onlyCurrentLeaseCanWriteRunningAndTerminalResults() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
@@ -71,10 +99,27 @@ class VyomFactoryExecutionJournalTest {
         journal.begin(lease, "attempt-4", 1_100)
         journal.markRunning(lease, "attempt-4", 1_200)
 
-        assertTrue(journal.requestStop(45, 1_300))
+        assertTrue(journal.requestStop(lease, "attempt-4", 1_300))
         val saved = VyomFactoryExecutionJournal(prefs, leases).get("attempt-4")!!
         assertEquals(VyomFactoryExecutionJournal.State.STOP_REQUESTED, saved.state)
         assertEquals(null, saved.result)
+    }
+
+    @Test fun stopRequestRequiresExactCurrentLeaseAndRunningAttempt() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val oldLease = leases.claim(50, "worker-a", 1_000, 5_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(oldLease, "attempt-stop-fenced", 1_100)
+
+        assertFalse(journal.requestStop(oldLease, "attempt-stop-fenced", 1_200))
+        assertTrue(journal.markRunning(oldLease, "attempt-stop-fenced", 1_300))
+        val successor = leases.claim(50, "worker-b", 6_000, 5_000)!!
+
+        assertFalse(journal.requestStop(oldLease, "attempt-stop-fenced", 6_100))
+        assertEquals(VyomFactoryExecutionJournal.State.RUNNING, journal.get("attempt-stop-fenced")!!.state)
+        assertTrue(journal.begin(successor, "attempt-stop-successor", 6_200).state ==
+            VyomFactoryExecutionJournal.State.CLAIMED)
     }
 
     @Test fun expiredNonterminalAttemptsBecomeInterruptedButAreNeverAutoReplayed() {
