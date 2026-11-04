@@ -36,6 +36,15 @@ class VyomFactoryRetryOverviewTest {
             VyomFactoryRetryOverview.summarize(listOf(schedule(4, 130_001)), 10_000).label)
     }
 
+    @Test fun countdownHandlesSaturatedTimestampWithoutOverflow() {
+        val label = VyomFactoryRetryOverview.summarize(
+            listOf(schedule(4, Long.MAX_VALUE)),
+            0
+        ).label
+        assertTrue(label.startsWith("0 DUE · 1 SCHEDULED · NEXT #4 IN "))
+        assertFalse(label.contains("IN -"))
+    }
+
     private fun schedule(issue: Int, next: Long) = VyomFactoryRetryScheduleStore.Schedule(
         issueNumber = issue,
         operationKey = "android_action:set_media_volume",
