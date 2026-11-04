@@ -21,13 +21,15 @@ internal object VyomFactoryRetryOverview {
                 .thenBy { it.operationKey }
         )
         val due = ordered.count { it.nextAttemptAt <= now }
-        val next = ordered.firstOrNull()
         val waiting = ordered.size - due
-        val label = when {
-            next == null -> "RETRIES · NONE"
-            due > 0 && waiting == 0 -> "$due DUE · 0 SCHEDULED · NEXT #${next.issueNumber} DUE NOW"
-            due > 0 -> "$due DUE · $waiting SCHEDULED · NEXT #${next.issueNumber} DUE NOW"
-            else -> "$due DUE · $waiting SCHEDULED · NEXT #${next.issueNumber} IN ${remaining(next.nextAttemptAt - now)}"
+        // Highlight the next future retry even when another task is already due.
+        val next = ordered.firstOrNull { it.nextAttemptAt > now } ?: ordered.firstOrNull()
+        val label = if (next == null) {
+            "RETRIES · NONE"
+        } else {
+            val nextLabel = if (next.nextAttemptAt <= now) "DUE NOW"
+                else "IN ${remaining(next.nextAttemptAt - now)}"
+            "$due DUE · $waiting SCHEDULED · NEXT #${next.issueNumber} $nextLabel"
         }
         return Summary(ordered.size, due, waiting, next, label)
     }
