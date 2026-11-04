@@ -288,7 +288,7 @@ internal class VyomFactoryDialog(
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val hostActivity = activity as? MainActivity ?: throw IllegalStateException("Factory execution requires MainActivity")
                 val foregroundGeneration = hostActivity.factoryForegroundGate.generation()
-                val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity)
+                val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity, foregroundGeneration)
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = { session.claimNext { remote -> isEligibleForRunner(remote, journal, retrySchedules, adapter) } },
                     isClaimCurrent = { session.isCurrent(it) },
