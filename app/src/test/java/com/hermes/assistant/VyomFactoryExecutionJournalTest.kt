@@ -55,6 +55,7 @@ class VyomFactoryExecutionJournalTest {
         val lease = leases.claim(44, "worker-a", 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-3", 1_100)
+        assertTrue(journal.markRunning(lease, "attempt-3", 1_150))
 
         assertTrue(journal.succeed(lease, "attempt-3", 1_200, "first"))
         assertFalse(journal.fail(lease, "attempt-3", 1_300, "execution", "late failure"))
