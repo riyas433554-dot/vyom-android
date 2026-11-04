@@ -68,3 +68,13 @@ Before implementing screenshot-to-issue attachment, choose one:
 2. Explicitly approve public screenshot uploads only after the owner manually redacts each image.
 
 Until this is decided, share-sheet screenshots must not be uploaded remotely. Local-only paths are not considered shared evidence because GPT/Claude/Codex agents cannot access them.
+
+## OWNER ACTION NEEDED — confirm complaint register visibility
+
+The repository is public, so GitHub Issues, complaint titles and issue bodies are publicly readable. The Android intake now redacts content detected by the existing sensitive-memory policy and withholds chat text/exception details from automatic task-failure reports, but this is not a complete PII detector.
+
+Choose one before sending real user complaints:
+1. Keep the repository public and confirm that only non-sensitive, manually sanitized complaint details may be registered; or
+2. Change repository visibility to private in GitHub → Repository Settings → General → Danger Zone → Change repository visibility, then verify GitHub Actions and the app's issue token still have access.
+
+Do not paste credentials, OTPs, private messages or personal screenshots into public issue bodies. The seeded matrix issues are generic requirement records and contain no device evidence.
