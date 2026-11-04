@@ -91,6 +91,38 @@ class VyomFactoryAndroidActionAdapterTest {
         assertEquals(0, executed)
     }
 
+
+    @Test fun rejectsActivityThatPausedAndResumedBeforeAdapterStarts() {
+        var consumed = 0
+        var executed = 0
+        val adapter = adapter(
+            foregroundSessionValid = false,
+            consume = { consumed++; true },
+            setVolume = { executed++; "Verified: ok" }
+        )
+
+        val error = runCatching { adapter.run(envelope(), NeverStop) }.exceptionOrNull()
+
+        assertTrue(error is IllegalStateException)
+        assertEquals(0, consumed)
+        assertEquals(0, executed)
+    }
+
+    @Test fun rechecksActivitySessionAfterApprovalImmediatelyBeforeSideEffect() {
+        var sessionValid = true
+        var executed = 0
+        val adapter = adapter(
+            foregroundSessionValid = { sessionValid },
+            consume = { sessionValid = false; true },
+            setVolume = { executed++; "Verified: ok" }
+        )
+
+        val error = runCatching { adapter.run(envelope(), NeverStop) }.exceptionOrNull()
+
+        assertTrue(error is IllegalStateException)
+        assertEquals(0, executed)
+    }
+
     @Test fun pendingOrFailedReadbackIsNeverVerified() {
         val adapter = adapter()
         assertFalse(adapter.isVerifiedResult("Pending verification: volume changed"))
@@ -101,9 +133,11 @@ class VyomFactoryAndroidActionAdapterTest {
     private fun adapter(
         foreground: Boolean = true,
         consume: (String) -> Boolean = { it == "approval-1" },
-        setVolume: (Int) -> String = { "Verified: Media volume set to $it%." }
+        setVolume: (Int) -> String = { "Verified: Media volume set to $it%." },
+        foregroundSessionValid: () -> Boolean = { true }
     ) = VyomFactoryAndroidActionAdapter(
         isForeground = { foreground },
+        isForegroundSessionValid = foregroundSessionValid,
         consumeConfirmation = consume,
         setMediaVolume = setVolume
     )
