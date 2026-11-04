@@ -644,12 +644,13 @@ internal class VyomFactoryDialog(
     }
 
     private fun render(tasks: List<VyomFactoryGitHubClient.Task>) {
+        val orderedTasks = VyomFactoryTaskOrdering.sort(tasks)
         taskList.removeAllViews()
-        if (tasks.isEmpty()) {
+        if (orderedTasks.isEmpty()) {
             taskList.addView(message("No Factory complaints registered yet. Use the form above to create the first shared task."))
             return
         }
-        tasks.forEach { task ->
+        orderedTasks.forEach { task ->
             val card = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
