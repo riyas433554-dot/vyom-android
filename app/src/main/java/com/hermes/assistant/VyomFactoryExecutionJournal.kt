@@ -50,6 +50,21 @@ internal class VyomFactoryExecutionJournal internal constructor(
             requireCurrentLease(lease, now)
             val entries = readAll().toMutableMap()
             require(attemptId !in entries) { "Execution attempt already exists" }
+            val activeForIssue = entries.values.filter {
+                it.issueNumber == lease.issueNumber && !it.isTerminal
+            }
+            require(activeForIssue.none {
+                it.leaseId == lease.leaseId && it.ownerId == lease.ownerId
+            }) { "An execution attempt is already active for this issue and lease" }
+            activeForIssue.forEach { previous ->
+                entries[previous.attemptId] = previous.copy(
+                    state = State.INTERRUPTED,
+                    updatedAt = now
+                )
+            }
+            check(entries.size < MAX_JOURNAL_ENTRIES) {
+                "Execution journal is full; refusing to discard audit history"
+            }
             val entry = Entry(
                 issueNumber = lease.issueNumber,
                 attemptId = attemptId,
@@ -118,23 +133,21 @@ internal class VyomFactoryExecutionJournal internal constructor(
     }
 
     /** Requests cooperative stop; the entry remains nonterminal until an executor confirms it. */
-    fun requestStop(issueNumber: Int, now: Long): Boolean =
-        synchronized(VyomFactoryExecutionLock.LOCK) {
-            require(issueNumber > 0 && now >= 0)
-            val entries = readAll().toMutableMap()
-            val current = entries.values
-                .filter { it.issueNumber == issueNumber && !it.isTerminal }
-                .maxByOrNull { it.startedAt } ?: return@synchronized false
-            if (current.state == State.STOP_REQUESTED) return@synchronized true
-            if (current.state != State.CLAIMED && current.state != State.RUNNING) return@synchronized false
-            entries[current.attemptId] = current.copy(
+    fun requestStop(
+        lease: VyomFactoryWorkerLeaseStore.Lease,
+        attemptId: String,
+        now: Long
+    ): Boolean = updateWithLease(lease, attemptId, now) { current ->
+        when (current.state) {
+            State.RUNNING -> current.copy(
                 state = State.STOP_REQUESTED,
                 updatedAt = now,
                 stopRequestedAt = now
             )
-            persist(entries.values)
-            true
+            State.STOP_REQUESTED -> current
+            else -> null
         }
+    }
 
     /** Marks expired nonterminal attempts interrupted. This method never retries side effects. */
     fun interruptExpired(now: Long): Int = synchronized(VyomFactoryExecutionLock.LOCK) {
@@ -198,6 +211,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
         val raw = prefs.getString(KEY_ATTEMPTS, null) ?: return emptyMap()
         return try {
             val array = JSONArray(raw)
+            require(array.length() <= MAX_JOURNAL_ENTRIES) { "Execution journal exceeds its safe entry limit" }
             buildMap {
                 for (index in 0 until array.length()) {
                     val item = array.optJSONObject(index) ?: error("Invalid execution journal entry $index")
@@ -257,6 +271,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
         private const val MAX_ATTEMPT_ID_LENGTH = 160
         private const val MAX_RESULT_LENGTH = 8_000
         private const val MAX_ERROR_LENGTH = 1_000
+        private const val MAX_JOURNAL_ENTRIES = 500
         private val ATTEMPT_ID = Regex("[A-Za-z0-9][A-Za-z0-9._:-]{0,159}")
         private val ERROR_CATEGORY = Regex("[a-z][a-z0-9_]{1,79}")
     }
