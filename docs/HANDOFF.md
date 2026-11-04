@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `eac97f2d868e25d6876588ce34c67a429ea8b8b7` (foreground STOP control + MainActivity typing correction; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `80b2df68c4f67fca77a3a5826db4bf9304a9f186` (foreground task selection now skips unsupported/terminal/not-due tasks; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -199,3 +199,13 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - CI on earlier source HEAD `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7`: Debug run `41816150471` failed at Kotlin compilation. Real errors: `VyomFactoryDialog.kt:262` passed generic `Activity` to `forActivity(MainActivity)`; line 387 dereferenced nullable `MainActivity?`. Corrected by binding a non-null `hostActivity` before adapter construction/confirmation UI in `eac97f2d868e25d6876588ce34c67a429ea8b8b7`. The corresponding Full CI run `41816150476` was cancelled; it is not a pass.
 - Exact latest source HEAD `eac97f2d868e25d6876588ce34c67a429ea8b8b7`: Debug run `41816675456` is IN_PROGRESS; Full CI run `41816675469` is PENDING. No green result or artifact is claimed. Older runs `41816575411`, `41816529872`, `41816482281` and `41816482477` are on superseded source commits and must not be used as final verification.
 - Next: inspect exact-head logs/results. If green, proceed to retry due-work consumer only after ensuring each retry obtains fresh GitHub state, a new lease, fresh explicit approval, and checks STOP. Do not add heartbeat for this fast synchronous volume adapter; heartbeat remains deferred until a genuinely long-running adapter exists. Crash recovery, bounded parallel workers and app-closed verification remain pending.
+
+
+## RUN NEXT starvation prevention (2026-11-04)
+
+- Added filtered fresh-snapshot claim selection in `VyomFactoryWorkerSession.claimNext(eligible)`. It still reconciles every open task into the device inbox, but the foreground runner can ask the coordinator to consider only execution-eligible issues.
+- RUN NEXT now filters out malformed/manual-review envelopes, unsupported Android operations, non-media-volume operations, remote-supplied confirmation IDs, legacy/terminal/interrupted/active attempts, and failed attempts without a due idempotent retry schedule. A previously succeeded or not-yet-due high-priority issue can no longer be claimed repeatedly and starve lower-priority executable work.
+- Filtered tasks remain in the shared inbox; this is not deletion or automatic status mutation. The separate manual CLAIM NEXT flow can still claim them for review.
+- Test-first commit: `b9d190602873235285f355ac7d5ac2f838a8c02b`; implementation commit: `80b2df68c4f67fca77a3a5826db4bf9304a9f186`.
+- Exact latest source HEAD `80b2df68c4f67fca77a3a5826db4bf9304a9f186`: Debug run `41816939027` is IN_PROGRESS; Full CI run `41816938933` is PENDING. Older runs on `eac97f2...` and previous commits were superseded/cancelled; no CI pass or artifact is claimed yet.
+- Next: inspect exact-head compile/test results. If green, keep heartbeat deferred (volume set is synchronous and short), then implement a due-retry manual/foreground consumer with a fresh GitHub snapshot, a new lease and a new explicit user approval per retry. No autonomous retry without an app-visible scheduler and crash recovery.
