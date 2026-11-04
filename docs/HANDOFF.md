@@ -424,3 +424,13 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact corrected-source CI: Full CI `41840844317` PENDING; Debug `41840844507` QUEUED at handoff refresh. Earlier Full CI `41839292627` SUCCESS verifies only parent source `832f49e406953aead5032d1f9d7b091be29f2bab`, not the new test. The parent Debug run `41839292787` remains QUEUED and is not current verification.
 - Additional audit finding: `VyomAutomationsDialog.renderTasks()` reverses the already-canonical Factory complaint list with `.asReversed()`. Factory and Automations therefore can show opposite complaint order. Fix with a regression test after the lifecycle integration test result is known.
 - Next: poll corrected-source CI; fix only actual test/compiler failures. Then correct Automations ordering while preserving the existing reverse-chronological order for local tasks. Refresh this handoff after that batch.
+
+## Automations ordering correction (2026-11-04)
+
+- Fixed the confirmed inversion: Factory complaints were already sorted P0 → P3 by `VyomFactoryTaskOrdering`, but Automations reversed the combined local+Factory list. It now reverses only local task recency and preserves the incoming canonical Factory complaint order.
+- Added pure helper `VyomAutomationsTaskOrdering` and tests proving local tasks remain newest-first while Factory P0/P1 order is unchanged, plus the empty-Factory case.
+- Updated `VyomAutomationsDialog` to use the helper; no backend, main branch, Render, or production Supabase changes.
+- Current source checkpoint before this handoff refresh: `ba13c03346c1c2b8db9dd5380aa850a9f7c74f56`.
+- Exact-head Full CI `41842466230` PENDING; Debug `41842466165` QUEUED. Previous corrected lifecycle-test CI was repeatedly cancelled/queued due to newer pushes before its Android test step completed. The lifecycle integration test and Automations regression tests remain unverified until a stable-head run finishes.
+- Note: earlier Full CI `41839292627` SUCCESS is only for ancestor `832f49e...`; it does not validate these later tests or the current source.
+- Next: poll exact-head workflows; obtain real test logs and fix compile/test failures. After stable green CI, inspect Factory proposal workflow tests and continue remaining Stage 1 gaps. Do not issue APK until the agreed Factory-first gate and exact-head Debug artifact checks pass.
