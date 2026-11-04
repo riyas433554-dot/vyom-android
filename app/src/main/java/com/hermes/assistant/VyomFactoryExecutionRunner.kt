@@ -29,6 +29,9 @@ internal class VyomFactoryExecutionRunner(
     }
 
     fun runNext(): Outcome {
+        // Recover expired/non-current attempts before the claim selector filters
+        // terminal history, so stale RUNNING work cannot starve the inbox.
+        journal.interruptExpired(now())
         val claim = claimNext() ?: return Outcome.NoWork
         val issue = claim.task.issueNumber
         fun skip(reason: String): Outcome.Skipped {
