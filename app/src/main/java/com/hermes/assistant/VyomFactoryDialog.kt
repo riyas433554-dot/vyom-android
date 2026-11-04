@@ -274,7 +274,8 @@ internal class VyomFactoryDialog(
         worker.execute {
             val outcome = try {
                 val session = workerSession
-                val adapter = VyomFactoryAndroidActionAdapter.forActivity(activity)
+                val hostActivity = activity as? MainActivity ?: throw IllegalStateException("Factory execution requires MainActivity")
+                val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity)
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = { session.claimNext() },
                     isClaimCurrent = { session.isCurrent(it) },
@@ -347,7 +348,8 @@ internal class VyomFactoryDialog(
     /** Runs on the Factory worker thread; the actual consent dialog is shown on Android's UI thread. */
     private fun requestVolumeApproval(percent: Int): String? {
         if (Looper.myLooper() == Looper.getMainLooper()) return null
-        val gate = (activity as? MainActivity)?.factoryForegroundGate ?: return null
+        val hostActivity = activity as? MainActivity ?: return null
+        val gate = hostActivity.factoryForegroundGate
         val epoch = gate.generation()
         if (!gate.isForeground()) return null
         val latch = CountDownLatch(1)
@@ -371,7 +373,7 @@ internal class VyomFactoryDialog(
                 .setNegativeButton("CANCEL") { _, _ -> finish(null) }
                 .setPositiveButton("CONFIRM & SET VOLUME") { _, _ ->
                     val approval = if (dialog.isShowing && gate.isForeground() && gate.generation() == epoch) {
-                        runCatching { (activity as MainActivity).factoryOneTimeApprovals.issue() }.getOrNull()
+                        runCatching { hostActivity.factoryOneTimeApprovals.issue() }.getOrNull()
                     } else null
                     finish(approval)
                 }
@@ -385,7 +387,7 @@ internal class VyomFactoryDialog(
             }
             actionRef.set(cancel)
             cancelPendingConfirmation = cancel
-            (activity as? MainActivity)?.factoryPendingConfirmationCancel = cancel
+            hostActivity.factoryPendingConfirmationCancel = cancel
             prompt.show()
         }
         val completed = try {
@@ -400,8 +402,7 @@ internal class VyomFactoryDialog(
         }
         main.post {
             val cancel = actionRef.get()
-            val host = activity as? MainActivity
-            if (host?.factoryPendingConfirmationCancel === cancel) host.factoryPendingConfirmationCancel = null
+            if (hostActivity.factoryPendingConfirmationCancel === cancel) hostActivity.factoryPendingConfirmationCancel = null
             if (cancelPendingConfirmation === cancel) cancelPendingConfirmation = null
             if (pendingConfirmationDialog?.isShowing != true) pendingConfirmationDialog = null
         }
