@@ -1,6 +1,7 @@
 package com.hermes.assistant
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -10,7 +11,7 @@ import org.json.JSONObject
  * GitHub Issues remains the cross-client task registry. This store is only the
  * Android device's execution inbox; it does not claim a shared/atomic lease.
  */
-internal class VyomFactoryTaskStore(context: Context) {
+internal class VyomFactoryTaskStore internal constructor(private val prefs: SharedPreferences) {\n    constructor(context: Context) : this(\n        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)\n    )
     data class QueuedTask(
         val issueNumber: Int,
         val title: String,
