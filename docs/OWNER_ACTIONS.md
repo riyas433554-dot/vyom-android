@@ -35,8 +35,13 @@ vyom-complain \
 
 Re-running the exact command with the same --source-id must return the existing issue number, not create a duplicate. Do not reuse this source ID for a different complaint.
 
-## Other intake sources still awaiting implementation
-Voice complaint registration, automatic Diagnostics/task-failure issue creation, and the Android screenshot share-sheet receiver are not yet implemented/verified. Do not claim these paths work yet.
+## Intake implementation status (source-wired; device acceptance pending)
+- Chat complaint prefix and voice-transcript complaint prefix both route to the shared GitHub Issues registry with stable local message identity.
+- Diagnostics failures are converted into sanitized complaint records with content-specific stable IDs; queued reports retry registration after reconnect.
+- Chat task failures create a separate complaint while withholding the original private request and exception details from the public issue.
+- Termux intake command exists and has shell/schema CI coverage; owner must still install/authenticate it and run the documented idempotency smoke test.
+- These source paths are not yet accepted on a physical phone. The screenshot share-sheet receiver is still not implemented.
+
 
 ## Required when Stage 1 implementation is ready
 These are deliberately deferred until the corresponding feature is present in an exact-head APK; they are not current blockers to source work.
