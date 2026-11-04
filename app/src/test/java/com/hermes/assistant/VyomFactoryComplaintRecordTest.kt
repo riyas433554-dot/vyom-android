@@ -19,6 +19,7 @@ class VyomFactoryComplaintRecordTest {
             val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
             assertEquals(complaint, "control", item.area)
             assertEquals(complaint, "P0", item.priority)
+            assertEquals(complaint, "high", item.severity)
         }
     }
 
