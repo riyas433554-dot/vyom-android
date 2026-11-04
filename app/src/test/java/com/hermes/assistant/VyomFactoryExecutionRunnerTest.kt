@@ -312,11 +312,28 @@ class VyomFactoryExecutionRunnerTest {
         assertNull(fixture.activeLease())
     }
 
+    @Test fun busyRunnerDoesNotClaimOrInterruptWorkWhilePermitHeld() {
+        val permit = VyomFactoryExecutionPermit()
+        assertTrue(permit.tryAcquire())
+        try {
+            val fixture = Fixture(executionPermit = permit)
+            val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+            val outcome = fixture.runner(adapter).runNext()
+            assertEquals(VyomFactoryExecutionRunner.Outcome.Busy, outcome)
+            assertEquals(0, fixture.claimRequests)
+            assertEquals(0, adapter.calls)
+            assertTrue(fixture.journal.all().isEmpty())
+        } finally {
+            permit.release()
+        }
+    }
     private class Fixture(
         remoteState: String = "open",
         executionOperation: String = "safe_action",
-        executionArguments: String = "{}"
+        executionArguments: String = "{}",
+        private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit()
     ) {
+        var claimRequests = 0
         private val prefs = MemoryPrefs()
         private val leaseStore = VyomFactoryWorkerLeaseStore(prefs)
         private var lease = leaseStore.claim(71, "runner-test", 1_000, 100_000)!!
@@ -380,6 +397,7 @@ class VyomFactoryExecutionRunnerTest {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
                 claimNext = {
+                    claimRequests++
                     val current = if (preserveReleasedLeaseForNextClaim) lease else
                         leaseStore.claim(71, "runner-test", clock, 100_000)!!
                     lease = current
@@ -394,7 +412,8 @@ class VyomFactoryExecutionRunnerTest {
                 now = { clock },
                 newAttemptId = { "attempt-${++attemptSequence}" },
                 prepareExecution = prepareExecution,
-                externalStopRequested = externalStopRequested
+                externalStopRequested = externalStopRequested,
+                executionPermit = executionPermit
             )
         }
     }

@@ -324,6 +324,10 @@ internal class VyomFactoryDialog(
                         claimStatus.text = "CLAIM FENCED · #${outcome.issueNumber}"
                         status.text = "Lease changed or expired. No verified completion was recorded."
                     }
+                    VyomFactoryExecutionRunner.Outcome.Busy -> {
+                        claimStatus.text = "WORKER BUSY · ONE ACTIVE RUN"
+                        status.text = "Another Factory action is already executing. This run did not claim a task."
+                    }
                     VyomFactoryExecutionRunner.Outcome.NoWork -> {
                         claimStatus.text = "WORKER IDLE · NO ELIGIBLE TASK"
                         status.text = "No open executable Factory task was found."
