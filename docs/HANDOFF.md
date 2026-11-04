@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest implementation HEAD before the latest test correction: `aad88b0d58c563c6729a5516e11defcaab016306` (docs-only handoff update); latest test correction commit: `99f4a121cd52fa9faf70df168a35e3df51fcd0c2`.
+- Latest branch HEAD at last inspection: `e9bb4c38d842676c1f27e719b343b9b23504d75f`.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -47,7 +47,7 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 
 ## Recent commits and CI
 
-- Exact HEAD `56efc35772dfbb538818559394f82003919d0285`: Debug workflow run `41787089042` SUCCESS; build/test, APK packaging and upload steps all SUCCESS.
+- Historical exact HEAD `56efc35772dfbb538818559394f82003919d0285`: Debug workflow run `41787089042` SUCCESS; build/test, APK packaging and upload steps all SUCCESS. This is not current source validation.
 - Artifact from that source-equivalent HEAD: `vyom-phase6-56efc35772dfbb538818559394f82003919d0285`, artifact ID `13302535151`, SHA-256 `0e335fcfaeac3b44b3ed241208a1cc991437f5cc961d924a5d768bd25d988d6b`. Not a final release.
 - Architecture doc: `c82f95d6b9a0146a1ee63c9de7240abc8750d832`.
 - Envelope contract tests: `c131b68c7ddca1b6d32746c58aaaef1496b9c106`.
@@ -55,14 +55,18 @@ Architecture: [VYOM_FACTORY_EXECUTION_ARCHITECTURE.md](VYOM_FACTORY_EXECUTION_AR
 - Adapter routing tests: `f0b6f288dedcb25c143c8c9e9dd5f36c406dd9dc`, expectation correction `719d75b4f8a13be579120add51f5eafbbcde36d8`, method alignment `12d28eccc4496a6bfc396177a72d5259e39043c7`.
 - Adapter registry implementation: `a3c1e0284aa519a98f6a3530d62dcad7e39d9c73`.
 - Additional parser edge tests (duplicate markers, oversized arguments, target-specific field mismatch): `de9eb5fa64a12b4def4a58ef1c772909d9496fee`.
-- Debug CI run `41788314857` on `aad88b0d58c563c6729a5516e11defcaab016306` failed only at `VyomFactoryExecutionAdapterRegistryTest.routesOnlyToAdapterMatchingExplicitTarget`: test expected `android_action:open_settings`, while the recording adapter actually returns `android_action: open_settings`. Build and Kotlin compilation succeeded; 345 tests ran, 1 failed.
-- Test expectation corrected in `99f4a121cd52fa9faf70df168a35e3df51fcd0c2`; exact-head CI for this correction is pending.
+- Debug CI run `41788314857` on `aad88b0d58c563c6729a5516e11defcaab016306` failed only at `VyomFactoryExecutionAdapterRegistryTest.routesOnlyToAdapterMatchingExplicitTarget`: test expected `android_action:open_settings`, while the recording adapter returned `android_action: open_settings`. Build and Kotlin compilation succeeded; 345 tests ran, 1 failed.
+- Corrected the test expectation in `99f4a121cd52fa9faf70df168a35e3df51fcd0c2`.
+- Added durable execution journal contract tests (7 cases) in `06ea7d7fb9d6daec39b68ae54d20b627778c7a0e`.
+- Added a shared process lock for lease/journal fencing (`e4fac5015e55fdd4cf5ab759b63631d660bc01cc`) and journal implementation (`e58ad2e3469625ed8b2071e41809b673ba2c6e11`); follow-up constructor/stale-lease and Kotlin declaration-order corrections: `2486e5131b4aeb7793b2042280d2ae99ff6e92bd`, `62b51a69e50fd04fafe9903889b9b3ed44dae15d`, `e9bb4c38d842676c1f27e719b343b9b23504d75f`.
+- Journal persists claim/running/stop-requested/succeeded/failed/interrupted attempts, fences state writes against the exact current unexpired lease within the same app process, rejects duplicate terminal writes, bounds results/errors, and marks expired attempts interrupted without replay. It is not cross-device/multi-process atomic.
+- Exact-head CI for `e9bb4c38d842676c1f27e719b343b9b23504d75f` is queued/in progress; do not claim the new journal tests pass until logs confirm.
 - Earlier Full CI `41786551264` failed before compilation due Maven Central HTTP 403; this was dependency resolution infrastructure, not a demonstrated source/test failure.
 
 ## Immediate next actions
 
-1. Verify exact-head CI for test correction `99f4a121cd52fa9faf70df168a35e3df51fcd0c2` and fix only real failures.
-2. Add a durable execution journal and idempotency/result fencing before concrete adapters.
+1. Verify exact-head CI for `e9bb4c38d842676c1f27e719b343b9b23504d75f`; fix failures from actual logs.
+2. Review journal edge cases and add bounded retry/backoff only after the journal contract is green.
 3. Implement one narrowly scoped concrete adapter only after task schemas and capability permissions are validated.
 4. Add WorkManager only after a concrete bounded adapter exists; never claim 24/7 reliability.
 5. Continue the canonical order, update this file after each batch, and physically verify app-closed behavior before release.
