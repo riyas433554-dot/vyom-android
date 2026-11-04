@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source + handoff commit before this correction: `63e830a3de9742ebda0467f819772b7ec2ba74eb`. Activity-pause STOP invalidation is wired in `VyomFactoryDialog`; exact-head CI runs `41821666098` (Debug) and `41821666302` (Full CI) were still running at last poll. Reconfirm HEAD and CI before treating this entry as current.
+- Latest source HEAD: `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` (Activity-session side-effect fence). Debug run `41823023646` is IN_PROGRESS; Full CI run `41823023648` is PENDING at last poll. Prior source `f5bfbd4d995d6d3b4e5ddef7fd8236bdd24a9967` Full CI `41822316018` passed, but its Debug `41822315988` remained in progress and neither verifies the new lifecycle-fence commits. Reconfirm exact HEAD and both current runs before treating this entry as current.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -308,3 +308,16 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact-head CI at SHA `63e830a3de9742ebda0467f819772b7ec2ba74eb`: Debug run `41821666098` and Full CI run `41821666302`. At the latest poll, both were still running their Gradle unit-test/build stages; no artifact was available yet. Older SHA `d14ddb7554101872526aa3306361435a5d7fd926` CI was superseded/cancelled and is not authoritative.
 - Existing runner tests cover external STOP before execution and STOP checks around adapter dispatch, but no Android Activity lifecycle instrumentation test was added in this batch. Do not describe the lifecycle behavior as instrumented-tested.
 - Next: poll these exact-head runs; diagnose only real logs. Then add a deterministic lifecycle-gate regression test if the foreground gate can be unit-tested without Android instrumentation. Keep process-wide worker cap at one. Stage 8 remains physical app-closed verification; no final APK is authorized yet.
+
+
+## Activity-session fence at Android side-effect boundary (2026-11-04)
+
+- Audit finding: RUN NEXT already captured the Activity foreground generation and the runner's external STOP predicate rejected a pause/resume cycle. The Android adapter separately checked foreground state twice, including immediately before the volume side effect, but those checks only read the current resumed boolean. A pause followed by resume between runner checks could make the boolean true again; the adapter did not compare against the generation approved for this run.
+- Regression tests added first in commit `00f51b7f80b21bd93971495eb44838589663ce56`: reject a stale Activity session before consuming approval, and reject a session invalidated during approval before the device side effect.
+- Production fix: `c3a4700dd06eb37e94af59cd2d185814310662be` adds a foreground-session validity callback to the adapter and checks it both before consuming approval and immediately before the side effect. `26ee84e7da4fbd73b40c7051953656b159f82c34` adds the gate's atomic resumed+generation predicate. `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` binds the adapter to the exact generation captured for RUN NEXT.
+- Test contract: one test starts with an invalidated generation and confirms approval is not consumed; another invalidates the session during approval consumption and confirms no volume call occurs. These are unit tests; they do not replace Android lifecycle instrumentation or physical-device testing.
+- CI for test-only RED commit `00f51b7f80b21bd93971495eb44838589663ce56`: Debug `41822969467` and Full CI `41822969595` were started while the test intentionally referenced the not-yet-added adapter callback; inspect their immutable-commit results as the RED proof. They are superseded and must not be used for final verification.
+- Exact current source HEAD `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a`: Debug `41823023646` IN_PROGRESS; Full CI `41823023648` PENDING at last poll. No pass or APK artifact is claimed for this HEAD.
+- Previous exact source `f5bfbd4d995d6d3b4e5ddef7fd8236bdd24a9967`: Full CI `41822316018` SUCCESS; Debug `41822315988` was still IN_PROGRESS at last poll. This older CI does not verify the Activity-session fence.
+- Scope remains Android-only. No changes to Android `main`, Render, Hermes backend, or production Supabase. Worker cap remains one. Heartbeat remains deferred for the short synchronous media-volume adapter. App-closed verification remains a physical-device requirement.
+- Next: poll exact-head Debug + Full CI; diagnose only real logs. If green, continue canonical Factory audit and keep APK delivery blocked until all required stages and physical verification are complete.
