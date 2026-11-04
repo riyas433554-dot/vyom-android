@@ -11,7 +11,10 @@ import org.json.JSONObject
  * GitHub Issues remains the cross-client task registry. This store is only the
  * Android device's execution inbox; it does not claim a shared/atomic lease.
  */
-internal class VyomFactoryTaskStore internal constructor(private val prefs: SharedPreferences) {\n    constructor(context: Context) : this(\n        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)\n    )
+internal class VyomFactoryTaskStore internal constructor(private val prefs: SharedPreferences) {
+    constructor(context: Context) : this(
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    )
     data class QueuedTask(
         val issueNumber: Int,
         val title: String,
@@ -20,7 +23,6 @@ internal class VyomFactoryTaskStore internal constructor(private val prefs: Shar
         val enqueuedAt: Long
     )
 
-    private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     
     fun enqueue(task: QueuedTask): Boolean = synchronized(PROCESS_LOCK) {
