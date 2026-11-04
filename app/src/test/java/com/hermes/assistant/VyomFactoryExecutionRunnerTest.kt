@@ -48,6 +48,41 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun idempotentFailureWaitsUntilPersistedRetryIsDue() {
+        val fixture = Fixture()
+        val firstAdapter = RecordingAdapter(fail = true, idempotent = true)
+        val first = fixture.runner(firstAdapter)
+        assertTrue(first.runNext() is VyomFactoryExecutionRunner.Outcome.Failed)
+
+        val earlyAdapter = RecordingAdapter(fail = false, idempotent = true)
+        val early = fixture.runner(earlyAdapter).runNext()
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "retry_not_due_or_manual_review_required"),
+            early
+        )
+        assertEquals(0, earlyAdapter.calls)
+
+        fixture.advanceTo(100_000)
+        val retryAdapter = RecordingAdapter(fail = false, idempotent = true)
+        val retried = fixture.runner(retryAdapter).runNext()
+        assertTrue(retried is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertEquals(1, retryAdapter.calls)
+    }
+
+    @Test fun failedNonIdempotentOperationIsNeverAutomaticallyReplayed() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = true, idempotent = false)
+        fixture.runner(adapter).runNext()
+
+        val second = fixture.runner(adapter).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "retry_not_due_or_manual_review_required"),
+            second
+        )
+        assertEquals(1, adapter.calls)
+    }
+
     @Test fun successfulExecutionClearsOnlyItsMatchingRetrySchedule() {
         val fixture = Fixture()
         fixture.retryStore.recordFailure(71, "android_action:safe_action", "network_timeout", 1_000, true)
@@ -112,7 +147,10 @@ class VyomFactoryExecutionRunnerTest {
         )
         val journal = VyomFactoryExecutionJournal(prefs, leaseStore)
         val retryStore = VyomFactoryRetryScheduleStore(MemoryPrefs())
-        private var claimed = false
+        private var attemptSequence = 0
+        private var clock = 2_000L
+
+        fun advanceTo(value: Long) { clock = value }
 
         fun requestStop() {
             assertTrue(journal.requestStop(lease, "attempt-1", 2_001))
@@ -129,20 +167,15 @@ class VyomFactoryExecutionRunnerTest {
         fun runner(adapter: VyomFactoryExecutionAdapter): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
-                claimNext = {
-                    if (claimed) null else {
-                        claimed = true
-                        VyomFactoryWorkerClaimCoordinator.Claim(task, remote, lease)
-                    }
-                },
+                claimNext = { VyomFactoryWorkerClaimCoordinator.Claim(task, remote, lease) },
                 isClaimCurrent = { leaseStore.active(71, 2_000) == lease },
                 releaseClaim = { leaseStore.release(it.lease) },
                 fetchFreshTask = { if (it == 71) remote else null },
                 journal = journal,
                 adapters = registry,
                 retrySchedules = retryStore,
-                now = { 2_000 },
-                newAttemptId = { "attempt-1" }
+                now = { clock },
+                newAttemptId = { "attempt-${++attemptSequence}" }
             )
         }
     }
