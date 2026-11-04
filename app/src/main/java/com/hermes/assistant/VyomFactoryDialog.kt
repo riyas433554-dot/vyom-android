@@ -287,6 +287,7 @@ internal class VyomFactoryDialog(
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val hostActivity = activity as? MainActivity ?: throw IllegalStateException("Factory execution requires MainActivity")
+                val foregroundGeneration = hostActivity.factoryForegroundGate.generation()
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity)
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = { session.claimNext { remote -> isEligibleForRunner(remote, journal, retrySchedules, adapter) } },
@@ -298,7 +299,13 @@ internal class VyomFactoryDialog(
                     retrySchedules = retrySchedules,
                     newAttemptId = { UUID.randomUUID().toString() },
                     prepareExecution = { envelope -> prepareAndroidAction(envelope) },
-                    externalStopRequested = { stopRunRequested.get() }
+                    // Activity pause/resume invalidates this run permanently, even if
+                    // the user returns before the worker reaches its next STOP check.
+                    externalStopRequested = {
+                        stopRunRequested.get() ||
+                            !hostActivity.factoryForegroundGate.isForeground() ||
+                            hostActivity.factoryForegroundGate.generation() != foregroundGeneration
+                    }
                 )
                 runner.runNext()
             } catch (error: Exception) {
