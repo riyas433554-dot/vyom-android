@@ -2972,10 +2972,11 @@ class MainActivity : Activity() {
             try {
                 val title = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
                     .ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
+                val record = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
                 val task = VyomFactoryGitHubClient(token).createTask(
                     title = title,
-                    description = complaint,
-                    priority = "P2",
+                    description = record.toIssueDescription(),
+                    priority = record.priority,
                     source = "vyom_chat",
                     sourceId = item.id
                 )
