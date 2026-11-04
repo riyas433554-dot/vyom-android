@@ -50,7 +50,10 @@ internal class VyomFactoryExecutionRunner(
 
         // Expired leases never authorize replay. Only a persisted due retry for
         // this exact issue/operation and an adapter still declaring idempotency can retry.
-        val previous = journal.all().lastOrNull { it.issueNumber == issue }
+        val operationKey = envelope.operationKey()
+        val previous = journal.all().lastOrNull {
+            it.issueNumber == issue && it.operationKey == operationKey
+        }
         if (previous != null) {
             when (previous.state) {
                 VyomFactoryExecutionJournal.State.SUCCEEDED ->
@@ -73,7 +76,7 @@ internal class VyomFactoryExecutionRunner(
         }
 
         val attemptId = newAttemptId()
-        journal.begin(claim.lease, attemptId, now())
+        journal.begin(claim.lease, attemptId, now(), operationKey)
         if (!journal.markRunning(claim.lease, attemptId, now())) return Outcome.Fenced(issue)
 
         val control = object : VyomFactoryExecutionControl {
