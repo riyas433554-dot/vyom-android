@@ -778,15 +778,20 @@ class MainActivity : Activity() {
                                                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
                                                     }
                                                     val verifiedSha = proposalClient.waitForProposalCi(token, proposal.branch)
-                                                    if (linkedFactoryIssueNumber != null) runCatching {
-                                                        VyomFactoryGitHubClient(token).addEvent(
-                                                            linkedFactoryIssueNumber,
-                                                            "Both required CI workflows passed for exact proposal commit ${verifiedSha}. Owner review and explicit install approval are still required."
-                                                        )
-                                                    }
+                                                    val issueCiCommentSaved = linkedFactoryIssueNumber?.let { issueNumber ->
+                                                        runCatching {
+                                                            VyomFactoryGitHubClient(token).addEvent(
+                                                                issueNumber,
+                                                                "Both required CI workflows passed for exact proposal commit ${verifiedSha}. The PR is still unmerged; owner review/merge and a separate signed release are required before installation."
+                                                            )
+                                                        }.isSuccess
+                                                    } ?: true
                                                     runOnUiThread {
-                                                        selfChangeNotice.text = "CI passed for ${verifiedSha.take(12)}. Signed update is available for owner review; no automatic install was started."
-                                                        checkForUpdate(expectedCommit = verifiedSha, autoInstallWhenReady = false)
+                                                        selfChangeNotice.text = if (issueCiCommentSaved) {
+                                                            "CI passed for ${verifiedSha.take(12)}. PR is unmerged; owner review/merge and a separate signed release are required. No APK install started."
+                                                        } else {
+                                                            "CI passed for ${verifiedSha.take(12)}, but the Factory issue comment failed. PR remains unmerged; no APK install started."
+                                                        }
                                                     }
                                                 } catch (error: Exception) {
                                                     runOnUiThread { selfChangeNotice.text = "PR creation failed: ${error.message ?: "GitHub error"}" }
@@ -1261,14 +1266,30 @@ class MainActivity : Activity() {
     }
 
     private fun openFactoryCodeProposal(task: VyomFactoryGitHubClient.Task) {
-        pendingSelfChangeTitle = VyomFactorySelfChangePrompt.title(task)
-        pendingSelfChangeTask = VyomFactorySelfChangePrompt.build(task)
-        pendingSelfChangeIssueNumber = task.number
-        showTab(false, true)
-        if (this::selfChangeButton.isInitialized) {
-            selfChangeButton.post { selfChangeButton.performClick() }
-        } else {
+        try {
+            pendingSelfChangeTitle = VyomFactorySelfChangePrompt.title(task)
+            pendingSelfChangeTask = VyomFactorySelfChangePrompt.build(task)
+            pendingSelfChangeIssueNumber = task.number
+            showTab(false, true)
+            if (this::selfChangeButton.isInitialized) {
+                selfChangeButton.post { selfChangeButton.performClick() }
+            } else {
+                pendingSelfChangeIssueNumber = null
+                AlertDialog.Builder(this)
+                    .setTitle("Factory proposal unavailable")
+                    .setMessage("Open Settings once, then retry the complaint proposal.")
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+        } catch (error: Exception) {
             pendingSelfChangeIssueNumber = null
+            pendingSelfChangeTask = ""
+            pendingSelfChangeTitle = ""
+            AlertDialog.Builder(this)
+                .setTitle("Cannot create a safe proposal")
+                .setMessage(error.message ?: "Complaint content was rejected by the privacy or proposal policy.")
+                .setPositiveButton("OK", null)
+                .show()
         }
     }
 
