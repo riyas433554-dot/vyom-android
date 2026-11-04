@@ -120,6 +120,24 @@ class VyomFactoryExecutionRunnerTest {
         assertNull(fixture.journal.get("attempt-1"))
     }
 
+    @Test fun terminalSuccessReleasesExactWorkerClaim() {
+        val fixture = Fixture()
+        val outcome = fixture.runner(RecordingAdapter(fail = false, isIdempotent = true)).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertNull(fixture.activeLease())
+    }
+
+    @Test fun terminalFailureReleasesExactWorkerClaimAfterRecordingFailure() {
+        val fixture = Fixture()
+        val outcome = fixture.runner(RecordingAdapter(fail = true, isIdempotent = true)).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Failed)
+        assertEquals(VyomFactoryExecutionJournal.State.FAILED, fixture.journal.get("attempt-1")?.state)
+        assertNull(fixture.activeLease())
+        assertEquals(1, fixture.retryStore.all().single().failedAttempts)
+    }
+
     @Test fun adapterCanObserveStopSignalBeforeSideEffect() {
         val fixture = Fixture()
         var sideEffects = 0
@@ -166,6 +184,8 @@ class VyomFactoryExecutionRunnerTest {
         private var clock = 2_000L
 
         fun advanceTo(value: Long) { clock = value }
+
+        fun activeLease() = leaseStore.active(71, clock)
 
         fun requestStop() {
             assertTrue(journal.requestStop(lease, "attempt-1", 2_001))
