@@ -54,7 +54,7 @@ class VyomFactoryTaskStorePersistenceTest {
             task(43, "P1", "new-source", 22)
         ))
         assertEquals(1, added)
-        assertEquals(listOf(41, 43), store.pending().map { it.issueNumber })
+        assertEquals(listOf(43, 41), store.pending().map { it.issueNumber })
         assertEquals("P2", store.pending().first { it.issueNumber == 41 }.priority)
     }
 
