@@ -12,7 +12,7 @@ class VyomFactoryRetryScheduleStoreTest {
         assertEquals(1, first?.failedAttempts)
         assertTrue(first!!.nextAttemptAt in 40_000L..47_500L)
         assertTrue(store.due(39_999).isEmpty())
-        assertEquals(first, store.due(40_000).single())
+        assertTrue(store.due(first.nextAttemptAt).contains(first))
         assertEquals(first, VyomFactoryRetryScheduleStore(prefs).all().single())
     }
 
