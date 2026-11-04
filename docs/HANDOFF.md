@@ -2462,3 +2462,16 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Inspect existing Android chat/API/model routing before choosing the interpreter. If the current API cannot provide structured interpretation, expose the gap and build a testable contract/fallback rather than claiming semantic support.
 - Multilingual intake is a separate track from the approved persistent queue/worker sequence. Both tracks remain incomplete until their own tests and exact-head CI pass.
 - Requirements document: docs/VYOM_FACTORY_MULTILINGUAL_INTAKE.md (commit 3bcd3eb2eba59fffd9cc21cac8387c21b6b64380).
+
+
+## 2026-11-04 — Android Factory structured-intake contract (implementation foundation)
+
+- Added `VyomFactoryIntakeDraft`, a pure Kotlin schema boundary for a future multilingual interpreter. It validates schema version, required fields, priority, confidence, bounded arrays/strings, and retains the caller-supplied original Unicode request separately from model output.
+- Low confidence or a clarification question forces clarification; destructive request cues and P0 force explicit confirmation.
+- Added JVM tests for Bengali Unicode preservation with a technical filename, Japanese original text with low-confidence clarification, Bengali destructive confirmation, invalid schema/priority, malformed acceptance criteria, and out-of-range confidence.
+- Commits: `db16dbcc425908fe12e31d68df149b78cafb80ac` (contract), `c6a281210759fa3dfcccf7e13a87b4b460bd61cc` (tests).
+- This is a validation contract only. It does NOT perform language detection, semantic interpretation, model calls, task creation, or worker execution. Current Android chat API still returns a plain text `reply`; no structured interpreter is wired. Existing prefix-only intake and fixed P2 behavior remain unchanged.
+- The original request is preserved as a separate immutable constructor input; affected components and priority rationale are untrusted interpreter proposals until grounded/confirmed. No task registration path consumes this draft yet.
+- No backend, Render, production Supabase, or `main` changes. No APK produced.
+- Verification: pending CI on this branch's exact latest HEAD. Do not accept this foundation until Debug and Full CI pass on the same SHA.
+- Next: inspect current model-routing options available in the Android app without changing backend contracts; add an explicit interpreter adapter only if an existing supported model endpoint can return validated structured output. Otherwise keep this contract disconnected and report the capability gap. In parallel, resume Factory Stage 1 persistence/reconciliation tests before implementing the worker sequence.
