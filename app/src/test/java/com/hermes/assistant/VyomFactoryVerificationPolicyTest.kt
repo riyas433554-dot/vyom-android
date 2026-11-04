@@ -29,6 +29,18 @@ class VyomFactoryVerificationPolicyTest {
         ))
     }
 
+    @Test fun onlyNewCompletionRequiresProbePass() {
+        assertTrue(VyomFactoryVerificationPolicy.blocksCompletion("in_progress", "completed", assigned, emptyList()))
+        assertFalse(VyomFactoryVerificationPolicy.blocksCompletion(
+            "in_progress", "completed", assigned,
+            listOf(VyomFactoryVerificationPolicy.resultEvent(
+                VyomFactoryVerificationPolicy.assignedProbe(assigned)!!, "Device showed the expected result", true
+            ))
+        ))
+        assertFalse(VyomFactoryVerificationPolicy.blocksCompletion("completed", "completed", assigned, emptyList()))
+        assertFalse(VyomFactoryVerificationPolicy.blocksCompletion("in_progress", "paused", assigned, emptyList()))
+    }
+
     @Test fun unassignedProbeCannotBeCompletedEvenWithAnOldPassEvent() {
         val probe = VyomFactoryVerificationPolicy.assignedProbe(assigned)!!
         val pass = VyomFactoryVerificationPolicy.resultEvent(probe, "Owner checked it", true)
