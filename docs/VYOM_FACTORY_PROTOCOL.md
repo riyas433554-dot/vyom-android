@@ -12,11 +12,11 @@ A Factory task is a GitHub Issue whose title begins with `[VYOM FACTORY][P0|P1|P
 <!-- VYOM_FACTORY_META:{"schema":1,"priority":"P2","status":"open","source":"chatgpt","source_id":"replace-with-stable-id","idempotency_key":"chatgpt:replace-with-stable-id","events":["created"]} -->
 ```
 
-Allowed sources: `factory`, `vyom_chat`, `chatgpt`, `termux`.
+Allowed sources: `factory`, `vyom_chat`, `vyom_voice`, `diagnostics`, `task_failure`, `chatgpt`, `claude`, `codex`, `termux`, `share_sheet`.
 Allowed statuses: `open`, `in_progress`, `blocked`, `paused`, `completed`, `cancelled`.
 Allowed priorities: `P0`, `P1`, `P2`, `P3`.
 
-The issue number is the canonical task ID. Always edit/comment on the existing issue when a task already exists. Do not create a second issue just to change priority, status or description. Keep the metadata marker intact when editing the issue body. Append audit events as GitHub issue comments.
+The issue number is the canonical task ID. The issue body must also contain source, area, severity, priority, evidence, repro steps, expected result, verification probe and fix type. Evidence must state when no log/screenshot/Diagnostics result was supplied. Do not put secrets or private chat contents in a public issue; sensitive complaint text is redacted by the Android intake path. Always edit/comment on the existing issue when a task already exists. Do not create a second issue just to change priority, status or description. Keep the metadata marker intact when editing the issue body. Append audit events as GitHub issue comments.
 
 ## Vyom Android
 
