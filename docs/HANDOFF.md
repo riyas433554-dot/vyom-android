@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source commit: `d14ddb7554101872526aa3306361435a5d7fd926` (Factory execution is now permanently invalidated when its owning Activity pauses, including pause/resume before the worker's next STOP check). Handoff update and exact-head CI are pending.
+- Latest source + handoff commit before this correction: `63e830a3de9742ebda0467f819772b7ec2ba74eb`. Activity-pause STOP invalidation is wired in `VyomFactoryDialog`; exact-head CI runs `41821666098` (Debug) and `41821666302` (Full CI) were still running at last poll. Reconfirm HEAD and CI before treating this entry as current.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -19,7 +19,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
 3. Heartbeat — intentionally deferred: the only production adapter is a synchronous media-volume set with readback, too short to need lease renewal. Add heartbeat only when a real bounded long-running adapter exists.
 4. Retry/backoff — bounded idempotency-gated policy, durable schedule/attempt counter and deterministic bounded jitter implemented. Foreground RUN NEXT consumes only due retries after fresh GitHub fetch, fresh lease, STOP checks and a new one-time UI approval. No automatic/background retry scheduler.
-5. STOP/pause — partial: foreground STOP button cancels pending consent or sets a cooperative stop flag; runner/adapter check before side effects. A late STOP cannot rewrite an already verified side effect as failure. Journal STOP remains lease+attempt fenced.
+5. STOP/pause — partial: foreground STOP button cancels pending consent or sets a cooperative stop flag; runner/adapter check before side effects. Activity pause now invalidates the active run using the captured foreground-gate generation, so pause followed by resume cannot revive it. A late STOP cannot rewrite an already verified side effect as failure. Journal STOP remains lease+attempt fenced. Lifecycle instrumentation/physical validation remains pending.
 6. Crash recovery — partial foreground recovery: runner marks expired/replaced nonterminal attempts INTERRUPTED before selecting the next task; never replays them. No background/startup scheduler.
 7. Bounded workers — one process-wide execution slot is now enforced; actual parallelism above one remains disabled until adapters declare/lock shared device resources and concurrency tests prove isolation.
 8. App-closed execution verification — pending physical Android testing.
@@ -299,3 +299,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - This is a STOP/pause safety correction, not background execution. The adapter still rechecks foreground state and one-time approval before changing media volume.
 - Exact current source HEAD: `d14ddb7554101872526aa3306361435a5d7fd926`. Debug and Full CI must be run on the final handoff-updated HEAD. No final APK or physical-device test is claimed.
 - Next: verify exact-head Debug + Full CI, inspect any real failures, then continue stage 5/6 coverage and retain the one-runner cap. Stage 8 still requires physical app-closed verification.
+
+
+## Activity-pause STOP correction and exact-head CI status (2026-11-04)
+
+- Source commit: `d14ddb7554101872526aa3306361435a5d7fd926`. `VyomFactoryDialog` captures the owning Activity's foreground-gate generation before constructing the runner. The runner's external STOP predicate checks the user STOP flag, foreground state, and unchanged generation. A pause/resume cycle permanently invalidates that run.
+- Handoff/source tip recorded by previous automation: `63e830a3de9742ebda0467f819772b7ec2ba74eb`. Verify actual branch HEAD because the commit's file contents must be checked independently.
+- Exact-head CI at SHA `63e830a3de9742ebda0467f819772b7ec2ba74eb`: Debug run `41821666098` and Full CI run `41821666302`. At the latest poll, both were still running their Gradle unit-test/build stages; no artifact was available yet. Older SHA `d14ddb7554101872526aa3306361435a5d7fd926` CI was superseded/cancelled and is not authoritative.
+- Existing runner tests cover external STOP before execution and STOP checks around adapter dispatch, but no Android Activity lifecycle instrumentation test was added in this batch. Do not describe the lifecycle behavior as instrumented-tested.
+- Next: poll these exact-head runs; diagnose only real logs. Then add a deterministic lifecycle-gate regression test if the foreground gate can be unit-tested without Android instrumentation. Keep process-wide worker cap at one. Stage 8 remains physical app-closed verification; no final APK is authorized yet.
