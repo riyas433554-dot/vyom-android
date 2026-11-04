@@ -211,6 +211,28 @@ class VyomFactoryExecutionJournalTest {
         assertEquals("{broken", prefs.getString("attempts_v1", null))
     }
 
+    @Test fun startupRecoveryInterruptsExpiredAttemptsWithoutReplayingOrTouchingLiveLeases() {
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val expired = leases.claim(57, "worker-expired", 1_000, 5_000)!!
+        val live = leases.claim(58, "worker-live", 1_000, 20_000)!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+        journal.begin(expired, "startup-expired", 1_100, "factory.startup")
+        assertTrue(journal.markRunning(expired, "startup-expired", 1_200))
+        journal.begin(live, "startup-live", 1_100, "factory.live")
+        assertTrue(journal.markRunning(live, "startup-live", 1_200))
+
+        val reopenedAfterProcessRestart = VyomFactoryExecutionJournal(prefs, leases)
+        assertEquals(1, reopenedAfterProcessRestart.recoverAtStartup(6_000))
+        assertEquals(0, reopenedAfterProcessRestart.recoverAtStartup(6_001))
+
+        assertEquals(VyomFactoryExecutionJournal.State.INTERRUPTED,
+            reopenedAfterProcessRestart.get("startup-expired")!!.state)
+        assertEquals(VyomFactoryExecutionJournal.State.RUNNING,
+            reopenedAfterProcessRestart.get("startup-live")!!.state)
+        assertTrue(reopenedAfterProcessRestart.replayable().isEmpty())
+    }
+
     private class MemoryPrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()
         var failCommit = false
