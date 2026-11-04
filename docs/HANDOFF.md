@@ -2522,3 +2522,16 @@ Owner requirement: Factory must accept natural-language task requests beyond Eng
 - Corrected only the test's expected order to `[43, 41]`; production queue policy was not changed. Commit: `c7833dcf55e0e9de7e790f5dade65ed00ec3166c`.
 - This is a test expectation correction, not a new feature. Reconciliation implementation from the preceding batch remains the implementation; do not recreate it.
 - CI for this correction's new exact HEAD is pending. Worker claim + lease remains next only after verifying CI and re-inspecting current worker code.
+
+
+## 2026-11-04 — Factory worker claim + device-local lease primitive (implementation pending CI)
+
+- Added `VyomFactoryWorkerLeaseStore` with persisted issue-scoped lease records, owner ID, opaque lease token, acquisition/expiry timestamps, bounded lease duration (5 seconds–1 hour), expiry-based reclaim, exact-token renew/release fencing, corrupt-data fail-closed behavior, and synchronous commit failure reporting.
+- Added named unit tests for single-owner live claims, expiry/reclaim, stale-token release rejection, renewal fencing and persistence, release durability, invalid bounds/corrupt data, and failed commit behavior.
+- Important boundary: this is a **device-local, single-app-process lease primitive only**. SharedPreferences + process lock is not a distributed CAS. It does not prevent another device/Termux/ChatGPT/GitHub Actions runner from claiming the same GitHub Issue. Do not label it a global lease or claim duplicate cross-device execution prevention.
+- This batch does not yet add a worker loop, WorkManager scheduling, heartbeat, STOP/pause execution, crash recovery, bounded parallelism, or app-closed execution. The existing dialog-scoped executor remains non-durable and is not wired to consume these leases.
+- Source commits: `29b01044c9fc30051447a29c44c444e782d76436` (lease store); `52bddd7c8312e9d0ceba6ed8fa66602fb5677b21` (lease tests).
+- Branch: `feature/memory-intelligence`. No Android `main`, Render, Hermes backend, or production Supabase changes.
+- Verification: exact-head Debug + Full CI have not yet been triggered for this batch. No test/compile success is claimed.
+- Next: run exact-head CI, inspect real logs, fix any failures. Then design the worker claim boundary that honestly coordinates only this device until a supported atomic shared lease backend exists; do not proceed to heartbeat until claim/lease acceptance is verified.
+- No APK delivered.
