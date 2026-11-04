@@ -46,6 +46,7 @@ class VyomFactoryStatusTest {
         assertEquals("diagnostics:check-1", VyomFactoryStatus.idempotencyKey("diagnostics", "check-1"))
         assertEquals("task_failure:task-1", VyomFactoryStatus.idempotencyKey("task_failure", "task-1"))
         assertEquals("share_sheet:share-1", VyomFactoryStatus.idempotencyKey("share_sheet", "share-1"))
+        assertEquals("chatgpt:agent-1", VyomFactoryStatus.idempotencyKey("chatgpt", "agent-1"))
         assertEquals("claude:agent-1", VyomFactoryStatus.idempotencyKey("claude", "agent-1"))
         assertEquals("codex:agent-1", VyomFactoryStatus.idempotencyKey("codex", "agent-1"))
         assertNull(VyomFactoryStatus.idempotencyKey("unknown", "1"))
