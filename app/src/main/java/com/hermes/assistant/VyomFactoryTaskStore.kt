@@ -38,6 +38,21 @@ internal class VyomFactoryTaskStore internal constructor(private val prefs: Shar
     }
 
     
+    /** Atomically restores eligible shared-registry tasks after local queue loss. */
+    fun reconcileOpen(tasks: List<QueuedTask>): Int = synchronized(PROCESS_LOCK) {
+        val current = readAll().toMutableList()
+        val additions = mutableListOf<QueuedTask>()
+        tasks.forEach { task ->
+            require(task.issueNumber > 0)
+            require(task.title.isNotBlank() && task.title.length <= 200)
+            require(task.priority in setOf("P0", "P1", "P2", "P3"))
+            require(task.sourceId.isNotBlank() && task.sourceId.length <= 160)
+            if (VyomFactoryTaskQueuePolicy.isUnique(current + additions, task)) additions += task
+        }
+        if (additions.isNotEmpty()) persist(current + additions)
+        additions.size
+    }
+
     fun pending(): List<QueuedTask> = synchronized(PROCESS_LOCK) { VyomFactoryTaskQueuePolicy.order(readAll()) }
 
     
