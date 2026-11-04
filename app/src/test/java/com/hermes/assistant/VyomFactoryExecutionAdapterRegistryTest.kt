@@ -84,6 +84,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         override val target: VyomFactoryExecutionEnvelope.Target,
         private val failure: Exception? = null
     ) : VyomFactoryExecutionAdapter {
+        override val isIdempotent: Boolean = true
         var calls = 0
         override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
             calls++
