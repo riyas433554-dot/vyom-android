@@ -47,7 +47,9 @@ internal data class VyomFactoryComplaintRecord(
             val lower = original.lowercase()
             val area = when {
                 listOf("open_app", "tap", "swipe", "scroll", "type", "read_screen", "screenshot",
-                    "clipboard", "intent", "force_stop", "control", "accessibility", "android control")
+                    "clipboard", "intent", "force_stop", "control", "accessibility", "android control",
+                    "play store", "playstore", "install app", "app install", "whatsapp",
+                    "send message", "message send")
                     .any { lower.contains(it) } -> "control"
                 listOf("update", "apk", "rollback", "content package", "a18").any { lower.contains(it) } -> "update"
                 listOf("memory", "remember", "forgot", "saved fact", "recall").any { lower.contains(it) } -> "memory"
