@@ -8,6 +8,8 @@ internal interface VyomFactoryExecutionControl {
 internal interface VyomFactoryExecutionAdapter {
     val target: VyomFactoryExecutionEnvelope.Target
     val isIdempotent: Boolean
+    /** True only when the adapter independently verified the requested postcondition. */
+    fun isVerifiedResult(result: String): Boolean
     fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String
 }
 
@@ -32,6 +34,9 @@ internal class VyomFactoryExecutionAdapterRegistry(
 
     fun isIdempotent(target: VyomFactoryExecutionEnvelope.Target): Boolean =
         byTarget[target]?.isIdempotent == true
+
+    fun isVerifiedResult(target: VyomFactoryExecutionEnvelope.Target, result: String): Boolean =
+        byTarget[target]?.isVerifiedResult(result) == true
 
     fun dispatch(
         envelope: VyomFactoryExecutionEnvelope,
