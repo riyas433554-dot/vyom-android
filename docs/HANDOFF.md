@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `80b2df68c4f67fca77a3a5826db4bf9304a9f186` (foreground task selection now skips unsupported/terminal/not-due tasks; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `e2e10724bfcf759ae59bed82fcae114c1a06c9e9` (expired-attempt recovery before claim selection; exact-HEAD CI is pending). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -17,10 +17,10 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 1. Persistent task store/queue — implemented and tested.
 2. Worker claim + lease — device-local lease store, coordinator, fresh-snapshot foreground claim session implemented.
-3. Heartbeat — pending; runner is synchronous foreground-only and has no heartbeat. Add heartbeat only after an actual bounded adapter runs long enough to need lease renewal.
-4. Retry/backoff — bounded, idempotency-gated policy plus durable local schedule/attempt counter and deterministic bounded jitter implemented. Foreground runner records transient failures only for adapters explicitly declaring idempotency and clears schedule on success. No due-retry consumer/scheduler exists yet.
-5. STOP/pause — journal STOP is fenced to exact lease + attempt; foreground runner exposes cooperative control, and adapters must poll it before each side effect. No production adapter yet; cancellation behavior verified only with fake test adapter.
-6. Crash recovery — pending.
+3. Heartbeat — intentionally deferred: the only production adapter is a synchronous media-volume set with readback, too short to need lease renewal. Add heartbeat only when a real bounded long-running adapter exists.
+4. Retry/backoff — bounded idempotency-gated policy, durable schedule/attempt counter and deterministic bounded jitter implemented. Foreground RUN NEXT consumes only due retries after fresh GitHub fetch, fresh lease, STOP checks and a new one-time UI approval. No automatic/background retry scheduler.
+5. STOP/pause — partial: foreground STOP button cancels pending consent or sets a cooperative stop flag; runner/adapter check before side effects. A late STOP cannot rewrite an already verified side effect as failure. Journal STOP remains lease+attempt fenced.
+6. Crash recovery — partial foreground recovery: runner marks expired/replaced nonterminal attempts INTERRUPTED before selecting the next task; never replays them. No background/startup scheduler.
 7. Bounded parallel workers — pending.
 8. App-closed execution verification — pending physical Android testing.
 
@@ -209,3 +209,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Test-first commit: `b9d190602873235285f355ac7d5ac2f838a8c02b`; implementation commit: `80b2df68c4f67fca77a3a5826db4bf9304a9f186`.
 - Exact latest source HEAD `80b2df68c4f67fca77a3a5826db4bf9304a9f186`: Debug run `41816939027` is IN_PROGRESS; Full CI run `41816938933` is PENDING. Older runs on `eac97f2...` and previous commits were superseded/cancelled; no CI pass or artifact is claimed yet.
 - Next: inspect exact-head compile/test results. If green, keep heartbeat deferred (volume set is synchronous and short), then implement a due-retry manual/foreground consumer with a fresh GitHub snapshot, a new lease and a new explicit user approval per retry. No autonomous retry without an app-visible scheduler and crash recovery.
+
+
+## Foreground crash-recovery guard (2026-11-04)
+
+- Test-first commit: `b2d0e1e082a57a4b9e84fcdb7cf6bdd644bf2557` verifies that a nonterminal RUNNING attempt whose lease expired is marked INTERRUPTED before the next claim is selected, is not replayed, and does not invoke the adapter.
+- Implementation commit: `e2e10724bfcf759ae59bed82fcae114c1a06c9e9`. `VyomFactoryExecutionRunner.runNext()` now calls `journal.interruptExpired(now())` before invoking its claim selector. This ordering matters because the production selector filters terminal/active history; without recovery first, an expired RUNNING entry could remain ineligible forever and block the inbox.
+- Scope: recovery occurs when the user taps foreground RUN NEXT after the app is available. It marks expired/replaced attempts interrupted and requires manual review; it does not replay a side effect, run on app startup independently, or provide background execution.
+- Exact source HEAD `e2e10724bfcf759ae59bed82fcae114c1a06c9e9`: Debug run `41817236650` is QUEUED; Full CI run `41817236425` is PENDING. No green result or APK artifact is claimed. Older runs on `80b2df6...` and prior source SHAs are superseded; some Full CI jobs were cancelled while multiple pushes were being tested.
+- Next: poll the exact-head Debug + Full CI. If green, review the filtered retry path and add bounded retry/attempt status UI. Bounded parallelism and app-closed verification remain pending. Heartbeat remains deferred until an adapter has a measurable long-running phase.
