@@ -182,6 +182,23 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun expiredRunningAttemptIsInterruptedBeforeFreshClaimSelection() {
+        val fixture = Fixture()
+        fixture.seedRunningAttempt()
+        fixture.advanceTo(102_000L)
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "interrupted_attempt_requires_manual_review"),
+            outcome
+        )
+        assertEquals(VyomFactoryExecutionJournal.State.INTERRUPTED, fixture.journal.get("old-running-attempt")?.state)
+        assertEquals(0, adapter.calls)
+        assertNull(fixture.activeLease())
+    }
+
     @Test fun externalStopAfterConsentSkipsBeforeJournalAndSideEffect() {
         val fixture = Fixture()
         val stop = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -328,6 +345,11 @@ class VyomFactoryExecutionRunnerTest {
             journal.begin(lease, "legacy-attempt", 1_500)
             assertTrue(journal.markRunning(lease, "legacy-attempt", 1_600))
             assertTrue(journal.succeed(lease, "legacy-attempt", 1_700, "old result"))
+        }
+
+        fun seedRunningAttempt() {
+            journal.begin(lease, "old-running-attempt", 1_500, "android_action:safe_action")
+            assertTrue(journal.markRunning(lease, "old-running-attempt", 1_600))
         }
 
         fun seedVerifiedSuccess() {
