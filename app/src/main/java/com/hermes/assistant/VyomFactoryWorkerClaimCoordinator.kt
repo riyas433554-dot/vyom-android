@@ -31,7 +31,7 @@ internal class VyomFactoryWorkerClaimCoordinator(
         require(ownerId.isNotBlank())
         val remoteByIssue = remoteTasks
             .asSequence()
-            .filter { it.state == "open" && it.metadata.status == "open" }
+            .filter { it.state == "open" && it.metadata.status in setOf("open", "in_progress") }
             .associateBy { it.number }
 
         val candidates = taskStore.pending().mapNotNull { queued ->
