@@ -55,7 +55,9 @@ internal class VyomFactoryRetryScheduleStore internal constructor(
         val baseTime = requireNotNull(decision.nextAttemptAt)
         val baseDelay = (baseTime - now).coerceAtLeast(0)
         val jitterWindow = baseDelay / 4
-        val stableHash = Integer.toUnsignedLong(operationKey.hashCode())
+        // Include issue identity: operation-only jitter synchronizes every task
+        // using the same adapter and can create a retry thundering herd.
+        val stableHash = Integer.toUnsignedLong(31 * issueNumber + operationKey.hashCode())
         val jitter = if (jitterWindow == 0L) 0L else stableHash % (jitterWindow + 1)
         val nextAttemptAt = if (Long.MAX_VALUE - baseTime < jitter) Long.MAX_VALUE else baseTime + jitter
         val schedule = Schedule(
