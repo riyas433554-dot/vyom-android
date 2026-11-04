@@ -7,7 +7,9 @@ Priority override: **VYOM FACTORY FIRST**. This file is the active, concise hand
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest known HEAD: `7c72301181742de566931923361c64322d7757b8`
+- Source HEAD before the handoff-only commits: `5fa5745e218c4eecd69a790100828b3a26048ccd`
+- Handoff addendum commit: `7c72301181742de566931923361c64322d7757b8`
+- Handoff compaction commit: `e40a9009d70be9a303bf3cd8bf5d0cbe9884861b`
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Never repeat completed work; inspect this file and history before changing code.
 - Do not deliver an APK until the required Factory stages are complete and latest exact-HEAD CI is green.
