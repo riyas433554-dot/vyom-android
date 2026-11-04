@@ -311,7 +311,11 @@ class VyomFactoryExecutionRunnerTest {
         assertNull(fixture.activeLease())
     }
 
-    private class Fixture(\n        remoteState: String = "open",\n        executionOperation: String = "safe_action",\n        executionArguments: String = "{}"\n    ) {
+    private class Fixture(
+        remoteState: String = "open",
+        executionOperation: String = "safe_action",
+        executionArguments: String = "{}"
+    ) {
         private val prefs = MemoryPrefs()
         private val leaseStore = VyomFactoryWorkerLeaseStore(prefs)
         private var lease = leaseStore.claim(71, "runner-test", 1_000, 100_000)!!
@@ -367,7 +371,11 @@ class VyomFactoryExecutionRunnerTest {
             assertEquals("open", metadata.status)
         }
 
-        fun runner(\n            adapter: VyomFactoryExecutionAdapter,\n            prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },\n            externalStopRequested: () -> Boolean = { false }\n        ): VyomFactoryExecutionRunner {
+        fun runner(
+            adapter: VyomFactoryExecutionAdapter,
+            prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
+            externalStopRequested: () -> Boolean = { false }
+        ): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
                 claimNext = {
@@ -384,7 +392,8 @@ class VyomFactoryExecutionRunnerTest {
                 retrySchedules = retryStore,
                 now = { clock },
                 newAttemptId = { "attempt-${++attemptSequence}" },
-                prepareExecution = prepareExecution,\n                externalStopRequested = externalStopRequested
+                prepareExecution = prepareExecution,
+                externalStopRequested = externalStopRequested
             )
         }
     }
