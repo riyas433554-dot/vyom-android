@@ -71,17 +71,25 @@ internal class VyomFactoryGitHubClient(
     fun updateTask(current: Task, newTitle: String = current.title,
                    newPriority: String = current.metadata.priority,
                    newStatus: String = current.metadata.status,
-                   newDescription: String? = null): Task {
+                   newDescription: String? = null,
+                   additionalEvent: String? = null): Task {
         require(newPriority in PRIORITIES) { "Unknown task priority" }
         require(VyomFactoryStatus.canTransition(current.metadata.status, newStatus) ||
             current.metadata.status == newStatus) { "Invalid task state transition" }
         val cleanTitle = newTitle.trim().removePrefix("[VYOM FACTORY]")
             .replace(Regex("^\\[[Pp][0-3]\\]\\s*"), "").trim()
         require(cleanTitle.length in 4..120) { "Title must contain 4–120 characters" }
-        val metadata = current.metadata.copy(priority = newPriority, status = newStatus,
-            events = (current.metadata.events + "updated:$newStatus:$newPriority").takeLast(500))
         val description = newDescription ?: current.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
         require(description.isNotBlank() && description.length <= 12000) { "Description must contain 1–12,000 characters" }
+        require(additionalEvent == null || additionalEvent.isNotBlank() && additionalEvent.length <= 1_000) {
+            "Verification event is empty or too long"
+        }
+        val events = (current.metadata.events + "updated:$newStatus:$newPriority" +
+            listOfNotNull(additionalEvent)).takeLast(500)
+        val metadata = current.metadata.copy(priority = newPriority, status = newStatus, events = events)
+        if (newStatus == "completed" && !VyomFactoryVerificationPolicy.canComplete(description, metadata.events)) {
+            throw IllegalStateException("Cannot close this complaint until its assigned device probe has a recorded PASS result")
+        }
         val body = VyomFactoryStatus.withMetadata(description, metadata)
         val closed = newStatus == "completed" || newStatus == "cancelled"
         val updated = JSONObject(execute("PATCH", "/issues/" + current.number,
@@ -90,6 +98,24 @@ internal class VyomFactoryGitHubClient(
         val task = updated.toTask(metadata)
         addEvent(task.number, "Status: " + current.metadata.status + " -> " + newStatus + " · Priority: " + newPriority)
         return task
+    }
+
+    /** Records owner-reported device evidence; completion still requires a PASS for the exact assigned probe. */
+    fun recordVerificationResult(current: Task, passed: Boolean, evidence: String): Task {
+        require(current.metadata.status == "in_progress") { "Start the complaint before recording device verification" }
+        val description = current.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+        val probe = VyomFactoryVerificationPolicy.assignedProbe(description)
+            ?: throw IllegalStateException("Edit this complaint and assign a named Verification probe before checking it")
+        val cleanEvidence = evidence.trim()
+        require(cleanEvidence.length in 8..1_000) { "Verification evidence must contain 8–1,000 characters" }
+        require(!MemoryCapturePolicy.isSensitive(cleanEvidence)) {
+            "Sensitive verification evidence cannot be written to the shared issue"
+        }
+        val event = VyomFactoryVerificationPolicy.resultEvent(probe, cleanEvidence, passed)
+        val updatedDescription = VyomFactoryVerificationPolicy.appendEvidence(description, probe, cleanEvidence, passed)
+        val updated = updateTask(current, newDescription = updatedDescription, additionalEvent = event)
+        addEvent(current.number, "Owner-reported device probe ${if (passed) "PASS" else "FAIL"}: $probe")
+        return updated
     }
 
     fun listEvents(issueNumber: Int): List<String> {
