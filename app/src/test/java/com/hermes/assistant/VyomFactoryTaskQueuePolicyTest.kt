@@ -16,9 +16,9 @@ class VyomFactoryTaskQueuePolicyTest {
         val first = task(10, "P2", 1)
         assertTrue(VyomFactoryTaskQueuePolicy.isUnique(listOf(first), task(11, "P1", 2)))
         assertFalse(VyomFactoryTaskQueuePolicy.isUnique(listOf(first), task(10, "P0", 3)))
-        assertFalse(VyomFactoryTaskQueuePolicy.isUnique(listOf(first), task(12, "P0", 3)))
+        assertFalse(VyomFactoryTaskQueuePolicy.isUnique(listOf(first), task(12, "P0", 3, "source-1")))
     }
 
-    private fun task(issue: Int, priority: String, time: Long) =
-        VyomFactoryTaskStore.QueuedTask(issue, "Task $issue", priority, "source-$time", time)
+    private fun task(issue: Int, priority: String, time: Long, sourceId: String = "source-$time") =
+        VyomFactoryTaskStore.QueuedTask(issue, "Task $issue", priority, sourceId, time)
 }
