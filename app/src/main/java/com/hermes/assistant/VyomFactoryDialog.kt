@@ -62,6 +62,7 @@ internal class VyomFactoryDialog(
     private var pendingConfirmationDialog: AlertDialog? = null
     private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
+    private lateinit var retryStatus: TextView
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerOwnerId: String by lazy {
         val prefs = activity.getSharedPreferences("vyom_factory_worker_identity", Activity.MODE_PRIVATE)
@@ -165,6 +166,14 @@ internal class VyomFactoryDialog(
             }
         }
         workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+        retryStatus = TextView(activity).apply {
+            text = "RETRIES · LOADING"
+            textSize = 9f; typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(0, dp(6), 0, 0)
+            contentDescription = "Foreground retry schedule status"
+        }
+        workerPanel.addView(retryStatus)
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val composer = LinearLayout(activity).apply {
@@ -253,6 +262,7 @@ internal class VyomFactoryDialog(
                 setOnClickListener { dialog.dismiss(); onOpenSettings() }
             })
         } else {
+            refreshRetryOverview()
             refresh()
             main.postDelayed(refreshRunnable, 15_000)
         }
@@ -535,6 +545,7 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     status.text = "GitHub Issues · ${tasks.size} Factory tasks loaded"
                     render(tasks)
+                    refreshRetryOverview()
                     busy = false
                 }
             } catch (error: Exception) {
@@ -546,6 +557,23 @@ internal class VyomFactoryDialog(
                     busy = false
                 }
             }
+        }
+    }
+
+    /** Displays persisted retry eligibility only; this is not a scheduler. */
+    private fun refreshRetryOverview() {
+        if (!::retryStatus.isInitialized) return
+        try {
+            val summary = VyomFactoryRetryOverview.summarize(
+                VyomFactoryRetryScheduleStore(activity.applicationContext).all(),
+                System.currentTimeMillis()
+            )
+            retryStatus.text = summary.label
+            retryStatus.contentDescription =
+                "Retries total ${summary.total}, due ${summary.due}, waiting ${summary.waiting}. Foreground RUN NEXT is required."
+        } catch (error: Exception) {
+            retryStatus.text = "RETRY STATUS UNAVAILABLE · REVIEW REQUIRED"
+            retryStatus.contentDescription = "Retry schedule could not be read safely."
         }
     }
 
