@@ -298,7 +298,8 @@ class VyomFactoryExecutionRunnerTest {
         }).runNext()
         assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
         assertEquals("local-approval", adapter.lastEnvelope?.arguments?.optString("confirmation_id"))
-        assertEquals("safe_action", adapter.lastEnvelope?.operation)
+        assertEquals("set_media_volume", adapter.lastEnvelope?.operation)
+        assertEquals(35, adapter.lastEnvelope?.arguments?.optInt("percent"))
     }
 
     @Test fun foregroundPreparationCannotChangeTargetOrOperation() {
