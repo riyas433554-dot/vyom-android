@@ -2955,14 +2955,14 @@ class MainActivity : Activity() {
         return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
     }
 
-    private fun submitAutomaticTaskFailure(sourceItem: ChatMessage, failure: String) {
+    private fun submitAutomaticTaskFailure(sourceItem: ChatMessage, failure: Throwable) {
         val sourceId = "task-failure:" + sourceItem.id
         val existing = chatMessages.firstOrNull { it.id == sourceId }
         if (existing != null) {
             if (existing.state == "queued") submitFactoryComplaint(existing, existing.text, "task_failure")
             return
         }
-        val report = "Automatic task failure: ${sourceItem.text.take(500)}\nFailure evidence: ${failure.take(1500)}"
+        val report = "Automatic chat task failure. Original request and exception details are withheld from the shared issue to avoid disclosing private chat content. Local chat item ID: ${sourceItem.id}. Failure type: ${failure.javaClass.simpleName}."
         val complaint = ChatMessage(sourceId, report, "queued")
         chatMessages.add(complaint)
         persistChatMessages()
@@ -3046,7 +3046,7 @@ class MainActivity : Activity() {
                     item.state = "error"
                     item.reply = error.message?.takeIf { it.isNotBlank() } ?: "Chat request failed. Please try again."
                     persistChatMessages()
-                    submitAutomaticTaskFailure(item, item.reply)
+                    submitAutomaticTaskFailure(item, error)
                     if (error is VyomApiClient.SessionExpiredException) {
                         showPairingRequired()
                     } else {
