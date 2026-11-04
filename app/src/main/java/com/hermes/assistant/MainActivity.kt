@@ -1281,7 +1281,16 @@ class MainActivity : Activity() {
             this,
             token,
             onOpenSettings = { showTab(false, true) },
-            onProposeFix = ::openFactoryCodeProposal
+            onProposeFix = ::openFactoryCodeProposal,
+            onRunnerFailure = { failureType ->
+                val id = "factory-runner-failure:" + UUID.randomUUID()
+                val report = "Factory worker infrastructure failure. Exception type: $failureType. Private request text and exception details are withheld. Reopen Factory and retry only after reviewing the worker status."
+                val complaint = ChatMessage(id, report, "queued")
+                chatMessages.add(complaint)
+                persistChatMessages()
+                renderChatMessages()
+                submitFactoryComplaint(complaint, report, "task_failure")
+            }
         ).show()
     }
 
