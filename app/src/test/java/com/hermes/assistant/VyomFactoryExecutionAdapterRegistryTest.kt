@@ -12,7 +12,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         val registry = VyomFactoryExecutionAdapterRegistry(listOf(android, repository))
         val envelope = executable("android_action", "open_settings")
 
-        val result = registry.dispatch(envelope)
+        val result = registry.dispatch(envelope, NeverStop)
 
         assertEquals(VyomFactoryExecutionAdapterRegistry.Outcome.Executed("android_action: open_settings"), result)
         assertEquals(1, android.calls)
@@ -23,7 +23,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         val adapter = RecordingAdapter(VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION)
         val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
 
-        val result = registry.dispatch(VyomFactoryExecutionEnvelope.parse("legacy request"))
+        val result = registry.dispatch(VyomFactoryExecutionEnvelope.parse("legacy request"), NeverStop)
 
         assertTrue(result is VyomFactoryExecutionAdapterRegistry.Outcome.ManualReview)
         assertEquals(0, adapter.calls)
@@ -64,7 +64,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
 
         val result = runCatching {
-            registry.dispatch(executable("android_action", "open_settings"))
+            registry.dispatch(executable("android_action", "open_settings"), NeverStop)
         }
 
         assertFalse(result.isSuccess)
@@ -78,12 +78,14 @@ class VyomFactoryExecutionAdapterRegistryTest {
         )
     }
 
+    private object NeverStop : VyomFactoryExecutionControl { override fun shouldStop() = false }
+
     private class RecordingAdapter(
         override val target: VyomFactoryExecutionEnvelope.Target,
         private val failure: Exception? = null
     ) : VyomFactoryExecutionAdapter {
         var calls = 0
-        override fun run(envelope: VyomFactoryExecutionEnvelope): String {
+        override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
             calls++
             failure?.let { throw it }
             return "${target.name.lowercase()}: ${envelope.operation}"
