@@ -53,7 +53,7 @@ internal class VyomFactoryExecutionRunner(
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
         val remote = fetchFreshTask(issue) ?: return skip("task_missing")
         if (remote.number != issue || remote.state != "open" ||
-            remote.metadata.status != "open" ||
+            remote.metadata.status !in setOf("open", "in_progress") ||
             remote.metadata.sourceId != claim.task.sourceId
         ) return skip("task_no_longer_open_or_identity_changed")
 
