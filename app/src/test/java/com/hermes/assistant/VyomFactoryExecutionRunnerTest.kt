@@ -182,6 +182,37 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun declinedForegroundPreparationReleasesClaimWithoutStartingJournalAttempt() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+        val outcome = fixture.runner(adapter, prepareExecution = { null }).runNext()
+        assertEquals(VyomFactoryExecutionRunner.Outcome.Skipped(71, "confirmation_declined_or_unavailable"), outcome)
+        assertEquals(0, adapter.calls)
+        assertTrue(fixture.journal.all().isEmpty())
+        assertNull(fixture.activeLease())
+    }
+
+    @Test fun foregroundPreparationMayAddOnlyLocalApprovalWithoutChangingRequestedAction() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+        val outcome = fixture.runner(adapter, prepareExecution = { envelope ->
+            envelope.copy(arguments = org.json.JSONObject(envelope.arguments.toString()).put("confirmation_id", "local-approval"))
+        }).runNext()
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertEquals("local-approval", adapter.lastEnvelope?.arguments?.optString("confirmation_id"))
+        assertEquals("safe_action", adapter.lastEnvelope?.operation)
+    }
+
+    @Test fun foregroundPreparationCannotChangeTargetOrOperation() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+        val outcome = fixture.runner(adapter, prepareExecution = { envelope -> envelope.copy(operation = "different_action") }).runNext()
+        assertEquals(VyomFactoryExecutionRunner.Outcome.Skipped(71, "invalid_prepared_execution"), outcome)
+        assertEquals(0, adapter.calls)
+        assertTrue(fixture.journal.all().isEmpty())
+        assertNull(fixture.activeLease())
+    }
+
     private class Fixture(remoteState: String = "open") {
         private val prefs = MemoryPrefs()
         private val leaseStore = VyomFactoryWorkerLeaseStore(prefs)
@@ -227,7 +258,7 @@ class VyomFactoryExecutionRunnerTest {
             assertEquals("open", metadata.status)
         }
 
-        fun runner(adapter: VyomFactoryExecutionAdapter): VyomFactoryExecutionRunner {
+        fun runner(adapter: VyomFactoryExecutionAdapter, prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it }): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
                 claimNext = {
@@ -243,7 +274,8 @@ class VyomFactoryExecutionRunnerTest {
                 adapters = registry,
                 retrySchedules = retryStore,
                 now = { clock },
-                newAttemptId = { "attempt-${++attemptSequence}" }
+                newAttemptId = { "attempt-${++attemptSequence}" },
+                prepareExecution = prepareExecution
             )
         }
     }
@@ -255,9 +287,11 @@ class VyomFactoryExecutionRunnerTest {
     ) : VyomFactoryExecutionAdapter {
         override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
         var calls = 0
+        var lastEnvelope: VyomFactoryExecutionEnvelope? = null
         override fun isVerifiedResult(result: String) = verified
         override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
             calls++
+            lastEnvelope = envelope
             if (fail) throw IOException("temporary network timeout")
             return "completed"
         }

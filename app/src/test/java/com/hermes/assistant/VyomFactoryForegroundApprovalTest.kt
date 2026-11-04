@@ -13,6 +13,16 @@ class VyomFactoryForegroundApprovalTest {
         assertFalse(gate.isForeground())
     }
 
+    @Test fun foregroundEpochChangesWhenActivityLeavesForeground() {
+        val gate = VyomFactoryForegroundGate()
+        gate.onResumed()
+        val approvedEpoch = gate.generation()
+        gate.onPaused()
+        gate.onResumed()
+        assertTrue(gate.isForeground())
+        assertNotEquals(approvedEpoch, gate.generation())
+    }
+
     @Test fun approvalCanBeConsumedOnlyOnce() {
         val approvals = VyomFactoryOneTimeApprovalStore()
         val id = approvals.issue()
