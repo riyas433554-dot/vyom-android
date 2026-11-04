@@ -85,6 +85,7 @@ class VyomFactoryExecutionAdapterRegistryTest {
         private val failure: Exception? = null
     ) : VyomFactoryExecutionAdapter {
         override val isIdempotent: Boolean = true
+        override fun isVerifiedResult(result: String) = result.startsWith("${target.name.lowercase()}:")
         var calls = 0
         override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
             calls++
