@@ -11,6 +11,17 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("P0", item.priority)
     }
 
+    @Test fun playStoreAndWhatsAppComplaintsRouteToControlPriority() {
+        listOf(
+            "Play Store se app install nahi ho raha",
+            "WhatsApp message send nahi ho raha"
+        ).forEach { complaint ->
+            val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
+            assertEquals(complaint, "control", item.area)
+            assertEquals(complaint, "P0", item.priority)
+        }
+    }
+
     @Test fun memoryComplaintRanksAheadOfDesignAndOtherWork() {
         val item = VyomFactoryComplaintRecord.fromFreeText("vyom_voice", "memory forgot my saved project")
         assertEquals("memory", item.area)
