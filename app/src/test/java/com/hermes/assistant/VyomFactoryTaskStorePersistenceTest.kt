@@ -49,6 +49,19 @@ class VyomFactoryTaskStorePersistenceTest {
         }
     }
 
+    @Test fun failedEnqueueCanBeRetriedWithSameIssueAfterStorageRecovers() {
+        val prefs = InMemorySharedPreferences().apply { failCommits = true }
+        val store = VyomFactoryTaskStore(prefs)
+        val original = task(41, "P2", "stable-chat-message-id", 10)
+
+        assertThrows(IllegalStateException::class.java) { store.enqueue(original) }
+        prefs.failCommits = false
+
+        assertTrue(store.enqueue(original))
+        assertFalse(store.enqueue(original))
+        assertEquals(listOf(41), VyomFactoryTaskStore(prefs).pending().map { it.issueNumber })
+    }
+
     private fun task(issue: Int, priority: String, source: String, time: Long) =
         VyomFactoryTaskStore.QueuedTask(issue, "Task $issue", priority, source, time)
 
