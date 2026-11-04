@@ -201,6 +201,28 @@ class VyomFactoryExecutionRunnerTest {
         assertNull(fixture.activeLease())
     }
 
+    @Test fun lateStopAfterVerifiedSideEffectDoesNotEraseSuccess() {
+        val fixture = Fixture()
+        val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+        var sideEffects = 0
+        val adapter = object : VyomFactoryExecutionAdapter {
+            override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
+            override val isIdempotent = true
+            override fun isVerifiedResult(result: String) = result == "verified"
+            override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
+                sideEffects++
+                stop.set(true)
+                return "verified"
+            }
+        }
+
+        val outcome = fixture.runner(adapter, externalStopRequested = { stop.get() }).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertEquals(1, sideEffects)
+        assertEquals(VyomFactoryExecutionJournal.State.SUCCEEDED, fixture.journal.get("attempt-1")?.state)
+    }
+
     @Test fun externalStopIsVisibleToAdapterBeforeItsSideEffect() {
         val fixture = Fixture()
         val stop = java.util.concurrent.atomic.AtomicBoolean(false)
