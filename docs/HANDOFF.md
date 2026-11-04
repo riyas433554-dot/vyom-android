@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `eaa1f93648b3d69ac263a0e0c3aa000820a3ffa0` (foreground approval UI + runner integration; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7` (consent/retry ordering and regression-test refinements; exact-HEAD CI is running). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -172,3 +172,16 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Exact-head CI: Debug run `41815865975` and Full CI run `41815865798` were started on source HEAD `eaa1f93648b3d69ac263a0e0c3aa000820a3ffa0`. Debug job `126526327504` was at Gradle build/test; Full CI run had no job snapshot at the time of this update. No green result or APK artifact is claimed.
 - Earlier test-only runs `41815671472` and `41815671555` targeted `6999d28ca00beacd02959d4af6bc2071492cc634` and were still in Gradle test/build when superseded. The source commit CI above is the required exact-head verification.
 - Next: inspect exact-head Debug + Full CI results and fix any real failures. Then add STOP/pause UI and cooperative cancellation tests before heartbeat. Do not add heartbeat until an actual long-running bounded executor needs renewal; crash recovery, bounded parallelism and app-closed execution remain pending.
+
+
+## Consent preparation hardening + CI diagnosis (2026-11-04)
+
+- Follow-up source commits: `176bac28726df55d342ae20664c2d8136e5c4892` and `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7`.
+- Runner now checks prior attempt/retry history before opening a consent prompt. A task with a verified prior success is skipped without asking the user to approve an action that will not run.
+- Consent preparation is accepted only after the original issue/operation/request and original arguments are preserved. For `set_media_volume`, the only allowed addition is a locally-issued `confirmation_id`; all other argument mutation is rejected. The remote issue cannot supply a usable consent token.
+- Added regression coverage: decline releases the claim without journal/adapter activity; locally-added one-time approval reaches the adapter; operation tampering is rejected; prior verified success skips before prompting; approval-store clear invalidates all pending tokens; foreground epoch changes across pause/resume.
+- Fixed Factory UI button state so RUN NEXT is disabled while a manual claim is held or being released, and re-enabled after successful release. Removed unused coordinator construction from the runner UI path.
+- CI diagnosis from the test-first RED commit: Debug run `41815671555` failed at unit-test compilation because `prepareExecution` and `generation()` had not yet been implemented. The errors were expected at the test-first stage; implementation landed in `eaa1f93648b3d69ac263a0e0c3aa000820a3ffa0` and refinements in `176bac28726df55d342ae20664c2d8136e5c4892` / `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7`. The failing RED run is not a source regression and is not counted as green.
+- Exact source HEAD `c26499db68ec2ea8f63fe4c9c6e90d76eb133da7`: Debug run `41816150471` (job `126527286001`) and Full CI run `41816150476` (job `126527331868`) are both in progress. Debug was at Gradle build/test; Full CI was at secret scan. No current green result or APK artifact is claimed.
+- Earlier source runs `41815865975`, `41815957307`, `41815957380`, and `41816087082` / `41816087209` were superseded by later commits; several Full CI runs were cancelled by newer pushes. Do not use them as final verification.
+- Next: poll the exact-head runs above. If any Kotlin/test failure appears, inspect the actual job log and fix it. Keep the current one-adapter scope; next functional work is explicit STOP/pause UI and cancellation tests. Heartbeat still waits until an actual long-running adapter needs renewal.
