@@ -182,6 +182,22 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.retryStore.all().isEmpty())
     }
 
+    @Test fun previousVerifiedSuccessSkipsBeforeRequestingNewConsent() {
+        val fixture = Fixture()
+        fixture.seedLegacySuccess()
+        var prompts = 0
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+
+        val outcome = fixture.runner(adapter, prepareExecution = { prompts++; it }).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "previous_attempt_succeeded"),
+            outcome
+        )
+        assertEquals(0, prompts)
+        assertEquals(0, adapter.calls)
+    }
+
     @Test fun declinedForegroundPreparationReleasesClaimWithoutStartingJournalAttempt() {
         val fixture = Fixture()
         val adapter = RecordingAdapter(fail = false, isIdempotent = true)
@@ -193,7 +209,7 @@ class VyomFactoryExecutionRunnerTest {
     }
 
     @Test fun foregroundPreparationMayAddOnlyLocalApprovalWithoutChangingRequestedAction() {
-        val fixture = Fixture()
+        val fixture = Fixture(executionOperation = "set_media_volume", executionArguments = "{\"percent\":35}")
         val adapter = RecordingAdapter(fail = false, isIdempotent = true)
         val outcome = fixture.runner(adapter, prepareExecution = { envelope ->
             envelope.copy(arguments = org.json.JSONObject(envelope.arguments.toString()).put("confirmation_id", "local-approval"))
@@ -213,7 +229,7 @@ class VyomFactoryExecutionRunnerTest {
         assertNull(fixture.activeLease())
     }
 
-    private class Fixture(remoteState: String = "open") {
+    private class Fixture(\n        remoteState: String = "open",\n        executionOperation: String = "safe_action",\n        executionArguments: String = "{}"\n    ) {
         private val prefs = MemoryPrefs()
         private val leaseStore = VyomFactoryWorkerLeaseStore(prefs)
         private var lease = leaseStore.claim(71, "runner-test", 1_000, 100_000)!!
@@ -227,7 +243,7 @@ class VyomFactoryExecutionRunnerTest {
             VyomFactoryStatus.withMetadata(
                 "Execute a bounded action",
                 metadata
-            ) + "\n<!-- VYOM_FACTORY_EXECUTION:{\"schema\":1,\"target\":\"android_action\",\"action\":\"safe_action\",\"request\":\"run safe action\",\"arguments\":{}} -->",
+            ) + "\n<!-- VYOM_FACTORY_EXECUTION:{\"schema\":1,\"target\":\"android_action\",\"action\":\"$executionOperation\",\"request\":\"run safe action\",\"arguments\":$executionArguments} -->",
             remoteState, "https://github.com/example/repo/issues/71", "2026-11-04", metadata
         )
         val journal = VyomFactoryExecutionJournal(prefs, leaseStore)

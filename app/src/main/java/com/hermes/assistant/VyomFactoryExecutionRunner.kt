@@ -49,18 +49,6 @@ internal class VyomFactoryExecutionRunner(
         if (!adapters.supports(envelope.target)) return skip("adapter_unsupported")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
 
-        // Consent is collected before an attempt is journaled. A declined or
-        // unavailable foreground prompt leaves the task queued and replayable.
-        val prepared = try {
-            prepareExecution(envelope)
-        } catch (_: Exception) {
-            null
-        } ?: return skip("confirmation_declined_or_unavailable")
-        if (!isValidPreparedEnvelope(envelope, prepared)) {
-            return skip("invalid_prepared_execution")
-        }
-        if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
-
         // Expired leases never authorize replay. Only a persisted due retry for
         // this exact issue/operation and an adapter still declaring idempotency can retry.
         val operationKey = envelope.operationKey()
@@ -89,6 +77,18 @@ internal class VyomFactoryExecutionRunner(
                     return skip("previous_attempt_still_active")
             }
         }
+
+        // Consent is collected before an attempt is journaled. A declined or
+        // unavailable foreground prompt leaves the task queued and replayable.
+        val prepared = try {
+            prepareExecution(envelope)
+        } catch (_: Exception) {
+            null
+        } ?: return skip("confirmation_declined_or_unavailable")
+        if (!isValidPreparedEnvelope(envelope, prepared)) {
+            return skip("invalid_prepared_execution")
+        }
+        if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
 
         val attemptId = newAttemptId()
         journal.begin(claim.lease, attemptId, now(), operationKey)

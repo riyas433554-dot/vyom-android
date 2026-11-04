@@ -30,6 +30,17 @@ class VyomFactoryForegroundApprovalTest {
         assertFalse(approvals.consume(id))
     }
 
+    @Test fun clearingApprovalsInvalidatesEveryPreviouslyIssuedToken() {
+        val approvals = VyomFactoryOneTimeApprovalStore()
+        val first = approvals.issue()
+        val second = approvals.issue()
+
+        approvals.clear()
+
+        assertFalse(approvals.consume(first))
+        assertFalse(approvals.consume(second))
+    }
+
     @Test fun unknownAndBlankApprovalIdsAreRejected() {
         val approvals = VyomFactoryOneTimeApprovalStore()
         assertFalse(approvals.consume(""))

@@ -258,9 +258,6 @@ internal class VyomFactoryDialog(
         claimStatus.text = "RUNNER ACTIVE · FETCHING FRESH ISSUE AND VALIDATING ACTION…"
         worker.execute {
             val outcome = try {
-                val store = VyomFactoryTaskStore(activity.applicationContext)
-                val leaseStore = VyomFactoryWorkerLeaseStore(activity.applicationContext)
-                val coordinator = VyomFactoryWorkerClaimCoordinator(store, leaseStore)
                 val session = workerSession
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(activity)
                 val runner = VyomFactoryExecutionRunner(
@@ -416,7 +413,6 @@ internal class VyomFactoryDialog(
                     releaseClaimButton.isEnabled = claim != null
                     runButton.isEnabled = claim == null
                     claimButton.isEnabled = true
-                    runButton.isEnabled = true
                     busy = false
                 }
             } catch (error: Exception) {
@@ -453,6 +449,7 @@ internal class VyomFactoryDialog(
                         status.text = "Lease token is no longer current; no successor claim was changed."
                     }
                     claimButton.isEnabled = true
+                    runButton.isEnabled = activeClaim == null
                     busy = false
                 }
             } catch (error: Exception) {
@@ -460,7 +457,8 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     status.text = errorMessage(error)
                     claimButton.isEnabled = true
-                    releaseClaimButton.isEnabled = true
+                    releaseClaimButton.isEnabled = activeClaim != null
+                    runButton.isEnabled = activeClaim == null
                     busy = false
                 }
             }
