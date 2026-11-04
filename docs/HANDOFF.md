@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD: `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` (Activity-session side-effect fence). Debug run `41823023646` is IN_PROGRESS; Full CI run `41823023648` is PENDING at last poll. Prior source `f5bfbd4d995d6d3b4e5ddef7fd8236bdd24a9967` Full CI `41822316018` passed, but its Debug `41822315988` remained in progress and neither verifies the new lifecycle-fence commits. Reconfirm exact HEAD and both current runs before treating this entry as current.
+- Latest source HEAD: `73876f0af7643f8b43db3dccc8fc03315a7644ee` (Activity-session side-effect fence + test fixture correction). Debug run `41823124708` is IN_PROGRESS; Full CI run `41823124669` is PENDING at last poll. Prior source `3d96f7da44052865fbafd9f3ba1eeeb7d9e65b0a` CI was superseded by this test fixture correction; do not use it as final verification. Reconfirm exact HEAD and both current runs before treating this entry as current.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -321,3 +321,10 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Previous exact source `f5bfbd4d995d6d3b4e5ddef7fd8236bdd24a9967`: Full CI `41822316018` SUCCESS; Debug `41822315988` was still IN_PROGRESS at last poll. This older CI does not verify the Activity-session fence.
 - Scope remains Android-only. No changes to Android `main`, Render, Hermes backend, or production Supabase. Worker cap remains one. Heartbeat remains deferred for the short synchronous media-volume adapter. App-closed verification remains a physical-device requirement.
 - Next: poll exact-head Debug + Full CI; diagnose only real logs. If green, continue canonical Factory audit and keep APK delivery blocked until all required stages and physical verification are complete.
+
+
+## Activity-session regression test fixture correction (2026-11-04)
+
+- Source review caught a test-only type mismatch before treating CI as evidence: the new helper takes a `() -> Boolean`, while the stale-session test initially passed a Boolean literal. Corrected it to a lambda in `73876f0af7643f8b43db3dccc8fc03315a7644ee`.
+- The correction does not alter production behavior. The exact new HEAD must receive fresh Debug + Full CI; earlier runs on `3d96f7d...` and parents are superseded.
+- Current exact-head runs at handoff update: Debug `41823124708` IN_PROGRESS; Full CI `41823124669` PENDING. No green result or artifact claimed.
