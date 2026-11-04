@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source HEAD before this handoff update: `102e98f5198b5a0ee37c48f12a9f2e758fab1ee8` (retry overview expectation/selection fixes; exact-source Debug verification is pending). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
+- Latest source HEAD before this handoff update: `82e2a52be6a8a7d8fd2b7cbdba2e82cd693bbb01` (process-wide single execution slot + runner regression coverage; exact-head Debug + Full CI must be polled after this handoff commit). This handoff commit will advance HEAD; verify resulting exact SHA and CI before further implementation.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - No APK delivery until required Factory stages are complete and latest exact-HEAD CI is green.
@@ -21,7 +21,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 4. Retry/backoff — bounded idempotency-gated policy, durable schedule/attempt counter and deterministic bounded jitter implemented. Foreground RUN NEXT consumes only due retries after fresh GitHub fetch, fresh lease, STOP checks and a new one-time UI approval. No automatic/background retry scheduler.
 5. STOP/pause — partial: foreground STOP button cancels pending consent or sets a cooperative stop flag; runner/adapter check before side effects. A late STOP cannot rewrite an already verified side effect as failure. Journal STOP remains lease+attempt fenced.
 6. Crash recovery — partial foreground recovery: runner marks expired/replaced nonterminal attempts INTERRUPTED before selecting the next task; never replays them. No background/startup scheduler.
-7. Bounded parallel workers — pending.
+7. Bounded workers — one process-wide execution slot is now enforced; actual parallelism above one remains disabled until adapters declare/lock shared device resources and concurrency tests prove isolation.
 8. App-closed execution verification — pending physical Android testing.
 
 ## Current verified implementation
@@ -276,3 +276,16 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - STOP-after-consent production fix remains in `edf2d347bbe52cccd29dbeeb038e186fd18839ca`; test expectation correction in `74f59f2ae3a3268277e9f632e0c49ca54de4e0ef`.
 - No final APK. No physical device verification. Retry status is read-only UI; no scheduler or background execution was added.
 - Next: run Debug + Full CI on the handoff-updated exact HEAD and fix only failures confirmed by logs. Then resume canonical Factory order; bounded parallel workers and app-closed verification are still pending.
+
+
+## Process-wide bounded worker admission (2026-11-04)
+
+- Exact prior HEAD `66c1b416f7d6fbea67937c781c6d4fe2e9a8121a` passed both workflows: Debug `41819331230` SUCCESS; Full CI `41819331290` SUCCESS. Debug build/test, versioned APK packaging, no-APK update demo package, artifact upload and CI release publish all succeeded.
+- Intermediate CI artifact exists: `vyom-0.3.1-66c1b416f7d6fbea67937c781c6d4fe2e9a8121a`, artifact ID `13316536354`, 88,116,748 bytes. This is not final APK delivery and is not evidence of physical-device testing.
+- Stage 7 audit: the dialog's single-thread executor and per-dialog `busy` flag were not sufficient as a process-wide guarantee if more than one Factory dialog/runner were ever created. Existing lease locking only protects claim/journal state transitions; it does not serialize the actual Android device side effect. The sole production adapter changes the shared media-volume stream, so concurrent volume actions are unsafe.
+- Test-first contract commit: `f0d1200e8698ee0c41f05d324b79c576b0b16ed2` adds a regression test that a process permit admits one owner, rejects a second, and can be reacquired after release.
+- Implementation commit: `997f5d8a23cc801eae4147f5cb0061500111fbad`. Added `VyomFactoryExecutionPermit` with an atomic process-wide singleton. `VyomFactoryExecutionRunner.runNext()` acquires the permit before journal recovery or claim selection and releases it in `finally`, including exceptional exits. A contending runner returns `Outcome.Busy` without claiming work or touching the journal.
+- Runner regression + UI commit: `82e2a52be6a8a7d8fd2b7cbdba2e82cd693bbb01`. Confirms a busy runner does not claim a task, create a journal attempt or call an adapter; Factory UI reports that another action is active.
+- Concurrency remains intentionally capped at **1**. No thread pool >1 or concurrent Android side effects were enabled. To increase the cap later, first introduce resource-keyed adapter serialization and prove isolation for shared device resources (especially media volume), plus STOP/lease/journal race tests. This completes the safe bounded-admission baseline, not multi-action parallel execution.
+- Exact previous-head CI success does not verify these new commits. Poll fresh Debug + Full CI on the handoff-updated exact HEAD. If either fails, fix only from real logs. Do not deliver a final APK until canonical stages are complete and exact-head artifact is verified.
+- No backend/Render/production Supabase/Android main changes. No physical device or app-closed execution test claimed.
