@@ -2955,6 +2955,21 @@ class MainActivity : Activity() {
         return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
     }
 
+    private fun submitAutomaticTaskFailure(sourceItem: ChatMessage, failure: String) {
+        val sourceId = "task-failure:" + sourceItem.id
+        val existing = chatMessages.firstOrNull { it.id == sourceId }
+        if (existing != null) {
+            if (existing.state == "queued") submitFactoryComplaint(existing, existing.text, "task_failure")
+            return
+        }
+        val report = "Automatic task failure: ${sourceItem.text.take(500)}\nFailure evidence: ${failure.take(1500)}"
+        val complaint = ChatMessage(sourceId, report, "queued")
+        chatMessages.add(complaint)
+        persistChatMessages()
+        renderChatMessages()
+        submitFactoryComplaint(complaint, report, "task_failure")
+    }
+
     private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat") {
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         if (token.isBlank()) {
@@ -3031,6 +3046,7 @@ class MainActivity : Activity() {
                     item.state = "error"
                     item.reply = error.message?.takeIf { it.isNotBlank() } ?: "Chat request failed. Please try again."
                     persistChatMessages()
+                    submitAutomaticTaskFailure(item, item.reply)
                     if (error is VyomApiClient.SessionExpiredException) {
                         showPairingRequired()
                     } else {
@@ -3087,7 +3103,11 @@ class MainActivity : Activity() {
     private fun resumeQueuedChatMessages() {
         chatMessages.filter { it.state == "queued" }.forEach { item ->
             val complaint = extractFactoryComplaint(item.text)
-            if (complaint != null) submitFactoryComplaint(item, complaint) else scheduleChatMessage(item)
+            when {
+                item.id.startsWith("task-failure:") -> submitFactoryComplaint(item, item.text, "task_failure")
+                complaint != null -> submitFactoryComplaint(item, complaint)
+                else -> scheduleChatMessage(item)
+            }
         }
     }
 
