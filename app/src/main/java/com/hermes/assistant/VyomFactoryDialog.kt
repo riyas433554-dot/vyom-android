@@ -748,7 +748,7 @@ internal class VyomFactoryDialog(
         }
         AlertDialog.Builder(activity)
             .setTitle("OWNER DEVICE VERIFICATION")
-            .setMessage("Assigned probe:\\n$probe\\n\\nOnly choose PASS after checking the real device. Evidence is added to the shared GitHub issue.")
+            .setMessage("Assigned probe:\n$probe\n\nOnly choose PASS after checking the real device. Evidence is added to the shared GitHub issue.")
             .setView(evidence)
             .setPositiveButton("PROBE PASSED") { _, _ -> recordVerification(task, true, evidence.text.toString()) }
             .setNegativeButton("PROBE FAILED") { _, _ -> recordVerification(task, false, evidence.text.toString()) }
