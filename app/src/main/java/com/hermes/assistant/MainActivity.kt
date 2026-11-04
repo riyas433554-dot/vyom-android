@@ -3032,7 +3032,7 @@ class MainActivity : Activity() {
                 client.addEvent(issueNumber, "Owner promote-first request: priority raised to P0")
                 runOnUiThread {
                     item.state = "done"
-                    item.reply = "Complaint #$issueNumber promoted to P0 (top priority tier). Items within P0 still use the existing queue tie-order."
+                    item.reply = "Complaint #$issueNumber moved to the top of the P0 queue. Factory list and worker selection use priority, then latest owner update."
                     persistChatMessages()
                     renderChatMessages()
                 }
