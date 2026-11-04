@@ -51,7 +51,7 @@ These are deliberately deferred until the corresponding feature is present in an
 2. Trigger a safe Diagnostics failure and a task failure; confirm each creates one complaint with captured result/evidence and no duplicate on retry.
 3. From Gallery or another app, Share → Vyom with one screenshot; confirm the image is attached to the complaint and private/secure surfaces are not silently captured.
 4. Open Factory and Automations; confirm owner can move a complaint to the top, say “ye complaint pehle”, and see the same order/status in both screens.
-5. Verify the complaint closes only after its named probe passes on the device; force a failing probe and confirm the issue remains/reopens with evidence.
+5. Open a complaint, use EDIT to replace `UNASSIGNED` with one exact observable **Verification probe**, START it, then use VERIFY after checking the real phone. Record sanitized evidence with PROBE PASSED or PROBE FAILED. DONE must appear only after a recorded PASS for that exact probe; a failed probe must leave the complaint open. This is owner-reported device verification, not an automated probe.
 
 ### Termux acceptance — only after command is added to the repository
 Run the exact command and arguments documented by the shipped Termux installer/help output. Do not guess a command path or manually construct a GitHub API call. Confirm one issue is created and a retry with the same source identity returns the same issue number.
