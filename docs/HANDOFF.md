@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Current source tip before this handoff refresh: `1fcec00be550935286f7d20918201eb1ff96e328`. Earlier Full CI `41968349353` and Debug CI `41968349286` passed on `efb16a2f906f3c59191c9c428121bc6dc34fe99e`, but do not validate the newer Factory repository path-discovery changes. Exact-tip runs `42037715894` (Full CI) and `42037715730` (Debug) both failed before runner allocation (`runner_id=0`, empty runner name, no steps); no Gradle/test command ran. The following handoff/docs commit also requires fresh exact-tip CI before any APK 1 authorization.
+- Current source tip before this handoff refresh: `684bd735bfa5ad4de839e3675d1df740165f6996`. Earlier Full CI `41968349353` and Debug CI `41968349286` passed on `efb16a2f906f3c59191c9c428121bc6dc34fe99e`, but do not validate the newer Factory repository path-discovery changes. Latest exact-tip runs `42038390185` (Full CI) and `42038390172` (Debug) both failed before runner allocation; retry attempt 2 again reported `runner_id=0`, empty runner name and `steps=[]`. No Gradle/test command ran. The following handoff/docs commit also requires fresh exact-tip CI before any APK 1 authorization.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Stage 6 owner acceptance is a hard prerequisite; the signed CI candidate is not final APK 1. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
@@ -1026,3 +1026,11 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 1. Recheck exact branch tip and retry Debug + Full CI when GitHub runner provisioning is available; only diagnose source errors from real job steps/logs.
 2. Continue Factory repository specialist integration from the current read-only suggestion stage, keeping owner path/diff approval, isolated feature branch, exact-SHA CI and no-merge/no-install gates.
 3. Preserve the bounded drain, FIFO, triage, issue journal, approval and verification systems; do not create duplicate queues or mark a suggested path as an executable capability.
+
+
+### Follow-up test hardening and latest CI — 2026-11-05
+
+- Made the allowlist predicate explicit in the repository-tree filter: `ba75c677e0a4ce4b7d287052a79e1abcebaa05af`.
+- Extended the valid-discovery integration test to assert GitHub requests are GET-only, the recursive tree is read at the exact base SHA, and the NVIDIA request contains the allowed-path list but no source-file content. Test commits: `3a798d2d158ff40383b82425286b1f79ffe156b7`, `684bd735bfa5ad4de839e3675d1df740165f6996`.
+- Exact latest source tip: `684bd735bfa5ad4de839e3675d1df740165f6996`. Full CI `42038390185` and Debug CI `42038390172` both failed; retry attempt 2 again ended with `runner_id=0`, empty runner name and no steps. No Gradle/test execution occurred. Do not infer a source pass or source failure from these infrastructure-only attempts.
+- Current branch remains `feature/memory-intelligence`. No APK, merge, Android `main`, Render, Hermes backend or production Supabase changes.
