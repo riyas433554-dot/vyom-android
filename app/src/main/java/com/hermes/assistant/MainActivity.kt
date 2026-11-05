@@ -776,7 +776,7 @@ class MainActivity : Activity() {
                         }
                     }
                 }
-                AlertDialog.Builder(this@MainActivity)
+                val proposalDialog = AlertDialog.Builder(this@MainActivity)
                     .setTitle("Create review-only proposal")
                     .setMessage("Vyom can inspect the current feature-branch tree and suggest existing allowlisted Kotlin files. You must choose the file, review the exact minimal diff, and explicitly approve opening a PR. No source changes occur during discovery. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
                     .setView(form)
@@ -879,6 +879,12 @@ class MainActivity : Activity() {
                                             }
                                         }
                                         .show()
+                if (ownerReviewIssueNumber != null) {
+                    selfChangeNotice.text = "Factory complaint #$ownerReviewIssueNumber · discovering relevant source files…"
+                    discoverPathsButton.post {
+                        if (proposalDialog.isShowing) discoverPathsButton.performClick()
+                    }
+                }
                                 }
                             } catch (error: Exception) {
                                 runOnUiThread {
