@@ -1275,13 +1275,38 @@ class MainActivity : Activity() {
         panel.requestLayout()
     }
 
-    private fun showVyomFactory() {
-        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+    private fun handleIncomingFactoryScreenshot() {
+        val incoming = intent ?: return
+        if (incoming.action != Intent.ACTION_SEND) return
+        val uri = if (Build.VERSION.SDK_INT >= 33) {
+            incoming.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            incoming.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+        }
+        try {
+            require(uri != null) { "The shared image URI is missing" }
+            val mime = incoming.type?.takeUnless { it == "image/*" }
+                ?: contentResolver.getType(uri).orEmpty()
+            val stream = contentResolver.openInputStream(uri)
+                ?: throw IllegalArgumentException("Vyom could not read the shared image")
+            val received = VyomFactoryScreenshotEvidenceStore(File(filesDir, "factory-evidence"))
+                .receive(stream, mime)
+            setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
+            Toast.makeText(this, "Screenshot saved privately. It will not upload until you tap Attach in Factory.", Toast.LENGTH_LONG).show()
+            showVyomFactory(received.file)
+        } catch (error: Exception) {
+            setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
+            Toast.makeText(this, "Screenshot not accepted: ${error.message?.take(120) ?: "unsupported image"}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showVyomFactory(pendingScreenshot: File? = null) {\n        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         VyomFactoryDialog(
             this,
             token,
             onOpenSettings = { showTab(false, true) },
-            onProposeFix = ::openFactoryCodeProposal,
+            onProposeFix = ::openFactoryCodeProposal,\n            pendingScreenshot = pendingScreenshot,
             onRunnerFailure = { failureType ->
                 val id = "task-failure:factory-runner:" + UUID.randomUUID()
                 val report = "Factory worker infrastructure failure. Exception type: $failureType. Private request text and exception details are withheld. Reopen Factory and retry only after reviewing the worker status."
@@ -5633,6 +5658,7 @@ class MainActivity : Activity() {
             mainHandler.removeCallbacks(refreshTasksRunnable)
             mainHandler.post(refreshTasksRunnable)
         }
+        handleIncomingFactoryScreenshot()
     }
 
     override fun onDestroy() {
