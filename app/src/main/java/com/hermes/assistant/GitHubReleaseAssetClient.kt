@@ -183,9 +183,10 @@ internal object GitHubReleaseAssetPolicy {
         val rawMessage = Regex("\\\"message\\\"\\s*:\\s*\\\"([^\\\"]{0,500})\\\"")
             .find(responseBody.take(8 * 1024))?.groupValues?.getOrNull(1).orEmpty()
         val message = rawMessage
-            .replace("\\\\n", " ")
-            .replace("\\\\r", " ")
-            .replace("\\\\t", " ")
+            .replace("\\
+", " ")
+            .replace("\\r", " ")
+            .replace("\\t", " ")
             .filterNot { it.isISOControl() }
             .trim()
             .take(240)
