@@ -26,12 +26,16 @@ class VyomFactorySkillRepositoryTest {
         }
     }
 
+    @Test fun invalidUtf8IsRejectedInsteadOfSilentlyReplaced() {
+        assertRejected { VyomFactorySkillPolicy.decodeDocument(byteArrayOf(0x23, 0x20, 0xC3.toByte(), 0x28)) }
+    }
+
     @Test fun installationRequiresExplicitOwnerConfirmation() {
         val root = createTempDir(prefix = "vyom-skill-test-")
         try {
             val store = VyomFactorySkillStore(root)
             assertRejected { store.install(preview(), ownerConfirmed = false) }
-            assertFalse(File(root, "owner_example/SKILL.md").exists())
+            assertFalse(root.listFiles()?.any { File(it, "SKILL.md").exists() } == true)
         } finally {
             root.deleteRecursively()
         }
@@ -44,7 +48,7 @@ class VyomFactorySkillRepositoryTest {
             store.install(preview(), ownerConfirmed = true)
             assertRejected { store.install(preview().copy(commitSha = "b".repeat(40)), ownerConfirmed = true) }
             assertEquals("a".repeat(40),
-                JSONObject(File(root, "owner_example/source.json").readText()).getString("commit_sha"))
+                JSONObject(File(root, VyomFactorySkillPolicy.storageFolderName("owner/example") + "/source.json").readText()).getString("commit_sha"))
         } finally {
             root.deleteRecursively()
         }
@@ -60,7 +64,7 @@ class VyomFactorySkillRepositoryTest {
             assertEquals(1, clean.valid)
             assertEquals(0, clean.invalid)
 
-            File(root, "owner_example/SKILL.md").writeText("# Tampered\\n")
+            File(root, VyomFactorySkillPolicy.storageFolderName("owner/example") + "/SKILL.md").writeText("# Tampered\\n")
             val tampered = store.auditInstalled()
             assertEquals(1, tampered.total)
             assertEquals(0, tampered.valid)

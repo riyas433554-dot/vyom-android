@@ -3,6 +3,8 @@ package com.hermes.assistant
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -64,8 +66,7 @@ internal class VyomFactorySkillRepositoryClient(
             "SKILL.md is empty or exceeds the safe import size"
         }
         val bytes = Base64.getMimeDecoder().decode(raw)
-        val markdown = String(bytes, Charsets.UTF_8)
-        VyomFactorySkillPolicy.validateDocument(markdown)
+        val markdown = VyomFactorySkillPolicy.decodeDocument(bytes)
         return Preview(repository, branch, commit, license, markdown, "https://github.com/$repository/blob/$branch/SKILL.md")
     }
 
@@ -108,6 +109,21 @@ internal object VyomFactorySkillPolicy {
         repositoryPattern.matches(value) && !value.contains("..")
 
     fun isAllowedLicense(spdx: String): Boolean = spdx in approvedLicenses
+
+    fun decodeDocument(bytes: ByteArray): String {
+        require(bytes.isNotEmpty() && bytes.size <= MAX_DOCUMENT_BYTES) { "SKILL.md must be 1–64 KiB" }
+        val decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        val markdown = decoder.decode(ByteBuffer.wrap(bytes)).toString()
+        validateDocument(markdown)
+        return markdown
+    }
+
+    fun storageFolderName(repository: String): String {
+        require(isValidRepository(repository))
+        return sha256(repository.toByteArray(Charsets.UTF_8)).take(24)
+    }
 
     fun validateDocument(markdown: String) {
         val bytes = markdown.toByteArray(Charsets.UTF_8)
@@ -156,7 +172,7 @@ internal class VyomFactorySkillStore(private val root: File) {
                 val license = metadata.optString("license")
                 val hash = metadata.optString("sha256")
                 check(VyomFactorySkillPolicy.isValidRepository(repository))
-                check(directory.name == repository.replace('/', '_'))
+                check(directory.name == VyomFactorySkillPolicy.storageFolderName(repository))
                 check(commit.matches(Regex("^[a-f0-9]{40}$")))
                 check(VyomFactorySkillPolicy.isAllowedLicense(license))
                 check(metadata.optString("content_type") == "inert-markdown")
@@ -179,7 +195,7 @@ internal class VyomFactorySkillStore(private val root: File) {
 
         val rootCanonical = root.canonicalFile
         if (!rootCanonical.exists()) check(rootCanonical.mkdirs()) { "Could not create app-private skill storage" }
-        val folderName = preview.repository.replace('/', '_')
+        val folderName = VyomFactorySkillPolicy.storageFolderName(preview.repository)
         val directory = File(rootCanonical, folderName).canonicalFile
         check(directory.parentFile == rootCanonical) { "Skill destination escaped app-private storage" }
         if (!directory.exists()) check(directory.mkdirs()) { "Could not create skill directory" }
