@@ -24,6 +24,52 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("P0", item.priority)
     }
 
+    @Test fun explicitFactoryPrefixPreservesScopeForWorkerComplaints() {
+        val extracted = VyomFactoryComplaintPrefixPolicy.extract("factory: worker lease renewal failed")
+        assertEquals("Vyom Factory complaint: worker lease renewal failed", extracted)
+        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", extracted!!)
+        assertEquals("execution", item.area)
+    }
+
+    @Test fun genericComplaintPrefixDoesNotInventFactoryScope() {
+        val extracted = VyomFactoryComplaintPrefixPolicy.extract("complaint: memory forgot my saved project")
+        try {
+            VyomFactoryComplaintRecord.fromFreeText("vyom_chat", extracted!!)
+            throw AssertionError("Generic complaint prefix must not create Factory scope")
+        } catch (_: IllegalArgumentException) {
+            // Expected: generic product complaints stay outside Factory.
+        }
+    }
+
+    @Test fun factoryPrefixCannotSmuggleWhatsappOrPlayStoreRequests() {
+        listOf(
+            "factory: WhatsApp message send failed",
+            "factory complaint: Play Store install failed"
+        ).forEach { command ->
+            val extracted = VyomFactoryComplaintPrefixPolicy.extract(command)!!
+            try {
+                VyomFactoryComplaintRecord.fromFreeText("vyom_chat", extracted)
+                throw AssertionError("Out-of-scope product request was accepted: $command")
+            } catch (_: IllegalArgumentException) {
+                // Expected: explicit prefix does not override product-scope exclusions.
+            }
+        }
+    }
+
+    @Test fun factoryResetIsNotMistakenForFactoryWorkflowContext() {
+        try {
+            VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Factory reset is failing")
+            throw AssertionError("Android factory reset must not enter Vyom Factory")
+        } catch (_: IllegalArgumentException) {
+            // Expected: the word factory alone is not sufficient scope evidence.
+        }
+    }
+
+    @Test fun factoryUiIssueIsRecognizedAsFactoryWork() {
+        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Vyom Factory UI complaint card layout is broken")
+        assertEquals("ui", item.area)
+    }
+
     @Test fun standaloneWhatsappAndPlayStoreRequestsAreRejected() {
         listOf(
             "Play Store se app install nahi ho raha",
