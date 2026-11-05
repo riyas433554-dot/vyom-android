@@ -52,7 +52,8 @@ class ActionEngineTest {
  @Test fun playStorePhraseMustNotAbsorbExtraInstructionsIntoTheAppName() {
   val verboseTeaching = "Install Godot From going play store and search godot confirm godot app then install it my phone and open it that time"
   val parsed = ActionEngine.classify(verboseTeaching)
-  assertFalse(parsed?.operation == ActionEngine.Operation.INSTALL_PLAY_STORE && parsed.target != "Godot")
+  assertEquals(ActionEngine.Operation.BLOCK, parsed?.operation)
+  assertEquals(ActionEngine.Risk.BLOCKED, parsed?.risk)
   assertEquals(ActionEngine.Operation.INSTALL_PLAY_STORE, ActionEngine.classify("Install Godot from Play Store")?.operation)
   assertEquals("Godot", ActionEngine.classify("Install Godot from Play Store")?.target)
  }
