@@ -19,7 +19,7 @@ class VyomFactoryDrainCoordinatorTest {
         val result = VyomFactoryDrainCoordinator.drain(
             runNext = { pending.removeFirst() },
             shouldStop = { false },
-            onOutcome = { outcome -> outcome.issueNumberOrNull()?.let(visited::add) }
+            onOutcome = { outcome -> when (outcome) {\n                is VyomFactoryExecutionRunner.Outcome.Succeeded -> visited.add(outcome.issueNumber)\n                is VyomFactoryExecutionRunner.Outcome.Failed -> visited.add(outcome.issueNumber)\n                is VyomFactoryExecutionRunner.Outcome.Skipped -> visited.add(outcome.issueNumber)\n                is VyomFactoryExecutionRunner.Outcome.Fenced -> visited.add(outcome.issueNumber)\n                else -> Unit\n            } }
         )
 
         assertEquals(listOf(1, 2, 3), visited)
