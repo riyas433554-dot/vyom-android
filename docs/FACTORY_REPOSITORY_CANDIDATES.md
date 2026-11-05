@@ -201,3 +201,12 @@ GitHub metadata was checked for these canonical repositories. License metadata i
 - `letta-ai/letta` at `8816d3a8516893bfdc0fa14bfb1235226012e295`: README says active source has moved to `letta-ai/letta-code`; do not integrate the old repository as the current runtime.
 - `usestrix/strix` at `09536cf1481731c790995bd8060db19a3b75ff48` and `KeygraphHQ/shannon` at `8c75a9b5a89ac02b7be8efeca7e129284d37e20f`: both explicitly describe real security testing; Shannon explicitly executes exploits. Research-only, isolated from normal Factory execution.
 - `VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android` README architecture claims are unverified by independent tests. README inspection is not source audit or device verification.
+
+## Native Android control source inspection — 2026-11-05
+
+Pinned source inspection (not a build or device test):
+
+- `AnaaySampat/jarvis`, `JarvisAccessibilityService.kt` at blob `e0ebc774f925dac868f0562c9de54e6a727b0eba`: has a cross-app accessibility STOP overlay. Tapping it increments a stop sequence, invalidates in-flight action callbacks, and cancels the active autonomy task. It also blocks coordinate actions targeting its own STOP overlay. `OperatorCore.kt` checks stopped state, uses observed screen state, rejects repeated/cyclic actions, and gates higher-risk actions with up-front approval; its comments say R3 always stops for a human. `NativeOperator.kt` checks task cancellation between steps and rejects a second active phone task. This is a much stronger reference than a basic click/type service. Still audit the complete action policy and tests before porting.
+- `VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android`, `JarvisAccessibilityService.kt` at blob `332fd6aecc83a97b912e6a02a9f126f2a3a80d88`: exposes static click/type/scroll/back/home helpers and package/text wait loops. In this inspected service class, `onInterrupt()` only logs and there is no visible global STOP/cancellation epoch or per-action approval gate. This does not prove the rest of the repository lacks those features, but this service alone is not safe to transplant as Vyom's control core.
+- Recommendation: study and selectively adapt Anaay's STOP/cancellation, stale-observation and risk-gate design; do not copy its entire codebase. Do not replace Vyom's existing event/revision-aware executor with the simpler JARVIS-OS service.
+- Source inspection is static. No repository code was executed, no build was run for these external repositories, and no phone behavior was tested.
