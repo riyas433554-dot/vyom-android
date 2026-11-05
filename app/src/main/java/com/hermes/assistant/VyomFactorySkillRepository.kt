@@ -134,6 +134,42 @@ internal class VyomFactorySkillStore(private val root: File) {
         val skillFile: File
     )
 
+    data class Audit(val total: Int, val valid: Int, val invalid: Int)
+
+    fun auditInstalled(): Audit {
+        if (!root.exists()) return Audit(0, 0, 0)
+        val rootCanonical = root.canonicalFile
+        val directories = rootCanonical.listFiles()?.filter { it.isDirectory }.orEmpty()
+        var valid = 0
+        var invalid = 0
+        directories.forEach { directory ->
+            try {
+                check(directory.canonicalFile.parentFile == rootCanonical)
+                val skill = File(directory, "SKILL.md")
+                val metadataFile = File(directory, "source.json")
+                check(skill.isFile && metadataFile.isFile)
+                val markdown = skill.readText(Charsets.UTF_8)
+                VyomFactorySkillPolicy.validateDocument(markdown)
+                val metadata = JSONObject(metadataFile.readText(Charsets.UTF_8))
+                val repository = metadata.optString("repository")
+                val commit = metadata.optString("commit_sha")
+                val license = metadata.optString("license")
+                val hash = metadata.optString("sha256")
+                check(VyomFactorySkillPolicy.isValidRepository(repository))
+                check(directory.name == repository.replace('/', '_'))
+                check(commit.matches(Regex("^[a-f0-9]{40}$")))
+                check(VyomFactorySkillPolicy.isAllowedLicense(license))
+                check(metadata.optString("content_type") == "inert-markdown")
+                check(hash.matches(Regex("^[a-f0-9]{64}$")))
+                check(VyomFactorySkillPolicy.sha256(skill.readBytes()) == hash)
+                valid++
+            } catch (_: Exception) {
+                invalid++
+            }
+        }
+        return Audit(directories.size, valid, invalid)
+    }
+
     fun install(preview: VyomFactorySkillRepositoryClient.Preview, ownerConfirmed: Boolean): Installed {
         check(ownerConfirmed) { "Owner review and explicit Install confirmation are required" }
         require(VyomFactorySkillPolicy.isValidRepository(preview.repository))
@@ -149,6 +185,7 @@ internal class VyomFactorySkillStore(private val root: File) {
         if (!directory.exists()) check(directory.mkdirs()) { "Could not create skill directory" }
         val skill = File(directory, "SKILL.md")
         val metadata = File(directory, "source.json")
+        check(!skill.exists() && !metadata.exists()) { "This skill is already installed; silent replacement is disabled" }
         val skillTemp = File(directory, "SKILL.md.tmp")
         val metadataTemp = File(directory, "source.json.tmp")
         val bytes = preview.skillMarkdown.toByteArray(Charsets.UTF_8)
