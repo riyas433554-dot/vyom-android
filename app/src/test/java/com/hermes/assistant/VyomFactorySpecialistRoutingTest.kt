@@ -15,6 +15,26 @@ class VyomFactorySpecialistRoutingTest {
         assertEquals(10, VyomFactorySpecialistRouting.nextOwnerReview(decisions)?.task?.number)
     }
 
+    @Test fun usesOldestCreatedIssueWithinTheSamePriorityTier() {
+        val decisions = listOf(
+            decision(12, "P1", "2026-11-02T00:00:00Z", repositoryReview()),
+            decision(11, "P1", "2026-11-01T00:00:00Z", repositoryReview())
+        )
+
+        assertEquals(11, VyomFactorySpecialistRouting.nextOwnerReview(decisions)?.task?.number)
+    }
+
+    @Test fun ignoresPausedOrTerminalRepositoryTasks() {
+        val paused = decision(10, "P0", "2026-10-31T00:00:00Z", repositoryReview()).let {
+            it.copy(task = it.task.copy(metadata = it.task.metadata.copy(status = "paused")))
+        }
+        val completed = decision(11, "P1", "2026-11-01T00:00:00Z", repositoryReview()).let {
+            it.copy(task = it.task.copy(state = "closed"))
+        }
+
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(listOf(paused, completed)))
+    }
+
     @Test fun skipsPreviouslyDeferredRepositoryComplaintAndRoutesNextInFifoOrder() {
         val decisions = listOf(
             decision(10, "P0", "2026-10-31T00:00:00Z", repositoryReview(),
