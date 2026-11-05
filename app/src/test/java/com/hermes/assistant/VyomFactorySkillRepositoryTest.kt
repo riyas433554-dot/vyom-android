@@ -105,10 +105,8 @@ class VyomFactorySkillRepositoryTest {
         try {
             block()
             throw AssertionError("Expected validation to reject the input")
-        } catch (_: IllegalArgumentException) {
-            // expected
-        } catch (_: IllegalStateException) {
-            // expected
+        } catch (_: Exception) {
+            // expected validation or strict UTF-8 decoding failure
         }
     }
 }
