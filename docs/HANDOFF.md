@@ -46,7 +46,7 @@ This section supersedes older APK gates and Factory ordering text below where th
 - `docs/OWNER_ACTIONS.md` now marks private repository conversion as **OWNER ACTION NEEDED** and defines app-private screenshot storage plus owner-tapped **Attach** as the required contract. Screenshot receiver/Attach UI are not implemented or device-verified yet; no screenshot was uploaded.
 - The current repository is still public until the owner completes the documented visibility change. Do not register real private data or enable remote screenshot upload before then.
 - No product-area feature implementation, no auto-merge/install, no Android `main`, Render, Hermes backend or production Supabase changes. No APK delivered.
-- Current source HEAD after this batch: `f2c27529311596b946ab437b8cee7f70c0b190ea`. Exact-head CI and test results must be checked; source edits and test additions are not a passing-test claim.
+- Current source HEAD after the code/test batch: `f2c27529311596b946ab437b8cee7f70c0b190ea`; subsequent documentation-only commits: `1cdecc3d880469ad9ee51e1c459f8d9af9663eb8` and `2b9ec38fd722fbb7678678eb76771407bf52ef97`. Exact-head CI and test results must be checked; source edits and test additions are not a passing-test claim.
 
 ### Latest source audit and CI (2026-11-04)
 
