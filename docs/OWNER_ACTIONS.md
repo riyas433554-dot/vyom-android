@@ -17,6 +17,8 @@ chmod 700 "$PREFIX/bin/vyom-factory.sh" "$PREFIX/bin/vyom-complain"
 vyom-complain --help
 ```
 
+Area-based priority defaults when `--priority` is omitted: control/Android control/update=P0; memory/design=P1; voice and other named areas=P2; other/unknown=P3. An explicit `--priority` still overrides the default.
+
 Then register one test complaint (this creates a real GitHub Issue):
 
 ```bash
