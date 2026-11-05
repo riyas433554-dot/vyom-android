@@ -109,9 +109,19 @@ object ActionEngine {
             if (target.isNotBlank()) return Intent("Uninstall $target", Risk.CONFIRM, Operation.UNINSTALL, target = target)
         }
         if (Regex("""\b(delete|remove)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Delete request", Risk.CONFIRM, Operation.DELETE, target=s)
+        val mentionsPlayStore = Regex("""\bplay\s*store\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
+        val requestsInstall = Regex("""\b(?:install|get|download)\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)
         Regex("""\b(?:install|get|download)\s+(.+?)\s+(?:from\s+)?(?:google\s+)?play\s*store\b""", RegexOption.IGNORE_CASE).find(s)?.let {
             val app = it.groupValues[1].trim().removeSurrounding("\\\"").removeSurrounding("'")
-            if (app.isNotBlank()) return Intent("Search Play Store for $app", Risk.CONFIRM, Operation.INSTALL_PLAY_STORE, target=app)
+            val instructionNoise = Regex("""\b(from|going|search|confirm|then|install|phone|time)\b""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(app)
+            if (app.isNotBlank() && !instructionNoise) {
+                return Intent("Search Play Store for $app", Risk.CONFIRM, Operation.INSTALL_PLAY_STORE, target=app)
+            }
+            return Intent("Ambiguous Play Store install request", Risk.BLOCKED, Operation.BLOCK, target=app)
+        }
+        if (mentionsPlayStore && requestsInstall) {
+            return Intent("Ambiguous Play Store install request", Risk.BLOCKED, Operation.BLOCK, target=s)
         }
         if (Regex("""\binstall\b""", RegexOption.IGNORE_CASE).containsMatchIn(s)) return Intent("Install request", Risk.CONFIRM, Operation.INSTALL, target=s)
         if (sendTarget.containsMatchIn(s)) return Intent("Open share sheet", Risk.CONFIRM, Operation.SHARE, target=s)
