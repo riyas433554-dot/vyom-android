@@ -20,7 +20,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Acceptance into the register is not authorization to implement that product feature in APK 1. Non-Factory feature requests remain visible in the canonical issue register, receive `backlog-after-factory`, and are not routed as APK 1 implementation work.
 - Priority policy: control/Android-control and update = P0; memory and design = P1; voice = P2. Other areas retain their existing issue priority unless the owner changes it. New complaints default by area: control/update P0, memory/design P1, voice P2, other named product areas P2, unknown/other P3.
 - Preserve the existing Factory-only APK 1 gate and Stage 1–7 order below exactly. The register is cross-product; the APK 1 implementation scope is not.
-- Previously `not_planned` product issues are to be reopened and labeled `backlog-after-factory`, including WhatsApp, Play Store and #52 update. Apply the owner's priority tiers above. Do not implement those backlog features in APK 1.
+- Previously `not_planned` product issues have been reopened and labeled `backlog-after-factory`, including WhatsApp, Play Store and #52 update. Their issue Area fields now match the product domains; owner priority tiers are applied. Do not implement those backlog features in APK 1.
 - Screenshot evidence requirement: capture/store screenshots in app-private storage. Upload/attach to the originating GitHub issue only after the owner explicitly taps **Attach**. Repository must be private before remote screenshot attachment is enabled. Never silently upload screenshots.
 - Branch and environment guardrails remain: only `feature/memory-intelligence`; never touch Android `main`, Render, Hermes backend or production Supabase. No auto-merge or auto-install of unreviewed proposals.
 - Report only verified tests, CI, artifacts and physical-device results. Keep `docs/HANDOFF.md` updated after each meaningful batch.
@@ -47,6 +47,17 @@ This section supersedes older APK gates and Factory ordering text below where th
 - The current repository is still public until the owner completes the documented visibility change. Do not register real private data or enable remote screenshot upload before then.
 - No product-area feature implementation, no auto-merge/install, no Android `main`, Render, Hermes backend or production Supabase changes. No APK delivered.
 - Code/test commits: `17563e29edbed44dcd1ed7c17493bcae9dc7d93f`, `95cea4e0ad9745bcfb8f221a6f549df52bef34fd`, `74a4e2da321bb8ac7347573fdbbd1df6448e092c`, `326b4bf637dd65e458e4ebb7fa141a38fe29cbb0`, `e4bcb48d7989ce8a8745efd9beecc06b72db1fe0`, `3ef5f997067dd344a013b0de07ea62fdff216c65`, `f2c27529311596b946ab437b8cee7f70c0b190ea`, `7bcb785b5b252880b2a7425f233021821e6a3b1b`. Documentation commits before this refresh: `1cdecc3d880469ad9ee51e1c459f8d9af9663eb8`, `2b9ec38fd722fbb7678678eb76771407bf52ef97`, `4642b789db304d948359e3afbe7b00eed7037371`. Exact-head CI and test results must be checked; source edits and test additions are not a passing-test claim. Exact-head CI and test results must be checked; source edits and test additions are not a passing-test claim.
+
+### Exact-head CI and artifact verification — 2026-11-05
+
+- Code/test source SHA `c8aa73dc7b99fdd50e0025a7ceebd059bcb79b67` was verified by Full CI `41963331282` = SUCCESS and Debug CI `41963331348` = SUCCESS. Both workflow runs completed on that exact SHA.
+- Full CI: Termux adapter syntax PASS; Termux complaint/priority tests PASS; secret scan PASS; unit tests + debug APK PASS; package/checksum/upload PASS. Artifact `13385984320` (`vyom-phase6-c8aa73dc7b99fdd50e0025a7ceebd059bcb79b67`) ZIP SHA-256 `179988fda6813e6527169a0747c54b27d99942c1322997dad37811ff4cbfb0c7`, independently matches GitHub digest.
+- Debug CI artifact `13386517377` ZIP SHA-256 `08f94e06389b3442f11713279113f0b8fba8f8e0c2296dba70b05b4aa5b0befa`, independently matches GitHub digest. Contains debug APK and release-signed APK. Debug APK SHA-256 `2e1e52d9cafbed904a565f94976e109e160c9881d2bdc4e699a4a2451c2f3385`; signed APK SHA-256 `396c75414be2f23e169de7b9cc242b5f5081e4b2b278f4aa45c80481eb35ec37`; both match embedded checksum files.
+- `build-info.txt`: versionName `0.3.1-ci.1375`, versionCode `1963331348`, commit `c8aa73...`, `releaseSigning=true`, certificate SHA-256 `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`. Certificate report confirms APK Signature Scheme v2 and the expected signer digest.
+- Content update demo result PASS; presence PASS; performance probe PASS (content-file read timing only, not WebView render latency). Rollback XML: 8 tests, 0 failures, 0 errors.
+- Signed CI release published: [vyom-ci-c8aa73dc7b99fdd50e0025a7ceebd059bcb79b67](https://github.com/riyas433554-dot/vyom-android/releases/tag/vyom-ci-c8aa73dc7b99fdd50e0025a7ceebd059bcb79b67).
+- This verifies the code/test source SHA above. Documentation-only commits `f38e159c1f71830f4ccd57839ed5564786463dd3` and this HANDOFF refresh follow it; re-run exact-tip CI before using any newer tip as APK 1 evidence.
+- APK 1 is **not authorized for delivery yet**: Termux owner smoke test, phone acceptance and private-repository conversion remain OWNER ACTION NEEDED; screenshot receiver/Attach UI is not implemented/device-verified. No APK delivered.
 
 ### Latest source audit and CI (2026-11-04)
 
