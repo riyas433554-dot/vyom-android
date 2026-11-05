@@ -24,7 +24,8 @@ internal class VyomFactoryGitHubClient(
         val state: String,
         val url: String,
         val updatedAt: String,
-        val metadata: VyomFactoryStatus.Metadata
+        val metadata: VyomFactoryStatus.Metadata,
+        val createdAt: String = updatedAt
     )
 
     class FactoryApiException(val code: Int, message: String) : IOException(message)
@@ -230,7 +231,8 @@ internal class VyomFactoryGitHubClient(
     private fun JSONObject.toTask(metadata: VyomFactoryStatus.Metadata): Task = Task(
         number = optInt("number"), title = optString("title"), body = optString("body"),
         state = optString("state"), url = optString("html_url"),
-        updatedAt = optString("updated_at"), metadata = metadata
+        updatedAt = optString("updated_at"), metadata = metadata,
+        createdAt = optString("created_at").ifBlank { optString("updated_at") }
     )
 
     companion object {
