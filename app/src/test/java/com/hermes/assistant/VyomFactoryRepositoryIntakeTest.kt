@@ -102,7 +102,11 @@ class VyomFactoryRepositoryIntakeTest {
 
     @Test fun filePreviewUsesPinnedCommitAndRedactsRecognizedSecrets() {
         val commit = "c".repeat(40)
-        val raw = "# Example\\n\\ngithub token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456\\napi_key = \\"super-secret-value-123456789\\"\\n"
+        val raw = """# Example
+
+github token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456
+api_key = "super-secret-value-123456789"
+"""
         val encoded = java.util.Base64.getEncoder().encodeToString(raw.toByteArray(Charsets.UTF_8))
         val client = VyomFactoryRepositoryClient(
             getJson = { requestPath ->
