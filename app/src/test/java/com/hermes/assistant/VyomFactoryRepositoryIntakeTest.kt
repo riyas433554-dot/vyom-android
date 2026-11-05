@@ -99,6 +99,37 @@ class VyomFactoryRepositoryIntakeTest {
         assertFalse(preview.assessment.installationApproved)
     }
 
+
+    @Test fun filePreviewUsesPinnedCommitAndRedactsRecognizedSecrets() {
+        val commit = "c".repeat(40)
+        val raw = "# Example\\n\\ngithub token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456\\napi_key = \\"super-secret-value-123456789\\"\\n"
+        val encoded = java.util.Base64.getEncoder().encodeToString(raw.toByteArray(Charsets.UTF_8))
+        val client = VyomFactoryRepositoryClient(
+            getJson = { requestPath ->
+                assertEquals("/repos/openai/example/contents/README.md?ref=$commit", requestPath)
+                """{"type":"file","encoding":"base64","size":${raw.toByteArray(Charsets.UTF_8).size},"path":"README.md","sha":"blob-sha","content":"$encoded"}"""
+            }
+        )
+        val source = VyomFactoryRepositoryIntake.SourceRef(
+            "openai", "example", "https://github.com/openai/example"
+        )
+        val snapshot = VyomFactoryRepositoryIntake.Snapshot(
+            source, "main", commit, "MIT", false, false, listOf("README.md")
+        )
+        val repository = VyomFactoryRepositoryClient.Preview(
+            snapshot, VyomFactoryRepositoryIntake.assess(snapshot), "Example", 1, 1, "2026-11-05"
+        )
+
+        val files = client.previewFiles(repository)
+
+        assertEquals(1, files.size)
+        assertEquals("README.md", files.single().path)
+        assertEquals(2, files.single().redactions)
+        assertFalse(files.single().content.contains("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"))
+        assertFalse(files.single().content.contains("super-secret-value-123456789"))
+        assertTrue(files.single().untrusted)
+    }
+
     private fun assess(
         license: String = "MIT",
         archived: Boolean = false,
