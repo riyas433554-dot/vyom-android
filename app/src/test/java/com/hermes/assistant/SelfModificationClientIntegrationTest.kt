@@ -29,6 +29,32 @@ class SelfModificationClientIntegrationTest {
         }
     }
 
+    @Test fun successfulProposalStopsAtUnmergedPrWithoutReleaseOrInstall() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(json("""{"object":{"sha":"${"a".repeat(40)}"}}"""))
+            server.enqueue(json("""{"ref":"refs/heads/vyom-proposal-test"}"""))
+            server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
+            server.enqueue(json("""{"content":{"sha":"${"b".repeat(40)}"}}"""))
+            server.enqueue(json("""{"html_url":"https://github.com/riyas433554-dot/vyom-android/pull/321"}"""))
+
+            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val proposal = client.createProposal(
+                token, "Improve reply formatting",
+                "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+                "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
+            )
+            assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
+            val requests = (0 until 5).map { server.takeRequest() }
+            assertEquals(listOf("GET", "POST", "GET", "PUT", "POST"), requests.map { it.method })
+            assertFalse(requests.any { it.path.orEmpty().contains("/merge") })
+            assertFalse(requests.any { it.path.orEmpty().contains("/releases") })
+        } finally {
+            server.shutdown()
+        }
+    }
+
     @Test fun confirmedPrCreationFailureCleansBranchButNeverMergesOrInstalls() {
         val server = MockWebServer()
         server.start()
