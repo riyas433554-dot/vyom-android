@@ -1365,6 +1365,7 @@ class MainActivity : Activity() {
                 selfChangeButton.post { selfChangeButton.performClick() }
             } else {
                 pendingSelfChangeIssueNumber = null
+                recordFactoryProposalRouteEvent(task.number, VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT)
                 AlertDialog.Builder(this)
                     .setTitle("Factory proposal unavailable")
                     .setMessage("Open Settings once, then retry the complaint proposal.")
@@ -1375,6 +1376,7 @@ class MainActivity : Activity() {
             pendingSelfChangeIssueNumber = null
             pendingSelfChangeTask = ""
             pendingSelfChangeTitle = ""
+            recordFactoryProposalRouteEvent(task.number, VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT)
             AlertDialog.Builder(this)
                 .setTitle("Cannot create a safe proposal")
                 .setMessage(error.message ?: "Complaint content was rejected by the privacy or proposal policy.")
@@ -1382,6 +1384,27 @@ class MainActivity : Activity() {
                 .show()
         }
     }
+
+    private fun recordFactoryProposalRouteEvent(issueNumber: Int, event: String) {
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        if (token.isBlank() || issueNumber <= 0) return
+        io.execute {
+            runCatching {
+                val client = VyomFactoryGitHubClient(token)
+                val fresh = client.listTasks().firstOrNull { it.number == issueNumber && it.state == "open" }
+                    ?: return@runCatching
+                if (event !in fresh.metadata.events) client.updateTask(fresh, additionalEvent = event)
+            }
+        }
+    }
+
+    private fun recordFactoryProposalRouteEventNow(issueNumber: Int, event: String, client: VyomFactoryGitHubClient): Boolean =
+        runCatching {
+            val fresh = client.listTasks().firstOrNull { it.number == issueNumber && it.state == "open" }
+                ?: return@runCatching false
+            if (event !in fresh.metadata.events) client.updateTask(fresh, additionalEvent = event)
+            true
+        }.getOrDefault(false)
 
     private fun showProfileMenu() {
         val memoryState = if (memoryStore.isEnabled()) "MEMORY ON" else "MEMORY OFF"
