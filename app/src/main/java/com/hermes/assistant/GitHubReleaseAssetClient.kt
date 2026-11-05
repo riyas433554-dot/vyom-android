@@ -203,7 +203,7 @@ internal object GitHubReleaseAssetPolicy {
             .trim()
             .take(240)
         val safeRequestId = requestId?.takeIf {
-            it.length in 1..80 && it.all { ch -> ch.isLetterOrDigit() || ch == '-' || ch == '_' }
+            it.length in 1..80 && it.all { ch -> ch.isLetterOrDigit() || ch == '-' || ch == '_' || ch == ':' }
         }
         return buildString {
             append("$prefix HTTP $status")
