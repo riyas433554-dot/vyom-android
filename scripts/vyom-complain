@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AREAS="design memory personality repo skill schedule control voice update other"
+AREAS="control android_control memory design personality repo skill skills schedule voice update whatsapp play_store floating_orb other"
 PRIORITIES="P0 P1 P2 P3"
 SEVERITIES="critical high medium low"
 
@@ -12,7 +12,7 @@ vyom-complain — register a structured complaint in the shared GitHub Issues re
 
 Required:
   --title TEXT
-  --area design|memory|personality|repo|skill|schedule|control|voice|update|other
+  --area control|android_control|memory|design|personality|repo|skill|skills|schedule|voice|update|whatsapp|play_store|floating_orb|other
   --severity critical|high|medium|low
   --priority P0|P1|P2|P3
   --evidence TEXT
