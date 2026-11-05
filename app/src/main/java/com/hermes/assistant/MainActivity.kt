@@ -3078,12 +3078,8 @@ class MainActivity : Activity() {
         scheduleChatMessage(item)
     }
 
-    private fun extractFactoryComplaint(message: String): String? {
-        val normalized = message.trim().lowercase(Locale.ROOT)
-        val prefixes = listOf("factory complaint:", "register complaint:", "complaint:", "report bug:", "factory:", "issue:")
-        val prefix = prefixes.firstOrNull { normalized.startsWith(it) } ?: return null
-        return message.trim().substring(prefix.length).trim().takeIf { it.isNotBlank() }
-    }
+    private fun extractFactoryComplaint(message: String): String? =
+        VyomFactoryComplaintPrefixPolicy.extract(message)
 
     private fun submitAutomaticDiagnosticFailure(result: String) {
         val safeResult = VyomAuditPolicy.sanitize(result)
