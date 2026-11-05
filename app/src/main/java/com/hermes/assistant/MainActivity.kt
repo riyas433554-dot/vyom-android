@@ -83,6 +83,9 @@ class MainActivity : Activity() {
     private var chatWasAtBottom = true
     private lateinit var memoryStore: VyomMemoryStore
     private val contentUpdateManager by lazy { ContentUpdateManager(applicationContext) }
+    private val githubReleaseAssets by lazy {
+        GitHubReleaseAssetClient { secureVoicePrefs().getString("github_proposal_token", "").orEmpty() }
+    }
     private lateinit var taskInput: EditText
     private lateinit var taskList: LinearLayout
     private lateinit var taskScroll: ScrollView
@@ -4476,42 +4479,47 @@ class MainActivity : Activity() {
     }
 
     private fun fetchLatestUpdateManifest(expectedCommit: String? = null): JSONObject {
-        val releases = JSONArray(readHttpsText(
-            "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30",
-            512 * 1024
-        ))
+        val releases = JSONArray(githubReleaseAssets.readReleases(512 * 1024))
         for (index in 0 until releases.length()) {
             val release = releases.optJSONObject(index) ?: continue
             if (release.optBoolean("draft", false)) continue
             val assets = release.optJSONArray("assets") ?: continue
-            var manifestUrl: String? = null
+            var manifestAssetId = 0L
             for (assetIndex in 0 until assets.length()) {
                 val asset = assets.optJSONObject(assetIndex) ?: continue
                 if (asset.optString("name") == "vyom-update.json") {
-                    manifestUrl = asset.optString("browser_download_url")
+                    manifestAssetId = asset.optLong("id", 0L)
                     break
                 }
             }
-            val url = manifestUrl ?: continue
+            if (manifestAssetId <= 0L) continue
             val releaseTag = release.optString("tag_name")
-            if (!UpdateManifestPolicy.isReleaseAssetUrl(url, releaseTag, "json")) continue
-            val manifest = JSONObject(readHttpsText(url, 64 * 1024))
+            val manifest = JSONObject(String(githubReleaseAssets.readAsset(manifestAssetId, 64 * 1024), Charsets.UTF_8))
             val versionCode = manifest.optInt("versionCode", 0)
+            val apkUrl = manifest.optString("apk")
+            if (!UpdateManifestPolicy.isReleaseAssetUrl(apkUrl, releaseTag, "apk")) continue
+            var apkAssetId = 0L
+            for (assetIndex in 0 until assets.length()) {
+                val asset = assets.optJSONObject(assetIndex) ?: continue
+                if (asset.optString("browser_download_url") == apkUrl) {
+                    apkAssetId = asset.optLong("id", 0L)
+                    break
+                }
+            }
+            if (apkAssetId <= 0L) continue
             val candidate = UpdateManifestPolicy.Candidate(
                 versionCode = versionCode,
                 sha256 = manifest.optString("sha256").lowercase(Locale.ROOT),
                 certificateSha256 = manifest.optString("certificateSha256").lowercase(Locale.ROOT),
                 commit = manifest.optString("commit"),
                 releaseTag = releaseTag,
-                apkUrl = manifest.optString("apk")
+                apkUrl = apkUrl
             )
             if (!UpdateManifestPolicy.isWellFormed(candidate)) continue
             if (expectedCommit != null &&
                 !UpdateManifestPolicy.matchesExpectedCommit(candidate, expectedCommit)) continue
-            // GitHub returns releases newest-first and versionCode is derived from
-            // the repository-wide increasing run ID. Older releases cannot supersede
-            // an installed newer build, so stop rather than fetching every old manifest.
             if (!UpdateManifestPolicy.isNewerVersion(versionCode, BuildConfig.VERSION_CODE)) break
+            manifest.put("_apkAssetId", apkAssetId)
             return manifest
         }
         return JSONObject()
@@ -4529,11 +4537,13 @@ class MainActivity : Activity() {
                 if (versionCode <= BuildConfig.VERSION_CODE) throw IllegalStateException("Not a newer version")
                 val apkUrl = manifest.optString("apk")
                 validateReleaseUrl(apkUrl)
+                val apkAssetId = manifest.optLong("_apkAssetId", 0L)
+                if (apkAssetId <= 0L) throw IllegalStateException("Private release APK asset ID is missing")
                 val expectedHash = manifest.optString("sha256").lowercase(Locale.ROOT)
                 if (!expectedHash.matches(Regex("^[a-f0-9]{64}$"))) throw IllegalStateException("Invalid update checksum")
                 val folder = File(cacheDir, "updates").apply { mkdirs() }
                 val file = File(folder, "vyom-update.apk")
-                downloadHttpsFile(apkUrl, file, 100L * 1024L * 1024L)
+                githubReleaseAssets.downloadAsset(apkAssetId, file, 100L * 1024L * 1024L)
                 val actualHash = sha256(file)
                 if (!MessageDigest.isEqual(expectedHash.toByteArray(), actualHash.toByteArray())) {
                     throw IllegalStateException("Update checksum mismatch")

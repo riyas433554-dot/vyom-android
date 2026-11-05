@@ -1,18 +1,16 @@
 package com.hermes.assistant
 
 import org.json.JSONArray
-import java.net.URI
 import java.time.Instant
 
-/** Resolves only the signed content-package asset from this repository's published release feed. */
+/** Resolves the signed content-package asset from the authenticated private-repository release feed. */
 internal object ContentUpdateReleaseLocator {
-    private const val EXPECTED_HOST = "github.com"
     private const val EXPECTED_PREFIX = "/riyas433554-dot/vyom-android/releases/download/"
     private const val ASSET_NAME = "vyom-content-update-demo.zip"
 
-    fun latestPackageUrl(releasesJson: String): String? {
+    fun latestPackageAssetId(releasesJson: String): Long? {
         val releases = JSONArray(releasesJson)
-        val candidates = mutableListOf<Pair<Instant, String>>()
+        val candidates = mutableListOf<Pair<Instant, Long>>()
         for (index in 0 until releases.length()) {
             val release = releases.optJSONObject(index) ?: continue
             if (release.optBoolean("draft", true) || !release.optBoolean("prerelease", false)) continue
@@ -21,21 +19,17 @@ internal object ContentUpdateReleaseLocator {
             for (assetIndex in 0 until assets.length()) {
                 val asset = assets.optJSONObject(assetIndex) ?: continue
                 if (asset.optString("name") != ASSET_NAME) continue
+                val assetId = asset.optLong("id", 0L)
                 val url = asset.optString("browser_download_url")
-                if (isTrustedPackageUrl(url)) candidates += publishedAt to url
+                if (assetId > 0L && isTrustedPackageUrl(url)) candidates += publishedAt to assetId
             }
         }
         return candidates.maxByOrNull { it.first }?.second
     }
 
     fun isTrustedPackageUrl(value: String): Boolean = runCatching {
-        val uri = URI(value)
-        uri.scheme.equals("https", true) &&
-            uri.host.equals(EXPECTED_HOST, true) &&
-            uri.userInfo == null &&
-            uri.port == -1 &&
-            uri.path.startsWith(EXPECTED_PREFIX) &&
-            uri.path.endsWith("/$ASSET_NAME") &&
-            uri.query == null && uri.fragment == null
+        val uri = java.net.URI(value)
+        uri.scheme == "https" && uri.host == "github.com" &&
+            uri.path.startsWith(EXPECTED_PREFIX) && uri.path.endsWith("/$ASSET_NAME")
     }.getOrDefault(false)
 }

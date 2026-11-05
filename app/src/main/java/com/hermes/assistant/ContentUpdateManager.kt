@@ -16,6 +16,9 @@ import java.util.Base64
 internal class ContentUpdateManager(private val context: Context) {
     private val store = ContentUpdateSlotStore(File(context.filesDir, "content-slots"))
     private val uiStore by lazy { UiBundleStore(context) }
+    private val githubReleaseAssets by lazy {
+        GitHubReleaseAssetClient { GitHubReleaseTokenStore.read(context) }
+    }
 
     fun activeVersion(): String = store.activeVersion()
 
@@ -35,11 +38,11 @@ internal class ContentUpdateManager(private val context: Context) {
     fun applyLatestRelease(): ContentUpdateResult {
         ensureSeeded()
         return try {
-            val releases = readHttpsText(RELEASES_API, 2 * 1024 * 1024)
-            val packageUrl = ContentUpdateReleaseLocator.latestPackageUrl(releases)
+            val releases = githubReleaseAssets.readReleases(2 * 1024 * 1024)
+            val assetId = ContentUpdateReleaseLocator.latestPackageAssetId(releases)
                 ?: return ContentUpdateResult(activeVersion(), false, emptyList(), null,
                     "No signed no-APK content package is available in the release feed")
-            val parsed = ContentUpdatePackageArchive.read(readHttpsBytes(packageUrl, MAX_PACKAGE_BYTES))
+            val parsed = ContentUpdatePackageArchive.read(githubReleaseAssets.readAsset(assetId, MAX_PACKAGE_BYTES))
             applySignedPackage(
                 parsed.manifest, parsed.detachedSignature, parsed.files,
                 ContentUpdatePackageVerifier(installedSigningPublicKey())
@@ -239,7 +242,6 @@ internal class ContentUpdateManager(private val context: Context) {
     }
 
     companion object {
-        private const val RELEASES_API = "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30"
         private const val MAX_PACKAGE_BYTES = 10 * 1024 * 1024
         private const val CONTENT_PREFS = "vyom_content_update"
     }
