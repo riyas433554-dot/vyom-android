@@ -124,7 +124,7 @@ internal class VyomFactoryRepositoryClient(
             require(totalBytes <= MAX_PREVIEW_TOTAL_BYTES) {
                 "Repository preview exceeded the total file-size limit"
             }
-            val encoded = file.optString("content").filterNot(Char::isWhitespace)
+            val encoded = file.optString("content").filterNot { it.isWhitespace() }
             require(encoded.isNotBlank() && encoded.length <= MAX_PREVIEW_FILE_BYTES * 2) {
                 "Repository preview file content is empty or oversized"
             }
