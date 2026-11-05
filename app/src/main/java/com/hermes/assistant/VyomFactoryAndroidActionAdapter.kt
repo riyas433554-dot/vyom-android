@@ -20,6 +20,22 @@ internal class VyomFactoryAndroidActionAdapter(
 
     // Setting an absolute media-volume value is safe to repeat after a crash.
     override val isIdempotent: Boolean = true
+    override val capabilities = listOf(
+        VyomFactoryCapabilityRegistry.Capability(
+            id = "android_control.set_media_volume",
+            version = 1,
+            domain = VyomFactoryCapabilityRegistry.Domain.ANDROID_CONTROL,
+            operations = setOf(SET_MEDIA_VOLUME),
+            risk = VyomFactoryCapabilityRegistry.Risk.R1,
+            requiresOwnerApproval = false,
+            mutating = true,
+            reversible = false,
+            rollbackCapabilityId = null,
+            idempotent = true,
+            available = true,
+            unavailableReason = null
+        )
+    )
 
     override fun isVerifiedResult(result: String): Boolean =
         DeviceActionExecutor.auditState(result) == "verified"
