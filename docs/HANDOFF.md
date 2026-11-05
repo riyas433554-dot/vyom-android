@@ -7,10 +7,10 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest Factory complaint-scope source commits: `327e0e4fd8b1a3a83228b4174f55dc9132228450` (voice-intake regression), `6fe620e8dc2757230fee6d61c15f044daf7d3fee` (tested prefix/scope policy), and `aca71cead4971e6b84c2f632b708ad96e7774eea` (MainActivity integration). HANDOFF is being refreshed; exact-head Full CI and Debug CI must be checked for the latest tip. Earlier successful artifacts listed below are historical only, not current source proof.
+- Current branch HEAD before this handoff refresh: `39e5e05dee40ea62e4ee4bdbd7a366d896b6bde7`. Exact-head Full CI `41968349353` and Debug CI `41968349286` both completed SUCCESS on `efb16a2f906f3c59191c9c428121bc6dc34fe99e`; `39e5e05...` and this handoff refresh are documentation-only commits. After the final docs commit, rerun both workflows on the new exact tip before APK 1 authorization.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
-- APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
+- APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Stage 6 owner acceptance is a hard prerequisite; the signed CI candidate is not final APK 1. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
 - Report only verified tests, CI, artifacts, and physical-device results.
 
 ## Scope lock — Factory is the only APK 1 deliverable (2026-11-05)
@@ -57,7 +57,7 @@ This section supersedes older APK gates and Factory ordering text below where th
 - Content update demo result PASS; presence PASS; performance probe PASS (content-file read timing only, not WebView render latency). Rollback XML: 8 tests, 0 failures, 0 errors.
 - Signed CI release published: [vyom-ci-c8aa73dc7b99fdd50e0025a7ceebd059bcb79b67](https://github.com/riyas433554-dot/vyom-android/releases/tag/vyom-ci-c8aa73dc7b99fdd50e0025a7ceebd059bcb79b67).
 - This verifies the code/test source SHA above. Documentation-only commits `f38e159c1f71830f4ccd57839ed5564786463dd3` and this HANDOFF refresh follow it; re-run exact-tip CI before using any newer tip as APK 1 evidence.
-- APK 1 is **not authorized for delivery yet**: Termux owner smoke test, phone acceptance and private-repository conversion remain OWNER ACTION NEEDED; screenshot receiver/Attach UI is not implemented/device-verified. No APK delivered.
+- APK 1 is **not authorized for delivery yet**: exact-head source/CI/artifact gates are now green, but Stage 6 owner actions remain. Screenshot receiver/Attach is source-wired but not physically verified. No APK 1 delivered.
 
 ### Latest source audit and CI (2026-11-04)
 
@@ -78,15 +78,15 @@ This section supersedes older APK gates and Factory ordering text below where th
 - CI: last observed Full CI run `41838529328` was pending on ancestor SHA `a81648d72d03107d0cae2ef870f5d529539112d3` and had no jobs yet; ancestor Debug `41838467957` was queued on `d68ab40279151eee3a28d0cf963dbd0dc5d6db6f`. Newer source commits supersede both. Exact-head Debug + Full CI for this checkpoint and the following handoff commit must be checked. Do not claim tests passed or APK built until both finish successfully.
 - No final APK has been delivered and no physical phone acceptance is claimed.
 
-### Next work (mandatory order)
+### Next work (mandatory order; stages 1–7 remain locked)
 
-1. Poll exact-head Debug + Full CI; fix compile/test failures from the actual logs. Do not let a new commit cancel in-flight checks unnecessarily.
-2. Verify the existing end-to-end Factory test (START → worker claim/run → issue event/result → owner probe PASS → DONE) and Factory/Automations status/priority parity on exact-head CI; do not duplicate the existing test.
-3. Stage 1 source work is now wired for non-chat Factory worker failure routing, external-agent source identity tests, and screenshot share/Attach. Remaining Stage 1 work is owner acceptance: private-repository conversion, physical phone verification, and live external-agent identity acceptance. Remote screenshot upload stays disabled while the repo is public.
-4. Run the added Factory proposal regression tests on exact-head CI: safe-path rejection, PR creation failure/uncertain outcome, exact-SHA CI failure/timeout, issue-comment failure, and no merge/release/install. Fix only failures from real logs.
-5. Verify A18 signed demo/test artifacts on exact current head only where Factory needs the no-APK rollback safety. Do not expand into unrelated A17/A18 work.
-6. Owner acceptance remains required for Termux smoke test, physical phone, repository visibility/privacy decision, screenshot Attach phone test, skill import smoke test, and live external-agent tests. Update this handoff after each meaningful batch.
-7. Deliver APK 1 only after the Factory-first source gate, exact-head Debug + Full CI, and required artifact checks pass. Do not deliver a final APK while checks are pending.
+1. **CI gate — COMPLETE on source SHA `efb16a2f906f3c59191c9c428121bc6dc34fe99e`.** Full CI `41968349353` and Debug `41968349286` both SUCCESS. This handoff/docs-only commit must receive a fresh exact-tip CI pair before APK 1 authorization.
+2. **Lifecycle/parity gate — COMPLETE on exact source SHA above.** Existing `VyomFactoryLifecycleIntegrationTest` verifies START → worker claim/run → issue event/result → owner probe PASS → DONE. Existing Factory/Automations ordering and paused-task exclusion tests are retained; do not duplicate them.
+3. **Stage 1 intake/evidence gate — SOURCE COMPLETE; OWNER ACCEPTANCE PENDING.** Cross-area complaint intake, sanitized Diagnostics and non-chat worker failure routing, external-agent source identity tests, app-private screenshot share/Attach and private-repository fail-closed checks are in source. Owner must complete Termux smoke, phone acceptance, and live external-agent checks. No real screenshot upload while repository remains public.
+4. **Proposal safety gate — COMPLETE on exact source SHA above.** CI executes regression coverage for safe-path rejection, PR creation failure/uncertain outcome, exact-SHA CI failure/timeout, issue-comment failure, and no merge/release/install. Do not auto-merge or auto-install.
+5. **A18 Factory-required rollback gate — COMPLETE on exact source SHA above.** Exact-head signed demo PASS, presence PASS, content-file performance probe PASS; rollback report has 8 tests, 0 failures, 0 errors. This is not WebView render-latency evidence.
+6. **Owner acceptance — BLOCKED ONLY ON OWNER ACTION.** The repository API still reports `visibility=public`. Follow `docs/OWNER_ACTIONS.md` in order: make repository private; verify token permissions; install and run the signed exact-head CI candidate manually (never auto-install); complete voice/Diagnostics/Factory-runner complaint, screenshot Attach, Factory/Automations ordering, verification-probe, Termux idempotency, skill-import and GPT/Claude/Codex source-identity checks. Record actual results before marking Stage 6 complete.
+7. **Final APK 1 — NOT AUTHORIZED YET.** After Stage 6 owner acceptance, refresh this handoff with evidence, run Full + Debug CI on the resulting exact HEAD, verify the final signed APK checksum and pinned certificate, and only then deliver APK 1. Current CI candidate release is not APK 1.
 
 ## Superseded legacy Factory order — historical context only; DO NOT FOLLOW
 
@@ -681,3 +681,21 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Stages 1–5 source/CI gates are now implemented and verified on `b5a50129...`: complaint intake/backlog, screenshot share/Attach source and private gate, existing lifecycle E2E, non-chat worker routing/external-agent source tests, proposal safety tests, and A18 signed demo/rollback artifact.
 - Stage 6 remains owner-only: repository is still public (`private=false` confirmed); owner must change visibility to Private, confirm Contents read/write + Issues read/write token permissions, run the Termux smoke test, perform physical phone screenshot/Factory and skill-import acceptance, and verify live ChatGPT/Claude/Codex/Termux source identity. No screenshot has been uploaded.
 - Stage 7 APK 1 is intentionally not delivered yet. The published artifact above is a CI candidate, not the final APK 1. This handoff update is docs-only; exact-head Full + Debug CI must be rerun on the new documentation head before declaring the current tip green. Then stop only for the owner actions above; do not auto-merge or auto-install.
+
+
+## Exact-head Factory gate and candidate verification — 2026-11-05 (source SHA efb16a2)
+
+- Exact source SHA `efb16a2f906f3c59191c9c428121bc6dc34fe99e` passed both required workflows:
+  - Full CI `41968349353`: SUCCESS. Termux adapter syntax PASS, complaint/priority shell tests PASS, secret scan PASS, policy-critical proposal scan step skipped by workflow condition, unit tests + debug APK PASS, checksum packaging and artifact upload PASS.
+  - Debug `41968349286`: SUCCESS. Persistent release-signing setup/verification PASS, `assembleDebug` + `testDebugUnitTest` PASS, signed APK packaging PASS, A18 content-update demo/rollback evidence generation PASS, artifact upload PASS, signed CI candidate release publication PASS.
+- Full CI artifact ID `13389006161`, name `vyom-phase6-efb16a2f906f3c59191c9c428121bc6dc34fe99e`, ZIP SHA-256 `cca530205c2a505de3a595a2510d7717e689a35d3aef7786dbe8fbc83bca59bc`. Downloaded ZIP digest independently matches the GitHub artifact digest. Embedded debug APK SHA-256 `ef8644ffc36f6b676b3385651fca4b97275a4ed576e314bb340bf50163c85ae7`, matching its embedded checksum.
+- Debug/A18 artifact ID `13388842064`, name `vyom-0.3.1-efb16a2f906f3c59191c9c428121bc6dc34fe99e`, ZIP SHA-256 `65cd0a3c7538b4fca42da5326c4f09f17fb717529058f43fa70996716c3cf804`. Downloaded ZIP digest independently matches the GitHub artifact digest.
+- Build metadata: versionName `0.3.1-ci.1438`, versionCode `1968349286`, commit `efb16a2f906f3c59191c9c428121bc6dc34fe99e`, `releaseSigning=true`.
+- Debug APK SHA-256 `2002a89a225a41e9b342bf6e3024c2c76e41b76853cc962f9fbfa1194922755f`; signed APK SHA-256 `541b4254f2cbd80f7bbf0da42d1c21966edfa5ed82bc3a3eba087e7526299b6e`. Both match their embedded checksum files.
+- Signed APK certificate report: APK Signature Scheme v2 verified; one signer CN=Vyom, O=Vyom, C=IN; certificate SHA-256 `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`, matching the pinned expected fingerprint.
+- A18 result JSON: status PASS, presence PASS, performance PASS; baseline 0.0097 ms, candidate 0.0093 ms, delta -0.0003 ms (same timing bucket). This measures content-file access only, not WebView rendering.
+- Rollback XML: `ContentUpdateSlotStoreTest`, 8 tests, 0 skipped, 0 failures, 0 errors. Covers staging/probe switch, failed-probe rollback, owner rollback, stale version rejection, two-crash rollback, and page/skill load-failure rollback.
+- Published exact-source CI candidate release: https://github.com/riyas433554-dot/vyom-android/releases/tag/vyom-ci-efb16a2f906f3c59191c9c428121bc6dc34fe99e. This is a manually installable acceptance candidate only, not final APK 1.
+- Repository visibility checked through GitHub API: `public` (not private). Remote screenshot upload remains blocked by the source privacy guard until owner converts repository to private. No screenshots were uploaded.
+- Current blocker is exclusively Stage 6 owner acceptance. Exact actionable steps and candidate checksums are in `docs/OWNER_ACTIONS.md`. No auto-install/merge and no changes to Android `main`, Render, Hermes backend or production Supabase.
+- This handoff refresh and the OWNER_ACTIONS update are documentation-only. Run Full + Debug on the final docs HEAD before final APK 1 authorization.
