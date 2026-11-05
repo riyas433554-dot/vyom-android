@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
@@ -14,6 +15,7 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -211,6 +213,15 @@ internal class VyomFactoryDialog(
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             })
+            val previewOptions = BitmapFactory.Options().apply { inSampleSize = 8 }
+            BitmapFactory.decodeFile(screenshot.absolutePath, previewOptions)?.let { bitmap ->
+                evidencePanel.addView(ImageView(activity).apply {
+                    setImageBitmap(bitmap)
+                    contentDescription = "Private screenshot preview"
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    adjustViewBounds = true
+                }, LinearLayout.LayoutParams(-1, dp(160)).apply { topMargin = dp(6) })
+            }
             screenshotAttachButton = Button(activity).apply {
                 text = "ATTACH TO FACTORY ISSUE"
                 textSize = 9f
