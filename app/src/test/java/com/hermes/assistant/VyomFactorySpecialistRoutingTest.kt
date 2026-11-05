@@ -25,6 +25,15 @@ class VyomFactorySpecialistRoutingTest {
         assertEquals(11, VyomFactorySpecialistRouting.nextOwnerReview(decisions)?.task?.number)
     }
 
+    @Test fun skipsRepositoryComplaintWithAlreadyOpenedProposal() {
+        val decisions = listOf(
+            decision(10, "P0", "2026-10-31T00:00:00Z", repositoryReview(),
+                events = setOf(VyomFactorySpecialistRouting.OWNER_REVIEW_OPENED_EVENT))
+        )
+
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions))
+    }
+
     @Test fun doesNotRouteExecutableOrClarificationDecisionsToRepositoryProposal() {
         val decisions = listOf(
             decision(10, "P0", "2026-10-31T00:00:00Z",
