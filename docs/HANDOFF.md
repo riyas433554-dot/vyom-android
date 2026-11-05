@@ -81,11 +81,11 @@ This section supersedes older APK gates and Factory ordering text below where th
 ### Next work (mandatory order)
 
 1. Poll exact-head Debug + Full CI; fix compile/test failures from the actual logs. Do not let a new commit cancel in-flight checks unnecessarily.
-2. Add/verify an end-to-end Factory test: START → worker claim/run → issue event/result → owner probe PASS → DONE; verify Factory/Automations status and priority parity.
-3. Finish remaining Stage 1 intake gaps where source-safe: generic non-chat worker failure routing and external-agent source identity; complete owner privacy/phone acceptance for the source-wired screenshot receiver; remote upload stays disabled while the repo is public.
-4. Complete Factory proposal path tests: safe-path rejection, PR creation failure handling, CI failure/timeout handling, issue comment failure, and prove no merge/install occurs for unmerged PRs.
+2. Verify the existing end-to-end Factory test (START → worker claim/run → issue event/result → owner probe PASS → DONE) and Factory/Automations status/priority parity on exact-head CI; do not duplicate the existing test.
+3. Stage 1 source work is now wired for non-chat Factory worker failure routing, external-agent source identity tests, and screenshot share/Attach. Remaining Stage 1 work is owner acceptance: private-repository conversion, physical phone verification, and live external-agent identity acceptance. Remote screenshot upload stays disabled while the repo is public.
+4. Run the added Factory proposal regression tests on exact-head CI: safe-path rejection, PR creation failure/uncertain outcome, exact-SHA CI failure/timeout, issue-comment failure, and no merge/release/install. Fix only failures from real logs.
 5. Verify A18 signed demo/test artifacts on exact current head only where Factory needs the no-APK rollback safety. Do not expand into unrelated A17/A18 work.
-6. Owner acceptance remains required for Termux smoke test, physical phone, repository visibility/privacy decision, and private screenshot evidence storage. Update this handoff after each meaningful batch.
+6. Owner acceptance remains required for Termux smoke test, physical phone, repository visibility/privacy decision, screenshot Attach phone test, skill import smoke test, and live external-agent tests. Update this handoff after each meaningful batch.
 7. Deliver APK 1 only after the Factory-first source gate, exact-head Debug + Full CI, and required artifact checks pass. Do not deliver a final APK while checks are pending.
 
 ## Superseded legacy Factory order — historical context only; DO NOT FOLLOW
