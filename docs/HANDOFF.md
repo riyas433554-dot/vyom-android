@@ -1003,3 +1003,8 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Added an explicit `ownerReviewedDiff` gate to both proposal creation entry points; it defaults to false and is checked before any GitHub request. The only production call site passes true inside the positive OPEN PR callback, which is reached after the diff-review dialog. Direct/unreviewed calls fail closed. Implementation commit `14f39924e3ec2c0e077f26d59006eb53b3f71b40`; UI wiring commit `5c98213a6b6571f53b7d49726544f8d473c5e3da`.
 - Added an integration test proving an unreviewed proposal makes zero GitHub requests. Existing success/failure/uncertain-PR integration cases now explicitly state that the owner reviewed the diff. Test commits `4b653822c29a164ade19ace8d360c2e337f244fa` and `4c9ca7872553d963d3d7dc779974906adf681f5e`.
 - This hardens the existing manually initiated proposal path; it does NOT yet auto-select a source file, auto-generate proposals for every repository complaint, auto-merge, auto-install, or replace owner review. Proposal branches remain isolated and PRs remain unmerged pending owner action.
+## Exact-head CI result for proposal approval gate — 2026-11-05
+
+- Exact code+HANDOFF SHA: `3828cc987ce8dd67556c9d66a6cb8ef575cba2cd`. Debug run `42035802699`; Full CI run `42035802684`.
+- Both failed before runner allocation. Retry attempt 2 also reported `runner_id=0`, empty runner name and `steps=[]`. No Checkout, JDK, Gradle, unit test, compile or APK step executed. This remains an infrastructure provisioning failure, not evidence of source correctness or source failure.
+- No merge, install, backend/Render, production Supabase or Android `main` changes were made. Current branch remains `feature/memory-intelligence`.
