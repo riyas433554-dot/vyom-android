@@ -1044,3 +1044,11 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - This is a truthful routing/observability improvement only. It does **not** automatically run NVIDIA path discovery, generate a patch, select a file, open a PR, or make repository work execution-ready. Owner-reviewed diff, isolated feature branch, exact-SHA CI, no auto-merge and no auto-install remain mandatory. Next implementation step: connect read-only source discovery and bounded proposal drafting to the Factory repository specialist flow while preserving the owner diff-approval gate and continuing to later queue items when the proposal is declined/blocked.
 - Tests were added but not run locally. Latest branch source SHA is `5115a6e755e6e4b3b29beef7531c3478c4837a50`; exact-head CI is pending verification. Previous exact-tip CI for `25f0c07045711d1d203cce97fe295503b7037713` failed pre-runner with `runner_id=0`, no job steps; no Gradle/tests ran.
 - No APK, Android `main`, Render, Hermes backend or production Supabase changes. No physical-device PASS claimed.
+
+
+### Exact-head CI evidence for repository triage batch — 2026-11-05
+
+- Source commits: tests `52c167b21d622bc45eed599242596e61ec9f2ba2`, `65bbc3691b8a11811924c760d31afb09467846bf`; implementation `b5340a9235b61725f26fbba26a8e5a4a55aae653`, `5115a6e755e6e4b3b29beef7531c3478c4837a50`. HANDOFF update commit: `798c073efc99d5a11e51249ae91bae78ed3a643d`.
+- Exact HANDOFF SHA `798c073efc99d5a11e51249ae91bae78ed3a643d`: Debug run `42041713442` and Full CI run `42041713542`; both attempt 1 failed. Retried only failed jobs (attempt 2); both still failed. Latest job step queries returned empty arrays; downloadable logs returned GitHub BlobNotFound. No Checkout/JDK/Gradle/test steps ran. This is consistent with runner provisioning failure; it is not evidence that the new tests passed or failed.
+- Source SHA `5115a6e755e6e4b3b29beef7531c3478c4837a50` also had Debug `42041656873` and Full CI `42041656911` fail before any steps. The newer HANDOFF commit above was checked separately.
+- No source test PASS, APK or artifact is claimed. Do not change workflow/signing settings based on an empty-step failure. Next work remains repository specialist automation behind the owner-reviewed diff gate.
