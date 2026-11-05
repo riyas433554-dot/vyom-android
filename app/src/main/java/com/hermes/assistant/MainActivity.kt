@@ -4360,6 +4360,14 @@ class MainActivity : Activity() {
                 }
                 val contentHistory = runCatching { contentUpdateManager.history() }.getOrDefault(emptyList())
                 rows += "PARTIAL · A18 signed package apply · GitHub release discovery, installed-signer verification, staged probes, UI synchronization and rollback are wired; owner-device visible update and failing-probe rollback remain required. History entries=${contentHistory.size}"
+                try {
+                    val executionHistory = VyomFactoryExecutionHistory.summarize(
+                        VyomFactoryExecutionJournal(applicationContext).all()
+                    )
+                    rows += "PASS · Vyom Factory execution journal · ${executionHistory.label}; latest rows=${executionHistory.latest.size} (redacted, device-local)"
+                } catch (historyError: Exception) {
+                    rows += "FAIL · Vyom Factory execution journal · persisted run history could not be read safely"
+                }
                 val factoryToken = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
                 if (factoryToken.isBlank()) {
                     rows += "SKIP · Vyom Factory registry · GitHub token is not configured"
