@@ -3233,7 +3233,6 @@ class MainActivity : Activity() {
                     item.state = "error"
                     item.reply = error.message?.takeIf { it.isNotBlank() } ?: "Chat request failed. Please try again."
                     persistChatMessages()
-                    submitAutomaticTaskFailure(item, error)
                     if (error is VyomApiClient.SessionExpiredException) {
                         showPairingRequired()
                     } else {
