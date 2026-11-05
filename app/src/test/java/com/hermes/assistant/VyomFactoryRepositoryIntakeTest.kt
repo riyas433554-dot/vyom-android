@@ -11,10 +11,10 @@ class VyomFactoryRepositoryIntakeTest {
             VyomFactoryRepositoryIntake.SourceRef("openai", "example", "https://github.com/openai/example"),
             VyomFactoryRepositoryIntake.parseUrl("https://github.com/openai/example.git")
         )
-        assertEquals(null, VyomFactoryRepositoryIntake.parseUrl("https://github.com.evil.example/openai/example"))
-        assertEquals(null, VyomFactoryRepositoryIntake.parseUrl("https://github.com/openai/example/issues/1"))
-        assertEquals(null, VyomFactoryRepositoryIntake.parseUrl("https://user:pass@github.com/openai/example"))
-        assertEquals(null, VyomFactoryRepositoryIntake.parseUrl("http://github.com/openai/example"))
+        assertTrue(VyomFactoryRepositoryIntake.parseUrl("https://github.com.evil.example/openai/example") == null)
+        assertTrue(VyomFactoryRepositoryIntake.parseUrl("https://github.com/openai/example/issues/1") == null)
+        assertTrue(VyomFactoryRepositoryIntake.parseUrl("https://user:pass@github.com/openai/example") == null)
+        assertTrue(VyomFactoryRepositoryIntake.parseUrl("http://github.com/openai/example") == null)
     }
 
     @Test fun classifiesDifferentRepositoryTypesWithoutAssumingSkillMd() {
