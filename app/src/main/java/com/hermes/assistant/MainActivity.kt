@@ -1302,13 +1302,17 @@ class MainActivity : Activity() {
     }
 
     private fun showVyomFactory(pendingScreenshot: File? = null) {
+        val storedScreenshot = pendingScreenshot?.takeIf { it.isFile } ?: File(filesDir, "factory-evidence")
+            .listFiles()
+            ?.filter { it.isFile && it.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp") }
+            ?.maxByOrNull { it.lastModified() }
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         VyomFactoryDialog(
             this,
             token,
             onOpenSettings = { showTab(false, true) },
             onProposeFix = ::openFactoryCodeProposal,
-            pendingScreenshot = pendingScreenshot,
+            pendingScreenshot = storedScreenshot,
             onRunnerFailure = { failureType ->
                 val id = "task-failure:factory-runner:" + UUID.randomUUID()
                 val report = "Factory worker infrastructure failure. Exception type: $failureType. Private request text and exception details are withheld. Reopen Factory and retry only after reviewing the worker status."
