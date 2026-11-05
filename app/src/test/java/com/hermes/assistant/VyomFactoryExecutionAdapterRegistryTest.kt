@@ -78,6 +78,61 @@ class VyomFactoryExecutionAdapterRegistryTest {
         )
     }
 
+    @Test fun typedAdapterRejectsUnknownOperationBeforeInvocation() {
+        val adapter = TypedRecordingAdapter()
+        val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
+
+        val result = registry.dispatch(executable("android_action", "launch_app"), NeverStop)
+
+        assertEquals(
+            VyomFactoryExecutionAdapterRegistry.Outcome.Unsupported(
+                VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
+            ),
+            result
+        )
+        assertEquals(0, adapter.calls)
+    }
+
+    @Test fun typedAdapterDispatchesOnlyItsDeclaredOperation() {
+        val adapter = TypedRecordingAdapter()
+        val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
+
+        val result = registry.dispatch(executable("android_action", "set_media_volume"), NeverStop)
+
+        assertEquals(
+            VyomFactoryExecutionAdapterRegistry.Outcome.Executed("verified volume"),
+            result
+        )
+        assertEquals(1, adapter.calls)
+    }
+
+    private class TypedRecordingAdapter : VyomFactoryExecutionAdapter {
+        override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
+        override val isIdempotent = true
+        override val capabilities = listOf(
+            VyomFactoryCapabilityRegistry.Capability(
+                id = "android_control.set_media_volume",
+                version = 1,
+                domain = VyomFactoryCapabilityRegistry.Domain.ANDROID_CONTROL,
+                operations = setOf("set_media_volume"),
+                risk = VyomFactoryCapabilityRegistry.Risk.R1,
+                requiresOwnerApproval = false,
+                mutating = true,
+                reversible = false,
+                rollbackCapabilityId = null,
+                idempotent = true,
+                available = true,
+                unavailableReason = null
+            )
+        )
+        var calls = 0
+        override fun isVerifiedResult(result: String) = result == "verified volume"
+        override fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String {
+            calls++
+            return "verified volume"
+        }
+    }
+
     private object NeverStop : VyomFactoryExecutionControl { override fun shouldStop() = false }
 
     private class RecordingAdapter(
