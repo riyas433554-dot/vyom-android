@@ -626,3 +626,22 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - This implementation is source-wired only; physical phone acceptance and owner repository-privacy conversion remain pending. If branch protection rejects direct Contents API writes, do not bypass it; the app must preserve the local file.
 - Source SHA immediately before the latest docs-only refresh: `db474ff71720b71228a0bfe3c76b913ba8b18eed`. Exact-tip Debug `41966466312` is QUEUED and Full CI `41966466300` is PENDING on docs commit `2e8e4138019f37e3bb505462ad7535ed4c762fdb`; these are not green yet. Poll real jobs/logs and fix any failures before another APK decision.
 - APK 1 is not delivered. Repository is still public until owner completes the visibility action; do not perform a real screenshot upload or include real personal screenshots before the owner confirms Private.
+
+
+## Mandatory-order stages 2–4 regression batch — 2026-11-05
+
+- Stage 2 E2E lifecycle coverage was verified in source and reused: `VyomFactoryLifecycleIntegrationTest` already covers START → claim/run → issue event/result → owner probe PASS → DONE. Factory/Automations shared priority/order tests and paused-task exclusion tests remain in place. No duplicate lifecycle test was added.
+- Stage 3 generic non-chat worker failure routing is now source-wired for Factory runner and skill-repository infrastructure failures. `VyomFactoryWorkerFailureRouter` builds stable worker/task source IDs, accepts only known worker and exception class identifiers, withholds original request/credentials/exception details, and routes through the existing `task_failure` canonical register. Skill search/inspect reports only network/HTTP-5xx infrastructure failures; expected missing-license/missing-file/publication policy rejections are not turned into complaints. Pending worker failures resume by the stable `task-failure:factory-worker:` key.
+- Stage 3 external-agent source identity tests now verify `chatgpt`, `claude`, `codex` and `termux` remain distinct canonical complaint sources and retain source-specific idempotency keys. This is source-level identity acceptance, not live connected-agent acceptance; owner test remains required.
+- Stage 4 proposal workflow tests added:
+  - protected source path rejected before any network request;
+  - confirmed PR creation rejection cleans the proposal branch only after GitHub confirms no PR exists;
+  - uncertain PR creation outcome preserves the branch;
+  - exact-commit required-workflow failure aborts, and zero-timeout does not begin polling;
+  - issue comment success/failure is explicitly represented by `ProposalIssueAudit`, so comment failure is not reported as saved;
+  - request sequence contains no merge or release/install endpoint.
+- `SelfModificationClient` now accepts an injectable API root for deterministic MockWebServer tests; production default remains the canonical GitHub repository API root. No runtime endpoint was changed.
+- Key commits: `23f5c25ba99a43c3ea18694d6ed378e5c19a9521` (proposal API root injection), `4b6bc1b2b8db7e3ca439e998426eec8353748c13` (proposal integration tests), `9278580aacc1d6e6bfe6bec5903756bcc34251ce` (issue audit helper), `e915151834236fef938842527e602d2fe35beabd` (issue comment tests), `a972e77cae34f0d52bedc868be0b1c9c8d7ebe0a` (MainActivity integration), `bc21ba822946aba15754699d6f48253baa40a8d4` (worker failure router), `30d3fc04d3b5d43bee73337918042d0a4de6790f` (router tests), `2e8fce5120272fb481031baf18800a75bb6c86ab` (skill worker routing), `9bc669e43c6f21f4f19efa570e8d8d3801e90370` (MainActivity routing), and `5d01222ea8b17884b79294cbe7f75215c1dfd5b4` (stable IDs, failure-type allowlist and external-agent tests).
+- Stage 3/4 source and regression tests are added but are not marked CI-passing until exact-tip workflows complete. Exact current source tip `5d01222ea8b17884b79294cbe7f75215c1dfd5b4`: Debug `41966801599` IN_PROGRESS; Full CI `41966801414` PENDING. Newer HANDOFF refresh will create another docs-only tip and require exact-tip verification.
+- Stage 5 remains exact-head A18 signed content-update/rollback demo and artifact verification. Historical successful demo on `b03fb167...` is not a current-tip proof.
+- Stage 6 owner acceptance still requires private repository conversion, Termux smoke test, physical phone screenshot/Factory acceptance and external-agent tests. Stage 7 APK 1 remains blocked until those owner actions and exact-tip CI/artifact gates pass.
