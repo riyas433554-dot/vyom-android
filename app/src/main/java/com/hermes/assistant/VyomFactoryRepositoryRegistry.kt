@@ -18,6 +18,7 @@ internal class VyomFactoryRepositoryRegistry(private val root: File) {
         val kind: VyomFactoryRepositoryIntake.Kind,
         val decision: VyomFactoryRepositoryIntake.Decision,
         val reasons: List<String>,
+        val detectedKinds: Set<VyomFactoryRepositoryIntake.Kind>,
         val addedAtEpochMs: Long,
         val sourceExecutionAllowed: Boolean = false
     )
@@ -67,6 +68,7 @@ internal class VyomFactoryRepositoryRegistry(private val root: File) {
             kind = assessment.kind,
             decision = assessment.decision,
             reasons = assessment.reasons.take(20).map { it.take(120) },
+            detectedKinds = assessment.detectedKinds,
             addedAtEpochMs = System.currentTimeMillis()
         )
         val temp = File(directory, ".$fileName.${UUID.randomUUID()}.tmp")
@@ -104,6 +106,7 @@ internal class VyomFactoryRepositoryRegistry(private val root: File) {
         .put("kind", entry.kind.name)
         .put("decision", entry.decision.name)
         .put("reasons", JSONArray(entry.reasons))
+        .put("detected_kinds", JSONArray(entry.detectedKinds.map { it.name }))
         .put("added_at_epoch_ms", entry.addedAtEpochMs)
         .put("source_execution_allowed", false)
         .put("installation_approved", false)
@@ -132,9 +135,16 @@ internal class VyomFactoryRepositoryRegistry(private val root: File) {
         check(decision != VyomFactoryRepositoryIntake.Decision.BLOCKED)
         val reasonArray = json.optJSONArray("reasons") ?: JSONArray()
         val reasons = (0 until reasonArray.length()).map { reasonArray.optString(it).take(120) }
+        val detectedArray = json.optJSONArray("detected_kinds")
+            ?: throw IllegalStateException("Repository artifact types are missing from local registry")
+        val detectedKinds = (0 until detectedArray.length()).map { index ->
+            runCatching { VyomFactoryRepositoryIntake.Kind.valueOf(detectedArray.optString(index)) }
+                .getOrElse { throw IllegalStateException("Unknown repository artifact type in local registry") }
+        }.toSet()
+        check(detectedKinds.isNotEmpty() && kind in detectedKinds)
         val addedAt = json.optLong("added_at_epoch_ms", 0L)
         check(addedAt > 0L)
-        return Entry(url, commit, json.optString("license_spdx"), kind, decision, reasons, addedAt, false)
+        return Entry(url, commit, json.optString("license_spdx"), kind, decision, reasons, detectedKinds, addedAt, false)
     }
 
     private fun writeSynced(file: File, bytes: ByteArray) {
