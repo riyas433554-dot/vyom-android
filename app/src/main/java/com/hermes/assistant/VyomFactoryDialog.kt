@@ -414,15 +414,14 @@ internal class VyomFactoryDialog(
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
                     }
                 )
-                buildList {
-                    while (
-                        size < VyomFactoryDrainPolicy.MAX_TASKS_PER_FOREGROUND_RUN &&
-                        !stopRunRequested.get() &&
-                        hostActivity.factoryForegroundGate.isForeground() &&
-                        hostActivity.factoryForegroundGate.generation() == foregroundGeneration
-                    ) {
-                        val next = runner.runNext()
-                        add(next)
+                VyomFactoryDrainCoordinator.drain(
+                    runNext = { runner.runNext() },
+                    shouldStop = {
+                        stopRunRequested.get() ||
+                            !hostActivity.factoryForegroundGate.isForeground() ||
+                            hostActivity.factoryForegroundGate.generation() != foregroundGeneration
+                    },
+                    onOutcome = { next ->
                         val issueNumber = when (next) {
                             is VyomFactoryExecutionRunner.Outcome.Succeeded -> next.issueNumber
                             is VyomFactoryExecutionRunner.Outcome.Failed -> next.issueNumber
@@ -432,7 +431,7 @@ internal class VyomFactoryDialog(
                             VyomFactoryExecutionRunner.Outcome.NoWork -> null
                         }
                         if (issueNumber != null) visitedIssues.add(issueNumber)
-                        val processed = size
+                        val processed = visitedIssues.size
                         val progress = when (next) {
                             is VyomFactoryExecutionRunner.Outcome.Succeeded -> "Verified issue #${next.issueNumber}; checking the next eligible complaint."
                             is VyomFactoryExecutionRunner.Outcome.Failed -> "Issue #${next.issueNumber} failed (${next.category}); evaluating whether the batch can safely continue."
@@ -447,9 +446,8 @@ internal class VyomFactoryDialog(
                                 status.text = progress
                             }
                         }
-                        if (!VyomFactoryDrainPolicy.shouldContinue(next)) break
                     }
-                }
+                ).outcomes
             } catch (error: Exception) {
                 main.post { onRunnerFailure(error.javaClass.simpleName) }
                 null
