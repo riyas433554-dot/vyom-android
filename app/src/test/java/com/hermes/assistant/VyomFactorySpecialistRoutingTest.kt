@@ -35,6 +35,35 @@ class VyomFactorySpecialistRoutingTest {
         assertNull(VyomFactorySpecialistRouting.nextOwnerReview(listOf(paused, completed)))
     }
 
+    @Test fun preservesHigherPriorityExecutableTaskBeforeLowerPriorityRepositoryReview() {
+        val decisions = listOf(
+            decision(20, "P1", "2026-11-02T00:00:00Z", repositoryReview()),
+            decision(10, "P0", "2026-11-01T00:00:00Z",
+                VyomFactoryTaskPlanner.Plan.CapabilityCandidates(
+                    VyomFactoryCapabilityRegistry.Domain.ANDROID_CONTROL,
+                    listOf("android_control.set_media_volume")
+                ))
+        )
+
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions) { it.number == 10 })
+    }
+
+    @Test fun routesHigherPriorityRepositoryReviewBeforeLowerPriorityExecutableTask() {
+        val decisions = listOf(
+            decision(10, "P0", "2026-11-01T00:00:00Z", repositoryReview()),
+            decision(20, "P1", "2026-11-02T00:00:00Z",
+                VyomFactoryTaskPlanner.Plan.CapabilityCandidates(
+                    VyomFactoryCapabilityRegistry.Domain.ANDROID_CONTROL,
+                    listOf("android_control.set_media_volume")
+                ))
+        )
+
+        assertEquals(
+            10,
+            VyomFactorySpecialistRouting.nextOwnerReview(decisions) { it.number == 20 }?.task?.number
+        )
+    }
+
     @Test fun skipsPreviouslyDeferredRepositoryComplaintAndRoutesNextInFifoOrder() {
         val decisions = listOf(
             decision(10, "P0", "2026-10-31T00:00:00Z", repositoryReview(),
