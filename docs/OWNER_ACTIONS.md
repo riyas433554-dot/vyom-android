@@ -45,20 +45,20 @@ Re-running the exact command with the same --source-id must return the existing 
 - These source paths are not yet accepted on a physical phone. Screenshot intake/attachment remains pending: when implemented, images must first remain in app-private storage and must upload only after the owner taps Attach for a specific issue.
 
 
-## Required when Stage 1 implementation is ready
+## OWNER ACTION NEEDED — Stage 1 owner acceptance
 These are deliberately deferred until the corresponding feature is present in an exact-head APK; they are not current blockers to source work.
 
-### Android phone acceptance
+### OWNER ACTION NEEDED — Android phone acceptance
 1. Open Vyom → speak a complaint beginning with “complaint:” and confirm it creates one GitHub Issue with source=vyom_voice and a stable issue ID.
 2. Trigger a safe Diagnostics failure and a task failure; confirm each creates one complaint with captured result/evidence and no duplicate on retry.
 3. From Gallery or another app, Share → Vyom with one screenshot; confirm the image is attached to the complaint and private/secure surfaces are not silently captured.
 4. Open Factory and Automations; confirm owner can move a complaint to the top, say “ye complaint pehle”, and see the same order/status in both screens.
 5. Open a complaint, use EDIT to replace `UNASSIGNED` with one exact observable **Verification probe**, START it, then use VERIFY after checking the real phone. Record sanitized evidence with PROBE PASSED or PROBE FAILED. DONE must appear only after a recorded PASS for that exact probe; a failed probe must leave the complaint open. This is owner-reported device verification, not an automated probe.
 
-### Termux acceptance — only after command is added to the repository
+### OWNER ACTION NEEDED — Termux acceptance
 Run the exact command and arguments documented by the shipped Termux installer/help output. Do not guess a command path or manually construct a GitHub API call. Confirm one issue is created and a retry with the same source identity returns the same issue number.
 
-### External-agent acceptance
+### OWNER ACTION NEEDED — external-agent acceptance
 From GPT, Claude and Codex, create a complaint through each agent's connected GitHub integration using source_id unique to that agent/request. Confirm each appears in Vyom Factory with the same canonical GitHub issue number and all required complaint fields.
 
 ## Credentials / settings
