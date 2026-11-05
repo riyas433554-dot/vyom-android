@@ -156,8 +156,14 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
         return String(java.util.Base64.getDecoder().decode(encoded), Charsets.UTF_8)
     }
 
-    fun createProposal(token: String, draft: Draft): Proposal =
-        createProposal(token, draft.title, draft.path, draft.proposedContent, draft.requestSummary, draft.baseSha)
+    fun createProposal(
+        token: String,
+        draft: Draft,
+        ownerReviewedDiff: Boolean = false
+    ): Proposal = createProposal(
+        token, draft.title, draft.path, draft.proposedContent,
+        draft.requestSummary, draft.baseSha, ownerReviewedDiff
+    )
 
     fun createProposal(
         token: String,
@@ -165,8 +171,12 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
         path: String,
         proposedContent: String,
         requestSummary: String = "",
-        expectedBaseSha: String? = null
+        expectedBaseSha: String? = null,
+        ownerReviewedDiff: Boolean = false
     ): Proposal {
+        require(ownerReviewedDiff) {
+            "Owner must explicitly review and approve the exact proposed diff before opening a pull request"
+        }
         SelfModificationPolicy.validate(title, path, proposedContent)
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
 
