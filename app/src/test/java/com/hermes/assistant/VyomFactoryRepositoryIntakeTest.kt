@@ -40,6 +40,16 @@ class VyomFactoryRepositoryIntakeTest {
         )
     }
 
+
+    @Test fun sourceCodeClassificationTakesPrecedenceOverWorkflowAndApiSpecFiles() {
+        assertEquals(
+            VyomFactoryRepositoryIntake.Kind.SOURCE_CODE,
+            VyomFactoryRepositoryIntake.classify(
+                listOf("README.md", "package.json", ".github/workflows/ci.yml", "openapi.yaml")
+            )
+        )
+    }
+
     @Test fun unknownLicenseRequiresOwnerReviewAndNeverEnablesExecution() {
         val assessment = assess(license = "NOASSERTION", paths = listOf("README.md", "package.json"))
 
