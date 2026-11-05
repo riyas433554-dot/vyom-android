@@ -37,6 +37,26 @@ class VyomFactorySkillRepositoryTest {
         }
     }
 
+    @Test fun diagnosticsAuditInstalledSkillSourceAndDetectsContentTampering() {
+        val root = createTempDir(prefix = "vyom-skill-audit-")
+        try {
+            val store = VyomFactorySkillStore(root)
+            store.install(preview(), ownerConfirmed = true)
+            val clean = store.auditInstalled()
+            assertEquals(1, clean.total)
+            assertEquals(1, clean.valid)
+            assertEquals(0, clean.invalid)
+
+            File(root, "owner_example/SKILL.md").writeText("# Tampered\\n")
+            val tampered = store.auditInstalled()
+            assertEquals(1, tampered.total)
+            assertEquals(0, tampered.valid)
+            assertEquals(1, tampered.invalid)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun installWritesInertSkillAndVerifiesExactSourceRevisionAndHash() {
         val root = createTempDir(prefix = "vyom-skill-test-")
         try {
