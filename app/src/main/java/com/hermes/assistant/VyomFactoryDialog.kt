@@ -33,7 +33,8 @@ internal class VyomFactoryDialog(
     private val token: String,
     private val onOpenSettings: () -> Unit,
     private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {},
-    private val onRunnerFailure: (String) -> Unit = {}
+    private val onRunnerFailure: (String) -> Unit = {},
+    private val pendingScreenshot: File? = null
 ) {
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int) = (value * density).toInt()
@@ -67,6 +68,7 @@ internal class VyomFactoryDialog(
     private lateinit var claimStatus: TextView
     private lateinit var retryStatus: TextView
     private lateinit var historyStatus: TextView
+    private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerOwnerId: String by lazy {
         val prefs = activity.getSharedPreferences("vyom_factory_worker_identity", Activity.MODE_PRIVATE)
@@ -193,6 +195,32 @@ internal class VyomFactoryDialog(
             setOnClickListener { discoverSkillRepositories() }
         }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+
+        pendingScreenshot?.takeIf { it.isFile }?.let { screenshot ->
+            val evidencePanel = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = GradientDrawable().apply {
+                    setColor(0x33213A54)
+                    cornerRadius = dp(14).toFloat()
+                }
+            }
+            evidencePanel.addView(TextView(activity).apply {
+                text = "SCREENSHOT STORED PRIVATELY · ${screenshot.name} · ${screenshot.length()} bytes"
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            })
+            screenshotAttachButton = Button(activity).apply {
+                text = "ATTACH TO FACTORY ISSUE"
+                textSize = 9f
+                setOnClickListener { chooseScreenshotIssue(screenshot) }
+            }
+            evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(40)).apply {
+                topMargin = dp(6)
+            })
+            root.addView(evidencePanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        }
 
         val composer = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -511,6 +539,81 @@ internal class VyomFactoryDialog(
             if (pendingConfirmationDialog?.isShowing != true) pendingConfirmationDialog = null
         }
         return result.get()
+    }
+
+    private fun chooseScreenshotIssue(screenshot: File) {
+        if (busy || !screenshot.isFile) return
+        busy = true
+        status.text = "Loading open Factory issues for screenshot attachment…"
+        worker.execute {
+            try {
+                val tasks = client.listTasks().filter { it.state == "open" }
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    busy = false
+                    if (tasks.isEmpty()) {
+                        status.text = "No open Factory issue is available. Screenshot remains in app-private storage."
+                        return@post
+                    }
+                    val labels = tasks.map { "#${it.number} · ${it.metadata.priority} · ${it.title}" }.toTypedArray()
+                    AlertDialog.Builder(activity)
+                        .setTitle("Choose the exact issue")
+                        .setItems(labels) { _, which ->
+                            tasks.getOrNull(which)?.let { confirmScreenshotAttachment(it, screenshot) }
+                        }
+                        .setNegativeButton("CANCEL", null)
+                        .show()
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    busy = false
+                    status.text = "Could not load issues; screenshot remains private."
+                }
+            }
+        }
+    }
+
+    private fun confirmScreenshotAttachment(task: VyomFactoryGitHubClient.Task, screenshot: File) {
+        AlertDialog.Builder(activity)
+            .setTitle("Attach screenshot to #${task.number}?")
+            .setMessage("Target: ${task.title}\n\nVyom checks that the repository is private before uploading. Nothing is sent until you tap ATTACH. The screenshot will be linked in this exact issue.")
+            .setPositiveButton("ATTACH") { _, _ -> uploadScreenshot(task, screenshot) }
+            .setNegativeButton("CANCEL", null)
+            .show()
+    }
+
+    private fun uploadScreenshot(task: VyomFactoryGitHubClient.Task, screenshot: File) {
+        if (busy || !screenshot.isFile) return
+        busy = true
+        screenshotAttachButton?.isEnabled = false
+        status.text = "Checking repository privacy before owner-approved upload…"
+        worker.execute {
+            try {
+                val fresh = client.listTasks().firstOrNull { it.number == task.number && it.state == "open" }
+                    ?: throw IllegalStateException("Selected issue is no longer open")
+                val attachment = client.attachScreenshot(fresh.number, screenshot)
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    if (attachment.issueCommentRecorded) {
+                        screenshot.delete()
+                        screenshotAttachButton?.text = "ATTACHED TO #${fresh.number}"
+                        status.text = "Screenshot attached to #${fresh.number}. SHA-256 ${attachment.sha256}. Local copy removed after confirmed issue comment."
+                    } else {
+                        screenshotAttachButton?.isEnabled = false
+                        status.text = "Image uploaded to the private repository, but the issue comment failed. Do not retry upload; manually add this link to #${fresh.number}: ${attachment.url}"
+                    }
+                    busy = false
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    screenshotAttachButton?.isEnabled = true
+                    status.text = "Screenshot not uploaded · ${error.message?.take(180) ?: error.javaClass.simpleName}. Local copy is preserved; no automatic retry."
+                    busy = false
+                }
+            }
+        }
     }
 
     private fun discoverSkillRepositories() {
