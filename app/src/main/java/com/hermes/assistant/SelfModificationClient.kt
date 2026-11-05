@@ -13,7 +13,7 @@ import java.net.URLEncoder
  * Creates a proposal branch, commits one guarded Kotlin source file, and opens a PR
  * against the working branch. It has no merge, release, install, or main-branch path.
  */
-internal class SelfModificationClient {
+internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_ROOT) {
     data class Proposal(val branch: String, val pullRequestUrl: String)
     data class Draft(
         val title: String,
@@ -264,7 +264,7 @@ internal class SelfModificationClient {
         body: JSONObject? = null,
         allowNotFound: Boolean = false
     ): JSONObject {
-        val connection = (URL(API_ROOT + path).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(apiRoot.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 15_000
             readTimeout = 30_000
@@ -317,7 +317,7 @@ internal class SelfModificationClient {
     private class GitHubApiException(val statusCode: Int, message: String) : IllegalStateException(message)
 
     companion object {
-        private const val API_ROOT = "https://api.github.com/repos/riyas433554-dot/vyom-android"
+        private const val DEFAULT_API_ROOT = "https://api.github.com/repos/riyas433554-dot/vyom-android"
         private const val BASE_BRANCH = SelfModificationPolicy.PROPOSAL_BASE_BRANCH
         private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
     }
