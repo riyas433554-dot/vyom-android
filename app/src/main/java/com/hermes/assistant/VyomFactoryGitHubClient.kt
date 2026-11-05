@@ -138,6 +138,56 @@ internal class VyomFactoryGitHubClient(
             JSONObject().put("body", "[Vyom Factory] $message"))
     }
 
+    data class ScreenshotAttachment(
+        val url: String,
+        val commitSha: String,
+        val sha256: String,
+        val issueCommentRecorded: Boolean
+    )
+
+    /**
+     * Called only from the owner's explicit Attach button. Refuses public repositories
+     * before reading/uploading the image and records the image link on the exact issue.
+     */
+    fun attachScreenshot(issueNumber: Int, file: java.io.File): ScreenshotAttachment {
+        require(issueNumber > 0 && file.isFile) { "Select an existing Factory issue and a stored screenshot" }
+        val repositoryInfo = JSONObject(execute("GET", ""))
+        check(repositoryInfo.optBoolean("private", false)) {
+            "Repository is public; screenshot upload is disabled until the owner makes it private"
+        }
+        val task = listTasks().firstOrNull { it.number == issueNumber }
+            ?: throw IllegalArgumentException("Factory issue #$issueNumber no longer exists")
+        require(task.state == "open") { "Screenshot evidence can only be attached to an open issue" }
+
+        val bytes = file.readBytes()
+        val mime = when (file.extension.lowercase()) {
+            "png" -> "image/png"
+            "jpg", "jpeg" -> "image/jpeg"
+            "webp" -> "image/webp"
+            else -> throw IllegalArgumentException("Unsupported stored screenshot format")
+        }
+        val extension = VyomFactoryScreenshotEvidencePolicy.extensionFor(mime, bytes)
+        val hash = VyomFactoryScreenshotEvidencePolicy.sha256(bytes)
+        val fileName = UUID.randomUUID().toString() + "." + extension
+        val path = ".factory-evidence/issue-$issueNumber/$fileName"
+        val payload = JSONObject()
+            .put("message", "factory: attach owner-approved screenshot evidence for issue #$issueNumber")
+            .put("content", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP))
+            .put("branch", "feature/memory-intelligence")
+        val uploaded = JSONObject(execute("PUT", "contents/$path", payload))
+        val content = uploaded.optJSONObject("content")
+            ?: throw IllegalStateException("GitHub accepted no screenshot content record")
+        val url = content.optString("html_url")
+        val commitSha = uploaded.optJSONObject("commit")?.optString("sha").orEmpty()
+        require(url.startsWith("https://github.com/$repository/") &&
+            commitSha.matches(Regex("^[a-f0-9]{40}$"))) {
+            "Screenshot upload response did not include a verified repository URL and commit"
+        }
+        val comment = "Owner attached screenshot evidence after explicitly tapping Attach: ![Factory screenshot]($url)\\nSHA-256: $hash\\nEvidence commit: $commitSha"
+        val commentRecorded = runCatching { addEvent(issueNumber, comment) }.isSuccess
+        return ScreenshotAttachment(url, commitSha, hash, commentRecorded)
+    }
+
     fun verifyConnection(): String {
         val user = JSONObject(execute("GET", "user"))
         val login = user.optString("login").ifBlank { "GitHub connected" }
