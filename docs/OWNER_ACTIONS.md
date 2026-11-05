@@ -130,3 +130,10 @@ Current source candidate: a86b1a81304850cb74e0024505acd08232d16a1d. CI runs at t
 
 
 Latest source candidate was advanced to 20370798db1c02e666e1c1d071f04ffe1e16b8e0 after removing the unused unauthenticated update helper path. Recheck the latest exact-head CI run IDs from GitHub Actions before installing or accepting this candidate. The #101 progress comment is GitHub comment 6655794795; the issue remains open and the physical-device probe is still required.
+
+
+## Latest CI correction — 2026-11-05
+
+The first authenticated-release implementation did not pass CI. Full run 42011969802 and Debug run 42011969831 both failed at Kotlin compilation because two GitHubReleaseAssetClient call sites passed the token lambda as a trailing lambda instead of the named `tokenProvider` argument. That source wiring has now been corrected in commits `e7a9c5f66a12fd3a675531722927b611b2018074` and `af95a2328667c8b56004366415ca52ba4a8ee0f1`. Fresh exact-head Full and Debug CI results are still pending; do not install or accept this candidate until both are green.
+
+Phone acceptance remains required: Run All Checks, Check for Updates, Check No-APK Content Updates, then perform the #101 ordinary-chat / explicit Teach Library probe. Keep #101 open until both #101 device checks pass and evidence is recorded. Verified on device: NO.
