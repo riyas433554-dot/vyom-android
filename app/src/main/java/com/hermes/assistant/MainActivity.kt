@@ -4368,6 +4368,16 @@ class MainActivity : Activity() {
                 } catch (historyError: Exception) {
                     rows += "FAIL · Vyom Factory execution journal · persisted run history could not be read safely"
                 }
+                try {
+                    val skillAudit = VyomFactorySkillStore(File(filesDir, "factory-skills")).auditInstalled()
+                    rows += if (skillAudit.invalid == 0) {
+                        "PASS · Vyom Factory skill repository · ${skillAudit.valid}/${skillAudit.total} inert SKILL.md imports pass source/revision/license/hash validation"
+                    } else {
+                        "FAIL · Vyom Factory skill repository · ${skillAudit.invalid} imported skill record(s) failed integrity validation"
+                    }
+                } catch (skillError: Exception) {
+                    rows += "FAIL · Vyom Factory skill repository · installed skill audit could not be completed safely"
+                }
                 val factoryToken = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
                 if (factoryToken.isBlank()) {
                     rows += "SKIP · Vyom Factory registry · GitHub token is not configured"
