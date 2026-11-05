@@ -42,7 +42,7 @@ internal data class VyomFactoryComplaintRecord(
 
         private fun classifyFactoryArea(text: String): String? {
             val lower = text.lowercase()
-            val mentionsFactory = Regex("\\bvyom\\s+factory\\b|\\bfactory\\b").containsMatchIn(lower)
+            val mentionsFactory = Regex("\\bvyom\\s+factory\\b").containsMatchIn(lower) || listOf("factory worker", "factory queue", "factory complaint", "factory triage", "factory registry", "factory proposal", "factory executor", "factory update", "factory issue", "factory dialog", "factory timeline", "factory audit", "factory intake", "factory verification", "factory runner", "factory task", "factory content", "factory token").any { lower.contains(it) }
             if (!mentionsFactory) return null
             return when {
                 listOf("a18", "content update", "signed update", "content package", "rollback", "update channel")
