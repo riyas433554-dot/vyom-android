@@ -54,7 +54,7 @@ internal class SelfModificationClient(
         val allowedPaths = (0 until entries.length()).mapNotNull { index ->
             val entry = entries.optJSONObject(index) ?: return@mapNotNull null
             if (entry.optString("type") != "blob") return@mapNotNull null
-            entry.optString("path").takeIf(SelfModificationPolicy::isAllowedPath)
+            entry.optString("path").takeIf { SelfModificationPolicy.isAllowedPath(it) }
         }.distinct().sorted()
         require(allowedPaths.isNotEmpty()) { "No eligible Kotlin source files were found in the working branch" }
         require(allowedPaths.size <= MAX_DISCOVERY_PATHS) {
