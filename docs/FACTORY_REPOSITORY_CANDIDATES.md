@@ -127,3 +127,28 @@ This is a discovery queue, not an import manifest. Rank and names are copied fro
 - Executable capabilities granted: 0
 
 The first useful integration candidates are the agent harness/workflow projects, repository intelligence, browser tooling, document ingestion, API catalogues and design-system references. The intake engine must assess each one before any installation or adapter work.
+
+## First canonical sources resolved — 2026-11-05
+
+These entries were resolved from the supplied project names and inspected through GitHub repository metadata plus recursive Git tree reads. The SHA pins are immutable snapshots observed at inspection time. This is source discovery evidence, **not** an app-side registry installation or approval to execute anything.
+
+| Candidate | Canonical repository | Inspected commit | SPDX license | Tree entries | Intake note |
+|---|---|---|---|---:|---|
+| rea | [morluto/rea](https://github.com/morluto/rea) | `fe677f6cf9853fb12490dfb8ef23ccae3a551049` | MIT | 7,796 | Source project with nested skills; inspect both code and inert skills |
+| openclaw | [openclaw/openclaw](https://github.com/openclaw/openclaw) | `44a6171ae58ae12c8859d1e40d16301d38c57087` | MIT | 66,562 | Exceeds current app tree-entry cap; bounded subtree discovery needed |
+| superpowers | [obra/superpowers](https://github.com/obra/superpowers) | `22f0b463e7a5e579904dd6211a520321035526f7` | MIT | 308 | Small candidate; review skills/workflow content as untrusted |
+| ECC | [affaan-m/ECC](https://github.com/affaan-m/ECC) | `b38be6a7f6350964d59328b52f0624e1d1d552d1` | MIT | 6,449 | Source project with nested skills; no automatic execution |
+| hermes-agent | [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) | `84a0301415edd6d1385207ec96e4d7f2b6c1fcd9` | MIT | 23,616 | Exceeds current app tree-entry cap; bounded subtree discovery needed |
+| opencode | [anomalyco/opencode](https://github.com/anomalyco/opencode) | `74fb86137c10e4260399fca59aaa4b0bf0960a7b` | MIT | 10,804 | Candidate for read-only architecture review |
+| n8n | [n8n-io/n8n](https://github.com/n8n-io/n8n) | `d49b63277a0d1d60e95fbaf4efd6c002dab70067` | NOASSERTION | 40,498 | License needs owner/legal review; exceeds current tree-entry cap |
+| firecrawl | [firecrawl/firecrawl](https://github.com/firecrawl/firecrawl) | `edf02642c8f002576e9f26b9bbbb7b327313558c` | AGPL-3.0 | 2,551 | Copyleft license needs explicit compatibility review before integration |
+| browser-use | [browser-use/browser-use](https://github.com/browser-use/browser-use) | `b49a68e4060acb226da8f784194fef301c53a6d7` | MIT | 666 | Candidate for browser architecture review; no browser code executed |
+| codex | [openai/codex](https://github.com/openai/codex) | `49f0c6022596c361fe676a5c4738fb2be34e3a93` | Apache-2.0 | 11,096 | Candidate for coding-agent architecture review |
+| markitdown | [microsoft/markitdown](https://github.com/microsoft/markitdown) | `7482c092d9c0074a89803c9fdb63a969e7fe17fc` | MIT | 227 | Candidate for document-ingestion architecture review |
+| graphify | [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) | `59b5ab1151e031fb42e39cfc9a50bf96f2d57ae0` | Apache-2.0 | 1,258 | Candidate for repository/code intelligence review |
+| skills (rank 13) | [mattpocock/skills](https://github.com/mattpocock/skills) | `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` | MIT | 282 | Skill collection; keep imported content inert |
+| skills (rank 42) | [anthropics/skills](https://github.com/anthropics/skills) | `ca45fc496a3436251f191354091d557da31c15b5` | UNKNOWN | 542 | License metadata absent; owner review required before import |
+
+**Important limits:** the app's current inspector caps recursive trees at 20,000 entries and blocks truncated/over-cap trees. Therefore OpenClaw, Hermes Agent and n8n cannot yet pass the current in-app tree gate. The current file preview only reads allowlisted README/license/manifest/OpenAPI/workflow/docs files with per-file and aggregate byte caps, redacts recognized secret patterns and labels content untrusted. It does not run scripts or download full source trees.
+
+**Registration state:** these 14 URLs and SHA observations are documented candidates only. The app's app-private repository registry has not been populated from this document. Owner confirmation through the Factory UI is still required for each source reference; no code or skill has been installed.
