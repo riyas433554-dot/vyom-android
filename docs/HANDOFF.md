@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Current branch HEAD before this handoff refresh: `39e5e05dee40ea62e4ee4bdbd7a366d896b6bde7`. Exact-head Full CI `41968349353` and Debug CI `41968349286` both completed SUCCESS on `efb16a2f906f3c59191c9c428121bc6dc34fe99e`; `39e5e05...` and this handoff refresh are documentation-only commits. After the final docs commit, rerun both workflows on the new exact tip before APK 1 authorization.
+- Current source tip before this handoff refresh: `1fcec00be550935286f7d20918201eb1ff96e328`. Earlier Full CI `41968349353` and Debug CI `41968349286` passed on `efb16a2f906f3c59191c9c428121bc6dc34fe99e`, but do not validate the newer Factory repository path-discovery changes. Exact-tip runs `42037715894` (Full CI) and `42037715730` (Debug) both failed before runner allocation (`runner_id=0`, empty runner name, no steps); no Gradle/test command ran. The following handoff/docs commit also requires fresh exact-tip CI before any APK 1 authorization.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Stage 6 owner acceptance is a hard prerequisite; the signed CI candidate is not final APK 1. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
@@ -1008,3 +1008,21 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Exact code+HANDOFF SHA: `3828cc987ce8dd67556c9d66a6cb8ef575cba2cd`. Debug run `42035802699`; Full CI run `42035802684`.
 - Both failed before runner allocation. Retry attempt 2 also reported `runner_id=0`, empty runner name and `steps=[]`. No Checkout, JDK, Gradle, unit test, compile or APK step executed. This remains an infrastructure provisioning failure, not evidence of source correctness or source failure.
 - No merge, install, backend/Render, production Supabase or Android `main` changes were made. Current branch remains `feature/memory-intelligence`.
+
+
+## Universal Factory — guarded repository source-path discovery (2026-11-05)
+
+- Added test-first coverage for repository path discovery: exact allowlisted paths only, model-invented/protected path rejection, sensitive complaint rejection before any GitHub/NVIDIA request, truncated tree rejection, and branch-change detection. Test commit: `33829a18212c5c945365a344babde03e5a7a4cd0`.
+- Added `SelfModificationPolicy.validateDiscoveryTask`; proposal titles as well as complaint details are checked for sensitive content before external model use. Commit: `104faa6c0acbb6fefc790b8aab7e7d7df203e813`.
+- Added `SelfModificationClient.suggestAllowedPaths`. It reads the current `feature/memory-intelligence` commit and recursive tree, fails closed on a truncated tree or more than 500 eligible Kotlin files, filters every path through the existing allowlist, asks the configured NVIDIA model to rank 1–5 suggestions, validates every returned path against the exact tree and policy, and rechecks the branch SHA before returning. Discovery performs no branch creation, source write, PR, merge, release or install. Commits: `9dc68ca2811125e807b6a2794f2a93b7c9aa3ac7`, `d3be20a5838a1bc8a26bf7fa35df5ed9750fb182`.
+- Added **FIND RELEVANT SOURCE FILES** to the existing review-only proposal form. The owner still chooses the suggested file and must inspect the generated diff before OPEN PR; the existing `ownerReviewedDiff` gate remains mandatory. UI commit: `4e74974a27001de6912cf1fa88a1d09039b8d133`; local declaration-order correction: `1fcec00be550935286f7d20918201eb1ff96e328`.
+- This is a read-only path-discovery improvement, **not autonomous repository repair**. It does not infer that a suggested path is definitely correct, create a proposal automatically, or remove owner review. Multi-file proposals, auto-merge and auto-install remain unsupported.
+- Exact source tip `1fcec00be550935286f7d20918201eb1ff96e328`: Full CI `42037715894`, Debug CI `42037715730`. Both failed within about 2 seconds with `runner_id=0`, empty runner name and `steps=[]`; GitHub returned BlobNotFound for job logs. No Checkout, Kotlin compile, Gradle or tests ran. The prior exact code tip `d3be20a5838a1bc8a26bf7fa35df5ed9750fb182` had the same failure signature (Full `42037459675`, Debug `42037459610`). **Tests are added but unexecuted; no source PASS/FAIL is claimed.**
+- Repository privacy was rechecked through GitHub repository metadata and now reports `visibility=private`. `docs/OWNER_ACTIONS.md` was corrected; do not repeat the old make-private step. Saved-token permissions and physical screenshot Attach acceptance remain owner-side pending.
+- No Android `main`, Render, Hermes backend or production Supabase changes. No APK delivered and no physical-device PASS claimed.
+
+### Next work
+
+1. Recheck exact branch tip and retry Debug + Full CI when GitHub runner provisioning is available; only diagnose source errors from real job steps/logs.
+2. Continue Factory repository specialist integration from the current read-only suggestion stage, keeping owner path/diff approval, isolated feature branch, exact-SHA CI and no-merge/no-install gates.
+3. Preserve the bounded drain, FIFO, triage, issue journal, approval and verification systems; do not create duplicate queues or mark a suggested path as an executable capability.
