@@ -61,7 +61,7 @@ internal class VyomFactoryExecutionRunner(
         if (!envelope.isExecutable || envelope.target == VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW) {
             return skip("manual_review_required")
         }
-        if (!adapters.supports(envelope.target)) return skip("adapter_unsupported")
+        if (!adapters.supports(envelope)) return skip("capability_unsupported")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
         if (externalStopRequested()) return skip("stopped_before_execution")
 
