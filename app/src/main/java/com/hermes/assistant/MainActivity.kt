@@ -1305,14 +1305,9 @@ class MainActivity : Activity() {
             onProposeFix = ::openFactoryCodeProposal,
             pendingScreenshot = storedScreenshot,
             onRunnerFailure = { failureType ->
-                val id = "task-failure:factory-runner:" + UUID.randomUUID()
-                val report = "Factory worker infrastructure failure. Exception type: $failureType. Private request text and exception details are withheld. Reopen Factory and retry only after reviewing the worker status."
-                val complaint = ChatMessage(id, report, "queued")
-                chatMessages.add(complaint)
-                persistChatMessages()
-                renderChatMessages()
-                submitFactoryComplaint(complaint, report, "task_failure")
-            }
+                submitFactoryWorkerFailure("factory_runner", UUID.randomUUID().toString(), failureType)
+            },
+            onWorkerFailure = ::submitFactoryWorkerFailure
         ).show()
     }
 
@@ -3173,6 +3168,21 @@ class MainActivity : Activity() {
         submitFactoryComplaint(complaint, report, "task_failure")
     }
 
+    private fun submitFactoryWorkerFailure(worker: String, taskId: String, failureType: String) {
+        val report = VyomFactoryWorkerFailureRouter.create(worker, taskId, failureType)
+        val id = "task-failure:factory-worker:" + report.sourceId
+        val existing = chatMessages.firstOrNull { it.id == id }
+        if (existing != null) {
+            if (existing.state == "queued") submitFactoryComplaint(existing, existing.text, "task_failure")
+            return
+        }
+        val complaint = ChatMessage(id, report.complaint, "queued")
+        chatMessages.add(complaint)
+        persistChatMessages()
+        renderChatMessages()
+        submitFactoryComplaint(complaint, report.complaint, "task_failure")
+    }
+
     private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat") {
         val record = try {
             VyomFactoryComplaintRecord.fromFreeText(source, complaint)
@@ -3316,7 +3326,7 @@ class MainActivity : Activity() {
         chatMessages.filter { it.state == "queued" }.forEach { item ->
             val complaint = extractFactoryComplaint(item.text)
             when {
-                item.id.startsWith("task-failure:factory-runner:") -> submitFactoryComplaint(item, item.text, "task_failure")
+                item.id.startsWith("task-failure:factory-runner:") || item.id.startsWith("task-failure:factory-worker:") -> submitFactoryComplaint(item, item.text, "task_failure")
                 item.id.startsWith("diagnostics:") -> submitFactoryComplaint(item, item.text, "diagnostics")
                 complaint != null -> submitFactoryComplaint(item, complaint)
                 else -> scheduleChatMessage(item)
