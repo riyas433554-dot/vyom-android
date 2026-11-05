@@ -25,6 +25,15 @@ class VyomFactoryDrainPolicyTest {
         ))
     }
 
+    @Test fun stopsAfterSharedInfrastructureFailures() {
+        listOf("permission_denied", "rate_limited", "server_unavailable", "network_timeout", "github_rejected")
+            .forEach { category ->
+                assertEquals(false, VyomFactoryDrainPolicy.shouldContinue(
+                    VyomFactoryExecutionRunner.Outcome.Failed(7, "attempt", category)
+                ))
+            }
+    }
+
     @Test fun stopsOnFenceBusyOrNoWork() {
         assertEquals(false, VyomFactoryDrainPolicy.shouldContinue(
             VyomFactoryExecutionRunner.Outcome.Fenced(6)
