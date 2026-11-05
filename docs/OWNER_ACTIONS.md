@@ -42,7 +42,7 @@ Re-running the exact command with the same --source-id must return the existing 
 - Diagnostics failures are converted into sanitized complaint records with content-specific stable IDs; queued reports retry registration after reconnect.
 - Generic chat task failures do not auto-create Factory complaints. Only Factory runner infrastructure failures use the dedicated task-failure intake path; private request text and exception details remain withheld.
 - Termux intake command exists and has shell/schema CI coverage; owner must still install/authenticate it and run the documented idempotency smoke test.
-- These source paths are not yet accepted on a physical phone. Skill repository import is source-wired but needs the owner review/install/Diagnostics smoke test. Screenshot share-sheet receiver and explicit Attach UI are not implemented/device-verified; no upload path may be enabled until the repository is private and the owner taps Attach for a specific issue.
+- These source paths are not yet accepted on a physical phone. Skill repository import and screenshot share/Attach are source-wired but need the owner review/install/Diagnostics and private-repository phone smoke tests.
 
 
 ## OWNER ACTION NEEDED — Stage 1 owner acceptance
@@ -51,7 +51,7 @@ These are deliberately deferred until the corresponding feature is present in an
 ### OWNER ACTION NEEDED — Android phone acceptance
 1. Open Vyom → speak a complaint beginning with “complaint:” and confirm it creates one GitHub Issue with source=vyom_voice and a stable issue ID.
 2. Trigger a safe Diagnostics failure and a **Factory runner infrastructure failure**; confirm each records the expected sanitized result/evidence and no duplicate on retry. Generic Vyom chat task failures are intentionally not auto-registered as Factory complaints.
-3. Screenshot acceptance is pending implementation: once the share receiver and Attach UI ship, Share → Vyom must keep the image in app-private storage, show the preview and target issue, and perform no upload until the owner explicitly taps **Attach**. Verify that only the selected image is attached to that exact issue; no private/secure surfaces are silently captured.
+3. From Gallery or another app, Share → Vyom with one PNG/JPEG/WebP screenshot (maximum 10 MiB). Confirm the preview appears in Factory and remains app-private. Cancel once and verify no upload. Then choose the exact active issue and tap **Attach**. Confirm the app refuses upload while the repository is public; after making it private, repeat and verify the image is stored under `.factory-evidence/issue-<n>/` on `feature/memory-intelligence` and linked in that exact issue. On failure, the local file must remain; no silent retry. Do not share private/secure surfaces.
 4. Open Factory and Automations; confirm owner can move a complaint to the top, say “ye complaint pehle”, and see the same order/status in both screens.
 5. Open a complaint, use EDIT to replace `UNASSIGNED` with one exact observable **Verification probe**, START it, then use VERIFY after checking the real phone. Record sanitized evidence with PROBE PASSED or PROBE FAILED. DONE must appear only after a recorded PASS for that exact probe; a failed probe must leave the complaint open. This is owner-reported device verification, not an automated probe.
 
@@ -77,16 +77,16 @@ The current repository is public. The requested screenshot workflow must use a p
 3. Select **Make private** and confirm the repository name when GitHub asks.
 4. Verify the repository header shows **Private**.
 5. Open **Settings → Actions → General** and confirm GitHub Actions are permitted for this repository.
-6. In GitHub → Settings → Developer settings → Personal access tokens, confirm the app/CLI token still has access to this private repository with Issues read/write and Contents read access as required. Do not paste the token into chat.
+6. In GitHub → Settings → Developer settings → Personal access tokens, confirm the app token still has access to this private repository with Issues read/write and Contents read/write permissions (Contents write is required only when the owner taps Attach). Do not paste the token into chat.
 7. Run the Termux smoke test below and confirm issue creation still works.
 
-**Screenshot handling contract (implementation requirement, not yet implemented/device-verified):**
-- Capture or receive the screenshot into app-private internal storage (filesDir / app-private cache), never public shared storage by default.
-- Do not upload during capture, intake, retry, reconnect or background processing.
-- Show the image preview and target complaint. Upload/attach only after the owner explicitly taps **Attach**.
-- Attach to that exact GitHub issue; preserve a local copy until the upload result is confirmed. On failure, keep the local file and show a retry option; never silently retry-upload.
-- Do not attach screenshots to a public repository or issue. Do not include screenshot bytes/base64 in issue text.
-- The share-sheet receiver and explicit Attach UI are still pending implementation and must be verified in the APK before this is marked complete. The owner must make the repository private before remote attachment can be enabled.
+**Screenshot handling contract (source-wired; device acceptance pending):**
+- Android Share → Vyom accepts one PNG/JPEG/WebP image up to 10 MiB and copies it to app-private `filesDir/factory-evidence`; the Factory panel shows a sampled preview.
+- No upload occurs during share, intake, preview, cancellation, refresh, retry or background processing.
+- The owner selects an exact active issue and explicitly taps **Attach** in a confirmation dialog. The app checks repository privacy before the issue lookup and again immediately before the Contents API write; a public repository is rejected before upload.
+- After explicit Attach, the image is written under `.factory-evidence/issue-<n>/` on `feature/memory-intelligence` and linked in the exact issue comment with SHA-256 and commit SHA. No `main` branch, Render, backend or production Supabase is touched.
+- The local file is deleted only after the issue comment is confirmed. Upload/comment failure keeps the local file; if the image upload succeeded but comment creation failed, the UI shows the link and disables duplicate upload. No silent retry.
+- This uses GitHub Contents write permission and stores binary evidence in the private repo branch. Do not enable real uploads until the owner has made the repository private. Device verification remains mandatory.
 
 ## OWNER ACTION NEEDED — protect issue visibility before real complaints
 
