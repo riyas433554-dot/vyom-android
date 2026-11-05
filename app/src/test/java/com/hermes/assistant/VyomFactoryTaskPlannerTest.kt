@@ -31,9 +31,24 @@ class VyomFactoryTaskPlannerTest {
         )
 
         assertEquals(
-            VyomFactoryTaskPlanner.Plan.BlockedCapability(
+            VyomFactoryTaskPlanner.Plan.NeedsOwnerReview(
                 VyomFactoryCapabilityRegistry.Domain.REPOSITORY,
-                "no_registered_capability"
+                "repository_proposal_requires_owner_review"
+            ),
+            result
+        )
+    }
+
+    @Test fun repositoryWorkWithoutAnExecutableAdapterRoutesToOwnerReviewedProposal() {
+        val result = VyomFactoryTaskPlanner().plan(
+            task("Gradle compile failure in repository"),
+            VyomFactoryCapabilityRegistry(emptyList())
+        )
+
+        assertEquals(
+            VyomFactoryTaskPlanner.Plan.NeedsOwnerReview(
+                VyomFactoryCapabilityRegistry.Domain.REPOSITORY,
+                "repository_proposal_requires_owner_review"
             ),
             result
         )
