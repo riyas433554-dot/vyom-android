@@ -152,7 +152,6 @@ internal class VyomFactoryRepositoryReviewDialog(
             }
             .setNegativeButton("CANCEL") { _, _ -> finish() }
             .create()
-        if (!canRegister) dialog.setButton(AlertDialog.BUTTON_POSITIVE, "BLOCKED", null, null)
         dialog.setOnCancelListener { finish() }
         dialog.show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = canRegister
