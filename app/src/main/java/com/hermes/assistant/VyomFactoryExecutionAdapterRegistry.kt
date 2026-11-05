@@ -8,6 +8,8 @@ internal interface VyomFactoryExecutionControl {
 internal interface VyomFactoryExecutionAdapter {
     val target: VyomFactoryExecutionEnvelope.Target
     val isIdempotent: Boolean
+    /** Empty only for legacy/test adapters; production adapters declare typed operations. */
+    val capabilities: List<VyomFactoryCapabilityRegistry.Capability> get() = emptyList()
     /** True only when the adapter independently verified the requested postcondition. */
     fun isVerifiedResult(result: String): Boolean
     fun run(envelope: VyomFactoryExecutionEnvelope, control: VyomFactoryExecutionControl): String
@@ -32,6 +34,21 @@ internal class VyomFactoryExecutionAdapterRegistry(
 
     fun supports(target: VyomFactoryExecutionEnvelope.Target): Boolean = target in byTarget
 
+    fun supports(envelope: VyomFactoryExecutionEnvelope): Boolean {
+        if (!envelope.isExecutable || envelope.operation == null) return false
+        val adapter = byTarget[envelope.target] ?: return false
+        if (adapter.capabilities.isEmpty()) return true
+        val domain = when (envelope.target) {
+            VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ->
+                VyomFactoryCapabilityRegistry.Domain.ANDROID_CONTROL
+            VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE ->
+                VyomFactoryCapabilityRegistry.Domain.REPOSITORY
+            VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW -> return false
+        }
+        val registry = VyomFactoryCapabilityRegistry(adapter.capabilities)
+        return registry.discover(domain, envelope.operation).isNotEmpty()
+    }
+
     fun isIdempotent(target: VyomFactoryExecutionEnvelope.Target): Boolean =
         byTarget[target]?.isIdempotent == true
 
@@ -47,6 +64,7 @@ internal class VyomFactoryExecutionAdapterRegistry(
         ) return Outcome.ManualReview
 
         val adapter = byTarget[envelope.target] ?: return Outcome.Unsupported(envelope.target)
+        if (!supports(envelope)) return Outcome.Unsupported(envelope.target)
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
         return Outcome.Executed(adapter.run(envelope, control))
     }
