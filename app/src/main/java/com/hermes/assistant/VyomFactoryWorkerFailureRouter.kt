@@ -14,7 +14,7 @@ internal object VyomFactoryWorkerFailureRouter {
             stableTaskId.none { it.isISOControl() }) { "Worker task identity is invalid" }
         val safeFailureType = failureType.trim().takeIf { it in failureTypes } ?: "UnknownFailure"
         val sourceId = "$worker:$stableTaskId"
-        require(sourceId.length <= 120)
+        require(sourceId.length <= 90) // Leaves room for the persisted task-failure prefix within the 120-character source-ID contract.
         val complaint = "$worker worker infrastructure failure. Task reference: $stableTaskId. " +
             "Failure type: $safeFailureType. Original request, credentials and exception details were withheld."
         return Report(sourceId, complaint)
