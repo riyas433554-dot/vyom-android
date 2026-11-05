@@ -34,6 +34,14 @@ contains_word() { [[ " $1 " == *" $2 "* ]]; }
 valid_area() { contains_word "$AREAS" "$1"; }
 valid_priority() { contains_word "$PRIORITIES" "$1"; }
 valid_severity() { contains_word "$SEVERITIES" "$1"; }
+default_priority() {
+  case "$1" in
+    control|android_control|update) printf 'P0' ;;
+    memory|design) printf 'P1' ;;
+    voice|personality|repo|skill|skills|schedule|whatsapp|play_store|floating_orb) printf 'P2' ;;
+    *) printf 'P3' ;;
+  esac
+}
 
 build_description() {
   local area="$1" severity="$2" priority="$3" evidence="$4" repro="$5"
@@ -59,7 +67,8 @@ BODY
 }
 
 main() {
-  local title="" area="" severity="" priority="P2" evidence="" repro="" expected="" probe="" fix_type="" source_id=""
+  local title="" area="" severity="" priority="" evidence="" repro="" expected="" probe="" fix_type="" source_id=""
+  local priority_explicit=false
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --title|--area|--severity|--priority|--evidence|--repro|--expected|--probe|--fix-type|--source-id)
@@ -68,7 +77,7 @@ main() {
           --title) title="$2" ;;
           --area) area="$2" ;;
           --severity) severity="$2" ;;
-          --priority) priority="$2" ;;
+          --priority) priority="$2"; priority_explicit=true ;;
           --evidence) evidence="$2" ;;
           --repro) repro="$2" ;;
           --expected) expected="$2" ;;
@@ -85,6 +94,7 @@ main() {
   [[ ${#title} -ge 4 && ${#title} -le 120 ]] || { echo "Title must be 4–120 characters" >&2; return 2; }
   valid_area "$area" || { echo "Invalid area: $area" >&2; return 2; }
   valid_severity "$severity" || { echo "Invalid severity: $severity" >&2; return 2; }
+  if [[ "$priority_explicit" == false ]]; then priority="$(default_priority "$area")"; fi
   valid_priority "$priority" || { echo "Invalid priority: $priority" >&2; return 2; }
   [[ -n "$evidence" && -n "$repro" && -n "$expected" && -n "$probe" ]] || { echo "Evidence, repro, expected result and probe are required" >&2; return 2; }
   [[ "$fix_type" == "content update with no APK" || "$fix_type" == "native change needing an APK" ]] || { echo "Invalid fix type" >&2; return 2; }
