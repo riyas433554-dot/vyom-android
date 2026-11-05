@@ -152,3 +152,41 @@ These entries were resolved from the supplied project names and inspected throug
 **Important limits:** the app's current inspector caps recursive trees at 20,000 entries and blocks truncated/over-cap trees. Therefore OpenClaw, Hermes Agent and n8n cannot yet pass the current in-app tree gate. The current file preview only reads allowlisted README/license/manifest/OpenAPI/workflow/docs files with per-file and aggregate byte caps, redacts recognized secret patterns and labels content untrusted. It does not run scripts or download full source trees.
 
 **Registration state:** these 14 URLs and SHA observations are documented candidates only. The app's app-private repository registry has not been populated from this document. Owner confirmation through the Factory UI is still required for each source reference; no code or skill has been installed.
+
+## Additional owner-supplied candidates — 2026-11-05
+
+GitHub metadata was checked for these canonical repositories. License metadata is not a legal approval. None has been installed or added to the app registry.
+
+| Repository | GitHub license metadata | Review lane | Initial handling |
+|---|---|---|---|
+| [AnaaySampat/jarvis](https://github.com/AnaaySampat/jarvis) | MIT | Android accessibility and voice orchestration | High-priority architecture review |
+| [VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android](https://github.com/VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android) | Apache-2.0 | Android agent and MCP routing | High-priority architecture review |
+| [Ayush0Chaudhary/blurr](https://github.com/Ayush0Chaudhary/blurr) | NOASSERTION | Android UI automation | Review only; no license metadata |
+| [Aryan-0001/Jarvis-AI](https://github.com/Aryan-0001/Jarvis-AI) | MIT | Flutter voice assistant | Compare UI/voice patterns |
+| [mem0ai/mem0](https://github.com/mem0ai/mem0) | Apache-2.0 | Long-term agent memory | Compare with existing Vyom memory |
+| [open-jarvis/OpenJarvis](https://github.com/open-jarvis/OpenJarvis) | Apache-2.0 | Personal-agent architecture | Review runtime assumptions |
+| [letta-ai/letta](https://github.com/letta-ai/letta) | Apache-2.0 | Stateful agent memory | Compare; avoid duplicate memory stack |
+| [isair/jarvis](https://github.com/isair/jarvis) | NOASSERTION | Voice/MCP assistant patterns | Desktop-focused; review only |
+| [The-Art-of-Hacking/h4cker](https://github.com/The-Art-of-Hacking/h4cker) | MIT | Security learning/reference | Reference-only |
+| [paulveillard/cybersecurity-ethical-hacking](https://github.com/paulveillard/cybersecurity-ethical-hacking) | Apache-2.0 | Security resource catalogue | Reference-only |
+| [swisskyrepo/PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings) | MIT | Security testing reference | Reference-only; no automatic execution |
+| [danielmiessler/SecLists](https://github.com/danielmiessler/SecLists) | MIT | Security test-data catalogue | Reference-only; no automatic execution |
+| [usestrix/strix](https://github.com/usestrix/strix) | Apache-2.0 | AI security testing research | Separate opt-in review only |
+| [KeygraphHQ/shannon](https://github.com/KeygraphHQ/shannon) | AGPL-3.0 | AI security testing research | Review-only; AGPL and execution model need review |
+| [GreyDGL/PentestGPT](https://github.com/GreyDGL/PentestGPT) | MIT | Security copilot research | Reference-only |
+| [arthi-rajendran24/building-jarvis-4.0](https://github.com/arthi-rajendran24/building-jarvis-4.0) | No license metadata | Voice-agent learning example | No code reuse pending license |
+| [ethanplusai/jarvis](https://github.com/ethanplusai/jarvis) | NOASSERTION | Voice front-end patterns | Desktop/Claude-oriented; license unresolved |
+
+### Unresolved names and non-repository services
+
+- `GLaDOS`, `Agentic-Bug-Hunter`, `Claude-BugHunter`, `SecSkills`, and `Anthropic-Cybersecurity-Skills` need exact canonical GitHub URLs before inspection.
+- The supplied `xiaozhi-esp32` URL did not resolve; exact repository URL required.
+- `ibrahemesam/repo-view` and GitShare are sharing/viewing services, not Factory source registrations. Do not pass private-repository tokens in URLs or send private source to third-party sharing services.
+- Collaborators and fine-grained read-only tokens are GitHub access-control mechanisms, not repository candidates. Never paste tokens into a URL or chat.
+
+### Intake boundaries
+
+- Android automation sources are reviewed for permission scope, user-visible action confirmation, stop/abort behavior and grant expiry.
+- Memory frameworks are compared with Vyom's existing memory subsystem before any adoption proposal.
+- Security sources are reference-only in Factory. No imported tool, script, workflow or automated test is executed against a target.
+- Every registration remains an owner-approved immutable-SHA reference, not installation or execution.
