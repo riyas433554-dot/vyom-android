@@ -65,6 +65,7 @@ internal class VyomFactoryDialog(
     private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
     private lateinit var retryStatus: TextView
+    private lateinit var historyStatus: TextView
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerOwnerId: String by lazy {
         val prefs = activity.getSharedPreferences("vyom_factory_worker_identity", Activity.MODE_PRIVATE)
@@ -176,6 +177,15 @@ internal class VyomFactoryDialog(
             contentDescription = "Foreground retry schedule status"
         }
         workerPanel.addView(retryStatus)
+        historyStatus = TextView(activity).apply {
+            text = "RUNS · LOADING"
+            textSize = 9f; typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(0, dp(6), 0, 0)
+            contentDescription = "Recent persisted Factory execution attempts"
+            maxLines = 6
+        }
+        workerPanel.addView(historyStatus)
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val composer = LinearLayout(activity).apply {
@@ -610,9 +620,16 @@ internal class VyomFactoryDialog(
             retryStatus.text = summary.label
             retryStatus.contentDescription =
                 "Retries total ${summary.total}, due ${summary.due}, waiting ${summary.waiting}. Foreground RUN NEXT is required."
+            val history = VyomFactoryExecutionHistory.summarize(
+                VyomFactoryExecutionJournal(activity.applicationContext).all()
+            )
+            historyStatus.text = (listOf(history.label) + history.latest.map { it.label }).joinToString("\\n")
+            historyStatus.contentDescription = "${history.total} persisted attempts; ${history.active} active, ${history.succeeded} verified, ${history.failed} failed, ${history.interrupted} interrupted. Latest attempt rows are redacted."
         } catch (error: Exception) {
             retryStatus.text = "RETRY STATUS UNAVAILABLE · REVIEW REQUIRED"
             retryStatus.contentDescription = "Retry schedule could not be read safely."
+            historyStatus.text = "RUN HISTORY UNAVAILABLE · REVIEW REQUIRED"
+            historyStatus.contentDescription = "Execution journal could not be read safely."
         }
     }
 
