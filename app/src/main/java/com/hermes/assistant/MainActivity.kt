@@ -710,6 +710,46 @@ class MainActivity : Activity() {
                     hint = "Allowed Kotlin source path (choose explicitly)"
                     setSingleLine(true)
                 }
+                val discoverPathsButton = Button(this@MainActivity).apply {
+                    text = "FIND RELEVANT SOURCE FILES"
+                    setOnClickListener {
+                        val title = proposalTitle.text.toString().trim()
+                        val task = proposalTask.text.toString().trim()
+                        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+                        val nvidiaKey = secureVoicePrefs().getString("nvidia_api_key", "").orEmpty()
+                        val model = LiveModelPolicy.selectedOrDefault(
+                            secureVoicePrefs().getString("nvidia_live_model_id", "")
+                        )
+                        isEnabled = false
+                        selfChangeNotice.text = "Inspecting the current feature-branch tree and ranking allowlisted Kotlin files…"
+                        io.execute {
+                            try {
+                                val suggestions = SelfModificationClient().suggestAllowedPaths(
+                                    token, nvidiaKey, title, task, model
+                                )
+                                runOnUiThread {
+                                    if (isFinishing || isDestroyed) return@runOnUiThread
+                                    isEnabled = true
+                                    AlertDialog.Builder(this@MainActivity)
+                                        .setTitle("Choose a suggested source file")
+                                        .setMessage("Suggestions are limited to existing, allowlisted files at ${suggestions.baseSha.take(12)}. No source has been changed.")
+                                        .setItems(suggestions.paths.toTypedArray()) { _, which ->
+                                            proposalPath.setText(suggestions.paths[which])
+                                            selfChangeNotice.text = "Source selected. Review the exact diff before opening any PR."
+                                        }
+                                        .setNegativeButton("CLOSE", null)
+                                        .show()
+                                }
+                            } catch (error: Exception) {
+                                runOnUiThread {
+                                    if (isFinishing || isDestroyed) return@runOnUiThread
+                                    isEnabled = true
+                                    selfChangeNotice.text = "Source discovery stopped safely: ${error.message ?: error.javaClass.simpleName}"
+                                }
+                            }
+                        }
+                    }
+                }
                 val proposalTask = EditText(this@MainActivity).apply {
                     hint = "Describe what Vyom should improve in this file (max 2,000 characters)"
                     minLines = 5
@@ -721,12 +761,13 @@ class MainActivity : Activity() {
                 pendingSelfChangeTitle = ""
                 form.addView(proposalTitle, LinearLayout.LayoutParams(-1, dp(48)))
                 form.addView(proposalPath, LinearLayout.LayoutParams(-1, dp(48)))
+                form.addView(discoverPathsButton, LinearLayout.LayoutParams(-1, dp(42)))
                 proposalTask.setText(pendingSelfChangeTask)
                 pendingSelfChangeTask = ""
                 form.addView(proposalTask, LinearLayout.LayoutParams(-1, dp(150)))
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Create review-only proposal")
-                    .setMessage("Vyom reads the current source and asks the configured NVIDIA model for exact minimal edits and shows a diff before creating a PR. Only non-policy Kotlin files are allowed. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
+                    .setMessage("Vyom can inspect the current feature-branch tree and suggest existing allowlisted Kotlin files. You must choose the file, review the exact minimal diff, and explicitly approve opening a PR. No source changes occur during discovery. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
                     .setView(form)
                     .setNegativeButton("CANCEL") { _, _ ->
                         pendingSelfChangeIssueNumber = null
