@@ -34,9 +34,9 @@ class VyomFactoryTaskTriageTest {
 
         assertEquals(listOf(1, 2, 3), decisions.map { it.task.number })
         assertEquals(
-            VyomFactoryTaskPlanner.Plan.BlockedCapability(
+            VyomFactoryTaskPlanner.Plan.NeedsOwnerReview(
                 VyomFactoryCapabilityRegistry.Domain.REPOSITORY,
-                "no_registered_capability"
+                "repository_proposal_requires_owner_review"
             ),
             decisions[0].plan
         )
@@ -51,6 +51,29 @@ class VyomFactoryTaskTriageTest {
             ),
             decisions[2].plan
         )
+    }
+
+    @Test fun repositoryReviewRouteIsPersistedAsNonExecutableAndStable() {
+        val triage = VyomFactoryTaskTriage()
+        val task = task(11, "Gradle compile failure in repository", "P1", "2026-11-01T00:00:00Z")
+        val registry = VyomFactoryCapabilityRegistry(emptyList())
+
+        val first = triage.evaluate(listOf(task), registry).single()
+        val second = triage.evaluate(listOf(task), registry).single()
+
+        assertEquals(false, first.executionReady)
+        assertEquals(
+            VyomFactoryTaskPlanner.Plan.NeedsOwnerReview(
+                VyomFactoryCapabilityRegistry.Domain.REPOSITORY,
+                "repository_proposal_requires_owner_review"
+            ),
+            first.plan
+        )
+        assertEquals(
+            "triage:v1:needs_owner_review:REPOSITORY:repository_proposal_requires_owner_review",
+            first.eventKey
+        )
+        assertEquals(first.eventKey, second.eventKey)
     }
 
     @Test fun candidateDiscoveryIsExplicitlyNotExecutionReadiness() {
