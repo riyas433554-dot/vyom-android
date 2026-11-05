@@ -10,24 +10,32 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - Latest source checkpoint before this handoff refresh: `eff0ba783ea8aac18a35d0c760feaa598d32e55b`. Proposal branch failure recovery and ambiguous-PR safeguards are implemented in this checkpoint; exact-head CI is being refreshed. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
-- APK 1 gate follows the current Factory-first plan below: Stage 1 end-to-end behavior plus only the A18/A17 safety-critical pieces Factory itself needs, exact-head CI green and artifact integrity. Do not require the entire Android-control list, Play Store/WhatsApp feature implementation, or unrelated lifecycle stages 5/6/8.
+- APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
 - Report only verified tests, CI, artifacts, and physical-device results.
+
+## Scope lock — Factory only (2026-11-05)
+
+- In scope: Factory complaint intake for Factory defects, triage, canonical Factory register, priority, assignment/routing, execution, evidence, verification, retries/recovery, audit trail, Factory UI/Automations visibility, and only the security/update mechanisms those flows directly depend on.
+- Out of scope: standalone Vyom product capabilities, general Android-control feature delivery, messaging integrations, app-store installation flows, and any other user-facing feature that is not part of Factory's own complaint-to-fix system.
+- Out-of-scope requests must not be seeded into the Factory requirement matrix, classified as Factory P0/P1 work, routed to the Factory worker, or included in Factory completion/APK gates. If legacy seeded issues contain such requests, mark them out-of-scope/remove them from the active Factory queue; do not implement them here.
+- Before adding a new requirement or complaint to the Factory matrix, verify that it directly improves Factory's own intake → triage → route → execute → verify → close/recover loop.
+- This scope lock overrides all older lists and references below. Historical notes may mention past misclassification, but they are not active work.
 
 ## Current controlling plan — Factory-first (2026-11-04)
 
 This section supersedes older APK gates and Factory ordering text below where they conflict with the user's latest instruction.
 
-- Make **Vyom Factory itself** reliable before implementing the full Android-control feature list.
+- Scope is **Vyom Factory only**. Do not implement, track, prioritize, or gate this branch on unrelated Vyom product features.
 - Stage 1 complaint intake, triage, canonical register, priority ordering, fix routing, evidence, and verification lifecycle is the primary deliverable.
-- Implement only the A18 signed no-APK update/probe/rollback and A17 execution/verification capabilities that Factory itself needs. Do not complete every A17 Android operation merely to satisfy an old milestone list.
-- Play Store installation and WhatsApp messaging remain Factory-managed complaints for later fixing. Do not implement those product features directly in this Factory-first batch.
-- APK 1 may be delivered when Stage 1 works end-to-end and the minimum A18/A17 safety-critical pieces required by Factory are verified, with exact-HEAD CI green and artifact integrity checked. Do not block on unrelated full-control operations or Factory lifecycle stages 5/6/8.
+- Implement only the execution, verification, safe update/probe/rollback, recovery, and audit capabilities directly required for Factory's own complaint-to-fix workflow. Do not expand into general Android control or unrelated app features.
+- Out-of-scope product requests must not be seeded as Factory requirements, assigned Factory priority, or counted as Factory backlog. Keep them outside the Factory register and this branch's completion checklist.
+- APK 1 may be delivered only when the Factory workflow works end-to-end and its required safety controls are verified, with exact-HEAD CI green and artifact integrity checked. Do not block on unrelated Android/product features or lifecycle work outside Factory.
 - Keep work only on `feature/memory-intelligence`. Never touch Android `main`, Render/Hermes backend, or production Supabase.
 
 ### Latest source audit and CI (2026-11-04)
 
 - Latest source branch tip before this handoff refresh: `b24063de806f451e993f29d96a8c634a8c806a1e`. `docs/OWNER_ACTIONS.md` now includes guarded complaint-to-code proposal acceptance steps. Proposal pipeline failures/timeouts are also recorded back to the originating complaint (without exposing exception message/request text); cancellation/back-dismissal clears the pending issue link.
-- Complaint triage: generic `behavior` no longer implies personality; explicit tone/persona terms still do. Play Store installation and WhatsApp message complaints classify as `control / P0`; Hinglish failure phrases (`nahi ho raha`, `send nahi`, `install nahi`, etc.) raise severity to high. Regression/fix commits: `520e4fce532923d9040e439229eb704146431574`, `725edddf4bc6f8d5a2ec46e775d7779363ac40fa`, `1eb496089c2e0b1f34b6af59dacf9c79a9011088`, `0fdebdd9f31d80a8f90e53b1de1a4c4c2ab1efec`, `c5a818a311ad7810fec626e4c776e149fcb881a4`, `b050bcdbb590641a055f045a9ffab367b8c7dbbb`.
+- Complaint triage: generic `behavior` no longer implies personality; explicit tone/persona terms still do. Factory triage and priority must be limited to complaints about Factory's own intake, routing, execution, verification, recovery, audit, and UI. Re-audit the classifier/seeded issue set so unrelated product-feature requests cannot enter the Factory backlog.
 - Priority order is shared by Factory UI, Automations and worker selection: P0→P3, newest GitHub update first within each tier, issue number as deterministic tie-break. `ye complaint pehle #N` promotes only active open/in-progress complaints to P0.
 - Complaint lifecycle: open issues can START, paused issues can RESUME, and DONE is blocked until a named Verification probe has a recorded PASS for that exact probe. VERIFY records owner-reported device evidence (PASS/FAIL); changing the probe invalidates old PASS. This is manual owner attestation, not autonomous device verification. Existing legacy completed issues remain editable without requiring a newly created probe event.
 - Worker state mismatch fixed: START changes metadata to `in_progress`; worker session/coordinator/runner/Factory eligibility accept GitHub-open issues with metadata status `open` or `in_progress`. Regression tests cover session claim, coordinator claim and runner execution. Commits: `d05a800da6c0307a9ce29a75a9019d63874f0223`, `957c0f38742d476118c20d7fc738c5b074a0234f`, `db45a8b3e9c864487d2ef80cfdce3629c35dbde6`, `ed93a42c699bd12f7eeecf0277141aeb18be4de8`, `e5d172090b1cc65a8bbc40a36de2dbbd2e31f4b4`, `c1723c68af2ddf5211d5c0ddf53d3c7c7d747531`, `22c19b21a880978b3127422f185e782d9438af06`.
