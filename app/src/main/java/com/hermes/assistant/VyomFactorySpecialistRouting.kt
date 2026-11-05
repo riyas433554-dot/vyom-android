@@ -7,6 +7,7 @@ package com.hermes.assistant
  */
 internal object VyomFactorySpecialistRouting {
     const val OWNER_REVIEW_DEFERRED_EVENT = "factory:v1:repository_proposal_deferred"
+    const val OWNER_REVIEW_OPENED_EVENT = "factory:v1:repository_proposal_opened"
 
     fun nextOwnerReview(
         decisions: List<VyomFactoryTaskTriage.Decision>
@@ -23,7 +24,8 @@ internal object VyomFactorySpecialistRouting {
                     task.metadata.status in setOf("open", "in_progress") &&
                     plan is VyomFactoryTaskPlanner.Plan.NeedsOwnerReview &&
                     plan.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
-                    OWNER_REVIEW_DEFERRED_EVENT !in task.metadata.events
+                    OWNER_REVIEW_DEFERRED_EVENT !in task.metadata.events &&
+                    OWNER_REVIEW_OPENED_EVENT !in task.metadata.events
             }
     }
 }
