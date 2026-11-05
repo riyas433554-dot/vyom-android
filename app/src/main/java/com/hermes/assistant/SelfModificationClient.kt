@@ -186,40 +186,63 @@ internal class SelfModificationClient {
             .put("ref", "refs/heads/$proposalBranch")
             .put("sha", baseSha))
 
-        val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
-        val existing = request(
-            "GET",
-            "/contents/$encodedPath?ref=" + URLEncoder.encode(proposalBranch, "UTF-8"),
-            token = token,
-            allowNotFound = true
-        )
-        val currentSha = existing.optString("sha").takeIf { it.matches(Regex("^[a-f0-9]{40}$")) }
-        val payload = JSONObject()
-            .put("message", "proposal: $title")
-            .put("content", Base64.encodeToString(proposedContent.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
-            .put("branch", proposalBranch)
-        if (currentSha != null) payload.put("sha", currentSha)
-        request("PUT", "/contents/$encodedPath", token, payload)
+        try {
+            val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
+            val existing = request(
+                "GET",
+                "/contents/$encodedPath?ref=" + URLEncoder.encode(proposalBranch, "UTF-8"),
+                token = token,
+                allowNotFound = true
+            )
+            val currentSha = existing.optString("sha").takeIf { it.matches(Regex("^[a-f0-9]{40}$")) }
+            val payload = JSONObject()
+                .put("message", "proposal: $title")
+                .put("content", Base64.encodeToString(proposedContent.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
+                .put("branch", proposalBranch)
+            if (currentSha != null) payload.put("sha", currentSha)
+            request("PUT", "/contents/$encodedPath", token, payload)
 
-        val pr = request("POST", "/pulls", token, JSONObject()
-            .put("title", "[Vyom proposal] $title")
-            .put("head", proposalBranch)
-            .put("base", BASE_BRANCH)
-            .put("draft", false)
-            .put("body", "## Constrained self-modification proposal\n\n" +
-                "- Proposed file: `$path`\n" +
-                (if (requestSummary.isBlank()) "" else "- Requested change: ${requestSummary.take(1_000)}\n") +
-                "- Source base commit: `$baseSha`.\n" +
-                "- Created by Vyom's user-requested proposal workflow.\n" +
-                "- This PR is never auto-merged. The owner reviewed the minimal patch preview before opening it.\n" +
-                "- Vyom waits for both CI workflows and stages a signed APK only when its manifest commit, SHA-256 and certificate are verified.\n" +
-                "- Android's installer remains the final install authority unless a separately verified Power Mode installer is available.\n" +
-                "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
-        val prUrl = pr.optString("html_url")
-        require(prUrl.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {
-            "GitHub did not return an approved pull request URL"
+            val pr = request("POST", "/pulls", token, JSONObject()
+                .put("title", "[Vyom proposal] $title")
+                .put("head", proposalBranch)
+                .put("base", BASE_BRANCH)
+                .put("draft", false)
+                .put("body", "## Constrained self-modification proposal\n\n" +
+                    "- Proposed file: `$path`\n" +
+                    (if (requestSummary.isBlank()) "" else "- Requested change: ${requestSummary.take(1_000)}\n") +
+                    "- Source base commit: `$baseSha`.\n" +
+                    "- Created by Vyom's user-requested proposal workflow.\n" +
+                    "- This PR is never auto-merged. The owner reviewed the minimal patch preview before opening it.\n" +
+                    "- Vyom waits for both CI workflows and stages a signed APK only when its manifest commit, SHA-256 and certificate are verified.\n" +
+                    "- Android's installer remains the final install authority unless a separately verified Power Mode installer is available.\n" +
+                    "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
+            val prUrl = pr.optString("html_url")
+            require(prUrl.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {
+                "GitHub did not return an approved pull request URL"
+            }
+            return Proposal(proposalBranch, prUrl)
+        } catch (failure: Exception) {
+            val recoveredPullRequest = ProposalBranchRecovery.recover(
+                findExistingPullRequest = {
+                    val encodedHead = URLEncoder.encode("riyas433554-dot:$proposalBranch", "UTF-8")
+                    val pulls = request(
+                        "GET",
+                        "/pulls?head=$encodedHead&state=all&per_page=10",
+                        token
+                    ).optJSONArray("_array") ?: JSONArray()
+                    (0 until pulls.length()).asSequence()
+                        .mapNotNull { pulls.optJSONObject(it) }
+                        .firstOrNull { it.optJSONObject("head")?.optString("ref") == proposalBranch }
+                        ?.optString("html_url")
+                        ?.takeIf { it.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/") }
+                },
+                deleteBranch = {
+                    request("DELETE", "/git/refs/heads/${Uri.encode(proposalBranch)}", token)
+                }
+            )
+            if (recoveredPullRequest != null) return Proposal(proposalBranch, recoveredPullRequest)
+            throw failure
         }
-        return Proposal(proposalBranch, prUrl)
     }
 
     private fun request(
@@ -267,7 +290,13 @@ internal class SelfModificationClient {
                 val message = try { JSONObject(response).optString("message") } catch (_: Exception) { "" }
                 throw IllegalStateException("GitHub API $status: ${message.take(160)}")
             }
-            return JSONObject(response)
+            if (response.isBlank()) return JSONObject()
+            val parsed = org.json.JSONTokener(response).nextValue()
+            return when (parsed) {
+                is JSONObject -> parsed
+                is JSONArray -> JSONObject().put("_array", parsed)
+                else -> JSONObject()
+            }
         } finally {
             connection.disconnect()
         }
