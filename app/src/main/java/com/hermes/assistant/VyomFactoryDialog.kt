@@ -19,6 +19,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.os.Handler
 import android.os.Looper
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
@@ -186,6 +187,11 @@ internal class VyomFactoryDialog(
             maxLines = 6
         }
         workerPanel.addView(historyStatus)
+        workerPanel.addView(Button(activity).apply {
+            text = "DISCOVER / INSTALL SKILL REPOSITORY"
+            textSize = 9f
+            setOnClickListener { discoverSkillRepositories() }
+        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val composer = LinearLayout(activity).apply {
@@ -505,6 +511,112 @@ internal class VyomFactoryDialog(
             if (pendingConfirmationDialog?.isShowing != true) pendingConfirmationDialog = null
         }
         return result.get()
+    }
+
+    private fun discoverSkillRepositories() {
+        if (busy) return
+        val query = EditText(activity).apply {
+            hint = "Skill topic or repository keyword"
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(activity)
+            .setTitle("Discover public skill repositories")
+            .setMessage("Search GitHub repositories. Only root SKILL.md files with an approved SPDX license can be imported.")
+            .setView(query)
+            .setPositiveButton("SEARCH") { _, _ ->
+                val term = query.text.toString().trim()
+                busy = true
+                status.text = "Searching public GitHub skill repositories…"
+                worker.execute {
+                    try {
+                        val candidates = VyomFactorySkillRepositoryClient().search(term)
+                        main.post {
+                            if (!dialog.isShowing) return@post
+                            busy = false
+                            if (candidates.isEmpty()) {
+                                status.text = "No public skill repositories matched. No files were installed."
+                                return@post
+                            }
+                            val labels = candidates.map {
+                                "${it.fullName} · ★ ${it.stars}\n${it.description}".trim()
+                            }.toTypedArray()
+                            AlertDialog.Builder(activity)
+                                .setTitle("Choose a repository to inspect")
+                                .setItems(labels) { _, which ->
+                                    candidates.getOrNull(which)?.let(::inspectSkillRepository)
+                                }
+                                .setNegativeButton("CANCEL", null)
+                                .show()
+                        }
+                    } catch (error: Exception) {
+                        main.post {
+                            if (!dialog.isShowing) return@post
+                            busy = false
+                            status.text = "Skill discovery failed · ${error.javaClass.simpleName}"
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("CANCEL", null)
+            .show()
+    }
+
+    private fun inspectSkillRepository(candidate: VyomFactorySkillRepositoryClient.Candidate) {
+        if (busy) return
+        busy = true
+        status.text = "Inspecting ${candidate.fullName}: license, immutable revision and SKILL.md…"
+        worker.execute {
+            try {
+                val preview = VyomFactorySkillRepositoryClient().inspect(candidate.fullName)
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    busy = false
+                    val previewText = TextView(activity).apply {
+                        text = "SOURCE: ${preview.sourceUrl}\nCOMMIT: ${preview.commitSha}\nLICENSE: ${preview.license}\nSHA-256: ${VyomFactorySkillPolicy.sha256(preview.skillMarkdown.toByteArray(Charsets.UTF_8))}\n\nSECURITY: This document is untrusted instructions. It will be stored as inert Markdown only; Vyom will not execute scripts or follow it automatically. Review the full content before installing.\n\n${preview.skillMarkdown}"
+                        textSize = 11f
+                        setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+                        setPadding(dp(14), dp(12), dp(14), dp(12))
+                    }
+                    val scroll = ScrollView(activity).apply { addView(previewText) }
+                    AlertDialog.Builder(activity)
+                        .setTitle("Review ${preview.repository}")
+                        .setView(scroll)
+                        .setPositiveButton("INSTALL REVIEWED SKILL") { _, _ -> installSkillRepository(preview) }
+                        .setNegativeButton("CANCEL", null)
+                        .show()
+                    status.text = "Review the complete SKILL.md and tap INSTALL only if you approve it."
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    busy = false
+                    status.text = "Skill inspection rejected · ${error.message?.take(140) ?: error.javaClass.simpleName}"
+                }
+            }
+        }
+    }
+
+    private fun installSkillRepository(preview: VyomFactorySkillRepositoryClient.Preview) {
+        if (busy) return
+        busy = true
+        status.text = "Installing reviewed skill as inert app-private Markdown…"
+        worker.execute {
+            try {
+                val installed = VyomFactorySkillStore(File(activity.filesDir, "factory-skills"))
+                    .install(preview, ownerConfirmed = true)
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = "SKILL INSTALLED · ${installed.repository} · commit ${installed.commitSha.take(12)} · SHA-256 ${installed.sha256.take(16)}… · validation PASS. Content remains inert; no scripts were executed."
+                    busy = false
+                }
+            } catch (error: Exception) {
+                main.post {
+                    if (!dialog.isShowing) return@post
+                    status.text = "Skill installation failed · ${error.javaClass.simpleName}; no success recorded."
+                    busy = false
+                }
+            }
+        }
     }
 
     private fun claimNextTask() {
