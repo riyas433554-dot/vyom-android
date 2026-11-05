@@ -76,17 +76,17 @@ internal class VyomFactoryScreenshotEvidenceStore(private val root: File) {
         if (file.canonicalFile.parentFile != canonicalRoot) return null
         val record = File(canonicalRoot, file.name + ".uploaded.json")
         if (!record.isFile) return null
-        return runCatching {
-            val json = JSONObject(record.readText(Charsets.UTF_8))
-            check(json.optString("state") == "uploaded_comment_pending")
-            val url = json.getString("url")
-            val commit = json.getString("commit_sha")
-            val hash = json.getString("sha256")
-            check(url.startsWith("https://github.com/"))
-            check(commit.matches(Regex("^[a-f0-9]{40}$")))
-            check(hash.matches(Regex("^[a-f0-9]{64}$")))
-            UploadReceipt(url, commit, hash)
-        }.getOrNull()
+        val json = JSONObject(record.readText(Charsets.UTF_8))
+        check(json.optString("state") == "uploaded_comment_pending") {
+            "Screenshot upload receipt is corrupt; duplicate upload is blocked"
+        }
+        val url = json.getString("url")
+        val commit = json.getString("commit_sha")
+        val hash = json.getString("sha256")
+        check(url.startsWith("https://github.com/"))
+        check(commit.matches(Regex("^[a-f0-9]{40}$")))
+        check(hash.matches(Regex("^[a-f0-9]{64}$")))
+        return UploadReceipt(url, commit, hash)
     }
 
     fun receive(input: InputStream, mimeType: String): Received {

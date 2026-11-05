@@ -225,10 +225,17 @@ internal class VyomFactoryDialog(
                     adjustViewBounds = true
                 }, LinearLayout.LayoutParams(-1, dp(160)).apply { topMargin = dp(6) })
             }
-            val priorUpload = runCatching {
+            val receiptState = runCatching {
                 VyomFactoryScreenshotEvidenceStore(File(activity.filesDir, "factory-evidence")).uploadReceipt(screenshot)
-            }.getOrNull()
-            if (priorUpload != null) {
+            }
+            val priorUpload = receiptState.getOrNull()
+            if (receiptState.isFailure) {
+                evidencePanel.addView(TextView(activity).apply {
+                    text = "UPLOAD STATE UNKNOWN · ATTACH DISABLED TO PREVENT DUPLICATE"
+                    textSize = 9f
+                    setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                })
+            } else if (priorUpload != null) {
                 evidencePanel.addView(TextView(activity).apply {
                     text = "UPLOAD ALREADY COMPLETED · issue comment needs manual repair · ${priorUpload.url}"
                     textSize = 9f

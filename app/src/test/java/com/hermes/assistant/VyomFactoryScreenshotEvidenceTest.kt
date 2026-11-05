@@ -50,6 +50,18 @@ class VyomFactoryScreenshotEvidenceTest {
         }
     }
 
+    @Test fun corruptUploadReceiptFailsClosedInsteadOfAllowingDuplicateUpload() {
+        val root = createTempDir(prefix = "vyom-evidence-corrupt-receipt-")
+        try {
+            val store = VyomFactoryScreenshotEvidenceStore(root)
+            val received = store.receive(ByteArrayInputStream(png()), "image/png")
+            File(root, received.file.name + ".uploaded.json").writeText("not-json")
+            assertRejected { store.uploadReceipt(received.file) }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun oversizeAndMimeMismatchNeverCreateFiles() {
         val root = createTempDir(prefix = "vyom-evidence-reject-")
         try {
@@ -74,10 +86,8 @@ class VyomFactoryScreenshotEvidenceTest {
         try {
             block()
             throw AssertionError("Expected screenshot validation to reject the input")
-        } catch (_: IllegalArgumentException) {
-            // expected
-        } catch (_: IllegalStateException) {
-            // expected
+        } catch (_: Exception) {
+            // expected validation or corrupt receipt failure
         }
     }
 }
