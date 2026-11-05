@@ -24,7 +24,11 @@ internal class GitHubReleaseAssetClient(
         }
         try {
             val code = connection.responseCode
-            if (code !in 200..299) throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(\n                code, readErrorBody(connection), connection.getHeaderField("X-GitHub-Request-Id")\n            ))
+            if (code !in 200..299) {
+                throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(
+                    code, readErrorBody(connection), connection.getHeaderField("X-GitHub-Request-Id")
+                ))
+            }
             return String(readBounded(connection, maxBytes), Charsets.UTF_8)
         } finally {
             connection.disconnect()
@@ -81,8 +85,12 @@ internal class GitHubReleaseAssetClient(
         }
         if (code in 200..299) return apiConnection
         if (code !in REDIRECT_CODES) {
+            val diagnostic = GitHubReleaseAssetPolicy.httpErrorMessage(
+                code, readErrorBody(apiConnection), apiConnection.getHeaderField("X-GitHub-Request-Id"),
+                prefix = "GitHub release asset"
+            )
             apiConnection.disconnect()
-            throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(\n                code, readErrorBody(apiConnection), apiConnection.getHeaderField("X-GitHub-Request-Id"),\n                prefix = "GitHub release asset"\n            ))
+            throw IllegalStateException(diagnostic)
         }
         val location = apiConnection.getHeaderField("Location")
         apiConnection.disconnect()
@@ -103,8 +111,12 @@ internal class GitHubReleaseAssetClient(
             throw error
         }
         if (redirectedCode !in 200..299) {
+            val diagnostic = GitHubReleaseAssetPolicy.httpErrorMessage(
+                redirectedCode, readErrorBody(redirected), redirected.getHeaderField("X-GitHub-Request-Id"),
+                prefix = "GitHub release asset download"
+            )
             redirected.disconnect()
-            throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(\n                redirectedCode, readErrorBody(redirected), redirected.getHeaderField("X-GitHub-Request-Id"),\n                prefix = "GitHub release asset download"\n            ))
+            throw IllegalStateException(diagnostic)
         }
         return redirected
     }
@@ -147,7 +159,8 @@ internal class GitHubReleaseAssetClient(
     companion object {
         private const val RELEASES_API =
             "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30"
-        private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)\n        private const val MAX_ERROR_BODY_BYTES = 8 * 1024
+        private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
+        private const val MAX_ERROR_BODY_BYTES = 8 * 1024
     }
 }
 
@@ -180,17 +193,18 @@ internal object GitHubReleaseAssetPolicy {
         requestId: String?,
         prefix: String = "GitHub release API"
     ): String {
-        val rawMessage = Regex("\\\"message\\\"\\s*:\\s*\\\"([^\\\"]{0,500})\\\"")
+        val rawMessage = Regex("\"message\"\\s*:\\s*\"([^\"\\\\]{0,500})\"")
             .find(responseBody.take(8 * 1024))?.groupValues?.getOrNull(1).orEmpty()
         val message = rawMessage
-            .replace("\\
-", " ")
+            .replace("\\n", " ")
             .replace("\\r", " ")
             .replace("\\t", " ")
             .filterNot { it.isISOControl() }
             .trim()
             .take(240)
-        val safeRequestId = requestId?.takeIf { it.length in 1..80 && it.all { ch -> ch.isLetterOrDigit() || ch == '-' || ch == '_' } }
+        val safeRequestId = requestId?.takeIf {
+            it.length in 1..80 && it.all { ch -> ch.isLetterOrDigit() || ch == '-' || ch == '_' }
+        }
         return buildString {
             append("$prefix HTTP $status")
             if (message.isNotBlank()) append(": $message")
