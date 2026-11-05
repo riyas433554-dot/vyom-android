@@ -879,12 +879,6 @@ class MainActivity : Activity() {
                                             }
                                         }
                                         .show()
-                if (ownerReviewIssueNumber != null) {
-                    selfChangeNotice.text = "Factory complaint #$ownerReviewIssueNumber · discovering relevant source files…"
-                    discoverPathsButton.post {
-                        if (proposalDialog.isShowing) discoverPathsButton.performClick()
-                    }
-                }
                                 }
                             } catch (error: Exception) {
                                 runOnUiThread {
@@ -895,6 +889,12 @@ class MainActivity : Activity() {
                         }
                     }
                     .show()
+                if (ownerReviewIssueNumber != null) {
+                    selfChangeNotice.text = "Factory complaint #$ownerReviewIssueNumber · discovering relevant source files…"
+                    discoverPathsButton.post {
+                        if (proposalDialog.isShowing) discoverPathsButton.performClick()
+                    }
+                }
             }
         }
         settingsContent.addView(selfChangeButton, LinearLayout.LayoutParams(-1, dp(44)))
