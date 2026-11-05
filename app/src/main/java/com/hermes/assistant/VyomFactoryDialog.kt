@@ -432,6 +432,21 @@ internal class VyomFactoryDialog(
                             VyomFactoryExecutionRunner.Outcome.NoWork -> null
                         }
                         if (issueNumber != null) visitedIssues.add(issueNumber)
+                        val processed = size
+                        val progress = when (next) {
+                            is VyomFactoryExecutionRunner.Outcome.Succeeded -> "Verified issue #${next.issueNumber}; checking the next eligible complaint."
+                            is VyomFactoryExecutionRunner.Outcome.Failed -> "Issue #${next.issueNumber} failed (${next.category}); evaluating whether the batch can safely continue."
+                            is VyomFactoryExecutionRunner.Outcome.Skipped -> "Issue #${next.issueNumber} skipped (${next.reason}); moving past it without claiming success."
+                            is VyomFactoryExecutionRunner.Outcome.Fenced -> "Issue #${next.issueNumber} claim was fenced; stopping the batch."
+                            VyomFactoryExecutionRunner.Outcome.Busy -> "Another Factory execution is active; stopping this batch."
+                            VyomFactoryExecutionRunner.Outcome.NoWork -> "No further eligible issue remains."
+                        }
+                        main.post {
+                            if (::dialog.isInitialized && dialog.isShowing) {
+                                claimStatus.text = "DRAINING · $processed / ${VyomFactoryDrainPolicy.MAX_TASKS_PER_FOREGROUND_RUN}"
+                                status.text = progress
+                            }
+                        }
                         if (!VyomFactoryDrainPolicy.shouldContinue(next)) break
                     }
                 }
