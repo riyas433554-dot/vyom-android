@@ -64,7 +64,8 @@ class SelfModificationClientIntegrationTest {
             val proposal = client.createProposal(
                 token, "Improve reply formatting",
                 "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
+                "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
+                ownerReviewedDiff = true
             )
             assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
             val requests = (0 until 5).map { server.takeRequest() }
@@ -93,7 +94,8 @@ class SelfModificationClientIntegrationTest {
                 client.createProposal(
                     token, "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
+                    ownerReviewedDiff = true
                 )
             }
 
@@ -126,7 +128,8 @@ class SelfModificationClientIntegrationTest {
                 client.createProposal(
                     token, "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
+                    ownerReviewedDiff = true
                 )
             }
 
