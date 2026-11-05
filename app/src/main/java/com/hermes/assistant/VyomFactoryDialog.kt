@@ -378,6 +378,18 @@ internal class VyomFactoryDialog(
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity, foregroundGeneration)
+
+                // Run a read-only planner pass over the fresh canonical issue snapshot.
+                // Persist each typed triage outcome before execution; a candidate is
+                // never treated as executable until the runner independently validates it.
+                val triageRegistry = VyomFactoryCapabilityRegistry(adapter.capabilities)
+                val triageDecisions = VyomFactoryTaskTriage().evaluate(client.listTasks(), triageRegistry)
+                triageDecisions.forEach { decision ->
+                    if (decision.eventKey !in decision.task.metadata.events) {
+                        client.updateTask(decision.task, additionalEvent = decision.eventKey)
+                    }
+                }
+
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = { session.claimNext { remote -> isEligibleForRunner(remote, journal, retrySchedules, adapter) } },
                     isClaimCurrent = { session.isCurrent(it) },
