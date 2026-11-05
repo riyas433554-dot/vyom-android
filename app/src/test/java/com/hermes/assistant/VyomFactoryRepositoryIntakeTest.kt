@@ -119,6 +119,39 @@ class VyomFactoryRepositoryIntakeTest {
     }
 
 
+
+    @Test fun oversizedRepositoryUsesBoundedSubtreeInventoryAndRequiresReview() {
+        val commit = "d".repeat(40)
+        val rootTree = "e".repeat(40)
+        val sourceTree = "f".repeat(40)
+        val client = VyomFactoryRepositoryClient(
+            getJson = { requestPath ->
+                when {
+                    requestPath == "/repos/openai/example" ->
+                        """{"default_branch":"main","archived":false,"size":500000,"description":"Large monorepo","stargazers_count":100,"updated_at":"2026-11-05T00:00:00Z","license":{"spdx_id":"MIT"}}"""
+                    requestPath == "/repos/openai/example/commits?sha=main&per_page=1" ->
+                        """[{"sha":"$commit"}]"""
+                    requestPath == "/repos/openai/example/git/commits/$commit" ->
+                        """{"tree":{"sha":"$rootTree"}}"""
+                    requestPath == "/repos/openai/example/git/trees/$rootTree" ->
+                        """{"truncated":false,"tree":[{"path":"README.md","type":"blob"},{"path":"src","type":"tree","sha":"$sourceTree"}]}"""
+                    requestPath == "/repos/openai/example/git/trees/$sourceTree" ->
+                        """{"truncated":false,"tree":[{"path":"package.json","type":"blob"}]}"""
+                    else -> throw AssertionError("Unexpected GitHub request: $requestPath")
+                }
+            }
+        )
+
+        val preview = client.inspect("https://github.com/openai/example")
+
+        assertTrue(preview.snapshot.treePartial)
+        assertFalse(preview.snapshot.treeTruncated)
+        assertTrue(preview.snapshot.paths.contains("src/package.json"))
+        assertEquals(VyomFactoryRepositoryIntake.Decision.NEEDS_OWNER_REVIEW, preview.assessment.decision)
+        assertTrue(preview.assessment.readOnlyInspectionAllowed)
+        assertFalse(preview.assessment.sourceExecutionAllowed)
+    }
+
     @Test fun filePreviewUsesPinnedCommitAndRedactsRecognizedSecrets() {
         val commit = "c".repeat(40)
         val raw = """# Example
