@@ -84,7 +84,7 @@ class MainActivity : Activity() {
     private lateinit var memoryStore: VyomMemoryStore
     private val contentUpdateManager by lazy { ContentUpdateManager(applicationContext) }
     private val githubReleaseAssets by lazy {
-        GitHubReleaseAssetClient { secureVoicePrefs().getString("github_proposal_token", "").orEmpty() }
+        GitHubReleaseAssetClient(tokenProvider = { secureVoicePrefs().getString("github_proposal_token", "").orEmpty() })
     }
     private lateinit var taskInput: EditText
     private lateinit var taskList: LinearLayout
