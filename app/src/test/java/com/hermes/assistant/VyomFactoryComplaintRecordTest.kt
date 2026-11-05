@@ -40,13 +40,13 @@ class VyomFactoryComplaintRecordTest {
 
     @Test fun complaintsFromEveryRequestedProductAreaAreAccepted() {
         val cases = listOf(
-            "Control engine cannot tap a visible button" to "control",
+            "Control engine cannot tap a visible button" to "android_control",
             "Android control cannot read the current screen" to "android_control",
             "Memory forgot my saved project" to "memory",
             "Design layout spacing is broken" to "design",
             "Personality tone is wrong" to "personality",
             "Repo GitHub URL import fails" to "repo",
-            "Skills cannot load a repository skill" to "skill",
+            "Skills cannot load the skill registry" to "skill",
             "Schedule recurring task did not run" to "schedule",
             "Voice Hinglish STT drops words" to "voice",
             "Update download verification failed" to "update",
