@@ -710,6 +710,13 @@ class MainActivity : Activity() {
                     hint = "Allowed Kotlin source path (choose explicitly)"
                     setSingleLine(true)
                 }
+                val proposalTask = EditText(this@MainActivity).apply {
+                    hint = "Describe what Vyom should improve in this file (max 2,000 characters)"
+                    minLines = 5
+                    maxLines = 8
+                    gravity = Gravity.TOP or Gravity.START
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                }
                 val discoverPathsButton = Button(this@MainActivity).apply {
                     text = "FIND RELEVANT SOURCE FILES"
                     setOnClickListener {
@@ -749,13 +756,6 @@ class MainActivity : Activity() {
                             }
                         }
                     }
-                }
-                val proposalTask = EditText(this@MainActivity).apply {
-                    hint = "Describe what Vyom should improve in this file (max 2,000 characters)"
-                    minLines = 5
-                    maxLines = 8
-                    gravity = Gravity.TOP or Gravity.START
-                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 }
                 proposalTitle.setText(pendingSelfChangeTitle)
                 pendingSelfChangeTitle = ""
