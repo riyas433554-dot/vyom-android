@@ -10,22 +10,29 @@ internal object VyomFactorySpecialistRouting {
     const val OWNER_REVIEW_OPENED_EVENT = "factory:v1:repository_proposal_opened"
 
     fun nextOwnerReview(
-        decisions: List<VyomFactoryTaskTriage.Decision>
+        decisions: List<VyomFactoryTaskTriage.Decision>,
+        isRunnerEligible: (VyomFactoryGitHubClient.Task) -> Boolean = { false }
     ): VyomFactoryTaskTriage.Decision? {
         val byIssue = decisions.associateBy { it.task.number }
-        return VyomFactoryTaskOrdering.sort(decisions.map { it.task })
-            .asSequence()
-            .mapNotNull { task -> byIssue[task.number] }
-            .firstOrNull { decision ->
-                val task = decision.task
-                val plan = decision.plan
-                !decision.executionReady &&
-                    task.state == "open" &&
-                    task.metadata.status in setOf("open", "in_progress") &&
-                    plan is VyomFactoryTaskPlanner.Plan.NeedsOwnerReview &&
-                    plan.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
-                    OWNER_REVIEW_DEFERRED_EVENT !in task.metadata.events &&
-                    OWNER_REVIEW_OPENED_EVENT !in task.metadata.events
+        for (task in VyomFactoryTaskOrdering.sort(decisions.map { it.task })) {
+            val decision = byIssue[task.number] ?: continue
+            if (task.state != "open" || task.metadata.status !in setOf("open", "in_progress")) continue
+            if (decision.executionReady) continue
+            when (val plan = decision.plan) {
+                is VyomFactoryTaskPlanner.Plan.NeedsOwnerReview -> {
+                    if (plan.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
+                        OWNER_REVIEW_DEFERRED_EVENT !in task.metadata.events &&
+                        OWNER_REVIEW_OPENED_EVENT !in task.metadata.events
+                    ) return decision
+                }
+                is VyomFactoryTaskPlanner.Plan.CapabilityCandidates -> {
+                    // If this earlier item can actually run, leave queue ownership
+                    // to the existing runner. Do not let a later proposal jump it.
+                    if (isRunnerEligible(task)) return null
+                }
+                else -> Unit
             }
+        }
+        return null
     }
 }
