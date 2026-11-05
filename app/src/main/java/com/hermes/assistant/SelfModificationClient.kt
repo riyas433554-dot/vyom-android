@@ -186,6 +186,7 @@ internal class SelfModificationClient {
             .put("ref", "refs/heads/$proposalBranch")
             .put("sha", baseSha))
 
+        var pullRequestCreationAttempted = false
         try {
             val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
             val existing = request(
@@ -202,6 +203,7 @@ internal class SelfModificationClient {
             if (currentSha != null) payload.put("sha", currentSha)
             request("PUT", "/contents/$encodedPath", token, payload)
 
+            pullRequestCreationAttempted = true
             val pr = request("POST", "/pulls", token, JSONObject()
                 .put("title", "[Vyom proposal] $title")
                 .put("head", proposalBranch)
@@ -230,13 +232,23 @@ internal class SelfModificationClient {
                         "/pulls?head=$encodedHead&state=all&per_page=10",
                         token
                     ).optJSONArray("_array") ?: JSONArray()
-                    (0 until pulls.length()).asSequence()
+                    val matchingPullRequest = (0 until pulls.length()).asSequence()
                         .mapNotNull { pulls.optJSONObject(it) }
                         .firstOrNull { it.optJSONObject("head")?.optString("ref") == proposalBranch }
-                        ?.optString("html_url")
-                        ?.takeIf { it.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/") }
+                    if (matchingPullRequest == null) null else {
+                        val url = matchingPullRequest.optString("html_url")
+                        require(url.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {
+                            "Existing proposal PR returned an invalid URL"
+                        }
+                        url
+                    }
                 },
                 deleteBranch = {
+                    if (pullRequestCreationAttempted &&
+                        (failure !is GitHubApiException || failure.statusCode !in 400..499)
+                    ) {
+                        throw IllegalStateException("PR creation outcome is uncertain; preserving proposal branch")
+                    }
                     request("DELETE", "/git/refs/heads/${Uri.encode(proposalBranch)}", token)
                 }
             )
@@ -288,7 +300,7 @@ internal class SelfModificationClient {
             }.orEmpty()
             if (status !in 200..299) {
                 val message = try { JSONObject(response).optString("message") } catch (_: Exception) { "" }
-                throw IllegalStateException("GitHub API $status: ${message.take(160)}")
+                throw GitHubApiException(status, "GitHub API $status: ${message.take(160)}")
             }
             if (response.isBlank()) return JSONObject()
             val parsed = org.json.JSONTokener(response).nextValue()
@@ -301,6 +313,8 @@ internal class SelfModificationClient {
             connection.disconnect()
         }
     }
+
+    private class GitHubApiException(val statusCode: Int, message: String) : IllegalStateException(message)
 
     companion object {
         private const val API_ROOT = "https://api.github.com/repos/riyas433554-dot/vyom-android"
