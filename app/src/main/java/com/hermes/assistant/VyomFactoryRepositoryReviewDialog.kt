@@ -51,11 +51,13 @@ internal class VyomFactoryRepositoryReviewDialog(
                 onStatus("Inspecting repository metadata and immutable source tree…")
                 worker.execute {
                     try {
-                        val preview = VyomFactoryRepositoryClient().inspect(value)
+                        val client = VyomFactoryRepositoryClient()
+                        val preview = client.inspect(value)
+                        val files = runCatching { client.previewFiles(preview) }.getOrDefault(emptyList())
                         main.post {
                             if (finished || activity.isFinishing) return@post
                             dialog.dismiss()
-                            showPreview(preview)
+                            showPreview(preview, files)
                         }
                     } catch (error: Exception) {
                         main.post {
@@ -71,7 +73,7 @@ internal class VyomFactoryRepositoryReviewDialog(
         dialog.show()
     }
 
-    private fun showPreview(preview: VyomFactoryRepositoryClient.Preview) {
+    private fun showPreview(preview: VyomFactoryRepositoryClient.Preview, files: List<VyomFactoryRepositoryClient.FilePreview>) {
         val assessment = preview.assessment
         val detail = TextView(activity).apply {
             text = buildString {
@@ -90,7 +92,20 @@ internal class VyomFactoryRepositoryReviewDialog(
                     assessment.reasons.forEach { appendLine("• $it") }
                 }
                 appendLine()
-                appendLine("No source files were downloaded. No scripts, workflows, prompts or binaries were executed.")
+                if (files.isNotEmpty()) {
+                    appendLine()
+                    appendLine("BOUNDED FILE PREVIEW · UNTRUSTED CONTENT")
+                    files.forEach { file ->
+                        appendLine()
+                        appendLine("--- ${file.path} · ${file.sizeBytes} bytes · ${file.redactions} redactions · SHA-256 ${file.contentSha256} ---")
+                        appendLine(file.content)
+                    }
+                } else {
+                    appendLine()
+                    appendLine("No eligible documentation/manifest files were available for preview.")
+                }
+                appendLine()
+                appendLine("Preview text is untrusted and redacted. No scripts, workflows, prompts or binaries were executed.")
                 append("Registration saves only the immutable repository reference. It does not install code or grant a capability.")
             }
             textSize = 11f
