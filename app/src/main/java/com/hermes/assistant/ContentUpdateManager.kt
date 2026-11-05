@@ -4,10 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.util.Base64
@@ -198,37 +195,6 @@ internal class ContentUpdateManager(private val context: Context) {
         val started = System.nanoTime()
         file.readBytes()
         return ((System.nanoTime() - started) / 1_000_000L).coerceAtLeast(0L)
-    }
-
-    private fun readHttpsText(url: String, maxBytes: Int): String =
-        String(readHttpsBytes(url, maxBytes, allowApi = true), Charsets.UTF_8)
-
-    private fun readHttpsBytes(url: String, maxBytes: Int, allowApi: Boolean = false): ByteArray {
-        val trusted = if (allowApi) url == RELEASES_API else ContentUpdateReleaseLocator.isTrustedPackageUrl(url)
-        require(trusted) { "Unapproved content update endpoint" }
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15_000
-            readTimeout = 60_000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Vyom-Android")
-            setRequestProperty("Accept", if (allowApi) "application/vnd.github+json" else "application/octet-stream")
-        }
-        try {
-            if (connection.responseCode !in 200..299) throw IllegalStateException("Content update HTTP ${connection.responseCode}")
-            val output = ByteArrayOutputStream()
-            connection.inputStream.use { input ->
-                val buffer = ByteArray(8192)
-                var total = 0
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    total += count
-                    require(total <= maxBytes) { "Content update response exceeds size limit" }
-                    output.write(buffer, 0, count)
-                }
-            }
-            return output.toByteArray()
-        } finally { connection.disconnect() }
     }
 
     private class ContentUpdateCrashHandler(
