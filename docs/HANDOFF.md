@@ -1072,3 +1072,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - HANDOFF commit `845c2e0f1e87ed997ceae6605ddcb6622c8ed076` received Debug `42043388184` and Full CI `42043388220`. Attempt 1 failed; failed jobs were retried as attempt 2 and failed again. Both attempts report empty job steps; attempt-2 job step queries also returned `[]`. No Gradle or test command ran.
 - These results do not prove source failure or success. Do not modify workflow/signing configuration on this evidence. The repository-specialist routing tests remain unexecuted until GitHub allocates a runner or a trusted local Gradle environment is available.
 - Repository remains private as verified by repository metadata. No APK/artifact generated or delivered; no physical-device PASS.
+
+
+### Automatic read-only discovery launch from RUN NEXT — 2026-11-05
+
+- Extended the repository handoff so a Factory-origin proposal form automatically starts the existing read-only `FIND RELEVANT SOURCE FILES` request after the form is shown. It still only lists existing allowlisted paths at an exact base SHA; the owner chooses the path, then separately requests a patch, reviews the full diff and explicitly taps OPEN PR.
+- Manual/non-Factory self-change forms do not auto-start discovery. Existing sensitive-content rejection, exact-tree/path validation, stale-SHA checks, one-file boundary and `ownerReviewedDiff` gate remain unchanged.
+- Source commit: `d831f7d9472611316dfaba945d840f11cb18d332`; follow-up placement correction: `b6eb25212c0d856227a786cc085961407f33e689`.
+- Exact source SHA `b6eb25212c0d856227a786cc085961407f33e689`: Debug `42043781449` and Full CI `42043781547` both failed; job-step queries returned empty arrays. No Gradle/test command ran. No source PASS/FAIL inferred.
+- Current limitations remain: no automatic path choice, no automatic patch acceptance, no auto-merge/install; external model discovery may be unavailable if owner credentials are missing or the privacy gate rejects the complaint. A failed or cancelled proposal remains eligible for a later retry unless the owner explicitly deferred it.
