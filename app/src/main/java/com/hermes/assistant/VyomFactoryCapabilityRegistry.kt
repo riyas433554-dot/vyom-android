@@ -67,9 +67,10 @@ internal class VyomFactoryCapabilityRegistry(
     init {
         val indexed = LinkedHashMap<String, Capability>()
         capabilities.forEach { capability ->
-            require(indexed.putIfAbsent(capability.id, capability) == null) {
+            require(!indexed.containsKey(capability.id)) {
                 "Duplicate capability ID: ${capability.id}"
             }
+            indexed[capability.id] = capability
         }
         byId = indexed.toMap()
     }
