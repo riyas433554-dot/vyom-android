@@ -193,19 +193,8 @@ jobs:
           path: output/*
           if-no-files-found: error
           retention-days: 30
-      # APK artifacts are published before this optional lifecycle suite; it cannot gate APK delivery.
-      - name: Run deferred Android foreground lifecycle instrumentation
-        continue-on-error: true
-        timeout-minutes: 15
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: gradle connectedDebugAndroidTest --no-daemon
+      # Foreground lifecycle instrumentation is optional and runs separately from the APK-gating Debug workflow.
+      # Keeping emulator startup out of this job prevents a stalled emulator action from blocking release publication.
       - name: Publish signed CI update release
         if: github.event_name == 'push' && steps.signing.outputs.available == 'true'
         uses: softprops/action-gh-release@v2
