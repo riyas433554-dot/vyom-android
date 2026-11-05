@@ -223,11 +223,11 @@ internal class VyomFactoryRepositoryClient(
         private const val MAX_PREVIEW_TOTAL_BYTES = 160 * 1024
         private val COMMIT_PATTERN = Regex("^[a-f0-9]{40}$")
         private val REDACTION_PATTERNS = listOf(
-            Regex("-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\\\\s\\\\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----"),
-            Regex("\\\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\\\\b"),
-            Regex("\\\\bAKIA[0-9A-Z]{16}\\\\b"),
-            Regex("\\\\bsk-[A-Za-z0-9_-]{20,}\\\\b"),
-            Regex("(?i)((?:api[_-]?key|access[_-]?token|client[_-]?secret|password|secret)\\\\s*[:=]\\\\s*[\\\"']?)[^\\\"'\\\\s,;]{8,}")
+            Regex("-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----"),
+            Regex("\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\\b"),
+            Regex("\\bAKIA[0-9A-Z]{16}\\b"),
+            Regex("\\bsk-[A-Za-z0-9_-]{20,}\\b"),
+            Regex("(?i)((?:api[_-]?key|access[_-]?token|client[_-]?secret|password|secret)\\s*[:=]\\s*[\\\"']?)[^\\\"'\\s,;]{8,}")
         )
     }
 }
@@ -235,7 +235,7 @@ internal class VyomFactoryRepositoryClient(
 private object VyomFactoryRepositoryIntakePath {
     fun isSafe(path: String): Boolean =
         path.isNotBlank() && path.length <= 500 && !path.startsWith("/") &&
-            !path.contains('\\\\') &&
+            !path.contains('\\') &&
             !path.split('/').any { it.isBlank() || it == "." || it == ".." } &&
             path.none { it.isISOControl() }
 }
