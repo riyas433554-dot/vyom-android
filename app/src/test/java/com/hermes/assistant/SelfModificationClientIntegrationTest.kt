@@ -20,7 +20,8 @@ class SelfModificationClientIntegrationTest {
                 client.createProposal(
                     token, "Change protected behavior",
                     "app/src/main/java/com/hermes/assistant/MainActivity.kt",
-                    "package com.hermes.assistant"
+                    "package com.hermes.assistant",
+                    ownerReviewedDiff = true
                 )
             }
             assertEquals(0, server.requestCount)
