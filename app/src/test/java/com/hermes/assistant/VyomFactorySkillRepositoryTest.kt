@@ -37,6 +37,19 @@ class VyomFactorySkillRepositoryTest {
         }
     }
 
+    @Test fun reimportCannotSilentlyOverwriteAnInstalledSkill() {
+        val root = createTempDir(prefix = "vyom-skill-no-overwrite-")
+        try {
+            val store = VyomFactorySkillStore(root)
+            store.install(preview(), ownerConfirmed = true)
+            assertRejected { store.install(preview().copy(commitSha = "b".repeat(40)), ownerConfirmed = true) }
+            assertEquals("a".repeat(40),
+                JSONObject(File(root, "owner_example/source.json").readText()).getString("commit_sha"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun diagnosticsAuditInstalledSkillSourceAndDetectsContentTampering() {
         val root = createTempDir(prefix = "vyom-skill-audit-")
         try {
