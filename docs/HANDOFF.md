@@ -833,3 +833,6 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Verification status at documentation time: source and tests are committed, but no Gradle test or exact-head CI result has yet been observed. Do not claim this fix works or deliver an APK until Full CI and Debug CI succeed on the exact final branch tip.
 - Next: inspect exact branch tip and workflow runs, fix any real CI failures from logs, then owner installs the new signed candidate and reruns RUN ALL CHECKS, CHECK FOR UPDATES, and CHECK NO-APK CONTENT UPDATES. Share only non-secret error text and request ID. If response says \`Not Found\` despite the confirmed token settings, correlate the request ID with GitHub Support / audit evidence; do not weaken authentication or signature checks.
 - No Android \`main\`, Render, Hermes backend, production Supabase, token rotation, APK delivery, or physical-device PASS claim.
+
+
+- Diagnostic follow-up correction: allow GitHub request IDs containing colon separators and add a regression assertion. Commits: `42de6e5ac4619f37589dc30acc79933dcbe8a6d5`, `e48f79e8dbff573ba87230e4271925101ca5ec27`. The implementation remains pending exact-head CI.
