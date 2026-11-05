@@ -22,6 +22,12 @@ internal class VyomFactoryTaskPlanner(
         ) : Plan()
 
         data class NeedsOwnerClarification(val reason: String) : Plan()
+
+        /** Repository changes are prepared as proposals, never executed as a runner action. */
+        data class NeedsOwnerReview(
+            val domain: VyomFactoryCapabilityRegistry.Domain,
+            val reason: String
+        ) : Plan()
     }
 
     fun plan(
@@ -37,6 +43,11 @@ internal class VyomFactoryTaskPlanner(
             when {
                 available.isNotEmpty() ->
                     Plan.CapabilityCandidates(classification.domain, available)
+                matching.isEmpty() && classification.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY ->
+                    Plan.NeedsOwnerReview(
+                        classification.domain,
+                        "repository_proposal_requires_owner_review"
+                    )
                 matching.isEmpty() ->
                     Plan.BlockedCapability(classification.domain, "no_registered_capability")
                 else ->
