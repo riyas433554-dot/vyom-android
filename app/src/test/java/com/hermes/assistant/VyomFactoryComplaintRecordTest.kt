@@ -31,38 +31,41 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("execution", item.area)
     }
 
-    @Test fun genericComplaintPrefixDoesNotInventFactoryScope() {
+    @Test fun genericComplaintPrefixRegistersMemoryWithoutInventingFactoryContext() {
         val extracted = VyomFactoryComplaintPrefixPolicy.extract("complaint: memory forgot my saved project")
-        try {
-            VyomFactoryComplaintRecord.fromFreeText("vyom_chat", extracted!!)
-            throw AssertionError("Generic complaint prefix must not create Factory scope")
-        } catch (_: IllegalArgumentException) {
-            // Expected: generic product complaints stay outside Factory.
+        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", extracted!!)
+        assertEquals("memory", item.area)
+        assertEquals("P1", item.priority)
+    }
+
+    @Test fun complaintsFromEveryRequestedProductAreaAreAccepted() {
+        val cases = listOf(
+            "Control engine cannot tap a visible button" to "control",
+            "Android control cannot read the current screen" to "android_control",
+            "Memory forgot my saved project" to "memory",
+            "Design layout spacing is broken" to "design",
+            "Personality tone is wrong" to "personality",
+            "Repo GitHub URL import fails" to "repo",
+            "Skills cannot load a repository skill" to "skill",
+            "Schedule recurring task did not run" to "schedule",
+            "Voice Hinglish STT drops words" to "voice",
+            "Update download verification failed" to "update",
+            "WhatsApp message send failed" to "whatsapp",
+            "Play Store install flow selected the wrong app" to "play_store",
+            "Floating orb does not appear over another app" to "floating_orb"
+        )
+        cases.forEach { (complaint, expectedArea) ->
+            val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
+            assertEquals(complaint, expectedArea, item.area)
         }
     }
 
-    @Test fun factoryPrefixCannotSmuggleWhatsappOrPlayStoreRequests() {
-        listOf(
-            "factory: WhatsApp message send failed",
-            "factory complaint: Play Store install failed"
-        ).forEach { command ->
-            val extracted = VyomFactoryComplaintPrefixPolicy.extract(command)!!
-            try {
-                VyomFactoryComplaintRecord.fromFreeText("vyom_chat", extracted)
-                throw AssertionError("Out-of-scope product request was accepted: $command")
-            } catch (_: IllegalArgumentException) {
-                // Expected: explicit prefix does not override product-scope exclusions.
-            }
-        }
-    }
-
-    @Test fun factoryResetIsNotMistakenForFactoryWorkflowContext() {
-        try {
-            VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Factory reset is failing")
-            throw AssertionError("Android factory reset must not enter Vyom Factory")
-        } catch (_: IllegalArgumentException) {
-            // Expected: the word factory alone is not sufficient scope evidence.
-        }
+    @Test fun priorityPolicyKeepsOwnerTiers() {
+        assertEquals("P0", VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Control engine tap action fails").priority)
+        assertEquals("P0", VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Update installation verification failed").priority)
+        assertEquals("P1", VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Memory forgot a project").priority)
+        assertEquals("P1", VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Design layout spacing is broken").priority)
+        assertEquals("P2", VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Voice playback failed").priority)
     }
 
     @Test fun factoryUiIssueIsRecognizedAsFactoryWork() {
@@ -70,35 +73,9 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("ui", item.area)
     }
 
-    @Test fun standaloneWhatsappAndPlayStoreRequestsAreRejected() {
-        listOf(
-            "Play Store se app install nahi ho raha",
-            "WhatsApp message send nahi ho raha"
-        ).forEach { complaint ->
-            try {
-                VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
-                throw AssertionError("Out-of-scope complaint was accepted: $complaint")
-            } catch (_: IllegalArgumentException) {
-                // Expected: standalone product features do not enter Factory.
-            }
-        }
-    }
-
-    @Test fun standaloneMemoryDesignVoiceAndSkillRequestsAreRejected() {
-        listOf(
-            "memory forgot my saved project",
-            "design layout spacing is broken",
-            "voice Hinglish STT drops words",
-            "skill prompt wording is incorrect",
-            "assistant tone is wrong"
-        ).forEach { complaint ->
-            try {
-                VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
-                throw AssertionError("Out-of-scope complaint was accepted: $complaint")
-            } catch (_: IllegalArgumentException) {
-                // Expected: Factory is not the general Vyom product backlog.
-            }
-        }
+    @Test fun factoryResetComplaintIsRegisteredAsAndroidControlInsteadOfRejected() {
+        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Factory reset flow is failing on Android")
+        assertEquals("android_control", item.area)
     }
 
     @Test fun internalTaskFailureAndDiagnosticsSourcesRemainTrusted() {
@@ -108,15 +85,10 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("execution", diagnostics.area)
     }
 
-    @Test fun genericControlAndUnknownComplaintsAreRejected() {
-        listOf("tap button does not work", "strange unexpected behavior").forEach { complaint ->
-            try {
-                VyomFactoryComplaintRecord.fromFreeText("vyom_chat", complaint)
-                throw AssertionError("Non-Factory complaint was accepted: $complaint")
-            } catch (_: IllegalArgumentException) {
-                // Expected: only Factory workflow defects are registered.
-            }
-        }
+    @Test fun unclassifiedGenericComplaintFallsBackToOtherAndIsStillRegistered() {
+        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "My Vyom feature has an unexpected problem")
+        assertEquals("other", item.area)
+        assertEquals("P3", item.priority)
     }
 
     @Test fun markdownContainsEveryRequiredRegisterFieldAndOriginalText() {
