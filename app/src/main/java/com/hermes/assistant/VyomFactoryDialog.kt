@@ -558,7 +558,7 @@ internal class VyomFactoryDialog(
         status.text = "Loading open Factory issues for screenshot attachment…"
         worker.execute {
             try {
-                val tasks = client.listTasks().filter { it.state == "open" }
+                val tasks = client.listTasks().filter { it.state == "open" && it.metadata.status != "paused" }
                 main.post {
                     if (!dialog.isShowing) return@post
                     busy = false

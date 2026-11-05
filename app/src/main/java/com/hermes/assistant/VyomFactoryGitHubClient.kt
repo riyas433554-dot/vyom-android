@@ -157,7 +157,7 @@ internal class VyomFactoryGitHubClient(
         }
         val task = listTasks().firstOrNull { it.number == issueNumber }
             ?: throw IllegalArgumentException("Factory issue #$issueNumber no longer exists")
-        require(task.state == "open") { "Screenshot evidence can only be attached to an open issue" }
+        require(task.state == "open" && task.metadata.status != "paused") { "Screenshot evidence can only be attached to an active open issue" }
 
         val bytes = file.readBytes()
         val mime = when (file.extension.lowercase()) {
