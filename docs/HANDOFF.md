@@ -789,3 +789,10 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Owner reports the existing fine-grained token permissions have now been updated. Next owner probe: RUN ALL CHECKS, CHECK FOR UPDATES, CHECK NO-APK CONTENT UPDATES. Capture only non-secret result text/request ID. Do not install an APK during update-channel verification.
 - Play Store parser source fix is included in this exact SHA; physical test still requires the canonical phrase `Install Godot from Play Store`, Accessibility, MASTER APP CONTROL, Play Store App access, and NVIDIA planner key. Verify installed package evidence before marking PASS.
 - No APK delivered. No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+
+### Shared GitHub token permission caveat — 2026-11-05
+
+- The current app setting `github_proposal_token` is reused by the private release/update client and Factory GitHub write workflows. Therefore Contents: Read-only is sufficient for release discovery/download reads but is insufficient for Factory operations that write repository content (for example explicit screenshot Attach) or create/update reviewed code proposals.
+- Do not tell the owner that Read-only preserves every Factory capability. For the current single-token implementation, preserving both update reads and Factory repository writes requires Contents: Read and write, plus the separately required Issues/Pull requests permissions. Alternatively, implement distinct least-privilege update and Factory-write credentials as a separate reviewed change; do not assume that split exists today.
+- The owner has just updated the token to Read-only per the update-404 diagnostic. First test the update probes. Before claiming full Factory write readiness, restore Contents: Read and write on that same token (or wait for a separately implemented credential split) and verify a harmless authorized write probe. Never expose the token.
