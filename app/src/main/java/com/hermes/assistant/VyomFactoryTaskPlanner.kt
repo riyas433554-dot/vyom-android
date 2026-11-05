@@ -8,7 +8,7 @@ package com.hermes.assistant
  */
 internal class VyomFactoryTaskPlanner(
     private val classifier: (VyomFactoryGitHubClient.Task) -> VyomFactoryTaskClassifier.Result =
-        VyomFactoryTaskClassifier::classify
+        { task -> VyomFactoryTaskClassifier.classify(task) }
 ) {
     sealed class Plan {
         data class CapabilityCandidates(
