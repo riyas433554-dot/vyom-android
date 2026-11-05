@@ -36,7 +36,7 @@ class GitHubReleaseAssetPolicyTest {
             """{"message":"Not Found","documentation_url":"https://docs.github.com/private","token":"must-not-appear"}""",
             "REQ_123:Abc"
         )
-        assertEquals("GitHub release API HTTP 404: Not Found (request ID REQ_123-Abc)", diagnostic)
+        assertEquals("GitHub release API HTTP 404: Not Found (request ID REQ_123:Abc)", diagnostic)
         assertFalse(diagnostic.contains("documentation_url"))
         assertFalse(diagnostic.contains("must-not-appear"))
     }
