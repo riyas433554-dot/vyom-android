@@ -66,19 +66,13 @@ From GPT, Claude and Codex, create a complaint through each agent's connected Gi
 - No new token or secret is requested at this stage.
 - Do not change Android main, Render, Hermes backend or production Supabase.
 
-## OWNER ACTION NEEDED — make the complaint/evidence repository private
+## Repository privacy — VERIFIED PRIVATE (2026-11-05)
 
-**OWNER ACTION NEEDED**
+GitHub repository metadata currently reports `visibility=private`. Do not repeat the visibility-change steps. Recheck only if GitHub later reports a different visibility.
 
-The current repository is public. The requested screenshot workflow must use a private repository before any remote image attachment is enabled.
+**Remaining owner action:** confirm the saved app token still has access to this private repository with Issues read/write and Contents read/write permissions (Contents write is required only when the owner taps Attach). Also confirm GitHub Actions are permitted under **Settings → Actions → General**. Do not paste the token into chat.
 
-1. Open https://github.com/riyas433554-dot/vyom-android/settings.
-2. Open **General** → scroll to **Danger Zone** → **Change repository visibility**.
-3. Select **Make private** and confirm the repository name when GitHub asks.
-4. Verify the repository header shows **Private**.
-5. Open **Settings → Actions → General** and confirm GitHub Actions are permitted for this repository.
-6. In GitHub → Settings → Developer settings → Personal access tokens, confirm the app token still has access to this private repository with Issues read/write and Contents read/write permissions (Contents write is required only when the owner taps Attach). Do not paste the token into chat.
-7. Run the Termux smoke test below and confirm issue creation still works.
+Then run the Termux smoke test below and confirm issue creation still works.
 
 **Screenshot handling contract (source-wired; device acceptance pending):**
 - Android Share → Vyom accepts one PNG/JPEG/WebP image up to 10 MiB and copies it to app-private `filesDir/factory-evidence`; the Factory panel shows a sampled preview.
@@ -86,13 +80,11 @@ The current repository is public. The requested screenshot workflow must use a p
 - The owner selects an exact active issue and explicitly taps **Attach** in a confirmation dialog. The app checks repository privacy before the issue lookup and again immediately before the Contents API write; a public repository is rejected before upload.
 - After explicit Attach, the image is written under `.factory-evidence/issue-<n>/` on `feature/memory-intelligence` and linked in the exact issue comment with SHA-256 and commit SHA. No `main` branch, Render, backend or production Supabase is touched.
 - The local file is deleted only after the issue comment is confirmed. Upload/comment failure keeps the local file; if the image upload succeeded but comment creation failed, the UI shows the link and disables duplicate upload. No silent retry.
-- This uses GitHub Contents write permission and stores binary evidence in the private repo branch. Do not enable real uploads until the owner has made the repository private. Device verification remains mandatory.
+- This uses GitHub Contents write permission and stores binary evidence in the private repo branch. Repository privacy is now verified; real Attach remains unaccepted until the token permission and physical-phone tests pass.
 
-## OWNER ACTION NEEDED — protect issue visibility before real complaints
+## Issue visibility — PRIVATE REPOSITORY VERIFIED
 
-**OWNER ACTION NEEDED**
-
-The canonical issue register contains complaint titles and descriptions. Complete the private-repository steps above before registering real device/user details. Until GitHub confirms the repository is private, use only generic, non-sensitive test complaints. Never paste credentials, OTPs, private messages or personal screenshots into issue bodies.
+The canonical issue register contains complaint titles and descriptions. GitHub currently reports this repository as private. Continue to keep issue bodies sanitized: never paste credentials, OTPs, private messages or personal screenshots into issue bodies.
 
 ## OWNER ACTION NEEDED — use the Factory complaint-to-code proposal flow (after the matching APK passes CI)
 
