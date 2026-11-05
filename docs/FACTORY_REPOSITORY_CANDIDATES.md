@@ -210,3 +210,9 @@ Pinned source inspection (not a build or device test):
 - `VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android`, `JarvisAccessibilityService.kt` at blob `332fd6aecc83a97b912e6a02a9f126f2a3a80d88`: exposes static click/type/scroll/back/home helpers and package/text wait loops. In this inspected service class, `onInterrupt()` only logs and there is no visible global STOP/cancellation epoch or per-action approval gate. This does not prove the rest of the repository lacks those features, but this service alone is not safe to transplant as Vyom's control core.
 - Recommendation: study and selectively adapt Anaay's STOP/cancellation, stale-observation and risk-gate design; do not copy its entire codebase. Do not replace Vyom's existing event/revision-aware executor with the simpler JARVIS-OS service.
 - Source inspection is static. No repository code was executed, no build was run for these external repositories, and no phone behavior was tested.
+
+### Additional source/test correction
+
+- Letta's README points active development to [letta-ai/letta-code](https://github.com/letta-ai/letta-code), verified Apache-2.0. Prefer inspecting that repository over the historical `letta-ai/letta` wrapper/archive.
+- Anaay JARVIS `OperatorCoreTest.kt` at blob `26e37d2613c744bbf6d2976b5961db5f988fda64` contains explicit tests for STOP state, stale-observation retries only when the same control remains, rejection when control meaning changes/disappears, cycle detection, duplicate-message protection, R2 approval and R3 always requiring a human. This test suite is the strongest design reference identified so far.
+- JARVIS-OS inspected service has a much thinner direct action surface; no equivalent STOP/risk-gate tests were identified in the inspected service class. Do not infer the entire repo has no policy layer.
