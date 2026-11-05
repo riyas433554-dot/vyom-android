@@ -19,7 +19,7 @@ class VyomFactoryComplaintRecordTest {
     }
 
     @Test fun factoryContentUpdateAndRollbackRemainInScope() {
-        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Factory A18 signed content update rollback failed")
+        val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "Vyom Factory A18 signed content update rollback failed")
         assertEquals("update", item.area)
         assertEquals("P0", item.priority)
     }
