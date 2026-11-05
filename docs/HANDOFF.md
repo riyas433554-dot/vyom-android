@@ -1173,3 +1173,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - No third-party source was copied into Vyom. No external code was executed or built. This remains static source/test inspection only.
 - Latest source/test-reference note commit: `94853b197d885b728736c933dda0383a6e629172`. Exact-head CI has not yet been checked for this latest commit. Prior runs `42056284551` (Debug) and `42056284756` (Full CI) were running on real runners when last inspected; no final outcome was recorded.
 - Next: check exact-head CI; then connect repository source references to existing Factory issue/journal flow, preserving the single canonical queue and owner approval. Do not auto-register every candidate or execute imported source.
+
+### CI compile blockers found and corrected — 2026-11-05
+
+- Real Debug/Full CI logs for runs `42056284551` and `42056284756` exposed two Kotlin compile blockers:
+  1. `SelfModificationClient.kt` path-discovery system prompt had malformed quote escaping. Replaced it with a Kotlin triple-quoted literal (commit `77a2e577651ba7988b9ca2e0ceb188fb99265099`).
+  2. `VyomFactoryRepositoryReviewDialog.kt` called a nonexistent four-argument `AlertDialog.setButton` overload. Removed the redundant call; the existing positive label already says BLOCKED and the button is disabled after show (commit `b9e87047b783c2b9efea083cf5ce0ef94663447d`).
+- Both earlier CI jobs reached `:app:compileDebugKotlin` on real runners and failed on these exact compiler errors; no unit tests or APK artifacts were produced by those runs. Do not report them as test failures in the new repository-catalogue test.
+- A new red-test commit `25efc41381b733b83cbfb9f2da69e6123dedbcee` added `VyomFactoryRepositoryCatalogTest`; it specifies 17 curated entries, canonical/unique URLs, seven security-reference-only entries, license-review flags, and Android/memory track discovery. The catalogue production class is intentionally not added yet.
+- Next: run CI after the compile fixes. Once compilation reaches the new test and fails specifically because `VyomFactoryRepositoryCatalog` is missing, implement the minimum catalogue model, rerun, and then expose it in the Factory UI.
