@@ -187,7 +187,7 @@ internal class VyomFactoryGitHubClient(
             commitSha.matches(Regex("^[a-f0-9]{40}$"))) {
             "Screenshot upload response did not include a verified repository URL and commit"
         }
-        val comment = "Owner attached screenshot evidence after explicitly tapping Attach: ![Factory screenshot]($url)\\nSHA-256: $hash\\nEvidence commit: $commitSha"
+        val comment = "Owner attached screenshot evidence after explicitly tapping Attach: ![Factory screenshot]($url)\nSHA-256: $hash\nEvidence commit: $commitSha"
         val commentRecorded = runCatching { addEvent(issueNumber, comment) }.isSuccess
         return ScreenshotAttachment(url, commitSha, hash, commentRecorded)
     }
