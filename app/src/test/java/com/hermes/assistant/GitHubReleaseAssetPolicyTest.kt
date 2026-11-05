@@ -30,6 +30,28 @@ class GitHubReleaseAssetPolicyTest {
         }
     }
 
+    @Test fun includesOnlyGitHubErrorMessageAndRequestIdInDiagnostics() {
+        val diagnostic = GitHubReleaseAssetPolicy.httpErrorMessage(
+            404,
+            """{"message":"Not Found","documentation_url":"https://docs.github.com/private","token":"must-not-appear"}""",
+            "REQ_123-Abc"
+        )
+        assertEquals("GitHub release API HTTP 404: Not Found (request ID REQ_123-Abc)", diagnostic)
+        assertFalse(diagnostic.contains("documentation_url"))
+        assertFalse(diagnostic.contains("must-not-appear"))
+    }
+
+    @Test fun boundsAndSanitizesGitHubErrorDetails() {
+        val diagnostic = GitHubReleaseAssetPolicy.httpErrorMessage(
+            403,
+            """{"message":"forbidden\\nwith control"}""",
+            "bad request id"
+        )
+        assertEquals("GitHub release API HTTP 403: forbidden with control", diagnostic)
+        assertTrue(GitHubReleaseAssetPolicy.httpErrorMessage(404, "", null)
+            .startsWith("GitHub release API HTTP 404"))
+    }
+
     @Test fun acceptsOnlyHttpsGitHubReleaseAssetRedirectHosts() {
         assertTrue(GitHubReleaseAssetPolicy.isTrustedAssetRedirect(
             "https://release-assets.githubusercontent.com/github-production-release-asset/abc"
