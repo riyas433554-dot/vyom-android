@@ -938,3 +938,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - FIFO implementation and regression tests are recorded above. Capability-dispatch runner regression is also recorded above. All newly added tests remain unexecuted because GitHub Actions runner provisioning is failing before any job step; no Gradle PASS is claimed.
 - CI evidence on preceding source tip `df3f66d4f1a8d0294af0ad5ea2d0d3e20e124c15`: Debug run `42030359440` and Full CI `42030359545` both fail with `runner_id=0`, zero steps; reruns also failed before runner startup. The current tip after classifier and this handoff must be checked again when GitHub runners are available.
 - Next: integrate classification with capability discovery as a typed planning result (READY / NEEDS_OWNER / BLOCKED_CAPABILITY), without dispatching unsupported work; then sequential scheduler drain must continue after safely recording blocked tasks. Preserve all owner-approval and verification gates.
+
+
+## Universal Factory Step 3 — capability-aware planning boundary (2026-11-05)
+
+- Added planner tests for: candidate discovery limited to the classified domain; no registered specialist becomes a typed capability block; unavailable specialist preserves its diagnostic reason; unknown request remains owner clarification. Test commit: `3972f2d99473038068cbfed239f63e44f027d146`.
+- Added `VyomFactoryTaskPlanner` (commit `0d6ef3659a92ce76af0a7ecdb5f322c56d630a00`). It composes the conservative classifier with the existing capability registry and returns one of `CapabilityCandidates`, `BlockedCapability`, or `NeedsOwnerClarification`. Candidate discovery is domain-scoped and deterministic.
+- Safety boundary: candidate discovery is NOT execution readiness. Planner intentionally does not invent an operation, arguments, plan DAG, or invoke adapters. A domain with no registered capability is explicitly blocked; unavailable descriptors preserve their reason. The only currently registered production capability remains Android media volume.
+- Tests remain unexecuted due to GitHub Actions jobs failing before runner startup (`runner_id=0`, empty steps); no Gradle/test pass is claimed.
+- Current code tip before this handoff refresh: `0d6ef3659a92ce76af0a7ecdb5f322c56d630a00`. Next: wire the planner into the existing issue execution path as a non-mutating triage stage, record blocked/clarification outcomes in the canonical issue journal/comments, and ensure the scheduler continues to the next eligible FIFO issue. Do not silently run candidate-only plans.
