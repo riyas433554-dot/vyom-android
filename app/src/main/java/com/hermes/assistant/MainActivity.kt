@@ -766,14 +766,11 @@ class MainActivity : Activity() {
                                                 try {
                                                     val proposalClient = SelfModificationClient()
                                                     val proposal = proposalClient.createProposal(token, draft)
-                                                    val issueCommentSaved = linkedFactoryIssueNumber?.let { issueNumber ->
-                                                        runCatching {
-                                                            VyomFactoryGitHubClient(token).addEvent(
-                                                                issueNumber,
-                                                                "Code-fix proposal opened: ${proposal.pullRequestUrl}. Exact-commit CI is pending; owner review is required; no merge or install has occurred."
-                                                            )
-                                                        }.isSuccess
-                                                    } ?: true
+                                                    val issueCommentSaved = ProposalIssueAudit.recordIfLinked(
+                                                        VyomFactoryGitHubClient(token),
+                                                        linkedFactoryIssueNumber,
+                                                        "Code-fix proposal opened: ${proposal.pullRequestUrl}. Exact-commit CI is pending; owner review is required; no merge or install has occurred."
+                                                    )
                                                     runOnUiThread {
                                                         logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
                                                         selfChangeNotice.text = if (issueCommentSaved) {
@@ -784,14 +781,11 @@ class MainActivity : Activity() {
                                                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
                                                     }
                                                     val verifiedSha = proposalClient.waitForProposalCi(token, proposal.branch)
-                                                    val issueCiCommentSaved = linkedFactoryIssueNumber?.let { issueNumber ->
-                                                        runCatching {
-                                                            VyomFactoryGitHubClient(token).addEvent(
-                                                                issueNumber,
-                                                                "Both required CI workflows passed for exact proposal commit ${verifiedSha}. The PR is still unmerged; owner review/merge and a separate signed release are required before installation."
-                                                            )
-                                                        }.isSuccess
-                                                    } ?: true
+                                                    val issueCiCommentSaved = ProposalIssueAudit.recordIfLinked(
+                                                        VyomFactoryGitHubClient(token),
+                                                        linkedFactoryIssueNumber,
+                                                        "Both required CI workflows passed for exact proposal commit ${verifiedSha}. The PR is still unmerged; owner review/merge and a separate signed release are required before installation."
+                                                    )
                                                     runOnUiThread {
                                                         selfChangeNotice.text = if (issueCiCommentSaved) {
                                                             "CI passed for ${verifiedSha.take(12)}. PR is unmerged; owner review/merge and a separate signed release are required. No APK install started."
@@ -800,14 +794,11 @@ class MainActivity : Activity() {
                                                         }
                                                     }
                                                 } catch (error: Exception) {
-                                                    val failureCommentSaved = linkedFactoryIssueNumber?.let { issueNumber ->
-                                                        runCatching {
-                                                            VyomFactoryGitHubClient(token).addEvent(
-                                                                issueNumber,
-                                                                "Code-fix proposal pipeline did not complete successfully (${error.javaClass.simpleName}). No merge or install was performed; inspect any opened PR/checks before retrying."
-                                                            )
-                                                        }.isSuccess
-                                                    } ?: true
+                                                    val failureCommentSaved = ProposalIssueAudit.recordIfLinked(
+                                                        VyomFactoryGitHubClient(token),
+                                                        linkedFactoryIssueNumber,
+                                                        "Code-fix proposal pipeline did not complete successfully (${error.javaClass.simpleName}). No merge or install was performed; inspect any opened PR/checks before retrying."
+                                                    )
                                                     runOnUiThread {
                                                         selfChangeNotice.text = if (failureCommentSaved) {
                                                             "Proposal pipeline failed (${error.javaClass.simpleName}); originating Factory complaint updated. No merge or install occurred."
