@@ -4,7 +4,14 @@ package com.hermes.assistant
 internal object VyomFactoryDrainPolicy {
     fun shouldContinue(outcome: VyomFactoryExecutionRunner.Outcome): Boolean = when (outcome) {
         is VyomFactoryExecutionRunner.Outcome.Succeeded -> true
-        is VyomFactoryExecutionRunner.Outcome.Failed -> outcome.category != "stopped"
+        is VyomFactoryExecutionRunner.Outcome.Failed -> outcome.category !in setOf(
+            "stopped",
+            "permission_denied",
+            "rate_limited",
+            "server_unavailable",
+            "network_timeout",
+            "github_rejected"
+        )
         is VyomFactoryExecutionRunner.Outcome.Skipped ->
             outcome.reason != "stopped_before_execution" && outcome.reason != "stopped"
         is VyomFactoryExecutionRunner.Outcome.Fenced,
