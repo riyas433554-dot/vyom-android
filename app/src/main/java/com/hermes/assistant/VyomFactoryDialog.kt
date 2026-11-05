@@ -22,6 +22,7 @@ import android.widget.TextView
 import android.os.Handler
 import android.os.Looper
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
@@ -36,7 +37,8 @@ internal class VyomFactoryDialog(
     private val onOpenSettings: () -> Unit,
     private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {},
     private val onRunnerFailure: (String) -> Unit = {},
-    private val pendingScreenshot: File? = null
+    private val pendingScreenshot: File? = null,
+    private val onWorkerFailure: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int) = (value * density).toInt()
@@ -642,6 +644,9 @@ internal class VyomFactoryDialog(
         }
     }
 
+    private fun shouldReportSkillWorkerFailure(error: Exception): Boolean =
+        error is IOException || Regex("HTTP 5[0-9]{2}").containsMatchIn(error.message.orEmpty())
+
     private fun discoverSkillRepositories() {
         if (busy) return
         val query = EditText(activity).apply {
@@ -682,6 +687,9 @@ internal class VyomFactoryDialog(
                             if (!dialog.isShowing) return@post
                             busy = false
                             status.text = "Skill discovery failed · ${error.javaClass.simpleName}"
+                            if (shouldReportSkillWorkerFailure(error)) {
+                                onWorkerFailure("skill_repository", "search:$term", error.javaClass.simpleName)
+                            }
                         }
                     }
                 }
@@ -720,6 +728,9 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     busy = false
                     status.text = "Skill inspection rejected · ${error.message?.take(140) ?: error.javaClass.simpleName}"
+                    if (shouldReportSkillWorkerFailure(error)) {
+                        onWorkerFailure("skill_repository", "inspect:${candidate.fullName}", error.javaClass.simpleName)
+                    }
                 }
             }
         }
