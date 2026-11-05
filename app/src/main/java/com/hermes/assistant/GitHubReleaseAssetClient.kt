@@ -24,7 +24,7 @@ internal class GitHubReleaseAssetClient(
         }
         try {
             val code = connection.responseCode
-            if (code !in 200..299) throw IllegalStateException("GitHub release API HTTP $code")
+            if (code !in 200..299) throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(\n                code, readErrorBody(connection), connection.getHeaderField("X-GitHub-Request-Id")\n            ))
             return String(readBounded(connection, maxBytes), Charsets.UTF_8)
         } finally {
             connection.disconnect()
@@ -82,7 +82,7 @@ internal class GitHubReleaseAssetClient(
         if (code in 200..299) return apiConnection
         if (code !in REDIRECT_CODES) {
             apiConnection.disconnect()
-            throw IllegalStateException("GitHub release asset HTTP $code")
+            throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(\n                code, readErrorBody(apiConnection), apiConnection.getHeaderField("X-GitHub-Request-Id"),\n                prefix = "GitHub release asset"\n            ))
         }
         val location = apiConnection.getHeaderField("Location")
         apiConnection.disconnect()
@@ -104,9 +104,27 @@ internal class GitHubReleaseAssetClient(
         }
         if (redirectedCode !in 200..299) {
             redirected.disconnect()
-            throw IllegalStateException("GitHub release asset download HTTP $redirectedCode")
+            throw IllegalStateException(GitHubReleaseAssetPolicy.httpErrorMessage(\n                redirectedCode, readErrorBody(redirected), redirected.getHeaderField("X-GitHub-Request-Id"),\n                prefix = "GitHub release asset download"\n            ))
         }
         return redirected
+    }
+
+    private fun readErrorBody(connection: HttpURLConnection): String {
+        val stream = connection.errorStream ?: return ""
+        return runCatching {
+            stream.use { input ->
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(1024)
+                var total = 0
+                while (total < MAX_ERROR_BODY_BYTES) {
+                    val count = input.read(buffer, 0, minOf(buffer.size, MAX_ERROR_BODY_BYTES - total))
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    total += count
+                }
+                String(output.toByteArray(), Charsets.UTF_8)
+            }
+        }.getOrDefault("")
     }
 
     private fun readBounded(connection: HttpURLConnection, maxBytes: Int): ByteArray {
@@ -129,7 +147,7 @@ internal class GitHubReleaseAssetClient(
     companion object {
         private const val RELEASES_API =
             "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30"
-        private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
+        private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)\n        private const val MAX_ERROR_BODY_BYTES = 8 * 1024
     }
 }
 
@@ -154,6 +172,29 @@ internal object GitHubReleaseAssetPolicy {
         require(clean.isNotEmpty() && clean.length <= 500 &&
             clean.none { it == '\r' || it == '\n' }) { "GitHub token is missing or invalid; save it in Settings" }
         return "Bearer $clean"
+    }
+
+    fun httpErrorMessage(
+        status: Int,
+        responseBody: String,
+        requestId: String?,
+        prefix: String = "GitHub release API"
+    ): String {
+        val rawMessage = Regex("\\\"message\\\"\\s*:\\s*\\\"([^\\\"]{0,500})\\\"")
+            .find(responseBody.take(8 * 1024))?.groupValues?.getOrNull(1).orEmpty()
+        val message = rawMessage
+            .replace("\\\\n", " ")
+            .replace("\\\\r", " ")
+            .replace("\\\\t", " ")
+            .filterNot { it.isISOControl() }
+            .trim()
+            .take(240)
+        val safeRequestId = requestId?.takeIf { it.length in 1..80 && it.all { ch -> ch.isLetterOrDigit() || ch == '-' || ch == '_' } }
+        return buildString {
+            append("$prefix HTTP $status")
+            if (message.isNotBlank()) append(": $message")
+            if (safeRequestId != null) append(" (request ID $safeRequestId)")
+        }
     }
 
     fun isTrustedAssetRedirect(value: String): Boolean = runCatching {
