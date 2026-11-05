@@ -765,20 +765,35 @@ class MainActivity : Activity() {
                 proposalTask.setText(pendingSelfChangeTask)
                 pendingSelfChangeTask = ""
                 form.addView(proposalTask, LinearLayout.LayoutParams(-1, dp(150)))
+                val ownerReviewIssueNumber = pendingSelfChangeIssueNumber
+                var ownerReviewFlowStarted = false
+                var ownerReviewDeferred = false
+                fun deferOwnerReviewIfNeeded() {
+                    if (!ownerReviewFlowStarted && !ownerReviewDeferred) {
+                        ownerReviewDeferred = true
+                        ownerReviewIssueNumber?.let {
+                            recordFactoryProposalRouteEvent(it, VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT)
+                        }
+                    }
+                }
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Create review-only proposal")
                     .setMessage("Vyom can inspect the current feature-branch tree and suggest existing allowlisted Kotlin files. You must choose the file, review the exact minimal diff, and explicitly approve opening a PR. No source changes occur during discovery. GitHub CI runs on the PR; review and Android installation remain explicit. Multi-file proposals are not supported yet.")
                     .setView(form)
                     .setNegativeButton("CANCEL") { _, _ ->
+                        deferOwnerReviewIfNeeded()
                         pendingSelfChangeIssueNumber = null
                     }
                     .setOnCancelListener {
+                        deferOwnerReviewIfNeeded()
                         pendingSelfChangeIssueNumber = null
                     }
                     .setOnDismissListener {
+                        deferOwnerReviewIfNeeded()
                         pendingSelfChangeIssueNumber = null
                     }
                     .setPositiveButton("CREATE PR") { _, _ ->
+                        ownerReviewFlowStarted = true
                         val title = proposalTitle.text.toString().trim()
                         val path = proposalPath.text.toString().trim()
                         val task = proposalTask.text.toString().trim()
@@ -810,6 +825,13 @@ class MainActivity : Activity() {
                                                 try {
                                                     val proposalClient = SelfModificationClient()
                                                     val proposal = proposalClient.createProposal(token, draft, ownerReviewedDiff = true)
+                                                    val ownerReviewRouteSaved = linkedFactoryIssueNumber?.let {
+                                                        recordFactoryProposalRouteEventNow(
+                                                            it,
+                                                            VyomFactorySpecialistRouting.OWNER_REVIEW_OPENED_EVENT,
+                                                            VyomFactoryGitHubClient(token)
+                                                        )
+                                                    } ?: false
                                                     val issueCommentSaved = ProposalIssueAudit.recordIfLinked(
                                                         VyomFactoryGitHubClient(token),
                                                         linkedFactoryIssueNumber,
@@ -817,10 +839,13 @@ class MainActivity : Activity() {
                                                     )
                                                     runOnUiThread {
                                                         logControlAction("Self-change proposal: $path", "PR created: ${proposal.pullRequestUrl}", "app")
-                                                        selfChangeNotice.text = if (issueCommentSaved) {
-                                                            "PR created; linked Factory complaint updated. Waiting for both proposal CI workflows…"
-                                                        } else {
-                                                            "PR created, but Factory issue comment failed. Record PR ${proposal.pullRequestUrl} manually on the complaint."
+                                                        selfChangeNotice.text = when {
+                                                            issueCommentSaved && ownerReviewRouteSaved ->
+                                                                "PR created; linked Factory complaint updated and removed from automatic proposal routing. Waiting for both proposal CI workflows…"
+                                                            issueCommentSaved ->
+                                                                "PR created and issue comment saved, but Factory routing marker failed. The same complaint may be offered again."
+                                                            else ->
+                                                                "PR created, but Factory issue/routing update failed. Record PR ${proposal.pullRequestUrl} manually on the complaint."
                                                         }
                                                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(proposal.pullRequestUrl))) } catch (_: Exception) {}
                                                     }
