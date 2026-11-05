@@ -5,6 +5,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 class ActionEngineTest {
  @Test fun normalConversationBypassesEngine(){ assertNull(ActionEngine.classify("Explain why the sky is blue")); assertNull(ActionEngine.classify("Tell me a joke")); assertNull(ActionEngine.classify("How do I delete a file?")); assertNull(ActionEngine.classify("Send me a recipe")) }
+ @Test fun conversationalQuestionsAboutDeviceActionsDoNotTriggerTeachFallback(){
+  assertFalse(ActionEngine.looksLikeDeviceAction("Could you help me understand how I can enable airplane mode?"))
+  assertFalse(ActionEngine.looksLikeDeviceAction("I am curious why Android opens Settings when I type a normal message."))
+  assertEquals(true,ActionEngine.looksLikeDeviceAction("please enable airplane mode"))
+ }
  @Test fun settingsAndAppsAreSafe(){ assertEquals(ActionEngine.Risk.SAFE,ActionEngine.classify("open Wi-Fi settings")?.risk); assertEquals(ActionEngine.Operation.OPEN_SETTINGS,ActionEngine.classify("open Wi-Fi settings")?.operation); assertEquals("WhatsApp",ActionEngine.classify("open WhatsApp")?.target) }
  @Test fun mediaControlsAreSafe(){ assertEquals(1,ActionEngine.classify("volume up")?.value); assertEquals(-1,ActionEngine.classify("volume down")?.value); assertEquals(70,ActionEngine.classify("set volume to 70%")?.value); assertEquals(25,ActionEngine.classify("set brightness to 25%")?.value); assertEquals(ActionEngine.Operation.TORCH,ActionEngine.classify("turn on flashlight")?.operation) }
  @Test fun hinglishAndTypoTolerantControls() {
