@@ -1,5 +1,16 @@
 package com.hermes.assistant
 
+internal object VyomFactoryComplaintPrefixPolicy {
+    private val PREFIXES = listOf("factory complaint:", "register complaint:", "complaint:", "report bug:", "factory:", "issue:")
+    fun extract(message: String): String? {
+        val trimmed = message.trim()
+        val normalized = trimmed.lowercase()
+        val prefix = PREFIXES.firstOrNull { normalized.startsWith(it) } ?: return null
+        val body = trimmed.substring(prefix.length).trim().takeIf { it.isNotBlank() } ?: return null
+        return if (prefix == "factory complaint:" || prefix == "factory:") "Vyom Factory complaint: $body" else body
+    }
+}
+
 /**
  * Typed complaint envelope shared by Factory intake adapters.
  * Only defects explicitly about Vyom Factory's own workflow enter its canonical register.
@@ -42,7 +53,7 @@ internal data class VyomFactoryComplaintRecord(
 
         private fun classifyFactoryArea(text: String): String? {
             val lower = text.lowercase()
-            val mentionsFactory = Regex("\\bvyom\\s+factory\\b").containsMatchIn(lower) || listOf("factory worker", "factory queue", "factory complaint", "factory triage", "factory voice intake", "factory registry", "factory proposal", "factory executor", "factory update", "factory issue", "factory dialog", "factory timeline", "factory audit", "factory intake", "factory verification", "factory runner", "factory task", "factory content", "factory token").any { lower.contains(it) }
+            val mentionsFactory = Regex("\\bvyom\\s+factory\\b").containsMatchIn(lower) || listOf("factory worker", "factory queue", "factory complaint", "factory triage", "factory voice intake", "factory ui", "factory screen", "complaint card", "automations screen", "factory registry", "factory proposal", "factory executor", "factory update", "factory issue", "factory dialog", "factory timeline", "factory audit", "factory intake", "factory verification", "factory runner", "factory task", "factory content", "factory token").any { lower.contains(it) }
             if (!mentionsFactory) return null
             return when {
                 listOf("a18", "content update", "signed update", "content package", "rollback", "update channel")
@@ -50,19 +61,19 @@ internal data class VyomFactoryComplaintRecord(
                 listOf("worker", "executor", "execution", "task queue", "queue", "lease", "retry",
                     "runner", "claim", "stop", "pause", "task failure", "postcondition action")
                     .any { lower.contains(it) } -> "execution"
-                listOf("triage", "priority", "classif", "routing", "route", "assignment", "intake", "register complaint")
+                listOf("triage", "priority", "classif", "routing", "route", "assignment", "intake", "register complaint", "complaint register")
                     .any { lower.contains(it) } -> "triage"
-                listOf("verification", "verify", "probe", "postcondition", "evidence", "closure", "close complaint", "reopen")
+                listOf("verification", "verify", "probe", "postcondition", "evidence", "closure", "close complaint", "reopen", "package compatibility", "phone test")
                     .any { lower.contains(it) } -> "verification"
-                listOf("audit", "timeline", "activity log", "history").any { lower.contains(it) } -> "audit"
+                listOf("audit", "timeline", "activity log", "history", "handoff").any { lower.contains(it) } -> "audit"
                 listOf("proposal", "self-change", "pull request", " pr ", "exact sha", "signed artifact", "code fix")
                     .any { lower.contains(it) } -> "proposal"
                 listOf("github token", "signing secret", "encrypted", "credential", "permission", "protected scope", "project rule")
                     .any { lower.contains(it) } -> "security"
                 listOf("factory ui", "factory screen", "complaint card", "automations screen", "factory dialog")
                     .any { lower.contains(it) } -> "ui"
-                listOf("complaint", "factory").any { lower.contains(it) } -> "intake"
-                else -> "other"
+                listOf("complaint intake", "complaint register", "intake parser", "intake flow").any { lower.contains(it) } -> "intake"
+                else -> null
             }
         }
 
@@ -70,9 +81,16 @@ internal data class VyomFactoryComplaintRecord(
             require(source in SOURCES) { "Unsupported complaint source" }
             val original = text.trim()
             require(original.isNotEmpty() && original.length <= 12_000) { "Complaint must contain 1–12,000 characters" }
-            val area = classifyFactoryArea(original)
-                ?: throw IllegalArgumentException("Out of scope: only Vyom Factory workflow complaints can enter the Factory register")
             val lower = original.lowercase()
+            val excludedProductSignals = listOf(
+                "whatsapp", "play store", "playstore", "install app", "app install",
+                "send message", "message send"
+            )
+            require(excludedProductSignals.none { lower.contains(it) }) {
+                "Out of scope: standalone product features cannot enter the Vyom Factory register"
+            }
+            val area = classifyFactoryArea(original)
+                ?: throw IllegalArgumentException("Out of scope: only recognized Vyom Factory workflow complaints can enter the Factory register")
             val severity = when {
                 listOf("security", "unsafe", "data loss", "crash", "credential leak").any { lower.contains(it) } -> "critical"
                 listOf(
