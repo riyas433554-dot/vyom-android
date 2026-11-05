@@ -928,3 +928,13 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Workflow definitions confirm both workflows are configured for push to `feature/memory-intelligence`; the runs were created from push events. No workflow source change is indicated by this failure evidence.
 - The exact branch head at this observation was `df3f66d4f1a8d0294af0ad5ea2d0d3e20e124c15`. Both latest-attempt runs are still failed; rerunning has not fixed runner provisioning.
 - Next: continue source/test work without treating these failed runs as code regressions, then retry exact-head CI after GitHub runner service recovers. If failures again have a real runner ID and step logs, diagnose those logs. Do not alter workflow or signing secrets based on runner_id=0 alone.
+
+
+## Universal Factory Step 3 — conservative domain classifier foundation (2026-11-05)
+
+- Added test cases for unique Android-control, diagnostics and Design/UI signals; ambiguous cross-domain issue text; unknown issue text; and hidden execution metadata not influencing classification. Test commit: `563ad3c02bb3736f90d28df51795f0585f9d322e`.
+- Added `VyomFactoryTaskClassifier` (commit `3b75c762b0c5489b05eae4edbb34ab8712d16166`). It is deterministic and conservative: strips hidden Factory metadata/execution comments, scans bounded issue text, classifies only when exactly one domain signal is present, and returns explicit clarification reasons for ambiguous/unknown complaints.
+- Important limitation: this is only a first-pass domain classifier. It does not infer executable operations, generate a plan, select a capability, or run a specialist. Do not treat keyword matches as a completed universal planner; false negatives deliberately go to owner clarification, and domain-specific intent parsing remains to be implemented/tested.
+- FIFO implementation and regression tests are recorded above. Capability-dispatch runner regression is also recorded above. All newly added tests remain unexecuted because GitHub Actions runner provisioning is failing before any job step; no Gradle PASS is claimed.
+- CI evidence on preceding source tip `df3f66d4f1a8d0294af0ad5ea2d0d3e20e124c15`: Debug run `42030359440` and Full CI `42030359545` both fail with `runner_id=0`, zero steps; reruns also failed before runner startup. The current tip after classifier and this handoff must be checked again when GitHub runners are available.
+- Next: integrate classification with capability discovery as a typed planning result (READY / NEEDS_OWNER / BLOCKED_CAPABILITY), without dispatching unsupported work; then sequential scheduler drain must continue after safely recording blocked tasks. Preserve all owner-approval and verification gates.
