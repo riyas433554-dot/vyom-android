@@ -82,7 +82,7 @@ internal class VyomFactoryScreenshotEvidenceStore(private val root: File) {
             val url = json.getString("url")
             val commit = json.getString("commit_sha")
             val hash = json.getString("sha256")
-            check(url.startsWith("https://github/") || url.startsWith("https://github.com/"))
+            check(url.startsWith("https://github.com/"))
             check(commit.matches(Regex("^[a-f0-9]{40}$")))
             check(hash.matches(Regex("^[a-f0-9]{64}$")))
             UploadReceipt(url, commit, hash)

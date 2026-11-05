@@ -34,6 +34,22 @@ class VyomFactoryScreenshotEvidenceTest {
         }
     }
 
+    @Test fun uploadedReceiptPreventsASecondAttachAfterCommentFailure() {
+        val root = createTempDir(prefix = "vyom-evidence-receipt-")
+        try {
+            val store = VyomFactoryScreenshotEvidenceStore(root)
+            val received = store.receive(ByteArrayInputStream(png()), "image/png")
+            store.recordUploaded(received.file, "https://github.com/owner/repo/blob/branch/evidence.png",
+                "b".repeat(40), received.sha256)
+            val receipt = store.uploadReceipt(received.file)!!
+            assertEquals("https://github.com/owner/repo/blob/branch/evidence.png", receipt.url)
+            assertEquals("b".repeat(40), receipt.commitSha)
+            assertEquals(received.sha256, receipt.sha256)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun oversizeAndMimeMismatchNeverCreateFiles() {
         val root = createTempDir(prefix = "vyom-evidence-reject-")
         try {
