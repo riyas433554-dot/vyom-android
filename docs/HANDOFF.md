@@ -907,3 +907,14 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Test was added but not executed in this environment: the GitHub connector exposes source and workflow-run inspection but no local Gradle runner or workflow-dispatch action. Do not call it RED/GREEN or PASS without an actual run.
 - Current next step: retrieve exact branch tip and CI/workflow state, then inspect the existing canonical issue ordering implementation before designing any planner/scheduler changes. The HANDOFF earlier states newest-updated-first within priority; that conflicts with the corrected FIFO-within-tier requirement and must be resolved in the existing selector, not by creating a second queue.
 - No APK, no backend/Render/main/production Supabase changes.
+
+
+## Universal Factory Step 3 — stable FIFO correction (2026-11-05)
+
+- Source audit found the active selector contradicted the owner's locked rule: `VyomFactoryTaskOrdering` sorted P0→P3, then `updatedAt DESC`, allowing newer updates/promotions to jump ahead of older issues within the same tier.
+- Added regression tests first (commit `e3a26ef3151fdc734ee700cf5990cd88e5df4840`) proving priority remains primary, creation time is FIFO ascending, later updates do not change queue position, and issue number is a deterministic tie-break for equal creation timestamps.
+- Added `createdAt` to the existing GitHub task model (trailing default to `updatedAt` preserves existing constructors) and populated it from GitHub `created_at`; changed the existing canonical ordering function to P0→P3 then `createdAt ASC` then issue number. Commits: `097c149ba67e5c82df6258db78177a1b9844a156`, `c23c07319311b70d2d0376eda88e47ee1323a952`.
+- This modifies the current selector used by the existing worker claim coordinator; it does not add a second queue. GitHub task listing already fetches all pages (up to the existing bounded 10-page cap) and filters canonical Factory metadata. Physical acceptance and distributed multi-device locking remain unproven.
+- Runner fail-closed regression was added in commit `3d3d6cd3964b3e2e34b77d402d39aa4fc74be3bc`: unsupported typed operation must skip before adapter invocation/journal and release the claim. Neither this test nor FIFO tests have been executed here; do not claim pass.
+- Exact latest code tip before this handoff refresh: `c23c07319311b70d2d0376eda88e47ee1323a952`. Previous CI diagnostics remain inconclusive; obtain exact-head CI and real Gradle logs before claiming verification. No APK.
+- Next: inspect and implement the universal task classifier/planner seam over existing canonical issues and capability registry. Must retain blocked/approval outcomes and sequentially advance to next eligible issue; no duplicate queue, lease, journal or retry store.
