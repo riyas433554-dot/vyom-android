@@ -918,3 +918,13 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Runner fail-closed regression was added in commit `3d3d6cd3964b3e2e34b77d402d39aa4fc74be3bc`: unsupported typed operation must skip before adapter invocation/journal and release the claim. Neither this test nor FIFO tests have been executed here; do not claim pass.
 - Exact latest code tip before this handoff refresh: `c23c07319311b70d2d0376eda88e47ee1323a952`. Previous CI diagnostics remain inconclusive; obtain exact-head CI and real Gradle logs before claiming verification. No APK.
 - Next: inspect and implement the universal task classifier/planner seam over existing canonical issues and capability registry. Must retain blocked/approval outcomes and sequentially advance to next eligible issue; no duplicate queue, lease, journal or retry store.
+
+
+## CI root-cause evidence — GitHub runner never started (2026-11-05)
+
+- Retrieved repository Actions API directly for exact branch tip `df3f66d4f1a8d0294af0ad5ea2d0d3e20e124c15`.
+- Debug run `42030359440` and Full CI run `42030359545` both failed within ~3 seconds. Their jobs had `runner_id=0`, empty `steps=[]`, and no runner name. This means the job never reached Checkout/JDK/Gradle or any repository step; these failures do not establish a source/test failure.
+- Retried both failed jobs using GitHub Actions rerun. Latest attempts again failed within ~2 seconds with `runner_id=0`, `steps=[]` (Debug latest job `127255384638`; Full CI latest job `127255418220`). This is strong evidence of runner provisioning/service failure before job execution, not a Kotlin compile/test result. Keep status as CI unavailable/runner-start failure; do not report PASS.
+- Workflow definitions confirm both workflows are configured for push to `feature/memory-intelligence`; the runs were created from push events. No workflow source change is indicated by this failure evidence.
+- The exact branch head at this observation was `df3f66d4f1a8d0294af0ad5ea2d0d3e20e124c15`. Both latest-attempt runs are still failed; rerunning has not fixed runner provisioning.
+- Next: continue source/test work without treating these failed runs as code regressions, then retry exact-head CI after GitHub runner service recovers. If failures again have a real runner ID and step logs, diagnose those logs. Do not alter workflow or signing secrets based on runner_id=0 alone.
