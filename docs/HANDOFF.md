@@ -836,3 +836,10 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 
 
 - Diagnostic follow-up correction: allow GitHub request IDs containing colon separators and add a regression assertion. Commits: `42de6e5ac4619f37589dc30acc79933dcbe8a6d5`, `e48f79e8dbff573ba87230e4271925101ca5ec27`. The implementation remains pending exact-head CI.
+
+
+## CI failure follow-up — 2026-11-05
+
+- Exact-head CI for `f59ce5c6e73313dd038d86c16e828ab6e992e290` failed in both Debug run `42027129529` and Full run `42027129532`. Both reached unit tests; 490/491 passed. The sole failure was `GitHubReleaseAssetPolicyTest.includesOnlyGitHubErrorMessageAndRequestIdInDiagnostics` at line 39: implementation intentionally preserves a colon in validated GitHub request IDs, while the test expected a hyphen.
+- Corrected only the stale test expectation to preserve `REQ_123:Abc` (source behavior unchanged). Test-fix commit: `0fea777b9e3a4b8e465b1ddcc17bfe37a2421d0f`. Fresh exact-tip CI is required; do not treat the previous failed runs as passing.
+- Issue #101 remains OPEN. Factory proposal action exists, but its current one-file Kotlin allowlist excludes MainActivity/control dispatch and other protected routing files. Do not claim #101 is executable through the current proposal route until the root-cause file and safe Factory policy path are proven. Do not manually patch #101 outside Factory.
