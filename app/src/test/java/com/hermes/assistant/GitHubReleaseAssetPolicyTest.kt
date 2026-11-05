@@ -44,7 +44,7 @@ class GitHubReleaseAssetPolicyTest {
     @Test fun boundsAndSanitizesGitHubErrorDetails() {
         val diagnostic = GitHubReleaseAssetPolicy.httpErrorMessage(
             403,
-            """{"message":"forbidden\\nwith control"}""",
+            """{"message":"forbidden\nwith control"}""",
             "bad request id"
         )
         assertEquals("GitHub release API HTTP 403: forbidden with control", diagnostic)
