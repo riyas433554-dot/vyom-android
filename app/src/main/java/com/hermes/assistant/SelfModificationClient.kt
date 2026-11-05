@@ -1,7 +1,5 @@
 package com.hermes.assistant
 
-import android.net.Uri
-import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -145,7 +143,7 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
 
     private fun readCurrentSource(token: String, path: String, sourceRef: String): String {
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
-        val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
+        val encodedPath = path.split("/").joinToString("/") { encodePathSegment(it) }
         val existing = request(
             "GET",
             "/contents/$encodedPath?ref=" + URLEncoder.encode(sourceRef, "UTF-8"),
@@ -155,7 +153,7 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
         if (existing.optBoolean("_notFound")) return ""
         val encoded = existing.optString("content").replace("\n", "")
         if (encoded.isBlank()) return ""
-        return String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8)
+        return String(java.util.Base64.getDecoder().decode(encoded), Charsets.UTF_8)
     }
 
     fun createProposal(token: String, draft: Draft): Proposal =
@@ -188,7 +186,7 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
 
         var pullRequestCreationAttempted = false
         try {
-            val encodedPath = path.split("/").joinToString("/") { Uri.encode(it) }
+            val encodedPath = path.split("/").joinToString("/") { encodePathSegment(it) }
             val existing = request(
                 "GET",
                 "/contents/$encodedPath?ref=" + URLEncoder.encode(proposalBranch, "UTF-8"),
@@ -198,7 +196,7 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
             val currentSha = existing.optString("sha").takeIf { it.matches(Regex("^[a-f0-9]{40}$")) }
             val payload = JSONObject()
                 .put("message", "proposal: $title")
-                .put("content", Base64.encodeToString(proposedContent.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
+                .put("content", java.util.Base64.getEncoder().encodeToString(proposedContent.toByteArray(Charsets.UTF_8)))
                 .put("branch", proposalBranch)
             if (currentSha != null) payload.put("sha", currentSha)
             request("PUT", "/contents/$encodedPath", token, payload)
@@ -249,13 +247,16 @@ internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_
                     ) {
                         throw IllegalStateException("PR creation outcome is uncertain; preserving proposal branch")
                     }
-                    request("DELETE", "/git/refs/heads/${Uri.encode(proposalBranch)}", token)
+                    request("DELETE", "/git/refs/heads/${encodePathSegment(proposalBranch)}", token)
                 }
             )
             if (recoveredPullRequest != null) return Proposal(proposalBranch, recoveredPullRequest)
             throw failure
         }
     }
+
+    private fun encodePathSegment(value: String): String =
+        URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
     private fun request(
         method: String,
