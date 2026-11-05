@@ -660,3 +660,24 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Stage 5 A18 signed content-update demo/rollback evidence must be verified from the current exact-tip Debug artifact; the earlier b03 artifact is historical only.
 - Stage 6 owner actions: repository privacy conversion, Termux smoke test, physical phone Factory/screenshot acceptance, skill import acceptance, and live external-agent identity acceptance. The repository is confirmed public, so owner must change it to private before any real screenshot attachment test.
 - Stage 7 APK 1 remains not delivered. It requires owner acceptance, exact-tip Full + Debug CI success, A18 demo/rollback artifact inspection, signed APK checksum/certificate verification, and no auto-merge/auto-install.
+
+
+## Exact-head CI, A18 artifact and failure repair — 2026-11-05
+
+- CI failure found from real logs: Debug run `41967129516` and Full run `41967257693` failed only in `VyomFactoryScreenshotAttachmentTest.privateRepositoryUploadAndIssueCommentOccurOnlyAfterAttachCall` at test line 47. The upload path called Android's `android.util.Base64` from a JVM unit test; the Android stub throws `RuntimeException: Method ... not mocked`. Fixed in source commit `b5a50129dc8b0a68fa17346cb211a09f413ced24` by using `java.util.Base64.getEncoder()` for Contents API payloads. No other test failure was reported in those runs.
+- Exact source head `b5a50129dc8b0a68fa17346cb211a09f413ced24` is now green:
+  - Full CI `41967548802`: SUCCESS; Termux syntax/intake/priority checks PASS; unit tests and debug APK build PASS; artifact upload PASS.
+  - Debug `41967548806`: SUCCESS; JDK/Gradle setup, persistent signing validation, `testDebugUnitTest`, debug APK, signed release APK, packaging, A18 demo, artifact upload and signed CI release publication all PASS.
+- Full CI artifact: ID `13388800725`, name `vyom-phase6-b5a50129dc8b0a68fa17346cb211a09f413ced24`, ZIP SHA-256 `793d227df90b5749b35605e36c076f864acaaba770084f7f69f5b77b36b840ab`; extracted debug APK SHA-256 `f9599f7c93867c8f73b9f89fc8d64762d265840949e976dc6bffda843ab187cd`.
+- Debug/A18 artifact: ID `13387489928`, name `vyom-0.3.1-b5a50129dc8b0a68fa17346cb211a09f413ced24`, ZIP SHA-256 `92c989a12ae5ad70412d9107554ca4d2921d37952bc48210aa1fcbafe3c8eaaa`; downloaded ZIP digest matches GitHub artifact digest.
+- Build metadata: versionName `0.3.1-ci.1437`, versionCode `1967548806`, source commit `b5a50129...`, persistent release signing true.
+- APK hashes independently recomputed from downloaded artifact:
+  - Debug APK `vyom-0.3.1-b5a5012-debug.apk`: `c55b46b5f308f0e83db9f648dacd26f7410e9a71c59c666e32cbbd65291be51e`.
+  - Signed APK `vyom-0.3.1-b5a5012-signed.apk`: `44938d7510f0c905b55a9844d60b21119f5ead0adeb7d5f4bf11a987cb39e7ba`.
+  - apksigner report: signature scheme v2 verified; one signer CN=Vyom; certificate SHA-256 `7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a`, matching the pinned expected fingerprint.
+- A18 no-APK content update demo: manifest signed; content update `status=PASS`, presence probe `PASS`, performance probe `PASS`; baseline 0.0124 ms, candidate 0.0121 ms, delta -0.0003 ms (same bucket). This is the content-file probe, not measured WebView render latency.
+- A18 rollback report: `ContentUpdateSlotStoreTest` has 8 tests, 0 failures, 0 errors. Includes failed-probe rollback, owner rollback, stale-version rejection, two-crashes rollback and load-failure rollback. Demo ZIP and both result cards are present in artifact.
+- Published CI candidate release (not APK 1): https://github.com/riyas433554-dot/vyom-android/releases/tag/vyom-ci-b5a50129dc8b0a68fa17346cb211a09f413ced24
+- Stages 1–5 source/CI gates are now implemented and verified on `b5a50129...`: complaint intake/backlog, screenshot share/Attach source and private gate, existing lifecycle E2E, non-chat worker routing/external-agent source tests, proposal safety tests, and A18 signed demo/rollback artifact.
+- Stage 6 remains owner-only: repository is still public (`private=false` confirmed); owner must change visibility to Private, confirm Contents read/write + Issues read/write token permissions, run the Termux smoke test, perform physical phone screenshot/Factory and skill-import acceptance, and verify live ChatGPT/Claude/Codex/Termux source identity. No screenshot has been uploaded.
+- Stage 7 APK 1 is intentionally not delivered yet. The published artifact above is a CI candidate, not the final APK 1. This handoff update is docs-only; exact-head Full + Debug CI must be rerun on the new documentation head before declaring the current tip green. Then stop only for the owner actions above; do not auto-merge or auto-install.
