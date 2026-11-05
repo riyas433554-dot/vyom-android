@@ -62,3 +62,13 @@ Changing priority is independent of state. Completing or cancelling closes the G
 - The owner must review the complete Markdown preview and tap **INSTALL REVIEWED SKILL**. The document is stored under app-private `filesDir/factory-skills` as inert Markdown with repository, branch, commit SHA, SPDX license, source URL and SHA-256 metadata. It is not executable code and Vyom does not automatically follow the imported instructions.
 - Existing imports cannot be silently overwritten. Diagnostics re-reads each installed record and validates repository identity, commit, license, inert content type, Markdown and SHA-256; tampering is reported as FAIL.
 - This is a constrained SKILL.md content import, not a general repository checkout/build/install engine. It does not install executable tools, run scripts, or prove that a skill is operational. A future explicit reviewed upgrade/removal workflow is required to replace an existing import.
+
+
+## Screenshot share and explicit issue attachment
+
+- Android Share → Vyom accepts one image through `ACTION_SEND`; the intake allowlist is PNG, JPEG and WebP, maximum 10 MiB. MIME type and file signature must match.
+- Intake copies the bytes into app-private `filesDir/factory-evidence`, verifies the stored SHA-256, and shows a sampled preview in Factory. It never uploads during share, copy, preview, cancellation, refresh or background work. Pending local screenshots remain visible when Factory is reopened.
+- The owner chooses one active, non-paused open issue and confirms **Attach**. The GitHub client checks `private=true` before issue lookup and again immediately before the write. A public repository is rejected before upload.
+- After explicit confirmation, the Contents API writes the image under `.factory-evidence/issue-<n>/` on `feature/memory-intelligence`; a comment on the exact issue records the image URL, SHA-256 and evidence commit SHA. No alternate branch, Android main, backend or production database is used.
+- The local file is removed only after the issue comment succeeds. Upload failure preserves the file for an owner-initiated retry. If the image upload succeeds but comment creation fails, a local receipt records the uploaded URL/commit/hash and blocks duplicate upload; the owner must manually add the link to the issue.
+- This path requires repository Contents write and Issues write. Branch protection may reject direct Contents writes; the app must fail closed and preserve the local file rather than bypass protection. Repository privacy must be changed by the owner before any real screenshot is sent.
