@@ -14,7 +14,7 @@ internal class ContentUpdateManager(private val context: Context) {
     private val store = ContentUpdateSlotStore(File(context.filesDir, "content-slots"))
     private val uiStore by lazy { UiBundleStore(context) }
     private val githubReleaseAssets by lazy {
-        GitHubReleaseAssetClient { GitHubReleaseTokenStore.read(context) }
+        GitHubReleaseAssetClient(tokenProvider = { GitHubReleaseTokenStore.read(context) })
     }
 
     fun activeVersion(): String = store.activeVersion()
