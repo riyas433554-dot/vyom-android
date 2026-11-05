@@ -56,7 +56,7 @@ class VyomFactoryComplaintRecordTest {
     }
 
     @Test fun internalTaskFailureAndDiagnosticsSourcesRemainTrusted() {
-        val task = VyomFactoryComplaintRecord.fromFreeText("task_failure", "Automatic chat task failure. Failure type: IOException.")
+        val task = VyomFactoryComplaintRecord.fromFreeText("task_failure", "Factory worker infrastructure failure. Failure type: IOException.")
         val diagnostics = VyomFactoryComplaintRecord.fromFreeText("diagnostics", "FAIL · Factory executor postcondition missing")
         assertEquals("execution", task.area)
         assertEquals("execution", diagnostics.area)
