@@ -53,3 +53,12 @@ Changing priority is independent of state. Completing or cancelling closes the G
 - Current implementation provides issue intake, listing, edit, priority/status controls and comment history. Parallel workers, skill installation, runner heartbeat/restart, automatic CI orchestration and 24/7 execution are still unfinished M0 work.
 - The Android token is read from existing encrypted device storage. It must have repository Issues read/write access; the app never displays or logs its value.
 - Do not store a PAT, GitHub App private key or signing secret in source, APK or issue bodies.
+
+
+## Reviewed skill repository import
+
+- Factory can search public GitHub repositories, inspect repository metadata/default branch and resolve the immutable commit SHA.
+- Import currently accepts a root `SKILL.md` only and requires an explicit permissive SPDX license from the app allowlist. A missing/unknown license, missing root file, malformed UTF-8, oversized file, missing Markdown title, or invalid commit SHA is rejected.
+- The owner must review the complete Markdown preview and tap **INSTALL REVIEWED SKILL**. The document is stored under app-private `filesDir/factory-skills` as inert Markdown with repository, branch, commit SHA, SPDX license, source URL and SHA-256 metadata. It is not executable code and Vyom does not automatically follow the imported instructions.
+- Existing imports cannot be silently overwritten. Diagnostics re-reads each installed record and validates repository identity, commit, license, inert content type, Markdown and SHA-256; tampering is reported as FAIL.
+- This is a constrained SKILL.md content import, not a general repository checkout/build/install engine. It does not install executable tools, run scripts, or prove that a skill is operational. A future explicit reviewed upgrade/removal workflow is required to replace an existing import.

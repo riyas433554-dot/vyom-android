@@ -42,7 +42,7 @@ Re-running the exact command with the same --source-id must return the existing 
 - Diagnostics failures are converted into sanitized complaint records with content-specific stable IDs; queued reports retry registration after reconnect.
 - Generic chat task failures do not auto-create Factory complaints. Only Factory runner infrastructure failures use the dedicated task-failure intake path; private request text and exception details remain withheld.
 - Termux intake command exists and has shell/schema CI coverage; owner must still install/authenticate it and run the documented idempotency smoke test.
-- These source paths are not yet accepted on a physical phone. Screenshot share-sheet receiver and explicit Attach UI are not implemented/device-verified; no upload path may be enabled until the repository is private and the owner taps Attach for a specific issue.
+- These source paths are not yet accepted on a physical phone. Skill repository import is source-wired but needs the owner review/install/Diagnostics smoke test. Screenshot share-sheet receiver and explicit Attach UI are not implemented/device-verified; no upload path may be enabled until the repository is private and the owner taps Attach for a specific issue.
 
 
 ## OWNER ACTION NEEDED — Stage 1 owner acceptance
