@@ -35,6 +35,8 @@ internal class VyomFactoryTaskTriage(
             "triage:v1:blocked_capability:${plan.domain.name}:${stableReason(plan.reason)}"
         is VyomFactoryTaskPlanner.Plan.NeedsOwnerClarification ->
             "triage:v1:needs_owner_clarification:${stableReason(plan.reason)}"
+        is VyomFactoryTaskPlanner.Plan.NeedsOwnerReview ->
+            "triage:v1:needs_owner_review:${plan.domain.name}:${stableReason(plan.reason)}"
     }
 
     private fun stableReason(reason: String): String =
