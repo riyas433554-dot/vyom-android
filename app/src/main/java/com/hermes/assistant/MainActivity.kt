@@ -768,7 +768,7 @@ class MainActivity : Activity() {
                                             io.execute {
                                                 try {
                                                     val proposalClient = SelfModificationClient()
-                                                    val proposal = proposalClient.createProposal(token, draft)
+                                                    val proposal = proposalClient.createProposal(token, draft, ownerReviewedDiff = true)
                                                     val issueCommentSaved = ProposalIssueAudit.recordIfLinked(
                                                         VyomFactoryGitHubClient(token),
                                                         linkedFactoryIssueNumber,
