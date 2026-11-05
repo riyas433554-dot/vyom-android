@@ -41,12 +41,21 @@ class VyomFactoryRepositoryIntakeTest {
     }
 
 
-    @Test fun sourceCodeClassificationTakesPrecedenceOverWorkflowAndApiSpecFiles() {
+    @Test fun sourceCodeClassificationPreservesAllRepositoryArtifactTypes() {
+        val paths = listOf(
+            "README.md", "package.json", ".github/workflows/ci.yml", "openapi.yaml",
+            ".agents/skills/example/SKILL.md"
+        )
+        assertEquals(VyomFactoryRepositoryIntake.Kind.SOURCE_CODE, VyomFactoryRepositoryIntake.classify(paths))
         assertEquals(
-            VyomFactoryRepositoryIntake.Kind.SOURCE_CODE,
-            VyomFactoryRepositoryIntake.classify(
-                listOf("README.md", "package.json", ".github/workflows/ci.yml", "openapi.yaml")
-            )
+            setOf(
+                VyomFactoryRepositoryIntake.Kind.SOURCE_CODE,
+                VyomFactoryRepositoryIntake.Kind.SKILL,
+                VyomFactoryRepositoryIntake.Kind.API_SPEC,
+                VyomFactoryRepositoryIntake.Kind.WORKFLOW,
+                VyomFactoryRepositoryIntake.Kind.DOCUMENTATION
+            ),
+            VyomFactoryRepositoryIntake.detectKinds(paths)
         )
     }
 
