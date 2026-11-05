@@ -3156,6 +3156,15 @@ class MainActivity : Activity() {
     }
 
     private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat") {
+        val record = try {
+            VyomFactoryComplaintRecord.fromFreeText(source, complaint)
+        } catch (_: IllegalArgumentException) {
+            item.state = "error"
+            item.reply = "Not registered: Vyom Factory only tracks defects in its own intake, triage, routing, execution, verification, recovery, audit and UI workflow."
+            persistChatMessages()
+            renderChatMessages()
+            return
+        }
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         if (token.isBlank()) {
             val pending = VyomFactoryComplaintSubmissionPolicy.missingGitHubToken()
@@ -3174,7 +3183,6 @@ class MainActivity : Activity() {
                 val rawTitle = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
                 val title = if (MemoryCapturePolicy.isSensitive(rawTitle)) "Sensitive complaint details redacted"
                     else rawTitle.ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
-                val record = VyomFactoryComplaintRecord.fromFreeText(source, complaint)
                 val task = VyomFactoryGitHubClient(token).createTask(
                     title = title,
                     description = record.toIssueDescription(),
@@ -4372,7 +4380,8 @@ class MainActivity : Activity() {
                 rows += "FAIL · Update diagnostics · ${error.message ?: "Unknown verification error"}"
             }
             runOnUiThread {
-                rows.filter { it.startsWith("FAIL ·") }.forEach(::submitAutomaticDiagnosticFailure)
+                rows.filter { it.startsWith("FAIL ·") && it.contains("Vyom Factory") }
+                    .forEach(::submitAutomaticDiagnosticFailure)
                 resultView.text = rows.joinToString("\n")
                 runButton.isEnabled = true
             }
