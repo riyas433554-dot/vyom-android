@@ -5475,6 +5475,8 @@ class MainActivity : Activity() {
         val learned = if (direct == null) DeviceCommandConfig.resolveLearnedCommand(this, text) else null
         val action = direct ?: learned?.let { ActionEngine.classify(it) }
         if (action != null) { executeClassifiedDeviceAction(action, source, onResult); return true }
+        // Unknown chat text belongs to Hermes chat, never to the automatic Teach Vyom flow.
+        if (source == "chat") return false
         if (!ActionEngine.looksLikeDeviceAction(text) && learned == null) return false
         if (controlKillSwitch || controlPrefs.getBoolean("kill_switch", false)) {
             logControlAction(text, "blocked-by-kill-switch", source); onResult("STOP CONTROL is ON. Device action blocked."); return true
@@ -5485,8 +5487,8 @@ class MainActivity : Activity() {
             runOnUiThread {
                 val fallback = normalized?.takeIf { ActionEngine.fallbackMatchesIntent(text, it) }?.let { ActionEngine.classify(it) }
                 if (fallback == null) {
-                    logControlAction(text, "unrecognized-command-teach-offered", source)
-                    showTeachCommandDialog(text, source, onResult)
+                    logControlAction(text, "unrecognized-command-manual-teach-available", source)
+                    onResult("I couldn't map that to a supported Android action. To teach a phrase, open Profile → Teach Library and choose Add Phrase explicitly.")
                 } else executeClassifiedDeviceAction(fallback, source, onResult)
             }
         }
