@@ -108,3 +108,22 @@ This is a guarded proposal workflow, not autonomous repair. It does not edit And
 
 Limitations: one Kotlin file per proposal; user chooses the source path; no automatic worker selection of files, no autonomous merge, no automatic install, and no physical-device verification. If issue-comment write fails, record the PR URL on the complaint manually.
 
+
+
+## OWNER ACTION NEEDED — verify private GitHub release update fix and #101
+
+No new token is requested. Use the GitHub token already saved in Vyom Settings (github_proposal_token). The app now reads it from encrypted on-device storage for the private release feed and release-asset API.
+
+### Update / diagnostics 404 acceptance
+1. Open Settings → tap RUN ALL CHECKS. Confirm GitHub update discovery no longer reports HTTP 404 and that the signed update manifest is read.
+2. Tap CHECK FOR UPDATES. If a newer signed APK release is offered, verify the manifest SHA-256 and signer certificate checks pass. Do not install unless you explicitly choose the Android installer.
+3. Tap CHECK NO-APK CONTENT UPDATES. Confirm the private release asset downloads, package signature/hash validation passes, and the presence/performance probes report PASS. Confirm the active content version changes only after successful probes. Do not report success if the release API returns 404, an asset download fails, or a probe fails.
+4. Send the sanitized result text/screenshots only; never include the GitHub token.
+
+### Issue #101 — Teach Vyom must not capture normal chat
+1. Send ordinary conversational text such as: “Could you help me understand how I can enable airplane mode?” Confirm it stays in the normal chat thread and no Teach Vyom dialog opens or pre-fills the message.
+2. Send another normal question mentioning Settings or opening an app. Confirm it remains chat.
+3. Explicitly open Profile → Teach Library → Add Phrase. Save a harmless test phrase and verify intentional teaching still works. This confirms Teach is available only after the explicit library action.
+4. Report the exact observed result. Keep issue #101 open until the chat-isolation probe and explicit Teach Library test both pass on the phone; attach evidence to #101 only after explicitly choosing Attach.
+
+Current source candidate: a86b1a81304850cb74e0024505acd08232d16a1d. CI runs at that exact SHA: Full 42011059270, Debug 42011059260 (check current status before treating the build as accepted). No physical-device verification has been recorded yet.
