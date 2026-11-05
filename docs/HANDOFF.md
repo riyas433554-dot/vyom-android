@@ -1,13 +1,13 @@
 # VYOM ANDROID — ACTIVE HANDOFF
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HANDOFF_HISTORY.md](HANDOFF_HISTORY.md).
 
 ## Branch and guardrails
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source checkpoint before this handoff refresh: `eff0ba783ea8aac18a35d0c760feaa598d32e55b`. Proposal branch failure recovery and ambiguous-PR safeguards are implemented in this checkpoint; exact-head CI is being refreshed. Earlier successful artifacts listed below are historical only, not current source proof.
+- Latest code checkpoint: `eff0ba783ea8aac18a35d0c760feaa598d32e55b`; latest branch tip after the Factory-only scope correction is recorded by the newest HANDOFF commit. The scope correction is documentation/backlog-only; exact-head CI must be checked for the new branch tip. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
@@ -18,6 +18,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 - In scope: Factory complaint intake for Factory defects, triage, canonical Factory register, priority, assignment/routing, execution, evidence, verification, retries/recovery, audit trail, Factory UI/Automations visibility, and only the security/update mechanisms those flows directly depend on.
 - Out of scope: standalone Vyom product capabilities, general Android-control feature delivery, messaging integrations, app-store installation flows, and any other user-facing feature that is not part of Factory's own complaint-to-fix system.
 - Out-of-scope requests must not be seeded into the Factory requirement matrix, classified as Factory P0/P1 work, routed to the Factory worker, or included in Factory completion/APK gates. If legacy seeded issues contain such requests, mark them out-of-scope/remove them from the active Factory queue; do not implement them here.
+- Removed from active Factory backlog on 2026-11-05: issue #14 (`A17-whatsapp_send`), #15 (`A17-play_store_install`), and #22 (`A1 Play Store install`) were closed as `not_planned` with an explanatory scope comment. Do not reopen or implement them as Factory work.
 - Before adding a new requirement or complaint to the Factory matrix, verify that it directly improves Factory's own intake → triage → route → execute → verify → close/recover loop.
 - This scope lock overrides all older lists and references below. Historical notes may mention past misclassification, but they are not active work.
 
