@@ -190,3 +190,14 @@ GitHub metadata was checked for these canonical repositories. License metadata i
 - Memory frameworks are compared with Vyom's existing memory subsystem before any adoption proposal.
 - Security sources are reference-only in Factory. No imported tool, script, workflow or automated test is executed against a target.
 - Every registration remains an owner-approved immutable-SHA reference, not installation or execution.
+
+## First-pass source review — pinned README commits
+
+- `AnaaySampat/jarvis` at `04da6e06a70d36ee21b2224b5e6e923bd6682c28`: README documents native Android operation, foreground wake-word service, screen reading/action verification, floating STOP, and confirmation for messages/calls. Strongest first architecture candidate. Still inspect actual AccessibilityService, foreground-service and STOP implementation before borrowing anything.
+- `VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android` at `fcf3f4fc1d2fb0f99c634c55034165f3be48c164`: README describes Kotlin/Compose, FastAPI, Qdrant and an Accessibility/MCP router, including calls/SMS. Treat its "zero hallucinations" wording as a marketing claim, not a guarantee. Audit permission and confirmation boundaries.
+- `Ayush0Chaudhary/blurr` at `5ead5b431c957782c44a34722d7b1878c480dc4a`: README says memory is temporarily disabled and its LICENSE is Personal Use Only. Do not copy/reuse code unless the owner grants suitable rights; research its interaction patterns only.
+- `mem0ai/mem0` at `ed1f10fc87080f0b67f99be370817504888462ab`: memory layer with user/session/agent levels. README notes some benchmark results use managed-platform proprietary optimizations, so do not assume the OSS package reproduces those numbers.
+- `open-jarvis/OpenJarvis` at `103b1227cb65af71fa930de0945e8d11844aef11`: local-first personal-agent stack with skills and agents; README explicitly includes code execution and file I/O capabilities. Inspect permission model before any adapter work.
+- `letta-ai/letta` at `8816d3a8516893bfdc0fa14bfb1235226012e295`: README says active source has moved to `letta-ai/letta-code`; do not integrate the old repository as the current runtime.
+- `usestrix/strix` at `09536cf1481731c790995bd8060db19a3b75ff48` and `KeygraphHQ/shannon` at `8c75a9b5a89ac02b7be8efeca7e129284d37e20f`: both explicitly describe real security testing; Shannon explicitly executes exploits. Research-only, isolated from normal Factory execution.
+- `VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android` README architecture claims are unverified by independent tests. README inspection is not source audit or device verification.
