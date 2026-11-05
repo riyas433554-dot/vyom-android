@@ -3298,7 +3298,7 @@ class MainActivity : Activity() {
         chatMessages.filter { it.state == "queued" }.forEach { item ->
             val complaint = extractFactoryComplaint(item.text)
             when {
-                item.id.startsWith("task-failure:") -> submitFactoryComplaint(item, item.text, "task_failure")
+                item.id.startsWith("task-failure:factory-runner:") -> submitFactoryComplaint(item, item.text, "task_failure")
                 item.id.startsWith("diagnostics:") -> submitFactoryComplaint(item, item.text, "diagnostics")
                 complaint != null -> submitFactoryComplaint(item, complaint)
                 else -> scheduleChatMessage(item)
