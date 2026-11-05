@@ -947,3 +947,11 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Safety boundary: candidate discovery is NOT execution readiness. Planner intentionally does not invent an operation, arguments, plan DAG, or invoke adapters. A domain with no registered capability is explicitly blocked; unavailable descriptors preserve their reason. The only currently registered production capability remains Android media volume.
 - Tests remain unexecuted due to GitHub Actions jobs failing before runner startup (`runner_id=0`, empty steps); no Gradle/test pass is claimed.
 - Current code tip before this handoff refresh: `0d6ef3659a92ce76af0a7ecdb5f322c56d630a00`. Next: wire the planner into the existing issue execution path as a non-mutating triage stage, record blocked/clarification outcomes in the canonical issue journal/comments, and ensure the scheduler continues to the next eligible FIFO issue. Do not silently run candidate-only plans.
+
+
+## Follow-up CI observation and planner wiring hardening (2026-11-05)
+
+- Exact push runs on source `0d6ef3659a92ce76af0a7ecdb5f322c56d630a00`: Debug `42030846240` and Full CI `42030846337` failed with `runner_id=0` and zero steps. The documentation-tip Debug run `42030877834` failed with the same runner_id=0/zero-step signature. No source command ran; tests/compilation remain unverified.
+- Replaced the planner's default classifier callable reference with an explicit lambda for conservative Kotlin compiler compatibility. Commit: `38c0bd18390af2008c308fa9cbda5a20642fd4bf`.
+- The classifier/planner are still standalone foundations, not yet invoked by the production worker. Next integration must preserve the existing runner's fresh-snapshot, lease, STOP, consent and journal sequence; candidate-only plans must not dispatch. Record blocked/clarification outcomes and then continue to the next FIFO issue only after a safe durable state transition exists.
+- Current source tip before this HANDOFF update: `38c0bd18390af2008c308fa9cbda5a20642fd4bf`. CI must be retried on the new exact tip when runners start successfully. No APK.
