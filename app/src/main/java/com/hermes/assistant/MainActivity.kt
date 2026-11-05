@@ -3156,7 +3156,7 @@ class MainActivity : Activity() {
             VyomFactoryComplaintRecord.fromFreeText(source, complaint)
         } catch (_: IllegalArgumentException) {
             item.state = "error"
-            item.reply = "Not registered: Vyom Factory only tracks defects in its own intake, triage, routing, execution, verification, recovery, audit and UI workflow."
+            item.reply = "Complaint could not be registered: check that it is not empty and is within the 12,000-character limit."
             persistChatMessages()
             renderChatMessages()
             return
