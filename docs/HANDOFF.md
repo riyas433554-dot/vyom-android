@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest source checkpoint before this handoff refresh: `b24063de806f451e993f29d96a8c634a8c806a1e`. Exact branch-tip CI must be refreshed after this documentation commit. Earlier successful artifacts listed below are historical only, not current source proof.
+- Latest source checkpoint before this handoff refresh: `872cd51af57b32027dcea1e76d7277a57a5ac912`. Proposal branch failure recovery is implemented in this checkpoint; exact-head CI is running. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the current Factory-first plan below: Stage 1 end-to-end behavior plus only the A18/A17 safety-critical pieces Factory itself needs, exact-head CI green and artifact integrity. Do not require the entire Android-control list, Play Store/WhatsApp feature implementation, or unrelated lifecycle stages 5/6/8.
@@ -495,3 +495,17 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Confirmed workflow reliability gap: optional emulator instrumentation had no bounded timeout. This commit adds a 15-minute step timeout; it remains non-gating through `continue-on-error: true`.
 - No APK delivered. APK 1 still requires exact-HEAD Full CI and Debug CI success plus artifact integrity checks. No Android `main`, Render, Hermes backend, or production Supabase changes.
 - Next: verify exact-head Full CI and Debug CI for this timeout/handoff commit. Then continue remaining Factory-first Stage 1 gaps and refresh this ledger.
+
+
+## Proposal branch failure recovery — 2026-11-05
+
+- Exact source checkpoint before this HANDOFF update: `872cd51af57b32027dcea1e76d7277a57a5ac912`.
+- Closed a proposal reliability gap: after creating a uniquely named `vyom-proposal-*` branch, failures during source write or PR creation could leave an orphan branch.
+- Added test-first policy coverage in `ProposalBranchRecoveryTest`: preserve branch if a PR exists despite a lost response; delete only after PR absence is positively confirmed; preserve branch when PR lookup is uncertain; swallow best-effort cleanup failure so it cannot mask the original proposal failure.
+- Added `ProposalBranchRecovery` and integrated it into `SelfModificationClient.createProposal()`. On failure after branch creation, the client queries PRs for that exact owner+branch. If an existing PR is found, it returns that PR. If absence is confirmed, it attempts to delete only that exact newly-created branch. If lookup fails/permission is insufficient, the branch is preserved. No base/working branch can be selected by cleanup.
+- GitHub API response parsing now handles JSON array responses and empty 204 responses required by PR lookup and ref deletion.
+- Commits: test `f701c48582bf57049a5d384cdfd8ee025ab01355`; recovery policy `0ba73779601f6240474d4b0ff2a5b906cdc96b15`; client integration `872cd51af57b32027dcea1e76d7277a57a5ac912`.
+- CI on source checkpoint: Debug `41956314986` IN_PROGRESS; Full CI `41956314845` PENDING at handoff update. Earlier intermediate runs on the test/policy commits were superseded by the next commit and are not verification.
+- Previous source `3a8453e5970a0c47883fdaa6f09242e262d5ef14` exact-head Full CI `41851333829` and Debug CI `41851333877` both SUCCESS. Debug artifact `13336032068` ZIP digest matched GitHub digest `06c4158eab39aee081604c307c27a0de23316ac4ac59e7738165cdd889ec297d`; signed APK checksum and v2 signature/certificate were validated; rollback test report had zero failures. This is predecessor-source evidence, not validation of the proposal recovery changes.
+- No backend, Render, production Supabase, or Android `main` changes. No APK delivered.
+- Next: poll exact branch-tip Debug + Full CI; inspect real logs and fix only actual failures. If green, verify the new exact-head artifact. Continue the Factory-first Stage 1 audit and retain owner-only phone/Termux/privacy acceptance gaps.
