@@ -803,3 +803,12 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Re-opened the exact current `MainActivity.kt` source on `feature/memory-intelligence`. The Settings token field hint explicitly says: `GitHub token: Contents + Pull requests + Issues read/write (encrypted on device)`. The same stored key `github_proposal_token` is read by the release client, self-modification proposal flow, Factory issue audit comments, and Factory task/diagnostic paths. `GitHubReleaseTokenStore.read(context)` reads that same preference key from encrypted preferences.
 - This confirms there is one shared credential, not separate read-only update and read/write Factory credentials. Contents: Read-only may be enough for private release read, but it is not enough for the app's documented self-change content/PR workflow. Keep Pull requests and Issues read/write as the Settings hint specifies. Do not claim full Factory write readiness under a read-only Contents token.
 - No app code changed in this audit. The next safe sequence remains: owner verifies the three update probes; then, before using Factory/self-change writes, ensure the shared token has Contents read/write + Pull requests read/write + Issues read/write. Never share the PAT.
+
+
+### Shared GitHub token restored and resaved — owner report (2026-11-05)
+
+- Owner now reports that the shared fine-grained GitHub token has been updated to the required read/write permissions and resaved in Vyom Settings after the earlier incorrect Read-only recommendation.
+- Current app architecture still uses one `github_proposal_token` for private release/update reads and Factory/self-change writes. Required current scopes remain: repository Contents **Read and write**, Pull requests **Read and write**, Issues **Read and write**; Metadata read is automatic.
+- This is an owner-reported credential update/save only. It does **not** prove the Android app can authenticate against private Releases, download/verify the signed manifest/assets, or perform Factory writes.
+- Next phone verification, in this exact order: (1) Settings → **RUN ALL CHECKS**; (2) **CHECK FOR UPDATES**; (3) **CHECK NO-APK CONTENT UPDATES**. Do not install an APK during these probes. Report PASS/FAIL and only non-secret HTTP message/request ID; never share the PAT.
+- If any probe fails, diagnose its actual response before changing permissions, endpoints, or signature checks. Keep physical verification NO until results are supplied. No APK 1 authorization from this report alone.
