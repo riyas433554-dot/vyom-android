@@ -70,6 +70,35 @@ class VyomFactoryRepositoryIntakeTest {
         assertFalse(assessment.installationApproved)
     }
 
+
+    @Test fun repositoryClientPinsTreeInspectionToResolvedImmutableCommit() {
+        val commit = "b".repeat(40)
+        val requests = mutableListOf<String>()
+        val client = VyomFactoryRepositoryClient(
+            getJson = { requestPath ->
+                requests += requestPath
+                when {
+                    requestPath == "/repos/openai/example" ->
+                        """{"default_branch":"main","archived":false,"size":123,"description":"Example source","stargazers_count":42,"updated_at":"2026-11-05T00:00:00Z","license":{"spdx_id":"MIT"}}"""
+                    requestPath == "/repos/openai/example/commits?sha=main&per_page=1" ->
+                        """[{"sha":"$commit"}]"""
+                    requestPath == "/repos/openai/example/git/trees/$commit?recursive=1" ->
+                        """{"truncated":false,"tree":[{"path":"README.md","type":"blob","size":10},{"path":"package.json","type":"blob","size":20}]}"""
+                    else -> throw AssertionError("Unexpected GitHub request: $requestPath")
+                }
+            }
+        )
+
+        val preview = client.inspect("https://github.com/openai/example")
+
+        assertEquals(commit, preview.snapshot.commitSha)
+        assertEquals(VyomFactoryRepositoryIntake.Kind.SOURCE_CODE, preview.assessment.kind)
+        assertEquals(VyomFactoryRepositoryIntake.Decision.READY_FOR_REVIEW, preview.assessment.decision)
+        assertTrue(requests.contains("/repos/openai/example/git/trees/$commit?recursive=1"))
+        assertFalse(preview.assessment.sourceExecutionAllowed)
+        assertFalse(preview.assessment.installationApproved)
+    }
+
     private fun assess(
         license: String = "MIT",
         archived: Boolean = false,
