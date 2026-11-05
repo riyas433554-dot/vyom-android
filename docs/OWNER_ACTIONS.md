@@ -152,3 +152,11 @@ Phone acceptance remains required: Run All Checks, Check for Updates, Check No-A
 - The long taught action text was not a valid single command: the old parser extracted the Play Store search target as `Godot From going`. The source now fails closed on ambiguous Play Store phrase targets. The supported canonical phrase is exactly **`Install Godot from Play Store`**; put multi-step instructions in the explicit UI Agent task goal, not in Teach Library's single-action mapping.
 - Before retrying Play Store: ensure Vyom Accessibility is enabled, MASTER APP CONTROL is ON, Google Play Store is enabled under App access, and NVIDIA planner key is saved. Then use the supported canonical command. Vyom should open the Store, observe the actual listing, and only attempt the Install button when the listing matches Godot; Android's own confirmation may still be required. Success must be confirmed by installed package evidence.
 - Generic app opening is not the same as in-app UI automation. Multi-step tasks for other apps still require the explicit UI Agent flow and its live-screen permissions; do not infer that opening an app means the task completed.
+
+
+## CI result and next phone probe — 2026-11-05
+
+- Exact candidate SHA `9900bff8bf5a7326131af62c1d61a186fa893ee4`: Full CI `42021183283` SUCCESS and Debug CI `42021183325` SUCCESS. This confirms the parser source candidate builds/tests in CI; it does not prove the phone update channel or UI Agent works.
+- Owner reports the existing fine-grained GitHub token was updated. Now run, in order: Settings → RUN ALL CHECKS; CHECK FOR UPDATES; CHECK NO-APK CONTENT UPDATES. Do not install an APK during these probes. Report whether each passes or fails; if failure, include only the non-secret HTTP message/request ID. Never share the token.
+- If update probes pass, separately test the exact canonical command `Install Godot from Play Store`. Preconditions: Vyom Accessibility enabled, MASTER APP CONTROL ON, Google Play Store enabled in App access, NVIDIA planner key saved. Verify the installed package and app launch; opening Play Store alone is not success.
+- Keep `Verified on device: NO` until those results are supplied and independently recorded. No final APK 1 authorization from CI alone.
