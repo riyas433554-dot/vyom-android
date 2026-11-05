@@ -7,7 +7,7 @@ Priority: **VYOM FACTORY FIRST**. Full previous ledger remains preserved in [HAN
 
 - Repository: `riyas433554-dot/vyom-android`
 - Branch: `feature/memory-intelligence`
-- Latest code checkpoint: `eff0ba783ea8aac18a35d0c760feaa598d32e55b`; latest branch tip after the Factory-only scope correction is recorded by the newest HANDOFF commit. The scope correction is documentation/backlog-only; exact-head CI must be checked for the new branch tip. Earlier successful artifacts listed below are historical only, not current source proof.
+- Latest classifier source fix: `327e0e4fd8b1a3a83228b4174f55dc9132228450` adds the missing Factory voice-intake context after CI exposed one failing regression test. Current HANDOFF refresh is documentation-only; exact-head Full CI and Debug CI must be checked for the latest tip. Earlier successful artifacts listed below are historical only, not current source proof.
 - Do not touch Android `main`, Render, Hermes backend, or production Supabase.
 - Inspect this handoff and history before work; do not repeat completed implementation.
 - APK 1 gate follows the Factory-only plan below: Factory workflow end-to-end, only the execution/update safeguards Factory itself requires, exact-head CI green and artifact integrity. Unrelated Android/product features and lifecycle work outside the Factory workflow are excluded.
