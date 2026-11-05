@@ -1165,3 +1165,11 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Recommendation recorded: use Anaay as a design reference for STOP, cancellation, stale observation and risk gates; do not transplant its whole project. Do not replace Vyom's existing event/revision-aware executor with the simpler JARVIS-OS helper service.
 - Latest candidate source-review commit: `a8d695b850742041c68f494fedab0ad280d49aab`. Exact-head CI has not yet been triggered for this latest documentation commit. The immediately preceding HEAD `2cd343b5c601d06d41813f9b954dec20a02ccef4` had Debug run `42056284551` and Full CI run `42056284756` both running on real runners; no final results captured yet.
 - Next: inspect those CI outcomes; run CI for latest exact HEAD; then review Anaay's specific STOP/risk-policy tests and compare against Vyom's existing control tests before any code changes.
+
+### Android control test-suite review — 2026-11-05
+
+- Inspected Anaay JARVIS `OperatorCoreTest.kt` blob `26e37d2613c744bbf6d2976b5961db5f988fda64`. Tests explicitly cover stopped-state checks, stale-observation retry only when the same control remains, refusal when control meaning changes/disappears, cycle detection, duplicate-message prevention, R2 approval, and R3 always requiring a human. Candidate catalogue records this as the most useful control-policy test reference.
+- Letta's README points active development to `letta-ai/letta-code`, verified Apache-2.0; use that instead of the older Letta repo if pursuing a source adapter.
+- No third-party source was copied into Vyom. No external code was executed or built. This remains static source/test inspection only.
+- Latest source/test-reference note commit: `94853b197d885b728736c933dda0383a6e629172`. Exact-head CI has not yet been checked for this latest commit. Prior runs `42056284551` (Debug) and `42056284756` (Full CI) were running on real runners when last inspected; no final outcome was recorded.
+- Next: check exact-head CI; then connect repository source references to existing Factory issue/journal flow, preserving the single canonical queue and owner approval. Do not auto-register every candidate or execute imported source.
