@@ -40,7 +40,7 @@ Re-running the exact command with the same --source-id must return the existing 
 ## Intake implementation status (source-wired; device acceptance pending)
 - Generic `complaint:` / `report bug:` and explicit `factory:` prefixes route complaints from every Vyom product area to the shared GitHub Issues register with stable local message identity; no Factory wording is required for a generic complaint.
 - Diagnostics failures are converted into sanitized complaint records with content-specific stable IDs; queued reports retry registration after reconnect.
-- Generic chat task failures do not auto-create Factory complaints. Only Factory runner infrastructure failures use the dedicated task-failure intake path; private request text and exception details remain withheld.
+- Generic chat task failures do not auto-create Factory complaints. Factory runner and unexpected skill-repository infrastructure failures use the dedicated stable task-failure intake path; expected policy rejections (unknown license, missing SKILL.md, public-repository gate) do not. Private request text, credentials and exception messages remain withheld.
 - Termux intake command exists and has shell/schema CI coverage; owner must still install/authenticate it and run the documented idempotency smoke test.
 - These source paths are not yet accepted on a physical phone. Skill repository import and screenshot share/Attach are source-wired but need the owner review/install/Diagnostics and private-repository phone smoke tests.
 
