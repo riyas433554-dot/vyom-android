@@ -137,3 +137,11 @@ Latest source candidate was advanced to 20370798db1c02e666e1c1d071f04ffe1e16b8e0
 The first authenticated-release implementation did not pass CI. Full run 42011969802 and Debug run 42011969831 both failed at Kotlin compilation because two GitHubReleaseAssetClient call sites passed the token lambda as a trailing lambda instead of the named `tokenProvider` argument. That source wiring has now been corrected in commits `e7a9c5f66a12fd3a675531722927b611b2018074` and `af95a2328667c8b56004366415ca52ba4a8ee0f1`. Fresh exact-head Full and Debug CI results are still pending; do not install or accept this candidate until both are green.
 
 Phone acceptance remains required: Run All Checks, Check for Updates, Check No-APK Content Updates, then perform the #101 ordinary-chat / explicit Teach Library probe. Keep #101 open until both #101 device checks pass and evidence is recorded. Verified on device: NO.
+
+
+## Latest phone-test failures — 2026-11-05
+
+- Owner reports installed certificate and stable release identity PASS, but Check for Updates, Update diagnostics and Check No-APK Content Updates all fail HTTP 404. Content version remains 1.0.0; active slot unchanged. Owner acceptance remains FAIL.
+- Before retrying, update the saved GitHub token: ensure it has access to the private `riyas433554-dot/vyom-android` repository and **Contents: Read-only** plus Metadata read. Keep Factory Issues permissions. Classic PAT requires `repo` scope. Save the token again in Vyom Settings. Do not share the token in chat. An Issues read PASS does not prove private release read access.
+- Then rerun: (1) Settings → RUN ALL CHECKS; (2) CHECK FOR UPDATES; (3) CHECK NO-APK CONTENT UPDATES. Expected: release API reachable, signed manifest/asset fetched, SHA-256 and signer checked, staged content probes PASS, active version changes only after probes. Do not install any APK during this test. If still 404, capture the non-secret response message/request ID only.
+- Android app actions also failed owner acceptance: apps launch, but the reported “Install Godot” phrase did not complete Play Store search/listing/install/launch. Do not mark Android control or Play Store execution PASS. Preserve the existing restriction that only a SHA-256 and signer-verified Vyom APK can update Vyom itself. Focused source reproduction and tests are required before another APK.
