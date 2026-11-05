@@ -29,6 +29,26 @@ class SelfModificationClientIntegrationTest {
         }
     }
 
+    @Test fun rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            assertRejected {
+                client.createProposal(
+                    token = token,
+                    title = "Improve reply formatting",
+                    path = "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+                    proposedContent = "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
+                    ownerReviewedDiff = false
+                )
+            }
+            assertEquals(0, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
     @Test fun successfulProposalStopsAtUnmergedPrWithoutReleaseOrInstall() {
         val server = MockWebServer()
         server.start()
