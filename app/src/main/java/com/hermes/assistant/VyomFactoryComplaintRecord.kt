@@ -13,7 +13,7 @@ internal object VyomFactoryComplaintPrefixPolicy {
 
 /**
  * Typed complaint envelope shared by Factory intake adapters.
- * Only defects explicitly about Vyom Factory's own workflow enter its canonical register.
+ * The Factory register accepts defects from every Vyom product area; implementation remains backlog work after APK 1.
  */
 internal data class VyomFactoryComplaintRecord(
     val source: String,
@@ -56,24 +56,36 @@ internal data class VyomFactoryComplaintRecord(
             val mentionsFactory = Regex("\\bvyom\\s+factory\\b").containsMatchIn(lower) || listOf("factory worker", "factory queue", "factory complaint", "factory triage", "factory voice intake", "factory ui", "factory screen", "complaint card", "automations screen", "factory registry", "factory proposal", "factory executor", "factory update", "factory issue", "factory dialog", "factory timeline", "factory audit", "factory intake", "factory verification", "factory runner", "factory task", "factory content", "factory token").any { lower.contains(it) }
             if (!mentionsFactory) return null
             return when {
-                listOf("a18", "content update", "signed update", "content package", "rollback", "update channel")
-                    .any { lower.contains(it) } -> "update"
-                listOf("worker", "executor", "execution", "task queue", "queue", "lease", "retry",
-                    "runner", "claim", "stop", "pause", "task failure", "postcondition action")
-                    .any { lower.contains(it) } -> "execution"
-                listOf("triage", "priority", "classif", "routing", "route", "assignment", "intake", "register complaint", "complaint register")
-                    .any { lower.contains(it) } -> "triage"
-                listOf("verification", "verify", "probe", "postcondition", "evidence", "closure", "close complaint", "reopen", "package compatibility", "phone test")
-                    .any { lower.contains(it) } -> "verification"
+                listOf("a18", "content update", "signed update", "content package", "rollback", "update channel").any { lower.contains(it) } -> "update"
+                listOf("worker", "executor", "execution", "task queue", "queue", "lease", "retry", "runner", "claim", "stop", "pause", "task failure", "postcondition action").any { lower.contains(it) } -> "execution"
+                listOf("triage", "priority", "classif", "routing", "route", "assignment", "intake", "register complaint", "complaint register").any { lower.contains(it) } -> "triage"
+                listOf("verification", "verify", "probe", "postcondition", "evidence", "closure", "close complaint", "reopen", "package compatibility", "phone test").any { lower.contains(it) } -> "verification"
                 listOf("audit", "timeline", "activity log", "history", "handoff").any { lower.contains(it) } -> "audit"
-                listOf("proposal", "self-change", "pull request", " pr ", "exact sha", "signed artifact", "code fix")
-                    .any { lower.contains(it) } -> "proposal"
-                listOf("github token", "signing secret", "encrypted", "credential", "permission", "protected scope", "project rule")
-                    .any { lower.contains(it) } -> "security"
-                listOf("factory ui", "factory screen", "complaint card", "automations screen", "factory dialog")
-                    .any { lower.contains(it) } -> "ui"
+                listOf("proposal", "self-change", "pull request", " pr ", "exact sha", "signed artifact", "code fix").any { lower.contains(it) } -> "proposal"
+                listOf("github token", "signing secret", "encrypted", "credential", "permission", "protected scope", "project rule").any { lower.contains(it) } -> "security"
+                listOf("factory ui", "factory screen", "complaint card", "automations screen", "factory dialog").any { lower.contains(it) } -> "ui"
                 listOf("complaint intake", "complaint register", "intake parser", "intake flow").any { lower.contains(it) } -> "intake"
                 else -> null
+            }
+        }
+
+        private fun classifyProductArea(text: String): String {
+            val lower = text.lowercase()
+            return when {
+                listOf("whatsapp", "wa message", "whats app").any { lower.contains(it) } -> "whatsapp"
+                listOf("play store", "playstore", "install app", "app install").any { lower.contains(it) } -> "play_store"
+                listOf("floating orb", "assistant bubble", "overlay orb", "system-wide orb").any { lower.contains(it) } -> "floating_orb"
+                listOf("memory", "remember", "forgot", "saved fact", "episodic", "semantic retrieval").any { lower.contains(it) } -> "memory"
+                listOf("design", "layout", "spacing", "theme", "typography", "screen ui", "composer").any { lower.contains(it) } -> "design"
+                listOf("personality", "persona", "tone", "speaking style").any { lower.contains(it) } -> "personality"
+                listOf("github repo", "repository", "repo ", "repo:", "git clone", "pull request").any { lower.contains(it) } -> "repo"
+                listOf("skill", "skills", "learn anywhere").any { lower.contains(it) } -> "skill"
+                listOf("schedule", "scheduled", "recurring task", "automation timer", "alarm").any { lower.contains(it) } -> "schedule"
+                listOf("voice", "speech", "stt", "tts", "microphone", "transcription", "playback").any { lower.contains(it) } -> "voice"
+                listOf("update", "upgrade", "apk install", "apk update", "release channel", "version install").any { lower.contains(it) } -> "update"
+                listOf("android control", "accessibility", "tap ", "swipe", "read screen", "open app", "power mode", "shizuku", "adb", "control engine", "gesture", "factory reset").any { lower.contains(it) } -> "android_control"
+                listOf("control", "action", "button").any { lower.contains(it) } -> "control"
+                else -> "other"
             }
         }
 
@@ -82,15 +94,7 @@ internal data class VyomFactoryComplaintRecord(
             val original = text.trim()
             require(original.isNotEmpty() && original.length <= 12_000) { "Complaint must contain 1–12,000 characters" }
             val lower = original.lowercase()
-            val excludedProductSignals = listOf(
-                "whatsapp", "play store", "playstore", "install app", "app install",
-                "send message", "message send"
-            )
-            require(excludedProductSignals.none { lower.contains(it) }) {
-                "Out of scope: standalone product features cannot enter the Vyom Factory register"
-            }
-            val area = classifyFactoryArea(original)
-                ?: throw IllegalArgumentException("Out of scope: only recognized Vyom Factory workflow complaints can enter the Factory register")
+            val area = classifyFactoryArea(original) ?: classifyProductArea(original)
             val severity = when {
                 listOf("security", "unsafe", "data loss", "crash", "credential leak").any { lower.contains(it) } -> "critical"
                 listOf(
@@ -101,9 +105,9 @@ internal data class VyomFactoryComplaintRecord(
                 else -> "medium"
             }
             val priority = when (area) {
-                "update", "execution", "security" -> "P0"
-                "triage", "verification", "proposal", "intake" -> "P1"
-                "audit", "ui" -> "P2"
+                "update", "control", "android_control", "execution", "security" -> "P0"
+                "memory", "design", "triage", "verification", "proposal", "intake" -> "P1"
+                "voice", "audit", "ui", "personality", "repo", "skill", "schedule", "whatsapp", "play_store", "floating_orb" -> "P2"
                 else -> "P3"
             }
             val fixType = if (area == "update" && listOf("content", "a18", "no-apk").any { lower.contains(it) }) {
