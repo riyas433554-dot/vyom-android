@@ -14,7 +14,7 @@ Required:
   --title TEXT
   --area control|android_control|memory|design|personality|repo|skill|skills|schedule|voice|update|whatsapp|play_store|floating_orb|other
   --severity critical|high|medium|low
-  --priority P0|P1|P2|P3
+  --priority P0|P1|P2|P3 (optional; defaults by area)
   --evidence TEXT
   --repro TEXT
   --expected TEXT
