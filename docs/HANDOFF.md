@@ -898,3 +898,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - CI diagnostic: prior run `42029404953` failed in one `debug` job. GitHub returned no steps; downloading job logs returned BlobNotFound (request ID `141cb5cf-f01e-0099-1623-6de739000000`). Combined commit status exposed no status entries. Root cause remains unknown; do not attribute it to source or infrastructure without further evidence.
 - Exact current source tip after this batch: `107584e2943e484f64f3357adcf5261a9ac882fe` before this HANDOFF commit. CI must be checked on the final documentation-updated branch tip. No Gradle test, CI success, artifact, or APK is claimed.
 - Next: verify the exact tip's CI and source compilation; then add explicit runner regression coverage for unsupported operations being skipped before journal/adapter invocation. Continue with planner/classifier and P0→P3 FIFO sequential draining only after the operation-level capability gate is proven. Preserve branch/environment guardrails; no APK.
+
+
+## Universal Factory Step 3 — runner fail-closed regression (2026-11-05)
+
+- Added `unsupportedTypedCapabilityIsSkippedBeforeJournalOrAdapterExecution` to `VyomFactoryExecutionRunnerTest` (test commit `3d3d6cd3964b3e2e34b77d402d39aa4fc74be3bc`). It configures the production-shaped typed capability list to expose only `set_media_volume`, submits `launch_app`, and asserts: outcome is `capability_unsupported`, adapter invocation count remains zero, journal remains empty, and the exact worker claim is released.
+- The runner's existing source order was inspected: it parses the fresh remote envelope, checks `adapters.supports(envelope)`, and only then performs consent/journal/adapter work. This regression test locks that contract. No additional production logic was needed for this specific case.
+- Test was added but not executed in this environment: the GitHub connector exposes source and workflow-run inspection but no local Gradle runner or workflow-dispatch action. Do not call it RED/GREEN or PASS without an actual run.
+- Current next step: retrieve exact branch tip and CI/workflow state, then inspect the existing canonical issue ordering implementation before designing any planner/scheduler changes. The HANDOFF earlier states newest-updated-first within priority; that conflicts with the corrected FIFO-within-tier requirement and must be resolved in the existing selector, not by creating a second queue.
+- No APK, no backend/Render/main/production Supabase changes.
