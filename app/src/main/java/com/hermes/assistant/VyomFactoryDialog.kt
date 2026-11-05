@@ -222,14 +222,25 @@ internal class VyomFactoryDialog(
                     adjustViewBounds = true
                 }, LinearLayout.LayoutParams(-1, dp(160)).apply { topMargin = dp(6) })
             }
-            screenshotAttachButton = Button(activity).apply {
-                text = "ATTACH TO FACTORY ISSUE"
-                textSize = 9f
-                setOnClickListener { chooseScreenshotIssue(screenshot) }
+            val priorUpload = runCatching {
+                VyomFactoryScreenshotEvidenceStore(File(activity.filesDir, "factory-evidence")).uploadReceipt(screenshot)
+            }.getOrNull()
+            if (priorUpload != null) {
+                evidencePanel.addView(TextView(activity).apply {
+                    text = "UPLOAD ALREADY COMPLETED · issue comment needs manual repair · ${priorUpload.url}"
+                    textSize = 9f
+                    setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                })
+            } else {
+                screenshotAttachButton = Button(activity).apply {
+                    text = "ATTACH TO FACTORY ISSUE"
+                    textSize = 9f
+                    setOnClickListener { chooseScreenshotIssue(screenshot) }
+                }
+                evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(40)).apply {
+                    topMargin = dp(6)
+                })
             }
-            evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(40)).apply {
-                topMargin = dp(6)
-            })
             root.addView(evidencePanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         }
 
@@ -611,6 +622,10 @@ internal class VyomFactoryDialog(
                         screenshotAttachButton?.text = "ATTACHED TO #${fresh.number}"
                         status.text = "Screenshot attached to #${fresh.number}. SHA-256 ${attachment.sha256}. Local copy removed after confirmed issue comment."
                     } else {
+                        runCatching {
+                            VyomFactoryScreenshotEvidenceStore(File(activity.filesDir, "factory-evidence"))
+                                .recordUploaded(screenshot, attachment.url, attachment.commitSha, attachment.sha256)
+                        }
                         screenshotAttachButton?.isEnabled = false
                         status.text = "Image uploaded to the private repository, but the issue comment failed. Do not retry upload; manually add this link to #${fresh.number}: ${attachment.url}"
                     }
