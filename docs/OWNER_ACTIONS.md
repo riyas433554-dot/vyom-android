@@ -127,3 +127,6 @@ No new token is requested. Use the GitHub token already saved in Vyom Settings (
 4. Report the exact observed result. Keep issue #101 open until the chat-isolation probe and explicit Teach Library test both pass on the phone; attach evidence to #101 only after explicitly choosing Attach.
 
 Current source candidate: a86b1a81304850cb74e0024505acd08232d16a1d. CI runs at that exact SHA: Full 42011059270, Debug 42011059260 (check current status before treating the build as accepted). No physical-device verification has been recorded yet.
+
+
+Latest source candidate was advanced to 20370798db1c02e666e1c1d071f04ffe1e16b8e0 after removing the unused unauthenticated update helper path. Recheck the latest exact-head CI run IDs from GitHub Actions before installing or accepting this candidate. The #101 progress comment is GitHub comment 6655794795; the issue remains open and the physical-device probe is still required.
