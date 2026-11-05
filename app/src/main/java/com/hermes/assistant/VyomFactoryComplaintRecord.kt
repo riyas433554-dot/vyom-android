@@ -1,8 +1,8 @@
 package com.hermes.assistant
 
 /**
- * Typed complaint envelope shared by every Factory intake adapter.
- * Classification is deliberately conservative: unknown language/domain falls back to "other".
+ * Typed complaint envelope shared by Factory intake adapters.
+ * Only defects explicitly about Vyom Factory's own workflow enter its canonical register.
  */
 internal data class VyomFactoryComplaintRecord(
     val source: String,
@@ -40,46 +40,59 @@ internal data class VyomFactoryComplaintRecord(
             "termux", "chatgpt", "claude", "codex", "share_sheet"
         )
 
+        private fun classifyFactoryArea(text: String): String? {
+            val lower = text.lowercase()
+            val mentionsFactory = Regex("\\bvyom\\s+factory\\b|\\bfactory\\b").containsMatchIn(lower)
+            if (!mentionsFactory) return null
+            return when {
+                listOf("a18", "content update", "signed update", "content package", "rollback", "update channel")
+                    .any { lower.contains(it) } -> "update"
+                listOf("worker", "executor", "execution", "task queue", "queue", "lease", "retry",
+                    "runner", "claim", "stop", "pause", "task failure", "postcondition action")
+                    .any { lower.contains(it) } -> "execution"
+                listOf("triage", "priority", "classif", "routing", "route", "assignment", "intake", "register complaint")
+                    .any { lower.contains(it) } -> "triage"
+                listOf("verification", "verify", "probe", "postcondition", "evidence", "closure", "close complaint", "reopen")
+                    .any { lower.contains(it) } -> "verification"
+                listOf("audit", "timeline", "activity log", "history").any { lower.contains(it) } -> "audit"
+                listOf("proposal", "self-change", "pull request", " pr ", "exact sha", "signed artifact", "code fix")
+                    .any { lower.contains(it) } -> "proposal"
+                listOf("github token", "signing secret", "encrypted", "credential", "permission", "protected scope", "project rule")
+                    .any { lower.contains(it) } -> "security"
+                listOf("factory ui", "factory screen", "complaint card", "automations screen", "factory dialog")
+                    .any { lower.contains(it) } -> "ui"
+                listOf("complaint", "factory").any { lower.contains(it) } -> "intake"
+                else -> "other"
+            }
+        }
+
         fun fromFreeText(source: String, text: String): VyomFactoryComplaintRecord {
             require(source in SOURCES) { "Unsupported complaint source" }
             val original = text.trim()
             require(original.isNotEmpty() && original.length <= 12_000) { "Complaint must contain 1–12,000 characters" }
+            val area = classifyFactoryArea(original)
+                ?: throw IllegalArgumentException("Out of scope: only Vyom Factory workflow complaints can enter the Factory register")
             val lower = original.lowercase()
-            val area = when {
-                listOf("open_app", "tap", "swipe", "scroll", "type", "read_screen", "screenshot",
-                    "clipboard", "intent", "force_stop", "control", "accessibility", "android control",
-                    "play store", "playstore", "install app", "app install", "whatsapp",
-                    "send message", "message send")
-                    .any { lower.contains(it) } -> "control"
-                listOf("update", "apk", "rollback", "content package", "a18").any { lower.contains(it) } -> "update"
-                listOf("memory", "remember", "forgot", "saved fact", "recall").any { lower.contains(it) } -> "memory"
-                listOf("design", "layout", "theme", "spacing", "screen ui", "composer").any { lower.contains(it) } -> "design"
-                listOf("personality", "persona", "tone").any { lower.contains(it) } -> "personality"
-                listOf("github", "repository", "repo", "commit", "pull request", "code").any { lower.contains(it) } -> "repo"
-                listOf("skill", "teach", "learned procedure").any { lower.contains(it) } -> "skill"
-                listOf("schedule", "automation", "reminder", "timer", "recurring").any { lower.contains(it) } -> "schedule"
-                listOf("voice", "speech", "microphone", "stt", "tts", "transcription").any { lower.contains(it) } -> "voice"
-                else -> "other"
-            }
             val severity = when {
                 listOf("security", "unsafe", "data loss", "crash", "credential leak").any { lower.contains(it) } -> "critical"
                 listOf(
                     "fail", "failed", "broken", "error", "not working", "does not work", "doesn't work",
                     "nahi ho raha", "nahi ho rahi", "nahi hota", "nahi hoti",
-                    "nahi chal raha", "nahi chal rahi", "send nahi", "install nahi",
-                    "kaam nahi kar", "not sending", "unable to send", "cannot send", "can't send"
+                    "nahi chal raha", "nahi chal rahi", "kaam nahi kar"
                 ).any { lower.contains(it) } -> "high"
                 else -> "medium"
             }
             val priority = when (area) {
-                "control", "update" -> "P0"
-                "memory" -> "P1"
-                "design" -> "P2"
+                "update", "execution", "security" -> "P0"
+                "triage", "verification", "proposal", "intake" -> "P1"
+                "audit", "ui" -> "P2"
                 else -> "P3"
             }
-            val fixType = if (area in setOf("skill", "personality") &&
-                listOf("prompt", "wording", "persona", "skill content", "routing rule").any { lower.contains(it) }
-            ) "content update with no APK" else "native change needing an APK"
+            val fixType = if (area == "update" && listOf("content", "a18", "no-apk").any { lower.contains(it) }) {
+                "content update with no APK"
+            } else {
+                "native change needing an APK"
+            }
             val sensitive = MemoryCapturePolicy.isSensitive(original)
             val safeOriginal = if (sensitive) "[REDACTED: sensitive complaint text withheld from the shared issue]" else original
             val evidence = when {
@@ -96,8 +109,8 @@ internal data class VyomFactoryComplaintRecord(
                 priority = priority,
                 evidence = evidence,
                 reproSteps = "Use the original complaint as the reproduction context. Detailed step-by-step reproduction was not supplied; obtain it during triage.",
-                expectedResult = "The reported behavior should match the owner's stated intent. A measurable post-condition must be confirmed during triage.",
-                verificationProbe = "UNASSIGNED at intake: triage must define a named automated test and on-device post-condition probe before implementation or closure.",
+                expectedResult = "The reported Vyom Factory workflow behavior should match the owner's stated intent. A measurable post-condition must be confirmed during triage.",
+                verificationProbe = "UNASSIGNED at intake: triage must define a named automated test and observable post-condition probe before implementation or closure.",
                 fixType = fixType
             )
         }
