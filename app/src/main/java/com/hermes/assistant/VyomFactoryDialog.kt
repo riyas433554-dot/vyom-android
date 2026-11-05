@@ -373,7 +373,7 @@ internal class VyomFactoryDialog(
         val foregroundGeneration = hostActivity.factoryForegroundGate.generation()
         claimStatus.text = "RUNNER ACTIVE · FETCHING FRESH ISSUE AND VALIDATING ACTION…"
         worker.execute {
-            val outcome = try {
+            val outcomes = try {
                 val session = workerSession
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
@@ -390,8 +390,14 @@ internal class VyomFactoryDialog(
                     }
                 }
 
+                val visitedIssues = mutableSetOf<Int>()
                 val runner = VyomFactoryExecutionRunner(
-                    claimNext = { session.claimNext { remote -> isEligibleForRunner(remote, journal, retrySchedules, adapter) } },
+                    claimNext = {
+                        session.claimNext { remote ->
+                            remote.number !in visitedIssues &&
+                                isEligibleForRunner(remote, journal, retrySchedules, adapter)
+                        }
+                    },
                     isClaimCurrent = { session.isCurrent(it) },
                     releaseClaim = { session.release(it) },
                     fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
@@ -408,55 +414,77 @@ internal class VyomFactoryDialog(
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
                     }
                 )
-                runner.runNext()
+                buildList {
+                    while (
+                        size < VyomFactoryDrainPolicy.MAX_TASKS_PER_FOREGROUND_RUN &&
+                        !stopRunRequested.get() &&
+                        hostActivity.factoryForegroundGate.isForeground() &&
+                        hostActivity.factoryForegroundGate.generation() == foregroundGeneration
+                    ) {
+                        val next = runner.runNext()
+                        add(next)
+                        val issueNumber = when (next) {
+                            is VyomFactoryExecutionRunner.Outcome.Succeeded -> next.issueNumber
+                            is VyomFactoryExecutionRunner.Outcome.Failed -> next.issueNumber
+                            is VyomFactoryExecutionRunner.Outcome.Skipped -> next.issueNumber
+                            is VyomFactoryExecutionRunner.Outcome.Fenced -> next.issueNumber
+                            VyomFactoryExecutionRunner.Outcome.Busy,
+                            VyomFactoryExecutionRunner.Outcome.NoWork -> null
+                        }
+                        if (issueNumber != null) visitedIssues.add(issueNumber)
+                        if (!VyomFactoryDrainPolicy.shouldContinue(next)) break
+                    }
+                }
             } catch (error: Exception) {
                 main.post { onRunnerFailure(error.javaClass.simpleName) }
                 null
             }
-            val auditComment = outcome?.let(VyomFactoryExecutionAudit::comment)
-            val auditedIssue = when (outcome) {
-                is VyomFactoryExecutionRunner.Outcome.Succeeded -> outcome.issueNumber
-                is VyomFactoryExecutionRunner.Outcome.Failed -> outcome.issueNumber
-                else -> null
-            }
-            if (auditComment != null && auditedIssue != null) {
-                // Audit persistence is best-effort: it must never rewrite a verified side effect as failure.
-                runCatching {
-                    val current = client.listTasks().firstOrNull { it.number == auditedIssue && it.state == "open" }
-                    if (current != null) client.addEvent(auditedIssue, auditComment)
+            outcomes.orEmpty().forEach { item ->
+                val auditComment = VyomFactoryExecutionAudit.comment(item)
+                val auditedIssue = when (item) {
+                    is VyomFactoryExecutionRunner.Outcome.Succeeded -> item.issueNumber
+                    is VyomFactoryExecutionRunner.Outcome.Failed -> item.issueNumber
+                    else -> null
+                }
+                if (auditComment != null && auditedIssue != null) {
+                    // Audit persistence is best-effort: it must never rewrite a verified side effect as failure.
+                    runCatching {
+                        val current = client.listTasks().firstOrNull { it.number == auditedIssue && it.state == "open" }
+                        if (current != null) client.addEvent(auditedIssue, auditComment)
+                    }
                 }
             }
             main.post {
                 if (!dialog.isShowing) return@post
                 activeClaim = null
-                when (outcome) {
-                    is VyomFactoryExecutionRunner.Outcome.Succeeded -> {
-                        claimStatus.text = "VERIFIED · #${outcome.issueNumber} · ATTEMPT ${outcome.attemptId.take(8)}"
-                        status.text = outcome.result
-                    }
-                    is VyomFactoryExecutionRunner.Outcome.Failed -> {
-                        claimStatus.text = "EXECUTION FAILED · #${outcome.issueNumber} · ${outcome.category}"
-                        status.text = "No success recorded. Review task #${outcome.issueNumber} before retrying."
-                    }
-                    is VyomFactoryExecutionRunner.Outcome.Skipped -> {
-                        claimStatus.text = "NOT EXECUTED · #${outcome.issueNumber} · ${outcome.reason}"
-                        status.text = "No Android action was reported as completed."
-                    }
-                    is VyomFactoryExecutionRunner.Outcome.Fenced -> {
-                        claimStatus.text = "CLAIM FENCED · #${outcome.issueNumber}"
-                        status.text = "Lease changed or expired. No verified completion was recorded."
-                    }
-                    VyomFactoryExecutionRunner.Outcome.Busy -> {
-                        claimStatus.text = "WORKER BUSY · ONE ACTIVE RUN"
-                        status.text = "Another Factory action is already executing. This run did not claim a task."
-                    }
-                    VyomFactoryExecutionRunner.Outcome.NoWork -> {
-                        claimStatus.text = "WORKER IDLE · NO ELIGIBLE TASK"
-                        status.text = "No open executable Factory task was found."
-                    }
-                    null -> {
-                        claimStatus.text = "RUNNER ERROR · NO SUCCESS REPORTED"
-                        status.text = "Execution could not start: check GitHub connection and foreground state."
+                val drained = outcomes.orEmpty()
+                val verifiedCount = drained.count { it is VyomFactoryExecutionRunner.Outcome.Succeeded }
+                val failedCount = drained.count { it is VyomFactoryExecutionRunner.Outcome.Failed }
+                val skippedCount = drained.count { it is VyomFactoryExecutionRunner.Outcome.Skipped }
+                if (outcomes == null) {
+                    claimStatus.text = "RUNNER ERROR · NO SUCCESS REPORTED"
+                    status.text = "Execution could not start: check GitHub connection and foreground state."
+                } else if (drained.isEmpty()) {
+                    claimStatus.text = "RUN STOPPED · NO TASK STARTED"
+                    status.text = "STOP or foreground loss prevented the next task from starting."
+                } else {
+                    val suffix = if (drained.size == VyomFactoryDrainPolicy.MAX_TASKS_PER_FOREGROUND_RUN) {
+                        " · BATCH LIMIT REACHED"
+                    } else ""
+                    claimStatus.text = "DRAIN FINISHED · $verifiedCount VERIFIED · $failedCount FAILED · $skippedCount SKIPPED$suffix"
+                    status.text = when (val last = drained.last()) {
+                        is VyomFactoryExecutionRunner.Outcome.Succeeded ->
+                            "Last verified task #${last.issueNumber}: ${last.result}"
+                        is VyomFactoryExecutionRunner.Outcome.Failed ->
+                            "Last task #${last.issueNumber} failed (${last.category}); no success recorded."
+                        is VyomFactoryExecutionRunner.Outcome.Skipped ->
+                            "Last task #${last.issueNumber} skipped (${last.reason}); no action reported complete."
+                        is VyomFactoryExecutionRunner.Outcome.Fenced ->
+                            "Stopped at fenced claim #${last.issueNumber}; no successor was started."
+                        VyomFactoryExecutionRunner.Outcome.Busy ->
+                            "Another Factory run is already active."
+                        VyomFactoryExecutionRunner.Outcome.NoWork ->
+                            "No further eligible executable task remained."
                     }
                 }
                 runButton.isEnabled = true
