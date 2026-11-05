@@ -1,6 +1,6 @@
 # Vyom Factory — Owner Actions
 
-Last reviewed: 2026-11-04
+Last reviewed: 2026-11-05
 Controlling source: docs/HANDOFF.md (ORDER V2)
 
 ## OWNER ACTION NEEDED — enable the Termux complaint command
@@ -36,11 +36,11 @@ vyom-complain \
 Re-running the exact command with the same --source-id must return the existing issue number, not create a duplicate. Do not reuse this source ID for a different complaint.
 
 ## Intake implementation status (source-wired; device acceptance pending)
-- Chat complaint prefix and voice-transcript complaint prefix both route to the shared GitHub Issues registry with stable local message identity.
+- Generic `complaint:` / `report bug:` and explicit `factory:` prefixes route complaints from every Vyom product area to the shared GitHub Issues register with stable local message identity; no Factory wording is required for a generic complaint.
 - Diagnostics failures are converted into sanitized complaint records with content-specific stable IDs; queued reports retry registration after reconnect.
 - Chat task failures create a separate complaint while withholding the original private request and exception details from the public issue.
 - Termux intake command exists and has shell/schema CI coverage; owner must still install/authenticate it and run the documented idempotency smoke test.
-- These source paths are not yet accepted on a physical phone. The screenshot share-sheet receiver is still not implemented.
+- These source paths are not yet accepted on a physical phone. Screenshot intake/attachment remains pending: when implemented, images must first remain in app-private storage and must upload only after the owner taps Attach for a specific issue.
 
 
 ## Required when Stage 1 implementation is ready
@@ -64,25 +64,33 @@ From GPT, Claude and Codex, create a complaint through each agent's connected Gi
 - No new token or secret is requested at this stage.
 - Do not change Android main, Render, Hermes backend or production Supabase.
 
-## OWNER ACTION NEEDED — choose safe screenshot evidence storage
+## OWNER ACTION NEEDED — make the complaint/evidence repository private
 
-The source repository is public. Screenshots from the Android share sheet can contain notifications, names, messages, account details or other private data. I will not upload them into this public repository or embed them in public issue bodies.
+**OWNER ACTION NEEDED**
 
-Before implementing screenshot-to-issue attachment, choose one:
-1. Provide the name of a private GitHub evidence repository and authorize the app/CLI token to create/read issue evidence there; or
-2. Explicitly approve public screenshot uploads only after the owner manually redacts each image.
+The current repository is public. The requested screenshot workflow must use a private repository before any remote image attachment is enabled.
 
-Until this is decided, share-sheet screenshots must not be uploaded remotely. Local-only paths are not considered shared evidence because GPT/Claude/Codex agents cannot access them.
+1. Open https://github.com/riyas433554-dot/vyom-android/settings.
+2. Open **General** → scroll to **Danger Zone** → **Change repository visibility**.
+3. Select **Make private** and confirm the repository name when GitHub asks.
+4. Verify the repository header shows **Private**.
+5. Open **Settings → Actions → General** and confirm GitHub Actions are permitted for this repository.
+6. In GitHub → Settings → Developer settings → Personal access tokens, confirm the app/CLI token still has access to this private repository with Issues read/write and Contents read access as required. Do not paste the token into chat.
+7. Run the Termux smoke test below and confirm issue creation still works.
 
-## OWNER ACTION NEEDED — confirm complaint register visibility
+**Screenshot handling contract (implementation requirement, not yet device-verified):**
+- Capture or receive the screenshot into app-private internal storage (filesDir / app-private cache), never public shared storage by default.
+- Do not upload during capture, intake, retry, reconnect or background processing.
+- Show the image preview and target complaint. Upload/attach only after the owner explicitly taps **Attach**.
+- Attach to that exact GitHub issue; preserve a local copy until the upload result is confirmed. On failure, keep the local file and show a retry option; never silently retry-upload.
+- Do not attach screenshots to a public repository or issue. Do not include screenshot bytes/base64 in issue text.
+- The share-sheet receiver and explicit Attach UI are still pending implementation and must be verified in the APK before this is marked complete.
 
-The repository is public, so GitHub Issues, complaint titles and issue bodies are publicly readable. The Android intake now redacts content detected by the existing sensitive-memory policy and withholds chat text/exception details from automatic task-failure reports, but this is not a complete PII detector.
+## OWNER ACTION NEEDED — protect issue visibility before real complaints
 
-Choose one before sending real user complaints:
-1. Keep the repository public and confirm that only non-sensitive, manually sanitized complaint details may be registered; or
-2. Change repository visibility to private in GitHub → Repository Settings → General → Danger Zone → Change repository visibility, then verify GitHub Actions and the app's issue token still have access.
+**OWNER ACTION NEEDED**
 
-Do not paste credentials, OTPs, private messages or personal screenshots into public issue bodies. The seeded matrix issues are generic requirement records and contain no device evidence.
+The canonical issue register contains complaint titles and descriptions. Complete the private-repository steps above before registering real device/user details. Until GitHub confirms the repository is private, use only generic, non-sensitive test complaints. Never paste credentials, OTPs, private messages or personal screenshots into issue bodies.
 
 ## OWNER ACTION NEEDED — use the Factory complaint-to-code proposal flow (after the matching APK passes CI)
 
