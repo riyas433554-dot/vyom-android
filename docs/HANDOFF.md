@@ -737,3 +737,11 @@ No backend, Render, production Supabase, or Android `main` changes. No physical 
 - Verification status: NOT verified on a physical device. Owner must run Check for Updates, Run All Checks, and Check No-APK Content Updates with the already-saved GitHub token; then verify release discovery, manifest/asset download, SHA-256, signer identity, content probes and active slot. For #101, send ordinary conversational questions that mention actions and confirm they remain in chat with no Teach Vyom dialog or prefilled text; explicitly open Teach Library and test Add Phrase separately. Keep #101 open until that device probe passes and evidence is attached.
 - No APK 1 produced, no auto-merge/install, no Android main, Render, Hermes backend or production Supabase changes.
 - Next after these priority repairs pass exact-head CI and owner acceptance is the small shared Factory core and the REPOSITORY_CHANGE adapter, before Android adapters, using the guarded proposal → tests → PR → both CI gates → signed artifact → A18 content update → probe → evidence flow.
+
+
+## Follow-up: remove obsolete unauthenticated update helpers — 2026-11-05
+
+- Removed the now-unused legacy unauthenticated HTTP helpers from ContentUpdateManager after switching the no-APK channel to GitHubReleaseAssetClient. This prevents an accidental future call path from bypassing the saved-token/asset-ID implementation and removes the stale RELEASES_API reference.
+- Latest source SHA is 20370798db1c02e666e1c1d071f04ffe1e16b8e0. Exact-head Full CI run 42011548725 and Debug CI run 42011548589 were queued/in progress when this note was prepared; verify final outcomes before calling the source candidate green.
+- Issue #101 remains OPEN. A progress comment (GitHub comment 6655794795) records the candidate behavior, exact source SHA, CI run IDs and required owner phone test. No device verification or issue closure was recorded.
+- The earlier exact-head docs CI and source runs were superseded/cancelled by newer commits; only the newest full and debug runs on the final handoff head count.
