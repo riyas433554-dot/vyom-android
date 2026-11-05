@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -47,6 +48,46 @@ internal object VyomFactoryScreenshotEvidencePolicy {
 
 internal class VyomFactoryScreenshotEvidenceStore(private val root: File) {
     data class Received(val file: File, val mimeType: String, val sha256: String, val sizeBytes: Int)
+    data class UploadReceipt(val url: String, val commitSha: String, val sha256: String)
+
+    fun recordUploaded(file: File, url: String, commitSha: String, sha256: String) {
+        val canonicalRoot = root.canonicalFile
+        check(file.canonicalFile.parentFile == canonicalRoot && file.isFile) {
+            "Upload receipt must refer to an app-private pending screenshot"
+        }
+        require(url.startsWith("https://github.com/") &&
+            commitSha.matches(Regex("^[a-f0-9]{40}$")) &&
+            sha256.matches(Regex("^[a-f0-9]{64}$")))
+        val receipt = JSONObject()
+            .put("url", url)
+            .put("commit_sha", commitSha)
+            .put("sha256", sha256)
+            .put("state", "uploaded_comment_pending")
+        val target = File(canonicalRoot, file.name + ".uploaded.json")
+        FileOutputStream(target).use { output ->
+            output.write(receipt.toString().toByteArray(Charsets.UTF_8))
+            output.flush()
+            output.fd.sync()
+        }
+    }
+
+    fun uploadReceipt(file: File): UploadReceipt? {
+        val canonicalRoot = root.canonicalFile
+        if (file.canonicalFile.parentFile != canonicalRoot) return null
+        val record = File(canonicalRoot, file.name + ".uploaded.json")
+        if (!record.isFile) return null
+        return runCatching {
+            val json = JSONObject(record.readText(Charsets.UTF_8))
+            check(json.optString("state") == "uploaded_comment_pending")
+            val url = json.getString("url")
+            val commit = json.getString("commit_sha")
+            val hash = json.getString("sha256")
+            check(url.startsWith("https://github/") || url.startsWith("https://github.com/"))
+            check(commit.matches(Regex("^[a-f0-9]{40}$")))
+            check(hash.matches(Regex("^[a-f0-9]{64}$")))
+            UploadReceipt(url, commit, hash)
+        }.getOrNull()
+    }
 
     fun receive(input: InputStream, mimeType: String): Received {
         val bytes = input.use { stream ->
