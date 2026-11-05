@@ -35,6 +35,19 @@ This section supersedes older APK gates and Factory ordering text below where th
 - APK 1 may be delivered only when the Factory workflow works end-to-end and its required safety controls are verified, with exact-HEAD CI green and artifact integrity checked. Do not block on post-APK backlog features or lifecycle work outside Factory.
 - Keep work only on `feature/memory-intelligence`. Never touch Android `main`, Render/Hermes backend, or production Supabase.
 
+### Cross-area complaint intake + backlog restoration — 2026-11-05
+
+- Owner changed the register boundary: all Vyom areas are accepted as complaints, while APK 1 remains Factory-only. A generic `complaint:` prefix no longer requires Factory wording. This is registration only; post-APK-1 product work is not implemented or selected for APK 1.
+- TDD regression tests added in `VyomFactoryComplaintRecordTest`: memory/design/personality/repo/skills/schedule/voice/update/control/Android-control/WhatsApp/Play Store/floating-orb acceptance, generic `other` fallback, Factory-prefixed workflow classification, and priority tiers. Test commit: `17563e29edbed44dcd1ed7c17493bcae9dc7d93f`; taxonomy expectation adjustment: `e4bcb48d7989ce8a8745efd9beecc06b72db1fe0`.
+- `VyomFactoryComplaintRecord` no longer rejects WhatsApp/Play Store or requires explicit Factory context. It classifies named product areas and defaults unknown complaints to `other`. Priority defaults: control/Android-control/update P0; memory/design P1; voice and other named areas P2; unknown/other P3. Implementation commit: `95cea4e0ad9745bcfb8f221a6f549df52bef34fd`.
+- MainActivity now reports only malformed/empty/overlong intake errors rather than an out-of-scope rejection. Commit: `74a4e2da321bb8ac7347573fdbbd1df6448e092c`.
+- Termux `vyom-complain` accepts all requested area values and derives owner priority defaults when `--priority` is omitted. Shell regression coverage added for area acceptance and defaults. Commits: `326b4bf637dd65e458e4ebb7fa141a38fe29cbb0`, `3ef5f997067dd344a013b0de07ea62fdff216c65`, `f2c27529311596b946ab437b8cee7f70c0b190ea`.
+- Reopened **70** previously `not_planned` product issues: #14–15, #17–37, #39–42, #44–46, #52–53, #55–70, #72–82, #84, #89–95 and #97–99. Verified search returns 70 open issues carrying `backlog-after-factory`. Their Factory metadata status is `paused`, so they remain visible in the register but cannot be claimed by the APK 1 worker. #52 update is P0; memory/design P1; voice P2; control priorities are P0; other seeded priorities retained unless mapped by the owner policy. Factory active issues such as #16/#38/#43/#47–51/#54/#71/#83/#85–88/#96 were not reopened or relabeled.
+- `docs/OWNER_ACTIONS.md` now marks private repository conversion as **OWNER ACTION NEEDED** and defines app-private screenshot storage plus owner-tapped **Attach** as the required contract. Screenshot receiver/Attach UI are not implemented or device-verified yet; no screenshot was uploaded.
+- The current repository is still public until the owner completes the documented visibility change. Do not register real private data or enable remote screenshot upload before then.
+- No product-area feature implementation, no auto-merge/install, no Android `main`, Render, Hermes backend or production Supabase changes. No APK delivered.
+- Current source HEAD after this batch: `f2c27529311596b946ab437b8cee7f70c0b190ea`. Exact-head CI and test results must be checked; source edits and test additions are not a passing-test claim.
+
 ### Latest source audit and CI (2026-11-04)
 
 - Latest source branch tip before this handoff refresh: `b24063de806f451e993f29d96a8c634a8c806a1e`. `docs/OWNER_ACTIONS.md` now includes guarded complaint-to-code proposal acceptance steps. Proposal pipeline failures/timeouts are also recorded back to the originating complaint (without exposing exception message/request text); cancellation/back-dismissal clears the pending issue link.
