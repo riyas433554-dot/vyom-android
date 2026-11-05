@@ -37,7 +37,8 @@ internal object VyomFactoryRepositoryIntake {
         val readOnlyInspectionAllowed: Boolean,
         val sourceExecutionAllowed: Boolean = false,
         val installationApproved: Boolean = false,
-        val reasons: List<String>
+        val reasons: List<String>,
+        val detectedKinds: Set<Kind>
     )
 
     private val ownerPattern = Regex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
@@ -86,7 +87,8 @@ internal object VyomFactoryRepositoryIntake {
         if (snapshot.paths.isEmpty()) reasons += "repository_tree_empty"
         if (snapshot.paths.any { !isSafePath(it) }) reasons += "unsafe_repository_path"
 
-        val kind = classify(snapshot.paths)
+        val detectedKinds = detectKinds(snapshot.paths)
+        val kind = detectedKinds.firstOrNull { it != Kind.UNKNOWN } ?: Kind.UNKNOWN
         if (kind == Kind.UNKNOWN) reasons += "repository_type_unknown"
         if (snapshot.licenseSpdx !in allowedLicenses) reasons += "license_requires_review"
 
@@ -114,27 +116,32 @@ internal object VyomFactoryRepositoryIntake {
             readOnlyInspectionAllowed = !hardBlocked,
             sourceExecutionAllowed = false,
             installationApproved = false,
-            reasons = reasons.distinct()
+            reasons = reasons.distinct(),
+            detectedKinds = detectedKinds
         )
     }
 
-    fun classify(paths: List<String>): Kind {
+    fun classify(paths: List<String>): Kind =
+        detectKinds(paths).firstOrNull { it != Kind.UNKNOWN } ?: Kind.UNKNOWN
+
+    fun detectKinds(paths: List<String>): Set<Kind> {
         val safePaths = paths.filter(::isSafePath)
         val names = safePaths.map { it.substringAfterLast('/') }.toSet()
-        return when {
-            names.any { it.equals("SKILL.md", ignoreCase = true) } -> Kind.SKILL
-            // A real source manifest is the primary repository type even when the
-            // project also ships OpenAPI specs or CI workflows.
-            names.any { it in sourceManifests } -> Kind.SOURCE_CODE
-            names.any { it in apiSpecs } -> Kind.API_SPEC
-            safePaths.any {
+        val detected = linkedSetOf<Kind>()
+        // A repository may contain code, reusable skills, API specs and CI workflows.
+        // Preserve all detected artifact types while exposing one deterministic primary kind.
+        if (names.any { it in sourceManifests }) detected += Kind.SOURCE_CODE
+        if (names.any { it.equals("SKILL.md", ignoreCase = true) }) detected += Kind.SKILL
+        if (names.any { it in apiSpecs }) detected += Kind.API_SPEC
+        if (safePaths.any {
                 it.startsWith(".github/workflows/") &&
                     (it.endsWith(".yml", true) || it.endsWith(".yaml", true))
-            } -> Kind.WORKFLOW
-            safePaths.any { it.equals("README.md", ignoreCase = true) || it.startsWith("docs/") } ->
-                Kind.DOCUMENTATION
-            else -> Kind.UNKNOWN
+            }) detected += Kind.WORKFLOW
+        if (safePaths.any { it.equals("README.md", ignoreCase = true) || it.startsWith("docs/") }) {
+            detected += Kind.DOCUMENTATION
         }
+        if (detected.isEmpty()) detected += Kind.UNKNOWN
+        return detected
     }
 
     private fun isSafePath(path: String): Boolean =
