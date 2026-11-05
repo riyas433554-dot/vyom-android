@@ -390,6 +390,27 @@ internal class VyomFactoryDialog(
                     }
                 }
 
+                // Repository complaints have no executable adapter. Hand the oldest
+                // eligible one to the existing owner-reviewed proposal UI instead of
+                // letting the Android-only runner silently skip it.
+                val ownerReview = VyomFactorySpecialistRouting.nextOwnerReview(triageDecisions)
+                if (ownerReview != null) {
+                    main.post {
+                        if (!dialog.isShowing) return@post
+                        activeClaim = null
+                        claimStatus.text = "OWNER REVIEW REQUIRED · #${ownerReview.task.number}"
+                        status.text = "Repository complaint routed to source discovery. Choose a file and review the exact diff; nothing has been changed."
+                        runButton.isEnabled = true
+                        stopButton.isEnabled = false
+                        claimButton.isEnabled = true
+                        releaseClaimButton.isEnabled = false
+                        busy = false
+                        dialog.dismiss()
+                        onProposeFix(ownerReview.task)
+                    }
+                    return@execute
+                }
+
                 val visitedIssues = mutableSetOf<Int>()
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = {
