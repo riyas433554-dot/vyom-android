@@ -168,6 +168,10 @@ internal class VyomFactoryGitHubClient(
         }
         val extension = VyomFactoryScreenshotEvidencePolicy.extensionFor(mime, bytes)
         val hash = VyomFactoryScreenshotEvidencePolicy.sha256(bytes)
+        // Recheck immediately before the write so a visibility change during issue lookup fails closed.
+        check(JSONObject(execute("GET", "")).optBoolean("private", false)) {
+            "Repository visibility changed; screenshot upload was blocked"
+        }
         val fileName = UUID.randomUUID().toString() + "." + extension
         val path = ".factory-evidence/issue-$issueNumber/$fileName"
         val payload = JSONObject()
