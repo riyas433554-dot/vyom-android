@@ -337,6 +337,50 @@ class VyomFactoryExecutionRunnerTest {
             permit.release()
         }
     }
+
+    @Test fun unsupportedTypedCapabilityIsSkippedBeforeJournalOrAdapterExecution() {
+        val fixture = Fixture(executionOperation = "launch_app")
+        val adapter = object : VyomFactoryExecutionAdapter {
+            override val target = VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION
+            override val isIdempotent = true
+            override val capabilities = listOf(
+                VyomFactoryCapabilityRegistry.Capability(
+                    id = "android_control.set_media_volume",
+                    version = 1,
+                    domain = VyomFactoryCapabilityRegistry.Domain.ANDROID_CONTROL,
+                    operations = setOf("set_media_volume"),
+                    risk = VyomFactoryCapabilityRegistry.Risk.R1,
+                    requiresOwnerApproval = false,
+                    mutating = true,
+                    reversible = false,
+                    rollbackCapabilityId = null,
+                    idempotent = true,
+                    available = true,
+                    unavailableReason = null
+                )
+            )
+            var calls = 0
+            override fun isVerifiedResult(result: String) = result == "verified"
+            override fun run(
+                envelope: VyomFactoryExecutionEnvelope,
+                control: VyomFactoryExecutionControl
+            ): String {
+                calls++
+                return "verified"
+            }
+        }
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "capability_unsupported"),
+            outcome
+        )
+        assertEquals(0, adapter.calls)
+        assertTrue(fixture.journal.all().isEmpty())
+        assertNull(fixture.activeLease())
+    }
+
     private class Fixture(
         remoteState: String = "open",
         remoteMetadataStatus: String = "open",
