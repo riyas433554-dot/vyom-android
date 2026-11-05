@@ -119,13 +119,19 @@ internal object VyomFactoryRepositoryIntake {
     }
 
     fun classify(paths: List<String>): Kind {
-        val safe = paths.filter(::isSafePath).map { it.substringAfterLast('/') }.toSet()
+        val safePaths = paths.filter(::isSafePath)
+        val names = safePaths.map { it.substringAfterLast('/') }.toSet()
         return when {
-            "SKILL.md" in safe -> Kind.SKILL
-            safe.any { it in apiSpecs } -> Kind.API_SPEC
-            paths.any { it.startsWith(".github/workflows/") && isSafePath(it) } -> Kind.WORKFLOW
-            safe.any { it in sourceManifests } -> Kind.SOURCE_CODE
-            paths.any { it.equals("README.md", ignoreCase = true) || it.startsWith("docs/") } ->
+            names.any { it.equals("SKILL.md", ignoreCase = true) } -> Kind.SKILL
+            // A real source manifest is the primary repository type even when the
+            // project also ships OpenAPI specs or CI workflows.
+            names.any { it in sourceManifests } -> Kind.SOURCE_CODE
+            names.any { it in apiSpecs } -> Kind.API_SPEC
+            safePaths.any {
+                it.startsWith(".github/workflows/") &&
+                    (it.endsWith(".yml", true) || it.endsWith(".yaml", true))
+            } -> Kind.WORKFLOW
+            safePaths.any { it.equals("README.md", ignoreCase = true) || it.startsWith("docs/") } ->
                 Kind.DOCUMENTATION
             else -> Kind.UNKNOWN
         }
