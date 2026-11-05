@@ -26,7 +26,8 @@ internal object VyomFactoryRepositoryIntake {
         val licenseSpdx: String,
         val archived: Boolean,
         val treeTruncated: Boolean,
-        val paths: List<String>
+        val paths: List<String>,
+        val treePartial: Boolean = false
     )
 
     data class Assessment(
@@ -78,6 +79,7 @@ internal object VyomFactoryRepositoryIntake {
         if (!sourceValid) reasons += "invalid_repository_identity"
         if (snapshot.archived) reasons += "repository_archived"
         if (snapshot.treeTruncated) reasons += "repository_tree_truncated"
+        if (snapshot.treePartial) reasons += "repository_tree_partial"
         if (!branchPattern.matches(snapshot.defaultBranch) ||
             snapshot.defaultBranch.startsWith("/") ||
             snapshot.defaultBranch.contains("..") ||
