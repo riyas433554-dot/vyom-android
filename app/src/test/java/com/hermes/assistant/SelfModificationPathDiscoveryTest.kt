@@ -4,6 +4,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,8 +48,9 @@ class SelfModificationPathDiscoveryTest {
             assertTrue(githubRequests[1].path.orEmpty().contains("/git/trees/$sha?recursive=1"))
             val modelRequest = model.takeRequest()
             assertEquals("POST", modelRequest.method)
-            assertTrue(modelRequest.body.readUtf8().contains("allowed_paths"))
-            assertTrue(!modelRequest.body.readUtf8().contains("current_source"))
+            val modelBody = modelRequest.body.readUtf8()
+            assertTrue(modelBody.contains("allowed_paths"))
+            assertFalse(modelBody.contains("current_source"))
         } finally {
             github.shutdown()
             model.shutdown()
