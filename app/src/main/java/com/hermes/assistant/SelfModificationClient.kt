@@ -11,7 +11,10 @@ import java.net.URLEncoder
  * Creates a proposal branch, commits one guarded Kotlin source file, and opens a PR
  * against the working branch. It has no merge, release, install, or main-branch path.
  */
-internal class SelfModificationClient(private val apiRoot: String = DEFAULT_API_ROOT) {
+internal class SelfModificationClient(
+    private val apiRoot: String = DEFAULT_API_ROOT,
+    private val modelApiRoot: String = DEFAULT_MODEL_API_ROOT
+) {
     data class Proposal(val branch: String, val pullRequestUrl: String)
     data class Draft(
         val title: String,
