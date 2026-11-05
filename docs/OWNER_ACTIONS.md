@@ -160,3 +160,12 @@ Phone acceptance remains required: Run All Checks, Check for Updates, Check No-A
 - Owner reports the existing fine-grained GitHub token was updated. Now run, in order: Settings → RUN ALL CHECKS; CHECK FOR UPDATES; CHECK NO-APK CONTENT UPDATES. Do not install an APK during these probes. Report whether each passes or fails; if failure, include only the non-secret HTTP message/request ID. Never share the token.
 - If update probes pass, separately test the exact canonical command `Install Godot from Play Store`. Preconditions: Vyom Accessibility enabled, MASTER APP CONTROL ON, Google Play Store enabled in App access, NVIDIA planner key saved. Verify the installed package and app launch; opening Play Store alone is not success.
 - Keep `Verified on device: NO` until those results are supplied and independently recorded. No final APK 1 authorization from CI alone.
+
+
+## Important — shared token also controls Factory writes
+
+The current app stores one `github_proposal_token` used by both private release/update reads and Factory GitHub write workflows. Contents: Read-only can satisfy update-feed reads, but it will block repository-content writes used by explicit screenshot Attach and some reviewed proposal operations. The current app does not yet provide a verified separate read-only update token plus Factory-write token.
+
+- First run the update probes with the newly saved token as requested above.
+- Before testing Factory repository write actions, restore Contents: Read and write on this same token (while retaining required Issues and Pull requests permissions), or wait until separate credential support is implemented and verified.
+- Do not claim all Factory write features work merely because update checks pass. Never paste the token into chat.
