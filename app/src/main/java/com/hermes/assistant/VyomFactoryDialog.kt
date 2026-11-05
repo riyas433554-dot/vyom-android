@@ -23,6 +23,7 @@ import android.os.Handler
 import android.os.Looper
 import java.io.File
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
@@ -644,6 +645,12 @@ internal class VyomFactoryDialog(
         }
     }
 
+    private fun workerFailureTaskId(operation: String, value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        val stable = digest.take(12).joinToString("") { "%02x".format(it) }
+        return "$operation:$stable"
+    }
+
     private fun shouldReportSkillWorkerFailure(error: Exception): Boolean =
         error is IOException || Regex("HTTP 5[0-9]{2}").containsMatchIn(error.message.orEmpty())
 
@@ -688,7 +695,7 @@ internal class VyomFactoryDialog(
                             busy = false
                             status.text = "Skill discovery failed · ${error.javaClass.simpleName}"
                             if (shouldReportSkillWorkerFailure(error)) {
-                                onWorkerFailure("skill_repository", "search:$term", error.javaClass.simpleName)
+                                onWorkerFailure("skill_repository", workerFailureTaskId("search", term), error.javaClass.simpleName)
                             }
                         }
                     }
@@ -729,7 +736,7 @@ internal class VyomFactoryDialog(
                     busy = false
                     status.text = "Skill inspection rejected · ${error.message?.take(140) ?: error.javaClass.simpleName}"
                     if (shouldReportSkillWorkerFailure(error)) {
-                        onWorkerFailure("skill_repository", "inspect:${candidate.fullName}", error.javaClass.simpleName)
+                        onWorkerFailure("skill_repository", workerFailureTaskId("inspect", candidate.fullName), error.javaClass.simpleName)
                     }
                 }
             }

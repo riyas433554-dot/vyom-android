@@ -14,6 +14,9 @@ class VyomFactoryWorkerFailureRouterTest {
         assertTrue(first.complaint.contains("IOException"))
         assertTrue(first.complaint.contains("Original request"))
         assertFalse(first.complaint.contains("api_key"))
+        val unsafe = VyomFactoryWorkerFailureRouter.create("factory_runner", "run-1", "sk_live_secret_value")
+        assertTrue(unsafe.complaint.contains("UnknownFailure"))
+        assertFalse(unsafe.complaint.contains("sk_live_secret_value"))
     }
 
     @Test fun differentWorkersOrTasksHaveDistinctIdentities() {

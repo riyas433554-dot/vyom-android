@@ -5,15 +5,14 @@ internal object VyomFactoryWorkerFailureRouter {
     data class Report(val sourceId: String, val complaint: String)
 
     private val workers = setOf("factory_runner", "skill_repository")
+    private val failureTypes = setOf("IOException", "SocketTimeoutException", "UnknownHostException", "ConnectException", "SSLException", "IllegalStateException", "IllegalArgumentException", "SecurityException", "FactoryApiException", "MalformedInputException", "FileNotFoundException", "RuntimeException", "Exception", "UnknownFailure")
 
     fun create(worker: String, taskId: String, failureType: String): Report {
         require(worker in workers) { "Unsupported non-chat worker" }
         val stableTaskId = taskId.trim()
         require(stableTaskId.isNotEmpty() && stableTaskId.length <= 80 &&
             stableTaskId.none { it.isISOControl() }) { "Worker task identity is invalid" }
-        val safeFailureType = failureType.trim().takeIf {
-            it.length in 1..80 && it.matches(Regex("[A-Za-z0-9_.$-]+"))
-        } ?: "UnknownFailure"
+        val safeFailureType = failureType.trim().takeIf { it in failureTypes } ?: "UnknownFailure"
         val sourceId = "$worker:$stableTaskId"
         require(sourceId.length <= 120)
         val complaint = "$worker worker infrastructure failure. Task reference: $stableTaskId. " +

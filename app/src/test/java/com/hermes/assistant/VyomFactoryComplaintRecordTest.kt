@@ -85,6 +85,15 @@ class VyomFactoryComplaintRecordTest {
         assertEquals("execution", diagnostics.area)
     }
 
+    @Test fun externalAgentSourcesRemainDistinctInCanonicalComplaintRecords() {
+        listOf("chatgpt", "claude", "codex", "termux").forEach { source ->
+            val item = VyomFactoryComplaintRecord.fromFreeText(source, "Factory worker infrastructure failure")
+            assertEquals(source, item.source)
+            assertEquals("execution", item.area)
+            assertTrue(VyomFactoryStatus.idempotencyKey(source, "agent-request-42")!!.startsWith("$source:"))
+        }
+    }
+
     @Test fun unclassifiedGenericComplaintFallsBackToOtherAndIsStillRegistered() {
         val item = VyomFactoryComplaintRecord.fromFreeText("vyom_chat", "My Vyom feature has an unexpected problem")
         assertEquals("other", item.area)
