@@ -176,7 +176,7 @@ internal class VyomFactoryGitHubClient(
         val path = ".factory-evidence/issue-$issueNumber/$fileName"
         val payload = JSONObject()
             .put("message", "factory: attach owner-approved screenshot evidence for issue #$issueNumber")
-            .put("content", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP))
+            .put("content", java.util.Base64.getEncoder().encodeToString(bytes))
             .put("branch", "feature/memory-intelligence")
         val uploaded = JSONObject(execute("PUT", "contents/$path", payload))
         val content = uploaded.optJSONObject("content")
