@@ -45,6 +45,13 @@ internal class VyomFactoryWorkerSession(
     fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
         coordinator.isCurrent(claim, now())
 
+    /**
+     * Renews the exact live lease at runner checkpoints. Adapters must call
+     * shouldStop() regularly; a blocked adapter cannot be heartbeated here.
+     */
+    fun renewAndCheck(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
+        coordinator.renew(claim, now(), leaseDurationMs)
+
     /** Releases only this session's exact lease; the inbox entry stays queued. */
     fun release(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
         coordinator.release(claim)
