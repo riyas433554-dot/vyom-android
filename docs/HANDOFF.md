@@ -1,3 +1,22 @@
+### Item 3 task-engine audit — 2026-11-06
+
+- Audit branch: `feature/memory-intelligence`; audited source HEAD: `7dc5e163b76d29dd39c1870aa0d7fbbdf18d99e4`. No application source was changed in this audit batch.
+- Exact-head Full CI run `42232645990` = **SUCCESS**; exact-head Debug CI run `42232645717` = **SUCCESS**. Both target the audited SHA above. Full CI completed Termux syntax/intake checks, configured secret scan, pinned full reachable-history Gitleaks scan/report upload, unit tests/debug build and packaging. Debug CI completed build/tests and packaging; artifact/release publication remains behind the explicit manual gate.
+- Existing implementation verified by source review:
+  - `VyomFactoryTaskStore.kt`: SharedPreferences-backed device-local queue; dedupe/reconcile, ordering via queue policy, synchronous `commit()`, and fail-closed behavior on corrupt data or failed writes.
+  - `VyomFactoryExecutionJournal.kt`: durable attempt state machine (CLAIMED/RUNNING/STOP_REQUESTED/SUCCEEDED/FAILED/INTERRUPTED), lease-fenced writes, bounded history, startup expiry recovery, and fail-closed persistence. Expired attempts are interrupted, never auto-replayed; `replayable()` is deliberately empty.
+  - `VyomFactoryWorkerLeaseStore.kt`: durable acquire/renew/release with exact-token fencing and expiry. Tests cover contention, stale-token rejection, expiry, recreation and failed writes.
+  - `VyomFactoryWorkerClaimCoordinator.kt` / `VyomFactoryWorkerSession.kt`: fresh GitHub snapshot before claim, identity/state checks, local claim coordination and queue reconciliation.
+  - `VyomFactoryExecutionRunner.kt`: cooperative STOP checks, pre-side-effect approval, fresh task validation, operation identity, verified postcondition requirement, idempotency-gated retry and terminal journal-before-release ordering.
+  - Relevant tests: `VyomFactoryTaskStorePersistenceTest.kt`, `VyomFactoryWorkerLeaseStoreTest.kt`, `VyomFactoryWorkerClaimCoordinatorTest.kt`, `VyomFactoryExecutionJournalTest.kt`, `VyomFactoryExecutionRunnerTest.kt`.
+- **Item 3 remains INCOMPLETE / BLOCKED; do not mark closed.** Two material gaps are confirmed:
+  1. Queue and lease are explicitly device/process-local SharedPreferences plus in-process locks. They do not provide an atomic cross-device/shared lease or a canonical shared journal. Multiple Vyom installations can claim the same GitHub issue independently.
+  2. Lease renewal exists as a store method, but no heartbeat/renewal call is wired into `VyomFactoryWorkerSession`, the runner, or the drain loop. Default lease is 60 seconds; longer execution can outlive its lease and be fenced.
+- Recovery is conservative rather than automatic replay: expired RUNNING/STOP_REQUESTED work becomes INTERRUPTED and requires manual review. This avoids duplicate external side effects, but does not yet provide safe crash-resume. STOP is cooperative and depends on adapter `shouldStop()` checks; it cannot forcibly interrupt an adapter blocked in an uninterruptible operation.
+- Tests are present for the listed local invariants, but CI green does not prove cross-device exclusion, heartbeat behavior, or physical crash recovery. Those are not tested by the current implementation.
+- No safe cross-device lease can be added without an authorized shared atomic coordination service; backend/Render/production Supabase are explicitly out of scope. Do not fake distributed guarantees with another local lock. Next work should be a bounded owner-approved design decision for the lease/journal authority and heartbeat integration, then implementation/tests. No Android `main`, Render, Hermes backend, or production Supabase changes.
+- Repository privacy caveat persists: GitHub metadata reports `private=false`; no private data or remote screenshots should be added.
+
 ## Live core audit continuation — 2026-11-06 (owner final order)
 
 - Audit target HEAD before this documentation refresh: `e1e8864345280f37b24619c5ce5bd79b3137e8b6`; branch ref was verified against GitHub immediately before inspection. Repository remains public (`private=false`), so the requested private-repository connection requirement is not currently satisfied. No visibility change was made.
