@@ -1298,3 +1298,11 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Repaired only the malformed `proposedContent` test fixture using a Kotlin triple-quoted string with `trimIndent()`, preserving the intended source payload and `ownerReviewedDiff = false` assertion. Commit: `92d42248eb8fd7c39a7906703b96d88bcd255acc`.
 - Exact-head CI for `92d42248eb8fd7c39a7906703b96d88bcd255acc` must be checked before claiming the fix is verified. No green result or APK artifact is claimed at this checkpoint.
 - Core owner order remains unchanged: secrets audit item 2 is still BLOCKED by the missing redacted historical inventory (169 Discord-pattern hits remain UNCLASSIFIED; third historical credential-assignment match unreconciled). Items 3–8 remain locked and unstarted. No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+### Exact-head CI continuation — bounded large-repository inventory — 2026-11-06
+
+- CI for `92d42248eb8fd7c39a7906703b96d88bcd255acc`: Debug run `42172539824` and Full CI run `42172540603` both FAILED. Kotlin compilation and `:app:assembleDebug` passed; unit suite ran 557 tests with one failure: `VyomFactoryRepositoryIntakeTest.oversizedRepositoryUsesBoundedSubtreeInventoryAndRequiresReview`.
+- Failure cause confirmed from test source: large-repository path expected immutable commit object -> root tree -> bounded subtree requests, but client always requested a recursive tree and test rejected the unexpected API path. This was a real production behavior gap, not a malformed test.
+- Implemented size-gated large-repository inspection in `VyomFactoryRepositoryClient`: resolve root tree from immutable commit SHA, inspect at most 200 root entries and 8 subtrees with at most 500 entries each, cap collected paths at 20,000, mark snapshot `treePartial=true`, and preserve truncation state. Small repositories retain recursive commit-pinned tree path. No repository content is executed.
+- Fix commit: `d6247fdeffdefe78e38a7cd39aca1a99b2de360d`. Exact-head CI must be checked; no passing result or APK artifact claimed yet.
+- `docs/HANDOFF.md` updated on the next documentation commit. Secrets audit item 2 remains blocked by absent redacted historical scan inventory; do not bypass locked order. No Android `main`, Render, Hermes backend, or production Supabase changes.
