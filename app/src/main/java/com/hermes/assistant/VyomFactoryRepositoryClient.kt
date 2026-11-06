@@ -55,15 +55,67 @@ internal class VyomFactoryRepositoryClient(
             "Could not resolve an immutable repository commit"
         }
 
-        // The recursive tree request is deliberately pinned to the immutable commit,
-        // never to a mutable branch name.
-        val tree = JSONObject(requestJson("$prefix/git/trees/$commitSha?recursive=1"))
-        val entries = tree.optJSONArray("tree") ?: JSONArray()
-        val tooManyEntries = entries.length() > MAX_TREE_ENTRIES
-        val paths = (0 until minOf(entries.length(), MAX_TREE_ENTRIES)).mapNotNull { index ->
-            val entry = entries.optJSONObject(index) ?: return@mapNotNull null
-            if (entry.optString("type") != "blob") return@mapNotNull null
-            entry.optString("path").takeIf { it.isNotBlank() }
+        // Large repositories use a bounded, commit-pinned subtree inventory rather
+        // than requesting an expensive recursive tree for the entire monorepo.
+        val largeRepository = metadata.optInt("size", 0) > MAX_RECURSIVE_TREE_REPOSITORY_KB
+        val paths: List<String>
+        val treeTruncated: Boolean
+        val treePartial: Boolean
+        if (largeRepository) {
+            val commitObject = JSONObject(requestJson("$prefix/git/commits/$commitSha"))
+            val rootSha = commitObject.optJSONObject("tree")?.optString("sha").orEmpty()
+            require(COMMIT_PATTERN.matches(rootSha)) { "GitHub did not return the immutable root tree" }
+            val rootTree = JSONObject(requestJson("$prefix/git/trees/$rootSha"))
+            val rootEntries = rootTree.optJSONArray("tree") ?: JSONArray()
+            val collected = mutableListOf<String>()
+            var truncated = rootTree.optBoolean("truncated", true)
+            var inspectedSubtrees = 0
+            for (index in 0 until minOf(rootEntries.length(), MAX_ROOT_TREE_ENTRIES)) {
+                val entry = rootEntries.optJSONObject(index) ?: continue
+                val entryPath = entry.optString("path")
+                when (entry.optString("type")) {
+                    "blob" -> if (entryPath.isNotBlank()) collected += entryPath
+                    "tree" -> {
+                        if (inspectedSubtrees >= MAX_SUBTREES || entryPath.isBlank()) {
+                            truncated = true
+                            continue
+                        }
+                        val subtreeSha = entry.optString("sha")
+                        if (!COMMIT_PATTERN.matches(subtreeSha)) {
+                            truncated = true
+                            continue
+                        }
+                        inspectedSubtrees++
+                        val subtree = JSONObject(requestJson("$prefix/git/trees/$subtreeSha"))
+                        if (subtree.optBoolean("truncated", true)) truncated = true
+                        val subtreeEntries = subtree.optJSONArray("tree") ?: JSONArray()
+                        for (childIndex in 0 until minOf(subtreeEntries.length(), MAX_SUBTREE_ENTRIES)) {
+                            val child = subtreeEntries.optJSONObject(childIndex) ?: continue
+                            if (child.optString("type") != "blob") continue
+                            val childPath = child.optString("path")
+                            if (childPath.isNotBlank()) collected += "$entryPath/$childPath"
+                        }
+                        if (subtreeEntries.length() > MAX_SUBTREE_ENTRIES) truncated = true
+                    }
+                }
+            }
+            if (rootEntries.length() > MAX_ROOT_TREE_ENTRIES) truncated = true
+            paths = collected.distinct().take(MAX_TREE_ENTRIES)
+            if (collected.size > MAX_TREE_ENTRIES) truncated = true
+            treeTruncated = truncated
+            treePartial = true
+        } else {
+            // Recursive tree requests are pinned to the immutable commit, never a branch.
+            val tree = JSONObject(requestJson("$prefix/git/trees/$commitSha?recursive=1"))
+            val entries = tree.optJSONArray("tree") ?: JSONArray()
+            val tooManyEntries = entries.length() > MAX_TREE_ENTRIES
+            paths = (0 until minOf(entries.length(), MAX_TREE_ENTRIES)).mapNotNull { index ->
+                val entry = entries.optJSONObject(index) ?: return@mapNotNull null
+                if (entry.optString("type") != "blob") return@mapNotNull null
+                entry.optString("path").takeIf { it.isNotBlank() }
+            }
+            treeTruncated = tree.optBoolean("truncated", true) || tooManyEntries
+            treePartial = false
         }
         val snapshot = VyomFactoryRepositoryIntake.Snapshot(
             source = source,
@@ -71,8 +123,9 @@ internal class VyomFactoryRepositoryClient(
             commitSha = commitSha,
             licenseSpdx = metadata.optJSONObject("license")?.optString("spdx_id").orEmpty(),
             archived = metadata.optBoolean("archived", false),
-            treeTruncated = tree.optBoolean("truncated", true) || tooManyEntries,
-            paths = paths
+            treeTruncated = treeTruncated,
+            paths = paths,
+            treePartial = treePartial
         )
         return Preview(
             snapshot = snapshot,
@@ -216,6 +269,10 @@ internal class VyomFactoryRepositoryClient(
         private const val READ_TIMEOUT_MS = 30_000
         private const val MAX_RESPONSE_CHARS = 2_000_000
         private const val MAX_TREE_ENTRIES = 20_000
+        private const val MAX_RECURSIVE_TREE_REPOSITORY_KB = 100_000
+        private const val MAX_ROOT_TREE_ENTRIES = 200
+        private const val MAX_SUBTREES = 8
+        private const val MAX_SUBTREE_ENTRIES = 500
         private const val MAX_BRANCH_LENGTH = 200
         private const val MAX_DESCRIPTION_LENGTH = 500
         private const val MAX_PREVIEW_FILES = 8
