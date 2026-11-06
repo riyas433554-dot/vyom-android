@@ -1,3 +1,21 @@
+## Live core audit continuation — 2026-11-06 (owner final order)
+
+- Audit target HEAD before this documentation refresh: `e1e8864345280f37b24619c5ce5bd79b3137e8b6`; branch ref was verified against GitHub immediately before inspection. Repository remains public (`private=false`), so the requested private-repository connection requirement is not currently satisfied. No visibility change was made.
+- Exact-head workflows were triggered by the owner-order commit and are still running at time of this entry: Debug run `42170109408` (job `127735688921`) and Full CI run `42170109392` (job `127735689307`). Both runs have `head_sha=e1e8864345280f37b24619c5ce5bd79b3137e8b6`; do not treat in-progress as pass. In Full CI, Termux syntax and CLI checks passed, secret scan passed, and Gradle unit tests/debug APK step was still in progress. Debug workflow build/test step was still in progress. No artifact conclusion yet.
+- Source audit (existence is not proof of end-to-end operation):
+  - Task queue: `VyomFactoryTaskStore.kt` is a durable device-local SharedPreferences inbox with dedupe/reconciliation. It explicitly is not a shared atomic lease.
+  - Journal: `VyomFactoryExecutionJournal.kt` records attempts and fences against the local lease; its own contract says single-process only, and expired attempts are interrupted, not replayed.
+  - Lease/claim: `VyomFactoryWorkerLeaseStore.kt` and `VyomFactoryWorkerClaimCoordinator.kt` provide device/process-local claims only, not cross-device/distributed claims.
+  - STOP/recovery: runner and journal include stop/fencing/interruption paths; exact behavior still needs tests/CI and integration review.
+  - System registry: `VyomFactoryRepositoryRegistry.kt` stores immutable, owner-approved repository source references. It is not yet a registry mapping each Vyom system to its own repository plus enforced allowed paths.
+  - Planner: `VyomFactoryTaskPlanner.kt` currently classifies and returns capability candidates, blocked capability, clarification, or owner review. Its contract explicitly says candidate discovery only; it does not yet implement the full missing-requirement detector/prioritizer.
+  - Worker/executor: `VyomFactoryExecutionRunner.kt` is documented as one-at-a-time foreground execution through registered adapters. It is not yet an isolated repository code worker/executor and does not provide app-closed autonomy.
+  - Verifier: `VyomFactoryVerificationPolicy.kt` requires an assigned verification probe and a passing evidence event before issue completion. It does not yet prove universal behavior or evidence-based percentage progress.
+- Current source tree includes many Factory classes/tests; preserve and extend them rather than recreate them. No application source was changed in this audit.
+- CI test-source blockers previously recorded remain visible in current branch source: `VyomFactoryDrainCoordinatorTest.kt` contains literal escaped newline sequences in a Kotlin expression; `SelfModificationClientIntegrationTest.kt` contains malformed escaped source string syntax; `VyomFactoryRepositoryCatalogTest.kt` references `VyomFactoryRepositoryCatalog`, while no matching production source file exists in the current recursive tree. Exact CI run will establish actual compiler result.
+- Core item 1 (audit + HANDOFF sync): source and current CI state reconciled and recorded; audit snapshot complete for this pass. Core item 2 (historical secrets check) remains blocked: original redacted per-file/per-line/per-commit inventory for the 169 Discord-pattern hits and the third historical credential assignment record are still unavailable. A passing configured Gitleaks CI step does not classify those historical broad-pattern hits.
+- No changes to Android `main`, Render, backend, or production Supabase.
+
 # OWNER-LOCKED VYOM FACTORY CORE ORDER — 2026-11-06
 
 **This is the controlling plan. It supersedes all older phase gates, Stage 1–7 ordering, APK 1-only scope language, and any instruction to wait for a separate phase GO. There are no P0/P1/P2 phases. Work continuously in the exact order below. Do not reorder, skip, or re-implement completed items.**
