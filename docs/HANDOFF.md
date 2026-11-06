@@ -1306,3 +1306,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Implemented size-gated large-repository inspection in `VyomFactoryRepositoryClient`: resolve root tree from immutable commit SHA, inspect at most 200 root entries and 8 subtrees with at most 500 entries each, cap collected paths at 20,000, mark snapshot `treePartial=true`, and preserve truncation state. Small repositories retain recursive commit-pinned tree path. No repository content is executed.
 - Fix commit: `d6247fdeffdefe78e38a7cd39aca1a99b2de360d`. Exact-head CI must be checked; no passing result or APK artifact claimed yet.
 - `docs/HANDOFF.md` updated on the next documentation commit. Secrets audit item 2 remains blocked by absent redacted historical scan inventory; do not bypass locked order. No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+### Exact-head CI green after bounded repository inventory fix — 2026-11-06
+
+- Live branch verified: `feature/memory-intelligence`, HEAD `284d625c42dbb2197e19f387637517a00006647a`.
+- Exact-HEAD Debug run `42173025708` = **SUCCESS** and Full CI run `42173025509` = **SUCCESS**. Both report the exact same HEAD SHA above.
+- Debug artifact exists: ID `13482630020`, name `vyom-0.3.1-284d625c42dbb2197e19f387637517a00006647a`, size 88,351,378 bytes, SHA-256 `5d40e9dcfc0ebe3ea676164fe135547d70feb3b2ca07f6ab85fbae1d290e32e5`, expires 2026-12-06. This confirms CI artifact publication, not phone installation or device acceptance.
+- The earlier code-fix SHA `d6247fdeffdefe78e38a7cd39aca1a99b2de360d` Debug run `42173014168` was still in progress when checked; its Full CI run `42173014175` was cancelled after the newer HEAD workflows completed. The authoritative latest-HEAD results are the two successful runs above.
+- Secrets audit remains the controlling blocker: 169 historical broad Discord-pattern matches are still UNCLASSIFIED and the third historical credential-assignment match remains unreconciled. The CI Gitleaks action passing on the latest run does not reproduce or classify the missing historical 169-hit inventory. The owner-provided `vyom-prepublic-scan.sh` is a working-tree heuristic plus optional Gitleaks history scan; it is not the missing original report.
+- No source changes beyond the previously recorded bounded-inventory fix; this entry only synchronizes CI/artifact evidence. Core item 2 remains BLOCKED; items 3–8 remain locked. No Android `main`, Render, Hermes backend, or production Supabase changes. No phone/device test claimed.
