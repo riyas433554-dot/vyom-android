@@ -9,12 +9,23 @@ class VyomFactoryEvidencePublisherTest {
     private val repo = "https://github.com/acme/vyom"
     private val image = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
 
-    @Test fun unregisteredSystemFailsBeforeAnyRemoteMutation() = withPublisher { publisher, transport, _, file ->
-        assertRejected {
-            publisher.publish("factory-evidence", repo, baseCommit, 7,
-                ".factory-evidence/issue-7/image.png", file)
-        }
-        assertEquals(0, transport.mutations)
+    @Test fun unregisteredSystemFailsBeforeAnyRemoteMutation() {
+        val root = createTempDir(prefix = "evidence-unregistered-")
+        try {
+            val pending = File(root, "pending").apply { mkdirs() }
+            val file = File(pending, "image.png").apply { writeBytes(image) }
+            val transport = FakeTransport()
+            val publisher = VyomFactoryEvidencePublisher(
+                VyomFactorySystemRegistry(File(root, "registry")),
+                transport,
+                VyomFactoryScreenshotEvidenceStore(pending)
+            )
+            assertRejected {
+                publisher.publish("factory-evidence", repo, baseCommit, 7,
+                    ".factory-evidence/issue-7/image.png", file)
+            }
+            assertEquals(0, transport.mutations)
+        } finally { root.deleteRecursively() }
     }
 
     @Test fun wrongRepositoryFailsClosed() = withPublisher { publisher, transport, _, file ->
