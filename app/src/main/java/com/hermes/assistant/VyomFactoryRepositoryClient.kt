@@ -139,6 +139,58 @@ internal class VyomFactoryRepositoryClient(
 
 
     /**
+     * Reads a file only through an owner-approved system binding. The caller cannot
+     * select a repository or revision: both are resolved from the registry, and
+     * the path is checked before any network request.
+     */
+    fun readBoundSystemFile(
+        systemId: String,
+        relativePath: String,
+        registry: VyomFactorySystemRegistry
+    ): FilePreview {
+        val binding = registry.requireAuthorizedBinding(systemId, relativePath)
+        val source = VyomFactoryRepositoryIntake.parseUrl(binding.repositoryUrl)
+            ?: throw SecurityException("System repository binding is invalid")
+        val encodedPath = relativePath.split('/').joinToString("/") {
+            URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+        }
+        val ref = URLEncoder.encode(binding.commitSha, "UTF-8")
+        val file = JSONObject(requestJson(
+            "/repos/${source.owner}/${source.name}/contents/$encodedPath?ref=$ref"
+        ))
+        require(file.optString("type") == "file" && file.optString("path") == relativePath) {
+            "GitHub returned a different repository path than requested"
+        }
+        require(file.optString("encoding") == "base64") {
+            "GitHub did not return a bounded base64 file response"
+        }
+        val declaredSize = file.optInt("size", -1)
+        require(declaredSize in 1..MAX_PREVIEW_FILE_BYTES) {
+            "Repository file is empty or exceeds the per-file size limit"
+        }
+        val encoded = file.optString("content").filterNot { it.isWhitespace() }
+        require(encoded.isNotBlank() && encoded.length <= MAX_PREVIEW_FILE_BYTES * 2) {
+            "Repository file content is empty or oversized"
+        }
+        val bytes = Base64.getDecoder().decode(encoded)
+        require(bytes.size == declaredSize) { "Repository file size did not match GitHub metadata" }
+        val decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        val original = decoder.decode(ByteBuffer.wrap(bytes)).toString()
+        val (safeContent, redactions) = redactSecrets(original)
+        return FilePreview(
+            path = relativePath,
+            content = safeContent,
+            sizeBytes = bytes.size,
+            blobSha = file.optString("sha"),
+            contentSha256 = MessageDigest.getInstance("SHA-256").digest(bytes)
+                .joinToString("") { "%02x".format(it) },
+            redactions = redactions
+        )
+    }
+
+    /**
      * Fetches only bounded documentation/manifests from the inspected immutable commit.
      * Returned text is untrusted and secret-pattern redacted; nothing is executed.
      */

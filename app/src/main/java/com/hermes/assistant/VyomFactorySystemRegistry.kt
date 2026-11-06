@@ -63,12 +63,27 @@ internal class VyomFactorySystemRegistry(private val root: File) {
             .orEmpty().map(::read).sortedBy { it.systemId }
     }
 
-    fun allowsPath(systemId: String, relativePath: String): Boolean {
-        val binding = get(systemId) ?: return false
-        if (!isSafeRelativePath(relativePath)) return false
-        return binding.allowedPaths.any { rootPath ->
-            relativePath == rootPath || relativePath.startsWith("$rootPath/")
+    fun allowsPath(systemId: String, relativePath: String): Boolean =
+        runCatching { requireAuthorizedBinding(systemId, relativePath); true }.getOrDefault(false)
+
+    /** Resolve the immutable system binding and fail closed before any repository read or write. */
+    fun requireAuthorizedBinding(
+        systemId: String,
+        relativePath: String,
+        repositoryUrl: String? = null,
+        commitSha: String? = null
+    ): Binding {
+        val binding = get(systemId) ?: throw SecurityException("System has no approved repository binding")
+        if (!isSafeRelativePath(relativePath) || binding.allowedPaths.none { rootPath ->
+                relativePath == rootPath || relativePath.startsWith("$rootPath/")
+            }) throw SecurityException("Repository path is outside this system's allowed roots")
+        if (repositoryUrl != null && repositoryUrl != binding.repositoryUrl) {
+            throw SecurityException("Repository does not match this system's immutable binding")
         }
+        if (commitSha != null && commitSha != binding.commitSha) {
+            throw SecurityException("Commit does not match this system's immutable binding")
+        }
+        return binding
     }
 
     private fun validate(binding: Binding) {
