@@ -48,10 +48,11 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install pinned Gitleaks for full reachable history
+      - name: Set up Go for full reachable history scan
         uses: actions/setup-go@v5
         with:
           go-version: "1.24.0"
+      - name: Install pinned Gitleaks
         run: go install github.com/zricethezav/gitleaks/v8@v8.24.3
       - name: Full reachable Git history secret scan (redacted)
         shell: bash
