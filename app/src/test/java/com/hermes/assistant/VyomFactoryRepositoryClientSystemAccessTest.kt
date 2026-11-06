@@ -1,6 +1,5 @@
 package com.hermes.assistant
 
-import android.util.Base64
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -31,7 +30,7 @@ class VyomFactoryRepositoryClientSystemAccessTest {
                     .put("encoding", "base64")
                     .put("size", content.size)
                     .put("sha", "blob-sha")
-                    .put("content", android.util.Base64.encodeToString(content, Base64.NO_WRAP))
+                    .put("content", java.util.Base64.getEncoder().encodeToString(content))
                     .toString()
             })
             val result = client.readBoundSystemFile("memory", "app/src/main/Memory.kt", registry)
