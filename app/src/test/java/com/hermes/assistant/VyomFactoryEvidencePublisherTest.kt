@@ -152,7 +152,9 @@ class VyomFactoryEvidencePublisherTest {
         var mutations = 0
         var blobWrites = 0
         var comments = 0
-        var repositoryPrivate = true\n        var raceAtUpdate = false\n        var failUpload = false
+        var repositoryPrivate = true
+        var raceAtUpdate = false
+        var failUpload = false
         var failComment = false
         var lastForce = true
         var hashVerifiedBeforeComment = false
@@ -177,7 +179,8 @@ class VyomFactoryEvidencePublisherTest {
         override fun createCommit(message: String, treeSha: String, parentSha: String) = "9".repeat(40)
         override fun updateRef(branch: String, newCommit: String, expectedHead: String, force: Boolean) {
             mutations++
-            if (raceAtUpdate) head = "c".repeat(40)\n            if (head != expectedHead) throw SecurityException("stale expected head")
+            if (raceAtUpdate) head = "c".repeat(40)
+            if (head != expectedHead) throw SecurityException("stale expected head")
             lastForce = force
             if (force) throw SecurityException("force updates are forbidden")
             head = newCommit
