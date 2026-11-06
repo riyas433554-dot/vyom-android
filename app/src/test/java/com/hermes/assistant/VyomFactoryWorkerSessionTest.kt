@@ -98,6 +98,25 @@ class VyomFactoryWorkerSessionTest {
         assertEquals(26, next!!.task.issueNumber)
     }
 
+    @Test fun currentClaimRenewsItsLeaseAtExecutionCheckpoints() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        val leases = VyomFactoryWorkerLeaseStore(MemoryPrefs())
+        var clock = 1_000L
+        val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
+        val tasks = listOf(remote(31, "P1", "source-31"))
+        val session = VyomFactoryWorkerSession(
+            queue, coordinator, "worker-heartbeat", { tasks }, { clock }, 10_000L
+        )
+
+        val claim = session.claimNext()!!
+        clock = 9_000L
+
+        assertTrue(session.renewAndCheck(claim))
+        assertEquals(19_000L, leases.active(31, clock)!!.expiresAt)
+        clock = 18_000L
+        assertTrue(session.isCurrent(claim))
+    }
+
     private fun session(queue: VyomFactoryTaskStore, tasks: List<VyomFactoryGitHubClient.Task>) =
         session(queue, tasks, "worker-a")
 
