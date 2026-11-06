@@ -1449,3 +1449,16 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Items 3–8 are now **UNLOCKED BY ORDER**, but not started in this batch. Item 3 must be the next batch only after owner GO. Reuse and verify the existing task engine; do not rebuild it.
 - Repository metadata at the last verified check still reported `visibility=public`. This conflicts with the owner's private-repository requirement. No visibility change was made in this batch; owner must make the repository private before private data or remote screenshot uploads are used. No Android `main`, Render, backend, or production Supabase changes.
 - Current source HEAD for the evidence above: `8f37a8fe26f6d837763a0dd6957b2609587109f2`. HANDOFF synchronization commit follows this source HEAD; its own documentation-only exact-head CI is separate and must not be conflated with the source evidence above.
+
+
+### Core item 4 — system registry / exact-HEAD verification update — 2026-11-06
+
+- Active branch: `feature/memory-intelligence`; implementation HEAD audited: `eb6c4277110cdefb5aabdb374d1189818da66932`.
+- Exact-HEAD Full CI run `42239663718` = **SUCCESS**. The workflow completed the full reachable-history Gitleaks scan, unit tests/debug APK, versioned APK/checksum packaging, and debug APK artifact upload.
+- Exact-HEAD Debug CI run `42239663726` = **SUCCESS**. Build/tests, APK packaging/checksums, and the no-APK content-update demo package passed. Artifact upload/release steps were skipped by the explicit manual-publish gate; do not treat this workflow as the uploaded APK evidence.
+- Full CI artifact `13515567221`, name `vyom-phase6-eb6c4277110cdefb5aabdb374d1189818da66932`, size 46,340,612 bytes, SHA-256 `e1cf1ab17f33de31b964dd502b1824b576656310acf742b91acfa65e2cae294f`, expires 2026-12-06. This proves CI artifact publication only, not phone installation or device acceptance.
+- The previous fixture-correction SHA `f5cd14a6e9b066041a81f846d8a0fd9ca92d5b2e` also has Full CI `42239150235` = **SUCCESS** and Debug CI `42239150248` = **SUCCESS**.
+- Item 4 code paths: `app/src/main/java/com/hermes/assistant/VyomFactorySystemRegistry.kt` stores owner-confirmed per-system repository URL, immutable commit SHA, and explicit allowed path roots; `VyomFactoryRepositoryClient.kt` enforces the binding before `readBoundSystemFile`; `VyomFactoryRepositoryReviewDialog.kt` captures system ID and path roots; tests cover approval, immutability, traversal, root-boundary, cross-system isolation, and repository/commit mismatch.
+- **Item 4 remains IN PROGRESS.** The existing guarded adapter is read-only. No repository write/change adapter or end-to-end enforcement at every worker/executor repository access has been verified. Do not claim complete isolation or close item 4. Next implementation work must identify all repository mutation/read call paths and route them through a common system-bound authorization layer before adding any write transport.
+- Item 3 remains closed with its documented single-device coordination caveat; continuous lease heartbeat remains unverified/not implemented. Do not reopen or rebuild it.
+- No Android `main`, Render, Hermes backend, or production Supabase changes. No physical-device test claimed. Repository visibility remains public at the last metadata check; do not upload private data.
