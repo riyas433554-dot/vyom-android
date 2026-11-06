@@ -704,25 +704,51 @@ internal class VyomFactoryDialog(
         if (busy || !screenshot.isFile) return
         busy = true
         screenshotAttachButton?.isEnabled = false
-        status.text = "Checking repository privacy before owner-approved upload…"
+        status.text = "Checking owner-approved factory-evidence binding and repository privacy…"
         worker.execute {
             try {
                 val fresh = client.listTasks().firstOrNull { it.number == task.number && it.state == "open" }
                     ?: throw IllegalStateException("Selected issue is no longer open")
-                val attachment = client.attachScreenshot(fresh.number, screenshot)
+                val registry = VyomFactorySystemRegistry(
+                    File(activity.filesDir, "factory-system-registry")
+                )
+                val binding = registry.get(VyomFactoryEvidencePublisher.SYSTEM_ID)
+                    ?: throw SecurityException(
+                        "No owner-approved factory-evidence binding. Inspect/register this repository with system ID " +
+                            "'factory-evidence' and allowed path root '.factory-evidence' first."
+                    )
+                require(screenshot.name.matches(Regex("^[a-f0-9-]{36}\\.(png|jpg|webp)$"))) {
+                    "Stored screenshot filename is not a trusted generated name"
+                }
+                val relativePath = ".factory-evidence/issue-${fresh.number}/${screenshot.name}"
+                val store = VyomFactoryScreenshotEvidenceStore(
+                    File(activity.filesDir, "factory-evidence")
+                )
+                val publisher = VyomFactoryEvidencePublisher(
+                    registry,
+                    VyomFactoryGitHubEvidenceTransport(token),
+                    store
+                )
+                val attachment = publisher.publish(
+                    VyomFactoryEvidencePublisher.SYSTEM_ID,
+                    binding.repositoryUrl,
+                    binding.commitSha,
+                    fresh.number,
+                    relativePath,
+                    screenshot
+                )
                 main.post {
                     if (!dialog.isShowing) return@post
                     if (attachment.issueCommentRecorded) {
                         screenshot.delete()
                         screenshotAttachButton?.text = "ATTACHED TO #${fresh.number}"
-                        status.text = "Screenshot attached to #${fresh.number}. SHA-256 ${attachment.sha256}. Local copy removed after confirmed issue comment."
+                        status.text = "Screenshot attached to #${fresh.number}. SHA-256 ${attachment.sha256}. " +
+                            "Commit ${attachment.commitSha.take(12)} verified; local copy removed."
                     } else {
-                        runCatching {
-                            VyomFactoryScreenshotEvidenceStore(File(activity.filesDir, "factory-evidence"))
-                                .recordUploaded(screenshot, attachment.url, attachment.commitSha, attachment.sha256)
-                        }
                         screenshotAttachButton?.isEnabled = false
-                        status.text = "Image uploaded to the private repository, but the issue comment failed. Do not retry upload; manually add this link to #${fresh.number}: ${attachment.url}"
+                        status.text = "Evidence commit ${attachment.commitSha.take(12)} and SHA-256 ${attachment.sha256} " +
+                            "were verified, but the issue comment failed. Receipt is saved; do not upload again. " +
+                            "Manually add this link to #${fresh.number}: ${attachment.url}"
                     }
                     busy = false
                 }
@@ -730,7 +756,8 @@ internal class VyomFactoryDialog(
                 main.post {
                     if (!dialog.isShowing) return@post
                     screenshotAttachButton?.isEnabled = true
-                    status.text = "Screenshot not uploaded · ${error.message?.take(180) ?: error.javaClass.simpleName}. Local copy is preserved; no automatic retry."
+                    status.text = "Screenshot not uploaded · ${error.message?.take(180) ?: error.javaClass.simpleName}. " +
+                        "Local copy is preserved; no automatic retry."
                     busy = false
                 }
             }
