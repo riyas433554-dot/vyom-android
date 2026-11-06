@@ -52,6 +52,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.24.0"
+        run: go install github.com/zricethezav/gitleaks/v8@v8.24.3
       - name: Full reachable Git history secret scan (redacted)
         shell: bash
         run: |
