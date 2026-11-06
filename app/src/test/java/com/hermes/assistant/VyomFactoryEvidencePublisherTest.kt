@@ -105,6 +105,12 @@ class VyomFactoryEvidencePublisherTest {
         assertNotNull(store.uploadReceipt(file))
         assertEquals(1, transport.comments)
         assertFalse(transport.lastForce)
+        val blobWritesAfterFirstAttempt = transport.blobWrites
+        assertRejected {
+            publisher.publish("factory-evidence", repo, baseCommit, 7,
+                ".factory-evidence/issue-7/image.png", file)
+        }
+        assertEquals(blobWritesAfterFirstAttempt, transport.blobWrites)
     }
 
     @Test fun successVerifiesHashBeforeCommentAndUsesNonForceRefUpdate() = withPublisher { publisher, transport, store, file ->
