@@ -1,3 +1,47 @@
+# OWNER-LOCKED VYOM FACTORY CORE ORDER — 2026-11-06
+
+**This is the controlling plan. It supersedes all older phase gates, Stage 1–7 ordering, APK 1-only scope language, and any instruction to wait for a separate phase GO. There are no P0/P1/P2 phases. Work continuously in the exact order below. Do not reorder, skip, or re-implement completed items.**
+
+## Final core order
+
+1. **Audit + HANDOFF sync** — establish actual branch/HEAD, reconcile implementation and CI evidence, preserve prior history, and keep this file current.
+2. **Secrets check (historical 169 / 3 / 4 findings)** — classify historical matches without exposing secret values; no clean/security-safe claim while any finding remains unresolved.
+3. **Task engine** — canonical journal, queue, durable claim/lease/heartbeat, STOP, cancellation, crash recovery and duplicate/partial-write safety. Reuse existing implementation; verify before extending.
+4. **System registry** — each Vyom system maps to its own repository and explicitly allowed paths; enforce repository/path boundaries at execution time.
+5. **Planner + detector + prioritizer** — understand tasks, detect missing requirements/blockers during planning and execution, and prioritize prerequisite/blocking work first.
+6. **Worker + isolated executor** — safely implement approved task changes in the correct repository/path, run commands in a constrained environment, and recover from failures. This is the initial externally implemented capability; after it works, Factory should use its own worker for later work.
+7. **Verifier + truthful progress** — verify behavior, tests, CI and delivery evidence. Progress is evidence-based; 100% means all acceptance checks are verified, never merely code-written or queued.
+8. **Factory self-upgrade (last)** — only after items 1–7 operate end-to-end, run the first Factory-owned task to inspect, upgrade and verify Factory itself.
+
+## After the core is operational
+
+Factory itself owns the subsequent implementation and upgrades: repository browser, review/approval UI and safe adapters; Android Control; Memory Intelligence; Automation; UI/design; reasoning/research; app-closed background autonomy; and final APK. These are not separate manual workstreams and must not displace the eight core items.
+
+## Execution invariants
+
+- Work only on `feature/memory-intelligence`. Never touch Android `main`, Render, Hermes backend, or production Supabase.
+- Do not auto-run imported repository scripts/workflows. Inspect and classify first; execute only through the constrained executor and policy.
+- No auto-install or auto-merge. Preserve required owner approval for destructive, sensitive, or external side-effect actions.
+- Do not expose secret values in logs, reports, comments, or HANDOFF. Record only safe file/line/commit metadata and redacted context.
+- Do not claim implementation/test/CI/artifact/device success without exact evidence. A queued workflow is not a pass; an unverified phone action is not device-verified.
+- Keep one canonical task journal/queue; do not create parallel queues for repository imports or product areas.
+- Detect and fix newly discovered blockers/defects automatically when they are within authorized scope and prerequisites are met. Record dependencies, avoid infinite self-improvement loops, and never silently expand scope.
+- Keep this HANDOFF updated after every meaningful implementation batch, including commit SHA, exact tests/CI runs and outcomes, changed files, remaining blockers, and next item.
+
+## Initial live-state reconciliation — 2026-11-06
+
+- Repository: `riyas433554-dot/vyom-android`; target branch: `feature/memory-intelligence`.
+- Live branch HEAD verified from Git ref: `3e6d538a37b7aa61eb04f2640e8b6aa4fd455de3`.
+- This HEAD's commit is documentation-only and its parent is `eb4abb7a8de1cd63caa80b15ec0d379a4be243a3`. The HANDOFF file on the live branch was fetched and reviewed before this update.
+- Repository metadata currently reports `visibility=public`; this is not a private repository. Do not enable remote screenshot upload or place private user data in public issue/repository content. Repository visibility changes require owner authorization and are not performed by this task.
+- The previously recorded exact-tip CI runs `42161654583` (Debug) and `42161654678` (Full CI) belong to parent SHA `eb4abb7a8de1cd63caa80b15ec0d379a4be243a3`, not current HEAD `3e6d538...`; both failed. No CI result for current HEAD is established by those runs.
+- Known failures on parent SHA: malformed Kotlin test syntax in `SelfModificationClientIntegrationTest.kt:43-45`, `VyomFactoryDrainCoordinatorTest.kt:22`, and unresolved `VyomFactoryRepositoryCatalog` references in `VyomFactoryRepositoryCatalogTest.kt`. No APK/artifact was produced. These remain recorded blockers; no fixes have yet been made.
+- Historical secret scan reported 169 broad Discord-pattern matches, 3 credential-assignment matches, and 4 OpenAI-style matches. Four OpenAI-style matches and two current credential assignments have been classified as test fixtures. The third historical credential assignment is unreconciled. The 169 historical Discord matches remain UNCLASSIFIED because the original redacted per-file/per-line/per-commit inventory was not found. No confirmed REAL_LEAK has been established; this is not proof that history is clean. Do not rotate credentials absent a confirmed real leak, and do not disclose values.
+- Core item 1 (audit/HANDOFF synchronization) is **in progress**; this entry records the live state and supersedes prior phase-gate instructions. Core item 2 remains **blocked on missing historical scan inventory**. Items 3–8 have not yet been re-audited against source in this session; their prior statuses below are historical evidence, not current verification. Reconcile each before changing it.
+- No application source, Android `main`, Render, backend, or production Supabase was changed in this update.
+
+---
+
 # VYOM ANDROID — ACTIVE HANDOFF
 
 Last updated: 2026-11-05
