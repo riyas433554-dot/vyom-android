@@ -89,6 +89,44 @@ internal class VyomFactoryScreenshotEvidenceStore(private val root: File) {
         return UploadReceipt(url, commit, hash)
     }
 
+    @Synchronized
+    fun expectedBranchHead(initialCommitSha: String): String {
+        require(initialCommitSha.matches(Regex("^[a-f0-9]{40}$")))
+        val state = File(root.canonicalFile, ".factory-evidence-branch-head.json")
+        if (!state.isFile) return initialCommitSha
+        val json = JSONObject(state.readText(Charsets.UTF_8))
+        val head = json.optString("head_sha")
+        check(head.matches(Regex("^[a-f0-9]{40}$"))) { "Evidence branch head state is corrupt; upload is blocked" }
+        return head
+    }
+
+    @Synchronized
+    fun recordBranchHead(commitSha: String) {
+        require(commitSha.matches(Regex("^[a-f0-9]{40}$")))
+        val directory = root.canonicalFile
+        if (!directory.exists()) check(directory.mkdirs()) { "Could not create screenshot evidence storage" }
+        val target = File(directory, ".factory-evidence-branch-head.json")
+        val temp = File(directory, ".factory-evidence-branch-head.${UUID.randomUUID()}.tmp")
+        FileOutputStream(temp).use { output ->
+            output.write(JSONObject().put("head_sha", commitSha).toString().toByteArray(Charsets.UTF_8))
+            output.flush()
+            output.fd.sync()
+        }
+        if (!temp.renameTo(target)) {
+            temp.delete()
+            throw IllegalStateException("Could not persist evidence branch head")
+        }
+    }
+
+    fun clearUploadReceipt(file: File) {
+        val canonicalRoot = root.canonicalFile
+        check(file.canonicalFile.parentFile == canonicalRoot) {
+            "Upload receipt must refer to an app-private pending screenshot"
+        }
+        val receipt = File(canonicalRoot, file.name + ".uploaded.json")
+        if (receipt.exists()) check(receipt.delete()) { "Could not clear completed screenshot receipt" }
+    }
+
     fun receive(input: InputStream, mimeType: String): Received {
         val bytes = input.use { stream ->
             val output = ByteArrayOutputStream()
