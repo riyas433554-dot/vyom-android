@@ -46,6 +46,61 @@ class VyomFactorySystemRegistryTest {
         } finally { root.deleteRecursively() }
     }
 
+    @Test fun eachSystemKeepsItsOwnRepositoryAndCannotBorrowAnotherBinding() {
+        val root = createTempDir(prefix = "vyom-system-registry-")
+        try {
+            val registry = VyomFactorySystemRegistry(root)
+            val memory = binding()
+            val planner = binding().copy(
+                systemId = "planner",
+                repositoryUrl = "https://github.com/acme/planner",
+                commitSha = "c".repeat(40),
+                allowedPaths = listOf("planner/src")
+            )
+            registry.register(memory, ownerConfirmed = true)
+            registry.register(planner, ownerConfirmed = true)
+
+            assertEquals(memory, registry.get("memory"))
+            assertEquals(planner, registry.get("planner"))
+            assertTrue(registry.allowsPath("memory", "app/src/main/Memory.kt"))
+            assertFalse(registry.allowsPath("memory", "planner/src/Planner.kt"))
+            assertTrue(registry.allowsPath("planner", "planner/src/Planner.kt"))
+            assertFalse(registry.allowsPath("planner", "app/src/main/Memory.kt"))
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun repositoryAndCommitMismatchesFailClosed() {
+        val root = createTempDir(prefix = "vyom-system-registry-")
+        try {
+            val registry = VyomFactorySystemRegistry(root)
+            registry.register(binding(), ownerConfirmed = true)
+            try {
+                registry.requireAuthorizedBinding(
+                    "memory", "app/src/main/Memory.kt",
+                    repositoryUrl = "https://github.com/acme/other"
+                )
+                fail("Expected repository mismatch rejection")
+            } catch (_: SecurityException) { }
+            try {
+                registry.requireAuthorizedBinding(
+                    "memory", "app/src/main/Memory.kt",
+                    commitSha = "c".repeat(40)
+                )
+                fail("Expected commit mismatch rejection")
+            } catch (_: SecurityException) { }
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun allowedRootDoesNotMatchSiblingPrefix() {
+        val root = createTempDir(prefix = "vyom-system-registry-")
+        try {
+            val registry = VyomFactorySystemRegistry(root)
+            registry.register(binding().copy(allowedPaths = listOf("app/src")), ownerConfirmed = true)
+            assertTrue(registry.allowsPath("memory", "app/src/main/File.kt"))
+            assertFalse(registry.allowsPath("memory", "app/src2/main/File.kt"))
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun invalidTraversalRootsAreRejected() {
         val root = createTempDir(prefix = "vyom-system-registry-")
         try {
