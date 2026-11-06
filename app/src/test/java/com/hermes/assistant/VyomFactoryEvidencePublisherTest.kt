@@ -59,6 +59,15 @@ class VyomFactoryEvidencePublisherTest {
         assertEquals(0, transport.mutations)
     }
 
+    @Test fun publicRepositoryFailsClosedBeforeBranchCreation() = withPublisher { publisher, transport, _, file ->
+        transport.repositoryPrivate = false
+        assertRejected {
+            publisher.publish("factory-evidence", repo, baseCommit, 7,
+                ".factory-evidence/issue-7/image.png", file)
+        }
+        assertEquals(0, transport.mutations)
+    }
+
     @Test fun staleEvidenceBranchHeadIsRejectedWithoutUpload() = withPublisher { publisher, transport, _, file ->
         transport.head = "c".repeat(40)
         assertRejected {
@@ -134,13 +143,13 @@ class VyomFactoryEvidencePublisherTest {
         var mutations = 0
         var blobWrites = 0
         var comments = 0
-        var failUpload = false
+        var repositoryPrivate = true\n        var failUpload = false
         var failComment = false
         var lastForce = true
         var hashVerifiedBeforeComment = false
         private var uploadedBytes: ByteArray? = null
 
-        override fun isRepositoryPrivate(repositoryUrl: String) = true
+        override fun isRepositoryPrivate(repositoryUrl: String) = repositoryPrivate
         override fun branchHead(branch: String): String? = head
         override fun createBranch(branch: String, fromCommit: String) {
             mutations++
