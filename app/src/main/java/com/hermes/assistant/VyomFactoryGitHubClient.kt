@@ -159,7 +159,6 @@ internal class VyomFactoryGitHubClient(
         when (method) {
             "GET" -> builder.get()
             "POST" -> builder.post((payload ?: JSONObject()).toString().toRequestBody(jsonType))
-            "PUT" -> builder.put((payload ?: JSONObject()).toString().toRequestBody(jsonType))
             "PATCH" -> builder.patch((payload ?: JSONObject()).toString().toRequestBody(jsonType))
             else -> throw IllegalArgumentException("Unsupported GitHub method")
         }
