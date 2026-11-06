@@ -747,7 +747,7 @@ internal class VyomFactoryDialog(
                     } else {
                         screenshotAttachButton?.isEnabled = false
                         status.text = "Evidence commit ${attachment.commitSha.take(12)} and SHA-256 ${attachment.sha256} " +
-                            "were verified, but the issue comment failed. Receipt is saved; do not upload again. " +
+                            "were verified, but the issue comment was not confirmed. Receipt is saved; do not upload again. Check the issue before manually retrying. " +
                             "Manually add this link to #${fresh.number}: ${attachment.url}"
                     }
                     busy = false
