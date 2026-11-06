@@ -1,3 +1,16 @@
+### Item 3 follow-up — checkpoint lease renewal — 2026-11-06
+
+- Added a focused regression test first in `VyomFactoryWorkerSessionTest.kt`: `currentClaimRenewsItsLeaseAtExecutionCheckpoints`. Test-only commit: `403897c9290bd4295b7677cb944a77a1ffe926b6`. Its intended behavior requires `renewAndCheck`, which did not exist at that test commit; CI runs for that commit are still running/slow and have not provided a completed red result. Do not claim a verified RED test.
+- Implementation commits:
+  - `b9937206a883748f1b38bbd4c1445e672bfbc647` — `VyomFactoryWorkerClaimCoordinator.kt`: identity-based current-lease check and exact-token renew.
+  - `6ba80f1f4d021baea2a5055644b05a4b362a4398` — `VyomFactoryWorkerSession.kt`: `renewAndCheck` with the configured lease duration.
+  - `d9fedf6cb8ab6ea9e14cba715f163b967778440e` — `VyomFactoryDialog.kt`: runner's existing claim-validation checkpoints now renew the lease.
+- Intended effect: the runner renews the same fencing token whenever it checks `isClaimCurrent`, including before dispatch and each adapter `shouldStop()` checkpoint. Renewal changes expiry only; the attempt journal remains bound to the stable lease ID/owner ID.
+- Limitation: this is cooperative checkpoint-based heartbeat, not a timer thread. If an adapter blocks without polling `shouldStop()`, the lease may still expire. Do not describe this as continuous heartbeat.
+- Cross-device atomic lease/journal remains unresolved. Queue, lease and journal are still device-local SharedPreferences; a shared atomic authority is required to prevent two installations from claiming the same issue. Backend/Render/production Supabase remain out of scope, so Item 3 stays **INCOMPLETE**.
+- No Android `main`, Render, Hermes backend, or production Supabase changes. Repository still reports public visibility; no private data uploaded.
+- Exact final implementation HEAD and its Full/Debug CI run IDs/results must be appended after the current runs complete. Until then, all new implementation is **CI UNVERIFIED**.
+
 ### Item 3 task-engine audit — 2026-11-06
 
 - Audit branch: `feature/memory-intelligence`; audited source HEAD: `7dc5e163b76d29dd39c1870aa0d7fbbdf18d99e4`. No application source was changed in this audit batch.
