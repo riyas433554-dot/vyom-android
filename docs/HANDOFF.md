@@ -1286,3 +1286,6 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Exact-head CI was triggered for both commits. At handoff update time, Debug run 42171578429 and Full CI run 42171578493 for 1db4115ad538b7a0d2b2cce456ed07bff9411e18 were queued/pending; earlier exact-head runs for 75cdf35e592ec489b30fdb514d63b46d53a97fa0 were still running/pending. No green result or APK artifact is claimed until those runs complete.
 - Security inventory blocker remains separate and unresolved: 169 historical broad Discord-pattern hits still lack the original redacted per-file/per-line/per-commit inventory. Do not mark them clean or rotate credentials without a confirmed real leak.
 - No Android main, Render, backend or production Supabase changes.
+
+
+- Follow-up test-contract correction: RepositoryCatalogTest requires the stable Letta candidate ID `letta-code`; changed the catalogue ID from `letta` to `letta-code` while preserving the documented canonical source URL. Commit: 717c4ada16e441b71cd34d7dd623992ccdf36163. Exact-head CI for this follow-up is pending; no pass is claimed.
