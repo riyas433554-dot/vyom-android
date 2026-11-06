@@ -55,10 +55,18 @@ internal class VyomFactoryWorkerClaimCoordinator(
         null
     }
 
-    /** Revalidates the exact lease token and confirms the task remains in the inbox. */
-    fun isCurrent(claim: Claim, now: Long): Boolean =
+    /** Revalidates lease identity and expiry; renewal may change only expiresAt. */
+    fun isCurrent(claim: Claim, now: Long): Boolean {
+        val active = leaseStore.active(claim.task.issueNumber, now) ?: return false
+        return taskStore.contains(claim.task.issueNumber) &&
+            active.leaseId == claim.lease.leaseId &&
+            active.ownerId == claim.lease.ownerId
+    }
+
+    /** Extends this exact still-live claim without changing its fencing token. */
+    fun renew(claim: Claim, now: Long, durationMs: Long): Boolean =
         taskStore.contains(claim.task.issueNumber) &&
-            leaseStore.active(claim.task.issueNumber, now) == claim.lease
+            leaseStore.renew(claim.lease, now, durationMs) != null
 
     /** Releases only this claim's fenced lease; the task remains queued for retry. */
     fun release(claim: Claim): Boolean = leaseStore.release(claim.lease)
