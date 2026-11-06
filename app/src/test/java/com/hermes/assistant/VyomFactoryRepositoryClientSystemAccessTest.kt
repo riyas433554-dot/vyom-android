@@ -1,6 +1,5 @@
 package com.hermes.assistant
 
-import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -24,14 +23,7 @@ class VyomFactoryRepositoryClientSystemAccessTest {
             var requested = ""
             val client = VyomFactoryRepositoryClient(getJson = { path ->
                 requested = path
-                JSONObject()
-                    .put("type", "file")
-                    .put("path", "app/src/main/Memory.kt")
-                    .put("encoding", "base64")
-                    .put("size", content.size)
-                    .put("sha", "blob-sha")
-                    .put("content", java.util.Base64.getEncoder().encodeToString(content))
-                    .toString()
+                """{"type":"file","path":"app/src/main/Memory.kt","encoding":"base64","size":${content.size},"sha":"blob-sha","content":"${java.util.Base64.getEncoder().encodeToString(content)}"}"""
             })
             val result = client.readBoundSystemFile("memory", "app/src/main/Memory.kt", registry)
             assertEquals("/repos/acme/memory/contents/app/src/main/Memory.kt?ref=$sha", requested)
