@@ -1315,3 +1315,19 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - The earlier code-fix SHA `d6247fdeffdefe78e38a7cd39aca1a99b2de360d` Debug run `42173014168` was still in progress when checked; its Full CI run `42173014175` was cancelled after the newer HEAD workflows completed. The authoritative latest-HEAD results are the two successful runs above.
 - Secrets audit remains the controlling blocker: 169 historical broad Discord-pattern matches are still UNCLASSIFIED and the third historical credential-assignment match remains unreconciled. The CI Gitleaks action passing on the latest run does not reproduce or classify the missing historical 169-hit inventory. The owner-provided `vyom-prepublic-scan.sh` is a working-tree heuristic plus optional Gitleaks history scan; it is not the missing original report.
 - No source changes beyond the previously recorded bounded-inventory fix; this entry only synchronizes CI/artifact evidence. Core item 2 remains BLOCKED; items 3–8 remain locked. No Android `main`, Render, Hermes backend, or production Supabase changes. No phone/device test claimed.
+
+
+### Full reachable-history Gitleaks audit and CI correction — 2026-11-06
+
+- Exact branch at audit: `feature/memory-intelligence`; implementation commit `a7e6a55b7e123590c6525b3f24d9e3a856fb1cfe`.
+- Audit exposed a coverage flaw: the existing `gitleaks/gitleaks-action@v2` push invocation logged `--log-opts=-1` and `1 commits scanned`; its green result was latest-commit-only, not full-history evidence.
+- Added a pinned Gitleaks 8.24.3 full-reachable-history scan using `gitleaks git --redact --no-banner --log-opts="--all"`, a redacted JSON report, and a CI artifact. The first attempt had a missing binary path; corrected by explicitly installing the pinned binary with Go. A malformed workflow-step structure was also corrected before the successful scan execution.
+- Full-history scan run `42228876982` on SHA `a7e6a55b7e123590c6525b3f24d9e3a856fb1cfe`: scanned 1,690 commits / approximately 5.03 MB; found 6 Gitleaks generic-api-key matches. Redacted report artifact ID `13507276239` (`redacted-full-history-gitleaks`).
+- Classification from exact source lines at the reported commits:
+  - 2 findings in `SelfModificationPolicyTest.kt` lines 68 and 72 are dummy API-key strings inside sanitizer/prompt-injection test fixtures: **TEST_FIXTURE**.
+  - 4 findings in `docs/HANDOFF.md` / `docs/HANDOFF_HISTORY.md` are commit-hash text and a long Factory class identifier, not credential assignments: **FALSE_POSITIVE**.
+  - No secret values are retained in this record. The exact per-finding redacted metadata is in the CI job log and report artifact.
+- This Gitleaks run does **not** resolve the separate historical 169 broad Discord-pattern matches: their original regex and redacted per-file/line/commit inventory remain missing. It also does not reproduce or settle the third historical credential-assignment count. Keep 169 UNCLASSIFIED and the third assignment UNRESOLVED; no REAL_LEAK has been confirmed from available evidence.
+- Full CI run `42228876982` failed at the full-history scan as expected due to the six findings; later unit-test/APK steps were skipped. Do not claim a green full CI or APK from this run. Debug build run `42228877131` on the same SHA was still in progress when this entry was prepared.
+- Found a release-policy footgun: `.github/workflows/vyom-android-debug.yml` previously published a signed prerelease on every push when signing secrets existed. Changed it to require an explicit `workflow_dispatch` boolean `publish_ci_update_release=true`; ordinary branch pushes no longer publish releases. Existing older prereleases were not modified or deleted.
+- Core item 2 remains BLOCKED by the unreconciled 169 Discord-pattern findings and third credential-assignment match. Items 3–8 remain locked. No Android `main`, Render, Hermes backend, or production Supabase changes.
