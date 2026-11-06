@@ -48,6 +48,41 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install pinned Gitleaks for full reachable history
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+      - name: Full reachable Git history secret scan (redacted)
+        shell: bash
+        run: |
+          set +e
+          "$(go env GOPATH)/bin/gitleaks" git --redact --no-banner --log-opts="--all" --report-format=json --report-path=history-gitleaks.json .
+          scan_status=$?
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("history-gitleaks.json")
+          findings = json.loads(p.read_text()) if p.exists() and p.stat().st_size else []
+          print(f"FULL_HISTORY_GITLEAKS_FINDINGS={len(findings)}")
+          for item in findings:
+              print(
+                  "REDACTED_FINDING"
+                  f" | rule={item.get('RuleID', 'unknown')}"
+                  f" | file={item.get('File', 'unknown')}"
+                  f" | line={item.get('StartLine', 'unknown')}"
+                  f" | commit={item.get('Commit', 'unknown')}"
+              )
+          PY
+          exit "$scan_status"
+      - name: Upload redacted full-history secret report
+        if: always() && hashFiles('history-gitleaks.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: redacted-full-history-gitleaks
+          path: history-gitleaks.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Block policy-critical files in self-change proposals
         if: (github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')) || (github.event_name == 'push' && startsWith(github.ref_name, 'vyom-proposal-'))
         shell: bash
