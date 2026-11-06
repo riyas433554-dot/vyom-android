@@ -12,6 +12,12 @@ on:
       - fresh-history/android-app-copy
       - feature/memory-intelligence
   workflow_dispatch:
+    inputs:
+      publish_ci_update_release:
+        description: "Explicitly publish the signed CI update release"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -196,7 +202,7 @@ jobs:
       # Foreground lifecycle instrumentation is optional and runs separately from the APK-gating Debug workflow.
       # Keeping emulator startup out of this job prevents a stalled emulator action from blocking release publication.
       - name: Publish signed CI update release
-        if: github.event_name == 'push' && steps.signing.outputs.available == 'true'
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_ci_update_release == true && steps.signing.outputs.available == 'true'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
