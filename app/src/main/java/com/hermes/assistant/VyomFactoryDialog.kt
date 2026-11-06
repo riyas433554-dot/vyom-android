@@ -707,7 +707,7 @@ internal class VyomFactoryDialog(
         status.text = "Checking owner-approved factory-evidence binding and repository privacy…"
         worker.execute {
             try {
-                val fresh = client.listTasks().firstOrNull { it.number == task.number && it.state == "open" }
+                val fresh = client.listTasks().firstOrNull { it.number == task.number && it.state == "open" && it.metadata.status != "paused" }
                     ?: throw IllegalStateException("Selected issue is no longer open")
                 val registry = VyomFactorySystemRegistry(
                     File(activity.filesDir, "factory-system-registry")
