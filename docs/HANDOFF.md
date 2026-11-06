@@ -9,7 +9,9 @@
 - Limitation: this is cooperative checkpoint-based heartbeat, not a timer thread. If an adapter blocks without polling `shouldStop()`, the lease may still expire. Do not describe this as continuous heartbeat.
 - Cross-device atomic lease/journal remains unresolved. Queue, lease and journal are still device-local SharedPreferences; a shared atomic authority is required to prevent two installations from claiming the same issue. Backend/Render/production Supabase remain out of scope, so Item 3 stays **INCOMPLETE**.
 - No Android `main`, Render, Hermes backend, or production Supabase changes. Repository still reports public visibility; no private data uploaded.
-- Exact final implementation HEAD and its Full/Debug CI run IDs/results must be appended after the current runs complete. Until then, all new implementation is **CI UNVERIFIED**.
+- Final implementation + HANDOFF source HEAD: `0f8bdd977fc8b3dcc31ce5c6a844d0165383c369`. Exact-head Full CI `42234764933` = **SUCCESS** (secret scan, unit tests/debug build, APK packaging/checksum). Exact-head Debug CI `42234764938` = **SUCCESS** (build/tests and packaging/checksum; publication remains gated). These prove the checkpoint-renewal change compiles and passes CI; no physical-device test or artifact delivery is claimed.
+- Test-first evidence: test-only commit `403897c9290bd4295b7677cb944a77a1ffe926b6` Full CI `42234284768` failed at `Unit tests and debug APK`; available job metadata does not expose the compiler/test detail, so the exact failure cause is **UNVERIFIED**. The test-only Debug run `42234284897` remained in progress at last check; it is not used as pass evidence.
+- Item 3 remains **INCOMPLETE** because the lease/journal authority is still local-only and no cross-device atomic claim exists.
 
 ### Item 3 task-engine audit — 2026-11-06
 
