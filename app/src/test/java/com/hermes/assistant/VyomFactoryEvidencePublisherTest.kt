@@ -2,100 +2,97 @@ package com.hermes.assistant
 
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.File
 
 class VyomFactoryEvidencePublisherTest {
     private val baseCommit = "a".repeat(40)
     private val repo = "https://github.com/acme/vyom"
     private val image = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
 
-    @Test fun unregisteredSystemFailsBeforeAnyRemoteMutation() {
-        val root = createTempDir(prefix = "evidence-registry-")
-        try {
-            val transport = FakeTransport()
-            val publisher = publisher(root, transport)
-            assertRejected {
-                publisher.publish("factory-evidence", repo, baseCommit, 7,
-                    ".factory-evidence/issue-7/image.png", image, baseCommit)
-            }
-            assertEquals(0, transport.mutations)
-        } finally { root.deleteRecursively() }
+    @Test fun unregisteredSystemFailsBeforeAnyRemoteMutation() = withPublisher { publisher, transport, _, file ->
+        assertRejected {
+            publisher.publish("factory-evidence", repo, baseCommit, 7,
+                ".factory-evidence/issue-7/image.png", file)
+        }
+        assertEquals(0, transport.mutations)
     }
 
-    @Test fun wrongRepositoryFailsClosed() = withPublisher { publisher, transport ->
+    @Test fun wrongRepositoryFailsClosed() = withPublisher { publisher, transport, _, file ->
         assertRejected {
             publisher.publish("factory-evidence", "https://github.com/acme/other", baseCommit, 7,
-                ".factory-evidence/issue-7/image.png", image, baseCommit)
+                ".factory-evidence/issue-7/image.png", file)
         }
         assertEquals(0, transport.mutations)
     }
 
-    @Test fun wrongPinnedCommitFailsClosed() = withPublisher { publisher, transport ->
+    @Test fun wrongPinnedCommitFailsClosed() = withPublisher { publisher, transport, _, file ->
         assertRejected {
             publisher.publish("factory-evidence", repo, "b".repeat(40), 7,
-                ".factory-evidence/issue-7/image.png", image, baseCommit)
+                ".factory-evidence/issue-7/image.png", file)
         }
         assertEquals(0, transport.mutations)
     }
 
-    @Test fun pathTraversalIsRejectedBeforeRemoteMutation() = withPublisher { publisher, transport ->
+    @Test fun pathTraversalIsRejectedBeforeRemoteMutation() = withPublisher { publisher, transport, _, file ->
         assertRejected {
             publisher.publish("factory-evidence", repo, baseCommit, 7,
-                ".factory-evidence/issue-7/../outside.png", image, baseCommit)
+                ".factory-evidence/issue-7/../outside.png", file)
         }
         assertEquals(0, transport.mutations)
     }
 
-    @Test fun pathOutsideRegisteredRootIsRejected() = withPublisher { publisher, transport ->
+    @Test fun pathOutsideRegisteredRootIsRejected() = withPublisher { publisher, transport, _, file ->
         assertRejected {
-            publisher.publish("factory-evidence", repo, baseCommit, 7,
-                "README.md", image, baseCommit)
+            publisher.publish("factory-evidence", repo, baseCommit, 7, "README.md", file)
         }
         assertEquals(0, transport.mutations)
     }
 
-    @Test fun staleEvidenceBranchHeadIsRejectedWithoutUpload() = withPublisher { publisher, transport ->
+    @Test fun staleEvidenceBranchHeadIsRejectedWithoutUpload() = withPublisher { publisher, transport, _, file ->
         transport.head = "c".repeat(40)
         assertRejected {
             publisher.publish("factory-evidence", repo, baseCommit, 7,
-                ".factory-evidence/issue-7/image.png", image, baseCommit)
+                ".factory-evidence/issue-7/image.png", file)
         }
         assertEquals(0, transport.blobWrites)
     }
 
-    @Test fun uploadFailureNeverCreatesIssueComment() = withPublisher { publisher, transport ->
+    @Test fun uploadFailureNeverCreatesIssueComment() = withPublisher { publisher, transport, _, file ->
         transport.failUpload = true
         assertRejected {
             publisher.publish("factory-evidence", repo, baseCommit, 7,
-                ".factory-evidence/issue-7/image.png", image, baseCommit)
+                ".factory-evidence/issue-7/image.png", file)
         }
         assertEquals(0, transport.comments)
     }
 
-    @Test fun commentFailureReturnsVerifiedUploadWithoutClaimingCommentSuccess() = withPublisher { publisher, transport ->
+    @Test fun commentFailureKeepsVerifiedUploadReceiptAndDoesNotClaimSuccess() = withPublisher { publisher, transport, store, file ->
         transport.failComment = true
         val result = publisher.publish("factory-evidence", repo, baseCommit, 7,
-            ".factory-evidence/issue-7/image.png", image, baseCommit)
+            ".factory-evidence/issue-7/image.png", file)
         assertFalse(result.issueCommentRecorded)
         assertEquals(VyomFactoryScreenshotEvidencePolicy.sha256(image), result.sha256)
         assertEquals(result.commitSha, transport.head)
+        assertNotNull(store.uploadReceipt(file))
         assertEquals(1, transport.comments)
         assertFalse(transport.lastForce)
     }
 
-    @Test fun successfulPublishVerifiesHashBeforeIssueCommentAndUsesNonForceRefUpdate() = withPublisher { publisher, transport ->
+    @Test fun successVerifiesHashBeforeCommentAndUsesNonForceRefUpdate() = withPublisher { publisher, transport, store, file ->
         val result = publisher.publish("factory-evidence", repo, baseCommit, 7,
-            ".factory-evidence/issue-7/image.png", image, baseCommit)
+            ".factory-evidence/issue-7/image.png", file)
         assertTrue(result.issueCommentRecorded)
         assertEquals(VyomFactoryScreenshotEvidencePolicy.sha256(image), result.sha256)
         assertEquals(result.commitSha, transport.head)
         assertTrue(transport.hashVerifiedBeforeComment)
         assertFalse(transport.lastForce)
+        assertNull(store.uploadReceipt(file))
     }
 
-    private fun withPublisher(block: (VyomFactoryEvidencePublisher, FakeTransport) -> Unit) {
+    private fun withPublisher(block: (VyomFactoryEvidencePublisher, FakeTransport, VyomFactoryScreenshotEvidenceStore, File) -> Unit) {
         val root = createTempDir(prefix = "evidence-publisher-")
         try {
-            val registry = VyomFactorySystemRegistry(root)
+            val registry = VyomFactorySystemRegistry(File(root, "registry"))
             registry.register(
                 VyomFactorySystemRegistry.Binding(
                     "factory-evidence", repo, baseCommit,
@@ -103,13 +100,13 @@ class VyomFactoryEvidencePublisherTest {
                 ),
                 ownerConfirmed = true
             )
+            val pending = File(root, "pending").apply { mkdirs() }
+            val file = File(pending, "image.png").apply { writeBytes(image) }
+            val store = VyomFactoryScreenshotEvidenceStore(pending)
             val transport = FakeTransport()
-            block(VyomFactoryEvidencePublisher(registry, transport), transport)
+            block(VyomFactoryEvidencePublisher(registry, transport, store), transport, store, file)
         } finally { root.deleteRecursively() }
     }
-
-    private fun publisher(root: java.io.File, transport: FakeTransport): VyomFactoryEvidencePublisher =
-        VyomFactoryEvidencePublisher(VyomFactorySystemRegistry(root), transport)
 
     private fun assertRejected(block: () -> Unit) {
         try {
@@ -121,7 +118,7 @@ class VyomFactoryEvidencePublisherTest {
         }
     }
 
-    private class FakeTransport : VyomFactoryEvidencePublisher.Transport {
+    private inner class FakeTransport : VyomFactoryEvidencePublisher.Transport {
         var head: String? = null
         var mutations = 0
         var blobWrites = 0
