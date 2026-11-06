@@ -1,3 +1,14 @@
+### Item 4 isolation test expansion + CI correction — 2026-11-06
+
+- Added tests that two system IDs retain separate repository bindings and cannot borrow each other's allowed roots; repository URL/commit mismatch is rejected; sibling prefix paths (for example `app/src2` when only `app/src` is allowed) are denied. Test commit: `c77324e329990fa849c4be6cf0edd45ab204edd9`.
+- CI logs for the earlier bound-read implementation (`4bb5c7d2da8c29780eafb8096346cd99adaa08c8`) showed `VyomFactoryRepositoryClientSystemAccessTest > boundReadUsesOnlyRegisteredRepositoryAndCommit` failing at test line 34 with `RuntimeException`; build compilation and APK assembly had completed. The fixture used Android `org.json.JSONObject.toString()` in a local JVM test. To remove that Android mock dependency, changed the fixture to a literal JSON response string. Fix commit: `f5cd14a6e9b066041a81f846d8a0fd9ca92d5b2e`. The failure's underlying mock-stub message was not emitted in the retained log, so the precise exception cause remains unverified; the fixture no longer invokes that method.
+- CI: Debug `42238666059` succeeded on `42e7b5d99ae780ceb746020da1f3ee305934c7b5`. Full CI `42238666033` on that SHA remained in progress at last check. On `c77324e329990fa849c4be6cf0edd45ab204edd9`, Full CI `42239057356` was cancelled and Debug `42239057640` remained in progress. On current code HEAD `f5cd14a6e9b066041a81f846d8a0fd9ca92d5b2e`, Full CI `42239150235` was pending and Debug CI `42239150248` was in progress at last check. These runs are SHA-specific; no latest-head pass is claimed.
+- Item 4 remains **IN PROGRESS**. Owner-reviewed binding UI is reachable from the Factory dialog (`INSPECT / REGISTER ANY GITHUB REPOSITORY`); it binds system ID + allowed roots to a pinned repository revision. Guarded file reads use only the registry binding and deny unknown systems/out-of-root paths before network access. No repository write/change adapter exists, so no end-to-end read/write executor isolation claim.
+- Item 3 remains **CLOSED (single-device scope)**. Continuous heartbeat remains **UNVERIFIED / NOT IMPLEMENTED**. Cross-device shared atomic coordination remains deferred with the existing caveat.
+- No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+---
+
 ### Item 4 owner binding flow — 2026-11-06
 
 - Updated `VyomFactoryRepositoryReviewDialog.kt` to require an explicit system ID and one or more allowed relative path roots during owner-reviewed repository registration. On the explicit bind action, it stores the immutable repository URL + commit + roots in `VyomFactorySystemRegistry` and retains the source in the read-only repository catalogue.
