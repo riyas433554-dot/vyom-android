@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.text.InputType
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.os.Handler
@@ -114,47 +115,93 @@ internal class VyomFactoryRepositoryReviewDialog(
             setTextColor(VyomDesignSpec.TEXT_PRIMARY)
             setPadding(24, 20, 24, 20)
         }
-        val scroll = ScrollView(activity).apply {
+        val systemIdInput = EditText(activity).apply {
+            hint = "System ID (e.g. memory, planner, worker)"
+            setSingleLine(true)
+            textSize = 14f
+        }
+        val allowedPathsInput = EditText(activity).apply {
+            hint = "Allowed path roots (comma or newline separated), e.g. app/src/main, docs"
+            minLines = 2
+            maxLines = 4
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            textSize = 14f
+        }
+        val content = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
             addView(detail, ViewGroup.LayoutParams(-1, -2))
+            addView(systemIdInput, ViewGroup.LayoutParams(-1, -2))
+            addView(allowedPathsInput, ViewGroup.LayoutParams(-1, -2))
+        }
+        val scroll = ScrollView(activity).apply {
+            addView(content, ViewGroup.LayoutParams(-1, -2))
         }
         val canRegister = assessment.decision != VyomFactoryRepositoryIntake.Decision.BLOCKED
         val positiveLabel = when (assessment.decision) {
-            VyomFactoryRepositoryIntake.Decision.READY_FOR_REVIEW -> "REGISTER REVIEWED SOURCE"
-            VyomFactoryRepositoryIntake.Decision.NEEDS_OWNER_REVIEW -> "REGISTER PENDING REVIEW"
+            VyomFactoryRepositoryIntake.Decision.READY_FOR_REVIEW -> "BIND SYSTEM TO REPOSITORY"
+            VyomFactoryRepositoryIntake.Decision.NEEDS_OWNER_REVIEW -> "BIND AFTER REVIEW"
             VyomFactoryRepositoryIntake.Decision.BLOCKED -> "BLOCKED"
         }
         val dialog = AlertDialog.Builder(activity)
-            .setTitle("REPOSITORY INTAKE REVIEW")
+            .setTitle("SYSTEM REPOSITORY + PATH REVIEW")
             .setView(scroll)
-            .setPositiveButton(positiveLabel) { _, _ ->
-                if (!canRegister) return@setPositiveButton
-                worker.execute {
-                    try {
-                        val entry = VyomFactoryRepositoryRegistry(
-                            File(activity.filesDir, "factory-repository-registry")
-                        ).register(preview, ownerConfirmed = true)
-                        main.post {
-                            if (finished || activity.isFinishing) return@post
-                            onStatus(
-                                "Repository reference registered · ${entry.kind} · ${entry.commitSha.take(12)}. " +
-                                    "Execution remains disabled."
-                            )
-                            finish()
-                        }
-                    } catch (error: Exception) {
-                        main.post {
-                            if (finished || activity.isFinishing) return@post
-                            onStatus("Repository registration failed · ${error.message?.take(180) ?: error.javaClass.simpleName}")
-                            finish()
-                        }
-                    }
-                }
-            }
+            .setPositiveButton(positiveLabel, null)
             .setNegativeButton("CANCEL") { _, _ -> finish() }
             .create()
         dialog.setOnCancelListener { finish() }
         dialog.show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = canRegister
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            if (!canRegister) return@setOnClickListener
+            val systemId = systemIdInput.text.toString().trim()
+            val allowedPaths = allowedPathsInput.text.toString()
+                .split(',', '\n')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+            if (!systemId.matches(Regex("^[a-z][a-z0-9_.-]{0,63}$"))) {
+                systemIdInput.error = "Use lowercase ID: a-z, 0-9, dot, underscore or hyphen"
+                return@setOnClickListener
+            }
+            if (allowedPaths.isEmpty()) {
+                allowedPathsInput.error = "At least one allowed path root is required"
+                return@setOnClickListener
+            }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+            worker.execute {
+                try {
+                    val entry = VyomFactoryRepositoryRegistry(
+                        File(activity.filesDir, "factory-repository-registry")
+                    ).register(preview, ownerConfirmed = true)
+                    val binding = VyomFactorySystemRegistry(
+                        File(activity.filesDir, "factory-system-registry")
+                    ).register(
+                        VyomFactorySystemRegistry.Binding(
+                            systemId = systemId,
+                            repositoryUrl = entry.canonicalUrl,
+                            commitSha = entry.commitSha,
+                            allowedPaths = allowedPaths,
+                            registeredAtEpochMs = System.currentTimeMillis()
+                        ),
+                        ownerConfirmed = true
+                    )
+                    main.post {
+                        if (finished || activity.isFinishing) return@post
+                        onStatus(
+                            "System '${systemId}' bound to ${binding.repositoryUrl} · ${binding.commitSha.take(12)} · " +
+                                "${binding.allowedPaths.size} allowed path root(s). Repository execution remains gated."
+                        )
+                        finish()
+                    }
+                } catch (error: Exception) {
+                    main.post {
+                        if (finished || activity.isFinishing) return@post
+                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                        onStatus("System binding failed · ${error.message?.take(180) ?: error.javaClass.simpleName}")
+                    }
+                }
+            }
+        }
     }
 
     private fun finish() {
