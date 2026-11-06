@@ -53,6 +53,9 @@ internal class VyomFactoryEvidencePublisher(
         file: File
     ): Result {
         require(issueNumber > 0 && file.isFile) { "Select an existing issue and a stored screenshot" }
+        check(evidenceStore.uploadReceipt(file) == null) {
+            "This screenshot already has an upload receipt; automatic duplicate uploads are blocked"
+        }
         require(relativePath.startsWith(".factory-evidence/")) { "Evidence path must stay below .factory-evidence/" }
         val binding = registry.requireAuthorizedBinding(
             systemId, relativePath, repositoryUrl, pinnedCommitSha
@@ -116,7 +119,7 @@ internal class VyomFactoryEvidencePublisher(
         val commentRecorded = runCatching {
             transport.addIssueComment(issueNumber, comment)
         }.isSuccess
-        if (commentRecorded) evidenceStore.clearUploadReceipt(file)
+        if (commentRecorded) runCatching { evidenceStore.clearUploadReceipt(file) }
         return Result(url, commit, hash, commentRecorded)
     }
 
