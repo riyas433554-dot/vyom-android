@@ -193,6 +193,7 @@ jobs:
           test -s output/vyom-content-update-result-card.png
           test -s output/vyom-content-update-rollback-result-card.png
       - name: Upload debug and signed APK artifacts
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_ci_update_release == true
         uses: actions/upload-artifact@v4
         with:
           name: vyom-0.3.1-${{ github.sha }}
