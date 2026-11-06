@@ -1,3 +1,14 @@
+### Item 4 owner binding flow — 2026-11-06
+
+- Updated `VyomFactoryRepositoryReviewDialog.kt` to require an explicit system ID and one or more allowed relative path roots during owner-reviewed repository registration. On the explicit bind action, it stores the immutable repository URL + commit + roots in `VyomFactorySystemRegistry` and retains the source in the read-only repository catalogue.
+- Invalid system IDs and empty path-root lists are rejected in the UI; registry validation still rejects traversal, absolute paths, backslashes and non-canonical repository URLs. Existing bindings cannot be silently replaced.
+- Commit: `c339b4df5d3305cb3452433ae09156f858981da1`.
+- The owner-binding UI, registry resolver and guarded repository read are now connected. The repository write/change adapter still does not exist, so writes are not yet executing through this policy. Item 4 remains **IN PROGRESS**; no end-to-end executor isolation claim.
+- CI for this UI commit and the final HANDOFF synchronization commit is pending; exact run IDs/results must be recorded after GitHub reports them. Prior Full CI `42237560686` passed only for earlier SHA `35e474c567d0b879d92e44f37069aed46b1c19a0`; it does not validate the later read-guard/UI commits.
+- No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+---
+
 ### Item 4 continuation — bind repository reads to system allowlists — 2026-11-06
 
 - Added `VyomFactorySystemRegistry.requireAuthorizedBinding` as the fail-closed resolver for a system's owner-approved repository URL, immutable commit SHA and allowed relative path roots. Existing `allowsPath` now delegates to this resolver.
