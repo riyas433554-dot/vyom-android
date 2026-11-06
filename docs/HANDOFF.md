@@ -1351,3 +1351,10 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Exact-head Full CI `42229748698` on `68dd0bca8172210a5344f639d3bf125f7dc8a14e` = **FAILURE** at full-history Gitleaks; report upload succeeded, subsequent unit-test/APK steps were skipped.
 - Exact-head Debug run `42229748504` on the same SHA completed **SUCCESS**. `Build and test APKs`, packaging/checksums, and signed no-APK content-update demo all passed. Artifact upload and release publication were **SKIPPED** by the new ordinary-push gate; therefore no artifact is available from this run and no APK is claimed as delivered.
 - Core item 1 audit/HANDOFF sync is refreshed by this entry. Core item 2 remains **BLOCKED** by missing original 169-match evidence and unresolved mapping of the third historical credential-assignment match. Items 3–8 remain not started. No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+### Exact Gitleaks false-positive fingerprint handling — 2026-11-06
+
+- Added root `.gitleaksignore` with **six commit-qualified fingerprints only**, matching the six redacted findings classified from full-history Gitleaks artifact `13507512039`: two known test fixtures and four HANDOFF documentation strings. No rule-wide, path-wide, or secret-pattern allowlist was added; later commits/new locations remain detectable. The six original occurrences remain recorded as reviewed false positives, not deleted from history.
+- Change commit: `196702a5ff4faf15f2cecb68400bb3cd6c065049`.
+- Exact-head CI for that SHA: Full CI `42230823644` was PENDING at last check; Debug `42230823628` was IN_PROGRESS during Gradle setup. No pass is claimed. The preceding SHA's Debug run `42229748504` completed SUCCESS for build/tests/package/checksums/demo, but artifact upload/release were skipped by the ordinary-push gate; Full CI `42229748698` failed at the six known Gitleaks findings.
+- This narrow fingerprint handling addresses only the six Gitleaks findings. It does **not** resolve the owner's separate 169 historical Discord-pattern findings or the unmapped third credential-assignment finding. Core item 2 remains BLOCKED; do not start item 3.
