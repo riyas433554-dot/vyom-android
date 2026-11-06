@@ -2,100 +2,116 @@ package com.hermes.assistant
 
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONArray
 import org.json.JSONObject
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
+import java.util.Base64
 
 class VyomFactoryScreenshotAttachmentTest {
-    @Test fun publicRepositoryIsRejectedBeforeIssueReadOrAnyUpload() {
-        val server = MockWebServer()
-        server.start()
-        val file = screenshotFile()
+    private val repositoryUrl = "https://github.com/test/repo"
+    private val baseCommit = "a".repeat(40)
+    private val imageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+    @Test fun publicRepositoryIsRejectedBeforeBranchCreationOrUpload() {
+        val server = MockWebServer().apply { start() }
+        val root = createTempDir(prefix = "public-evidence-")
         try {
             server.enqueue(json("""{"private":false}"""))
-            val client = VyomFactoryGitHubClient("test-token", "test/repo", apiBaseUrl = server.url("/").toString().trimEnd('/'))
-            assertRejected { client.attachScreenshot(42, file) }
+            val (publisher, file) = publisher(server, root)
+            assertRejected {
+                publisher.publish("factory-evidence", repositoryUrl, baseCommit, 42,
+                    ".factory-evidence/issue-42/image.png", file)
+            }
             assertEquals(1, server.requestCount)
             assertFalse(server.takeRequest().path!!.contains("/contents/"))
         } finally {
-            file.delete()
+            root.deleteRecursively()
             server.shutdown()
         }
     }
 
-    @Test fun privateRepositoryUploadAndIssueCommentOccurOnlyAfterAttachCall() {
-        val server = MockWebServer()
-        server.start()
-        val file = screenshotFile()
+    @Test fun privateRepositoryUsesDedicatedBranchExpectedHeadHashVerificationThenIssueComment() {
+        val server = MockWebServer().apply { start() }
+        val root = createTempDir(prefix = "private-evidence-")
         try {
             server.enqueue(json("""{"private":true}"""))
-            server.enqueue(json(JSONArray().put(issue()).toString()))
-            server.enqueue(json("""{"private":true}"""))
+            server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
+            server.enqueue(json("""{"ref":"refs/heads/factory-evidence","object":{"sha":"$baseCommit"}}""", 201))
+            server.enqueue(json("""{"ref":"refs/heads/factory-evidence","object":{"sha":"$baseCommit"}}"""))
+            server.enqueue(json("""{"tree":{"sha":"dddddddddddddddddddddddddddddddddddddddd"}}"""))
+            server.enqueue(json("""{"sha":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}""", 201))
+            server.enqueue(json("""{"sha":"ffffffffffffffffffffffffffffffffffffffff"}""", 201))
+            server.enqueue(json("""{"sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}""", 201))
+            server.enqueue(json("""{"ref":"refs/heads/factory-evidence","object":{"sha":"$baseCommit"}}"""))
+            server.enqueue(json("""{"ref":"refs/heads/factory-evidence","object":{"sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}""", 200))
+            server.enqueue(json("""{"ref":"refs/heads/factory-evidence","object":{"sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}"""))
             server.enqueue(json(
-                JSONObject()
-                    .put("content", JSONObject().put("html_url", "https://github.com/test/repo/blob/feature/memory-intelligence/.factory-evidence/issue-42/test.png"))
-                    .put("commit", JSONObject().put("sha", "b".repeat(40)))
-                    .toString()
+                JSONObject().put("type", "file")
+                    .put("path", ".factory-evidence/issue-42/image.png")
+                    .put("encoding", "base64")
+                    .put("content", Base64.getEncoder().encodeToString(imageBytes))
+                    .put("size", imageBytes.size).toString()
             ))
-            server.enqueue(json("""{"id":123}"""))
+            server.enqueue(json("""{"id":123}""", 201))
 
-            val client = VyomFactoryGitHubClient("test-token", "test/repo", apiBaseUrl = server.url("/").toString().trimEnd('/'))
-            val result = client.attachScreenshot(42, file)
+            val (publisher, file) = publisher(server, root)
+            val result = publisher.publish("factory-evidence", repositoryUrl, baseCommit, 42,
+                ".factory-evidence/issue-42/image.png", file)
 
             assertTrue(result.issueCommentRecorded)
             assertEquals("b".repeat(40), result.commitSha)
-            assertEquals(VyomFactoryScreenshotEvidencePolicy.sha256(file.readBytes()), result.sha256)
-            val requests = (0 until 5).map { server.takeRequest() }
-            assertEquals("GET", requests[0].method)
-            assertEquals("GET", requests[1].method)
-            assertEquals("GET", requests[2].method)
-            assertEquals("PUT", requests[3].method)
-            assertTrue(requests[3].path!!.contains(".factory-evidence/issue-42/"))
-            assertEquals("POST", requests[4].method)
-            assertTrue(requests[4].body.readUtf8().contains("SHA-256"))
+            assertEquals(VyomFactoryScreenshotEvidencePolicy.sha256(imageBytes), result.sha256)
+            assertNull(VyomFactoryScreenshotEvidenceStore(File(root, "pending")).uploadReceipt(file))
+
+            val requests = (0 until 13).map { server.takeRequest() }
+            assertEquals("GET", requests[0].method) // repository privacy
+            assertEquals("GET", requests[1].method) // branch absent
+            assertEquals("POST", requests[2].method) // create dedicated branch from pinned commit
+            assertTrue(requests[2].body.readUtf8().contains("refs/heads/factory-evidence"))
+            assertEquals("POST", requests[5].method) // blob
+            assertEquals("POST", requests[6].method) // tree
+            assertEquals("POST", requests[7].method) // commit parented to expected head
+            assertEquals("GET", requests[8].method) // expected-head recheck immediately before ref update
+            assertEquals("PATCH", requests[9].method)
+            assertTrue(requests[9].body.readUtf8().contains("\"force\":false"))
+            assertEquals("GET", requests[11].method) // read-back by immutable commit SHA
+            assertTrue(requests[11].path!!.contains("ref=" + "b".repeat(40)))
+            assertEquals("POST", requests[12].method) // issue comment occurs only after hash read-back
+            assertTrue(requests[12].body.readUtf8().contains(result.sha256))
         } finally {
-            file.delete()
+            root.deleteRecursively()
             server.shutdown()
         }
     }
 
-    private fun issue(): JSONObject {
-        val metadata = VyomFactoryStatus.Metadata(
-            priority = "P2",
-            status = "open",
-            source = "factory",
-            sourceId = "screenshot-test",
-            idempotencyKey = "factory:screenshot-test",
-            events = listOf("created")
+    private fun publisher(server: MockWebServer, root: File): Pair<VyomFactoryEvidencePublisher, File> {
+        val registryRoot = File(root, "registry")
+        VyomFactorySystemRegistry(registryRoot).register(
+            VyomFactorySystemRegistry.Binding(
+                "factory-evidence", repositoryUrl, baseCommit, listOf(".factory-evidence"), 1L
+            ),
+            ownerConfirmed = true
         )
-        return JSONObject()
-            .put("number", 42)
-            .put("title", "[VYOM FACTORY][P2] Screenshot test")
-            .put("body", VyomFactoryStatus.withMetadata("Verification probe: confirm screenshot appears", metadata))
-            .put("state", "open")
-            .put("html_url", "https://github.com/test/repo/issues/42")
-            .put("updated_at", "2026-11-05T00:00:00Z")
+        val pending = File(root, "pending").apply { mkdirs() }
+        val file = File(pending, "image.png").apply { writeBytes(imageBytes) }
+        val store = VyomFactoryScreenshotEvidenceStore(pending)
+        val transport = VyomFactoryGitHubEvidenceTransport(
+            "test-token", "test/repo", server.url("/").toString().trimEnd('/')
+        )
+        return VyomFactoryEvidencePublisher(VyomFactorySystemRegistry(registryRoot), transport, store) to file
     }
 
-    private fun screenshotFile(): File = File.createTempFile("vyom-screenshot-", ".png").apply {
-        writeBytes(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A))
-    }
-
-    private fun json(body: String) = MockResponse()
-        .setResponseCode(200)
+    private fun json(body: String, code: Int = 200) = MockResponse()
+        .setResponseCode(code)
         .setHeader("Content-Type", "application/json")
         .setBody(body)
 
     private fun assertRejected(block: () -> Unit) {
         try {
             block()
-            throw AssertionError("Expected public repository to be rejected")
+            fail("Expected public repository to be rejected")
         } catch (_: IllegalStateException) {
-            // expected
         }
     }
 }
