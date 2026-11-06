@@ -430,7 +430,7 @@ internal class VyomFactoryDialog(
                                 isEligibleForRunner(remote, journal, retrySchedules, adapter)
                         }
                     },
-                    isClaimCurrent = { session.isCurrent(it) },
+                    isClaimCurrent = { session.renewAndCheck(it) },
                     releaseClaim = { session.release(it) },
                     fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
                     journal = journal,
