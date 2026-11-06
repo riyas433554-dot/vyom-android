@@ -23,7 +23,7 @@ internal object VyomFactoryRepositoryCatalog {
         Candidate("aryan-jarvis", "https://github.com/Aryan-0001/Jarvis-AI", Track.VOICE_ASSISTANT),
         Candidate("mem0", "https://github.com/mem0ai/mem0", Track.MEMORY),
         Candidate("openjarvis", "https://github.com/open-jarvis/OpenJarvis", Track.MEMORY),
-        Candidate("letta", "https://github.com/letta-ai/letta", Track.MEMORY),
+        Candidate("letta-code", "https://github.com/letta-ai/letta", Track.MEMORY),
         Candidate("isair-jarvis", "https://github.com/isair/jarvis", Track.VOICE_ASSISTANT, licenseReviewRequired = true),
         Candidate("h4cker", "https://github.com/The-Art-of-Hacking/h4cker", Track.SECURITY_REFERENCE, referenceOnly = true),
         Candidate("cybersecurity-ethical-hacking", "https://github.com/paulveillard/cybersecurity-ethical-hacking", Track.SECURITY_REFERENCE, referenceOnly = true),
