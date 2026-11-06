@@ -1,3 +1,14 @@
+### Owner decision + Item 3 closure / Item 4 start — 2026-11-06
+
+- Owner explicitly narrowed Task Engine acceptance to a single-device deployment (one owner Android phone). Item 3 is **CLOSED (single-device scope)** based on the existing local durable queue, journal, lease fencing, STOP and conservative expiry recovery, plus checkpoint lease renewal. This closure does not claim distributed coordination.
+- Mandatory caveat: **Cross-device atomic claim + shared coordination authority deferred; do not run multiple Vyom installations against the same task queue. Two devices can independently claim the same task.**
+- Continuous background heartbeat was inspected but **UNVERIFIED / NOT IMPLEMENTED** in this batch. Current renewal is only invoked at runner claim-validation / adapter STOP checkpoints. A timer-based renewal requires safe ownership/cancellation across claim acquisition, terminal release, STOP, dialog dismissal, foreground-generation invalidation and worker shutdown; adding a timer without a claim-scoped lifecycle and tests risks renewing a stale claim or leaking a thread. No continuous-heartbeat claim is made. Existing checkpoint-renewal proof remains implementation source commit `d9fedf6cb8ab6ea9e14cba715f163b967778440e`, Full CI `42235839898`, Debug CI `42235839837` on HANDOFF HEAD `71aa32085901eda2877ae95bf635f733c440f2e6`.
+- Item 4 **STARTED**: added `VyomFactorySystemRegistry.kt` and `VyomFactorySystemRegistryTest.kt`. The new local registry binds a system ID to one canonical repository URL, immutable 40-character commit, and explicit relative allowed-path roots; owner approval is required; silent rebinding is rejected; traversal/absolute/backslash paths are denied. Tests cover approval, immutable mapping and path boundary checks.
+- Item 4 is **IN PROGRESS, NOT CLOSED**: current change introduces the registry primitive, but existing repository execution/adapters are not yet wired to resolve system bindings and enforce `allowsPath` before every read/write. Do not claim end-to-end path isolation until that integration and tests exist.
+- New source/test files are in this batch; exact commit SHA and exact-head Full/Debug CI IDs/results are to be appended after GitHub reports them. No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+---
+
 ### Item 3 follow-up — checkpoint lease renewal — 2026-11-06
 
 - Added a focused regression test first in `VyomFactoryWorkerSessionTest.kt`: `currentClaimRenewsItsLeaseAtExecutionCheckpoints`. Test-only commit: `403897c9290bd4295b7677cb944a77a1ffe926b6`. Its intended behavior requires `renewAndCheck`, which did not exist at that test commit; CI runs for that commit are still running/slow and have not provided a completed red result. Do not claim a verified RED test.
