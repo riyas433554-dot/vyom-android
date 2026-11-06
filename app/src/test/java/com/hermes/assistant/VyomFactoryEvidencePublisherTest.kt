@@ -77,6 +77,15 @@ class VyomFactoryEvidencePublisherTest {
         assertEquals(0, transport.blobWrites)
     }
 
+    @Test fun concurrentHeadChangeBetweenReadAndRefUpdateIsRejected() = withPublisher { publisher, transport, _, file ->
+        transport.raceAtUpdate = true
+        assertRejected {
+            publisher.publish("factory-evidence", repo, baseCommit, 7,
+                ".factory-evidence/issue-7/image.png", file)
+        }
+        assertEquals(0, transport.comments)
+    }
+
     @Test fun uploadFailureNeverCreatesIssueComment() = withPublisher { publisher, transport, _, file ->
         transport.failUpload = true
         assertRejected {
@@ -143,7 +152,7 @@ class VyomFactoryEvidencePublisherTest {
         var mutations = 0
         var blobWrites = 0
         var comments = 0
-        var repositoryPrivate = true\n        var failUpload = false
+        var repositoryPrivate = true\n        var raceAtUpdate = false\n        var failUpload = false
         var failComment = false
         var lastForce = true
         var hashVerifiedBeforeComment = false
@@ -168,7 +177,7 @@ class VyomFactoryEvidencePublisherTest {
         override fun createCommit(message: String, treeSha: String, parentSha: String) = "9".repeat(40)
         override fun updateRef(branch: String, newCommit: String, expectedHead: String, force: Boolean) {
             mutations++
-            if (head != expectedHead) throw SecurityException("stale expected head")
+            if (raceAtUpdate) head = "c".repeat(40)\n            if (head != expectedHead) throw SecurityException("stale expected head")
             lastForce = force
             if (force) throw SecurityException("force updates are forbidden")
             head = newCommit
