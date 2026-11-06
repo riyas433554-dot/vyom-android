@@ -1,3 +1,15 @@
+### Item 4 continuation — bind repository reads to system allowlists — 2026-11-06
+
+- Added `VyomFactorySystemRegistry.requireAuthorizedBinding` as the fail-closed resolver for a system's owner-approved repository URL, immutable commit SHA and allowed relative path roots. Existing `allowsPath` now delegates to this resolver.
+- Added `VyomFactoryRepositoryClient.readBoundSystemFile(systemId, relativePath, registry)`. It resolves repository and commit only from the system registry, rejects unknown systems/out-of-root paths before any network call, and fetches the requested file at the pinned commit. No caller-supplied repository or branch can override the binding.
+- Added `VyomFactoryRepositoryClientSystemAccessTest.kt` covering pinned repo/commit selection, deny-before-network for disallowed paths, and unknown-system denial.
+- Commits: registry primitive `35e474c567d0b879d92e44f37069aed46b1c19a0`; bound read implementation `4bb5c7d2da8c29780eafb8096346cd99adaa08c8`; JVM-only Base64 test correction `96367840b695c91e15f2865469eedb0ab5e296ba`.
+- CI evidence: Full CI `42237560686` on `35e474c567d0b879d92e44f37069aed46b1c19a0` = **SUCCESS**. Debug CI `42237560362` on that SHA remained in progress at last check. On `4bb5c7d2da8c29780eafb8096346cd99adaa08c8`, Full CI `42238389407` and Debug CI `42238389400` were in progress. On `96367840b695c91e15f2865469eedb0ab5e296ba`, Full CI `42238416346` was pending and Debug CI `42238416404` was in progress. These runs are not interchangeable; only exact matching SHA results count.
+- Item 4 remains **IN PROGRESS**: per-system pinned read access is now wired through a guarded client method, but there is no repository mutation/execution adapter yet, and the existing generic intake preview remains a read-only, non-system-scoped inspection flow. Do not claim complete read/write execution isolation until every executor read/write path is forced through this policy and tested.
+- Continuous Task Engine heartbeat remains **UNVERIFIED / NOT IMPLEMENTED**; Item 3's single-device closure and cross-device caveat remain unchanged. No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+---
+
 ### Owner decision + Item 3 closure / Item 4 start — 2026-11-06
 
 - Owner explicitly narrowed Task Engine acceptance to a single-device deployment (one owner Android phone). Item 3 is **CLOSED (single-device scope)** based on the existing local durable queue, journal, lease fencing, STOP and conservative expiry recovery, plus checkpoint lease renewal. This closure does not claim distributed coordination.
