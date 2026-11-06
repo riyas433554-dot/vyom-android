@@ -40,7 +40,10 @@ class SelfModificationClientIntegrationTest {
                     token = token,
                     title = "Improve reply formatting",
                     path = "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    proposedContent = "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
+                    proposedContent = """
+                        package com.hermes.assistant
+                        internal fun reply() = "reviewed"
+                    """.trimIndent(),
                     ownerReviewedDiff = false
                 )
             }
