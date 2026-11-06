@@ -1289,3 +1289,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 
 
 - Follow-up test-contract correction: RepositoryCatalogTest requires the stable Letta candidate ID `letta-code`; changed the catalogue ID from `letta` to `letta-code` while preserving the documented canonical source URL. Commit: 717c4ada16e441b71cd34d7dd623992ccdf36163. Exact-head CI for this follow-up is pending; no pass is claimed.
+
+
+### Next exact-head CI failure — SelfModificationClientIntegrationTest fixture — 2026-11-06
+
+- Latest verified pre-fix HEAD `3332157bb7e2cb8ecfbf8f80cdd634bc0ec6035b` had Debug run `42171637368` and Full CI run `42171637359`; both completed FAILURE on the same SHA.
+- Real logs show production Kotlin compilation and `:app:assembleDebug` succeeded. Both workflows then failed at `:app:compileDebugUnitTestKotlin` due malformed Kotlin string syntax in `SelfModificationClientIntegrationTest.kt:43-45` (`reviewed` parsed as an identifier and `ownerReviewedDiff` became an unresolved token). This is a test-source compile blocker, not a production source compile failure.
+- Repaired only the malformed `proposedContent` test fixture using a Kotlin triple-quoted string with `trimIndent()`, preserving the intended source payload and `ownerReviewedDiff = false` assertion. Commit: `92d42248eb8fd7c39a7906703b96d88bcd255acc`.
+- Exact-head CI for `92d42248eb8fd7c39a7906703b96d88bcd255acc` must be checked before claiming the fix is verified. No green result or APK artifact is claimed at this checkpoint.
+- Core owner order remains unchanged: secrets audit item 2 is still BLOCKED by the missing redacted historical inventory (169 Discord-pattern hits remain UNCLASSIFIED; third historical credential-assignment match unreconciled). Items 3–8 remain locked and unstarted. No Android `main`, Render, Hermes backend, or production Supabase changes.
