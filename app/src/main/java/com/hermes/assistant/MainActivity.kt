@@ -1381,7 +1381,16 @@ class MainActivity : Activity() {
 
     private fun showVyomFactory(pendingScreenshot: File? = null) {
         val taskRegistry = VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
-        val taskBinding = taskRegistry.get(VyomFactoryGitHubClient.SYSTEM_ID)
+        val taskBinding = try {
+            taskRegistry.get(VyomFactoryGitHubClient.SYSTEM_ID)
+        } catch (error: Exception) {
+            Toast.makeText(
+                this,
+                "Factory system registry is unreadable; task access remains blocked (${error.javaClass.simpleName}).",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
         if (taskBinding == null ||
             !taskRegistry.allowsPath(VyomFactoryGitHubClient.SYSTEM_ID, VyomFactoryGitHubClient.ISSUES_PATH)
         ) {
