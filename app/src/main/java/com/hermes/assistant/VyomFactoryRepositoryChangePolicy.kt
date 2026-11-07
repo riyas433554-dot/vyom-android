@@ -86,9 +86,15 @@ internal object VyomFactoryRepositoryChangePolicy {
         plan: Plan,
         registry: VyomFactorySystemRegistry
     ): VyomFactorySystemRegistry.Binding {
-        if (!plan.ownerApproved) {
-            throw SecurityException("Owner approval is required for repository changes")
-        }
+        if (!plan.ownerApproved) throw SecurityException("Owner approval is required for repository changes")
+        return validateCandidate(plan, registry)
+    }
+
+    /** Validates untrusted proposed content without treating issue fields as approval. */
+    fun validateCandidate(
+        plan: Plan,
+        registry: VyomFactorySystemRegistry
+    ): VyomFactorySystemRegistry.Binding {
         require(plan.systemId.matches(Regex("^[a-z][a-z0-9_.-]{0,63}$"))) {
             "Invalid repository worker system ID"
         }
