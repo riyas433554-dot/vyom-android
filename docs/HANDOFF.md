@@ -1,3 +1,39 @@
+### Item 4 — CODE-VERIFIED / PHONE-PENDING — 2026-11-07
+
+- Exact source HEAD audited: `26fe7829a8463ee36f3fb64e1ea61b66b5ad042b`.
+- Exact-HEAD Full CI run `42362014444` = **SUCCESS**; exact-HEAD Debug CI run `42362014435` = **SUCCESS**. Debug job API reported job `128372210467` completed/success and all executed build/test/package steps successful; APK upload and signed-release steps were skipped by the workflow gate. `BlobNotFound` from the log endpoint was not treated as a failure.
+- Registry binding and access-boundary test proof covers unregistered system, wrong repo/commit, unauthorized root, traversal, absolute/backslash paths and sibling-prefix bypass. Evidence publisher tests cover traversal/out-of-root denial, public-repository fail-closed, stale/concurrent branch-head rejection, hash verification and non-force ref update.
+- Prior 113-file source grep audit is recorded in the preceding Item 4 history; targeted reinspection confirms the old fixed-branch uploader/callsite is absent and no generic worker repository writer/executor adapter exists. No generic worker repository execution or write isolation is claimed.
+- Code gate is closed. Owner phone-side binding inventory and user flow remain outstanding; therefore Item 4 is **CODE-VERIFIED / PHONE-PENDING**, not fully phone-verified.
+
+#### OWNER PHONE CHECKLIST — Item 4
+
+1. **System registry:** Open Factory → repository registration/review. Confirm `factory-task-engine`, `factory-evidence`, and `self-modification` each show the intended canonical repo, immutable commit and allowed roots; save only after reviewing each binding. Expected: each binding persists and a different binding cannot silently overwrite it.
+2. **Evidence publishing:** From a private repository binding, trigger screenshot evidence for a test issue. Expected: dedicated `.factory-evidence/` branch update, verified uploaded hash/receipt, then issue comment; public repositories must fail closed.
+3. **Self-modification:** Use an owner-approved feature-branch binding to prepare a proposal. Expected: PR only on the approved feature branch, no auto-merge, no release/install, and no Android `main` change.
+
+---
+
+### Item 5 — Planner + detector + prioritizer — implementation batch
+
+#### Confirmed gaps against the existing planner/classifier/triage code
+
+- Existing classifier is a conservative domain classifier; it does not scan structured planning, implementation and test outputs for explicit bug/missing-feature/idea findings.
+- Existing ordering was priority + FIFO only; it did not model `Blocked by: #N` prerequisite edges or report cycles.
+- Existing task model had no enforced acceptance-criteria completion gate.
+- Existing worker had no per-task hard attempt/iteration ceiling.
+- Existing dedupe was issue-creation idempotency only; there was no finding fingerprint check or separate-task routing for detector ideas.
+
+#### Changes in this batch
+
+- Added `VyomFactoryTaskIntelligence.kt`: deterministic dependency extraction, topological ordering with priority/FIFO tie-break, cycle detection, explicit `[BUG]` / `[MISSING_FEATURE]` / `[IDEA]` marker detection for PLANNING / IMPLEMENTATION / TEST, normalized duplicate detection, deterministic separate-task proposals, acceptance-criteria checkbox validation, and a bounded iteration policy (default 3; configurable 1–10).
+- `VyomFactoryTaskOrdering.kt`, `VyomFactoryTaskTriage.kt`, `VyomFactoryWorkerSession.kt`, and `VyomFactoryWorkerClaimCoordinator.kt` now use dependency-aware ordering; cyclic tasks are excluded from claim selection and exposed as triage blockers.
+- `VyomFactoryExecutionRunner.kt` refuses another attempt when the per-task journal history reaches the configured maximum.
+- `VyomFactoryGitHubClient.kt` blocks completion until every explicit acceptance criterion is checked and exposes `createDetectedTasks`, which stores nonduplicate findings as separate, deterministic `task_failure` issues without editing the parent task.
+- Added `VyomFactoryTaskIntelligenceTest.kt` for prerequisite ordering, circular dependencies, duplicate suppression, max-iteration stop, separate idea task/scope isolation, all three detector stages, and acceptance-criteria completion.
+- Runtime integration limitation: the explicit stage detector and separate-task persistence API are implemented, but there is not yet an autonomous planner/implementation/test producer wired to call `createDetectedTasks` after every stage. Automatic stage-by-stage discovery is **UNVERIFIED / NOT COMPLETE**; no claim of autonomous continuous detection.
+- No Android `main`, Render, Hermes backend, or production Supabase changes. No physical-device test or final APK publication claimed.
+
 ### Item 4 — latest exact-HEAD CI + registry boundary audit — 2026-11-07
 
 - Latest source/documentation HEAD before this note: `04f9d8667623396f98b14c338516dc017babcb38` on `feature/memory-intelligence`.
