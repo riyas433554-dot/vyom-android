@@ -163,16 +163,17 @@ internal class VyomFactoryRepositoryChangeExecutor(
                         )
                 )
             } catch (failure: Exception) {
-                recoverPullRequest(transport, source.owner, branch, binding.repositoryUrl)?.let { return it }
-                throw IllegalStateException(
-                    "Pull request creation outcome is uncertain; proposal branch $branch was preserved for inspection",
-                    failure
-                )
+                recoverPullRequest(transport, source.owner, branch, binding.repositoryUrl, commitSha)
+                    ?: throw IllegalStateException(
+                        "Pull request creation outcome is uncertain; proposal branch $branch was preserved for inspection",
+                        failure
+                    )
             }
 
             val pullUrl = pullRequest.optString("html_url")
+            val returnedHead = pullRequest.optJSONObject("head")?.optString("ref").orEmpty()
             if (!pullUrl.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/") ||
-                pullRequest.optJSONObject("head")?.optString("ref")?.let { it != branch } == true
+                returnedHead != branch
             ) {
                 throw SecurityException("GitHub returned a pull request outside the registered repository or proposal branch")
             }
