@@ -79,6 +79,10 @@ internal class VyomFactoryRepositoryApprovalStore(
         val canonical = buildString {
             append(repositoryUrl).append('\n')
             append(plan.systemId).append('\n')
+            append(plan.issueNumber).append('\n')
+            append(plan.attemptId).append('\n')
+            append(plan.title).append('\n')
+            append(plan.baseBranch).append('\n')
             append(plan.baseCommitSha).append('\n')
             plan.changes.sortedBy { it.path }.forEach {
                 append(it.path).append('\n')
