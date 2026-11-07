@@ -8,7 +8,8 @@ class VyomFactoryVerifiedProgressTest {
     private val commit = "a".repeat(40)
     private val verifiedResult =
         "repository_proposal_verified: issue=77; commit=$commit; " +
-            "pr=https://github.com/riyas433554-dot/vyom-android/pull/9; ci=Full SUCCESS; Debug SUCCESS"
+            "pr=https://github.com/riyas433554-dot/vyom-android/pull/9; " +
+            "ci=Both required workflows succeeded for exact commit $commit"
 
     @Test fun reachesOneHundredOnlyAfterAllProofsAndCompletedState() {
         val task = task(status = "completed", events = listOf(passEvent()))
