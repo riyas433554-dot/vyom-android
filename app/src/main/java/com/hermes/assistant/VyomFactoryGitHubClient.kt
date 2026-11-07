@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 /** GitHub Issues is the shared, auditable Factory task registry. Tokens are injected and never logged. */
 internal class VyomFactoryGitHubClient(
     private val token: String,
-    private val repository: String = DEFAULT_REPOSITORY,
+    private val registry: VyomFactorySystemRegistry,
     private val http: OkHttpClient = OkHttpClient.Builder().callTimeout(25, TimeUnit.SECONDS).build(),
     private val apiBaseUrl: String = "https://api.github.com"
 ) {
@@ -149,9 +149,13 @@ internal class VyomFactoryGitHubClient(
         if (token.isBlank() || token.length > 500) throw IllegalStateException("GitHub token is missing or invalid")
         val normalized = path.removePrefix("/")
         val base = apiBaseUrl.trimEnd('/')
-        val url = if (normalized.isBlank()) "${base}/repos/${repository}"
-            else if (normalized == "user") "${base}/user"
+        val url = if (normalized == "user") {
+            "${base}/user"
+        } else {
+            val repository = requireTaskRepository()
+            if (normalized.isBlank()) "${base}/repos/${repository}"
             else "${base}/repos/${repository}/${normalized}"
+        }
         val builder = Request.Builder().url(url)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
@@ -173,6 +177,17 @@ internal class VyomFactoryGitHubClient(
         }
     }
 
+    /**
+     * GitHub Issues is a virtual repository namespace for the task engine. It is
+     * intentionally separate from repository file paths, but still owner-bound.
+     */
+    private fun requireTaskRepository(): String {
+        val binding = registry.requireAuthorizedBinding(SYSTEM_ID, ISSUES_PATH)
+        val source = VyomFactoryRepositoryIntake.parseUrl(binding.repositoryUrl)
+            ?: throw SecurityException("Factory task-engine repository binding is invalid")
+        return "${source.owner}/${source.name}"
+    }
+
     private fun JSONObject.toTask(metadata: VyomFactoryStatus.Metadata): Task = Task(
         number = optInt("number"), title = optString("title"), body = optString("body"),
         state = optString("state"), url = optString("html_url"),
@@ -181,7 +196,8 @@ internal class VyomFactoryGitHubClient(
     )
 
     companion object {
-        const val DEFAULT_REPOSITORY = "riyas433554-dot/vyom-android"
+        const val SYSTEM_ID = "factory-task-engine"
+        const val ISSUES_PATH = "issues"
         private val PRIORITIES = setOf("P0", "P1", "P2", "P3")
         private const val MAX_PAGES = 10
     }
