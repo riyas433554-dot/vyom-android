@@ -1,8 +1,0 @@
-# Exact historical Gitleaks fingerprints reviewed as test fixtures or documentation text.
-# Commit-qualified entries suppress only these six known findings; new commits/lines remain scanned.
-5da59d328216f0ce7ec174bcc2243044fb566678:docs/HANDOFF.md:generic-api-key:644
-829d98ff5b569e87a6539b59edff12648442551e:app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt:generic-api-key:72
-7c0586814a75c7adb11635e173933962fb658188:docs/HANDOFF.md:generic-api-key:2529
-829d98ff5b569e87a6539b59edff12648442551e:docs/HANDOFF_HISTORY.md:generic-api-key:2529
-e40a9009d70be9a303bf3cd8bf5d0cbe9884861b:docs/HANDOFF_HISTORY.md:generic-api-key:2529
-39774a339eed77501496e8e39b6413a110a54612:app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt:generic-api-key:68
