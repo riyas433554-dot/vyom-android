@@ -114,6 +114,62 @@ class VyomFactorySystemRegistryTest {
         } finally { root.deleteRecursively() }
     }
 
+
+    @Test fun explicitMigrationRequiresOwnerApprovalAndExactPreviousBinding() {
+        val root = createTempDir(prefix = "vyom-system-registry-")
+        try {
+            val registry = VyomFactorySystemRegistry(root)
+            val original = binding()
+            val replacement = original.copy(
+                commitSha = "b".repeat(40),
+                allowedPaths = listOf("app/src/main", "docs")
+            )
+            registry.register(original, ownerConfirmed = true)
+
+            try {
+                registry.migrate(replacement, expectedExisting = original, ownerConfirmed = false)
+                fail("Expected explicit owner approval")
+            } catch (_: IllegalStateException) { }
+            assertEquals(original, registry.get("memory"))
+
+            assertEquals(
+                replacement,
+                registry.migrate(replacement, expectedExisting = original, ownerConfirmed = true)
+            )
+            assertEquals(replacement, registry.get("memory"))
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun migrationRejectsStalePreviousBindingAndCannotCreateUnregisteredSystem() {
+        val root = createTempDir(prefix = "vyom-system-registry-")
+        try {
+            val registry = VyomFactorySystemRegistry(root)
+            val original = binding()
+            registry.register(original, ownerConfirmed = true)
+            val replacement = original.copy(commitSha = "b".repeat(40))
+
+            try {
+                registry.migrate(
+                    replacement,
+                    expectedExisting = original.copy(commitSha = "c".repeat(40)),
+                    ownerConfirmed = true
+                )
+                fail("Expected stale previous binding rejection")
+            } catch (_: SecurityException) { }
+            assertEquals(original, registry.get("memory"))
+
+            try {
+                registry.migrate(
+                    replacement.copy(systemId = "planner"),
+                    expectedExisting = original.copy(systemId = "planner"),
+                    ownerConfirmed = true
+                )
+                fail("Expected migration to require an existing binding")
+            } catch (_: SecurityException) { }
+            assertNull(registry.get("planner"))
+        } finally { root.deleteRecursively() }
+    }
+
     private fun binding() = VyomFactorySystemRegistry.Binding(
         systemId = "memory",
         repositoryUrl = "https://github.com/riyas433554-dot/vyom-android",
