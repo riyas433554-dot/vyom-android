@@ -17,7 +17,11 @@ import java.util.concurrent.Executors
 /** Owner-reviewed, read-only registration of any public GitHub repository type. */
 internal class VyomFactoryRepositoryReviewDialog(
     private val activity: Activity,
-    private val onStatus: (String) -> Unit
+    private val onStatus: (String) -> Unit,
+    private val defaultRepositoryUrl: String = "",
+    private val defaultSystemId: String = "",
+    private val defaultAllowedPaths: String = "",
+    private val onRegistered: (() -> Unit)? = null
 ) {
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
@@ -26,6 +30,7 @@ internal class VyomFactoryRepositoryReviewDialog(
     fun show() {
         val url = EditText(activity).apply {
             hint = "https://github.com/owner/repository"
+            setText(defaultRepositoryUrl)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setSingleLine(true)
         }
@@ -117,11 +122,13 @@ internal class VyomFactoryRepositoryReviewDialog(
         }
         val systemIdInput = EditText(activity).apply {
             hint = "System ID (e.g. memory, planner, worker)"
+            setText(defaultSystemId)
             setSingleLine(true)
             textSize = 14f
         }
         val allowedPathsInput = EditText(activity).apply {
             hint = "Allowed path roots (comma or newline separated), e.g. app/src/main, docs"
+            setText(defaultAllowedPaths)
             minLines = 2
             maxLines = 4
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -218,6 +225,7 @@ internal class VyomFactoryRepositoryReviewDialog(
                                     "${binding.allowedPaths.size} allowed path root(s). Repository execution remains gated."
                             )
                             finish()
+                            onRegistered?.invoke()
                         }
                     } catch (error: Exception) {
                         main.post {
