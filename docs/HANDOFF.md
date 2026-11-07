@@ -1603,3 +1603,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Source audit confirms MainActivity injects the app-private `self-modification` registry into all three SelfModificationClient callsites (path discovery, draft generation, and proposal creation). Client methods require the registered binding, check path against both SelfModificationPolicy and registry roots, pin the working branch HEAD to the immutable registry commit, and derive API root from the bound repository. Discovery enumerates only paths allowed by both policy and registry. This is source-level verification; current post-fix CI remains pending.
 - Latest code fixes are on `feature/memory-intelligence`; the prior exact-HEAD Debug run failed and the prior Full CI run `42348424960` was still in progress at SHA `65ae15eaff47c75188aaf87e206d94f73666c8b3`. New CI must be checked against the final HANDOFF-updated HEAD; no passing result is claimed.
 - Item 4 remains **IN PROGRESS**. Do not start Item 5. No Android `main`, Render, backend, or production Supabase changes. No physical-device verification or final APK publication claimed.
+
+
+### Item 4 — registry constructor test fixture correction — 2026-11-07
+
+- Exact-HEAD CI at `687cfd00db0345b47a211381caddc777397bda6c` compiled production sources and assembled the debug APK, but unit-test compilation failed because `ProposalIssueAuditTest` still called the removed `VyomFactoryGitHubClient(token, repository, ...)` constructor three times and `VyomFactoryLifecycleIntegrationTest` still supplied the removed `repository` named argument.
+- Updated both test fixtures to create an explicit owner-confirmed `factory-task-engine` registry binding for `https://github.com/test/repo`, authorize only the virtual `issues` root, and inject that registry into the client. This keeps tests aligned with the new fail-closed production constructor rather than adding a backwards-compatible hard-coded repository path.
+- CI failures: Debug `42348717901`; Full `42348717907`. Both reached `compileDebugUnitTestKotlin` and failed only on the stale test constructors. Full-history Gitleaks scan passed in Full CI.
+- Corrected test files: `app/src/test/java/com/hermes/assistant/ProposalIssueAuditTest.kt`, `app/src/test/java/com/hermes/assistant/VyomFactoryLifecycleIntegrationTest.kt`. Exact-HEAD CI is pending for the updated branch head; no pass is claimed.
+- Item 4 remains **IN PROGRESS**. Item 5 remains blocked until registry/write-path audit and exact-HEAD Full + Debug CI pass.
