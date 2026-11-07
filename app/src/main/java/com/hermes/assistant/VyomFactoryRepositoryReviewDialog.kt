@@ -167,39 +167,75 @@ internal class VyomFactoryRepositoryReviewDialog(
                 allowedPathsInput.error = "At least one allowed path root is required"
                 return@setOnClickListener
             }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
-            worker.execute {
-                try {
-                    val entry = VyomFactoryRepositoryRegistry(
-                        File(activity.filesDir, "factory-repository-registry")
-                    ).register(preview, ownerConfirmed = true)
-                    val binding = VyomFactorySystemRegistry(
-                        File(activity.filesDir, "factory-system-registry")
-                    ).register(
-                        VyomFactorySystemRegistry.Binding(
-                            systemId = systemId,
-                            repositoryUrl = entry.canonicalUrl,
-                            commitSha = entry.commitSha,
-                            allowedPaths = allowedPaths,
-                            registeredAtEpochMs = System.currentTimeMillis()
-                        ),
-                        ownerConfirmed = true
-                    )
-                    main.post {
-                        if (finished || activity.isFinishing) return@post
-                        onStatus(
-                            "System '${systemId}' bound to ${binding.repositoryUrl} · ${binding.commitSha.take(12)} · " +
-                                "${binding.allowedPaths.size} allowed path root(s). Repository execution remains gated."
-                        )
-                        finish()
-                    }
-                } catch (error: Exception) {
-                    main.post {
-                        if (finished || activity.isFinishing) return@post
-                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
-                        onStatus("System binding failed · ${error.message?.take(180) ?: error.javaClass.simpleName}")
+            val registry = VyomFactorySystemRegistry(
+                File(activity.filesDir, "factory-system-registry")
+            )
+            val proposedBinding = VyomFactorySystemRegistry.Binding(
+                systemId = systemId,
+                repositoryUrl = preview.snapshot.source.canonicalUrl,
+                commitSha = preview.snapshot.commitSha,
+                allowedPaths = allowedPaths,
+                registeredAtEpochMs = System.currentTimeMillis()
+            )
+            val existing = try {
+                registry.get(systemId)
+            } catch (error: Exception) {
+                onStatus("Could not read current system binding · ${error.javaClass.simpleName}")
+                return@setOnClickListener
+            }
+            val persist: (Boolean) -> Unit = { migrate ->
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                worker.execute {
+                    try {
+                        val entry = VyomFactoryRepositoryRegistry(
+                            File(activity.filesDir, "factory-repository-registry")
+                        ).register(preview, ownerConfirmed = true)
+                        require(entry.canonicalUrl == proposedBinding.repositoryUrl &&
+                            entry.commitSha == proposedBinding.commitSha) {
+                            "Inspected repository snapshot changed before registration"
+                        }
+                        val binding = if (migrate && existing != null) {
+                            registry.migrate(
+                                proposedBinding,
+                                expectedExisting = existing,
+                                ownerConfirmed = true
+                            )
+                        } else {
+                            registry.register(proposedBinding, ownerConfirmed = true)
+                        }
+                        main.post {
+                            if (finished || activity.isFinishing) return@post
+                            onStatus(
+                                "System '${systemId}' ${if (migrate) "migrated" else "bound"} to " +
+                                    "${binding.repositoryUrl} · ${binding.commitSha.take(12)} · " +
+                                    "${binding.allowedPaths.size} allowed path root(s). Repository execution remains gated."
+                            )
+                            finish()
+                        }
+                    } catch (error: Exception) {
+                        main.post {
+                            if (finished || activity.isFinishing) return@post
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                            onStatus("System binding failed · ${error.message?.take(180) ?: error.javaClass.simpleName}")
+                        }
                     }
                 }
+            }
+            if (existing != null && existing != proposedBinding) {
+                AlertDialog.Builder(activity)
+                    .setTitle("MIGRATE SYSTEM BINDING?")
+                    .setMessage(
+                        "This system is already bound. Replacing it changes the repository, immutable commit, " +
+                            "and/or allowed path roots.\n\nCURRENT\n${existing.repositoryUrl}\n${existing.commitSha}\n" +
+                            "${existing.allowedPaths.joinToString()}\n\nNEW\n${proposedBinding.repositoryUrl}\n" +
+                            "${proposedBinding.commitSha}\n${proposedBinding.allowedPaths.joinToString()}\n\n" +
+                            "Only confirm if you are the owner and intend to migrate this system. Existing workers remain gated."
+                    )
+                    .setPositiveButton("CONFIRM MIGRATION") { _, _ -> persist(true) }
+                    .setNegativeButton("CANCEL", null)
+                    .show()
+            } else {
+                persist(false)
             }
         }
     }
