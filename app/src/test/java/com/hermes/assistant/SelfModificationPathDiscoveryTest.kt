@@ -141,8 +141,13 @@ class SelfModificationPathDiscoveryTest {
         }
     }
 
+    private fun tempDir(): File = File.createTempFile("vyom-registry-test", ".tmp").apply {
+        delete()
+        mkdirs()
+    }
+
     private fun client(github: MockWebServer, model: MockWebServer): SelfModificationClient {
-        val registry = VyomFactorySystemRegistry(File.createTempDir())
+        val registry = VyomFactorySystemRegistry(tempDir())
         registry.register(
             VyomFactorySystemRegistry.Binding(
                 systemId = "self-modification",
