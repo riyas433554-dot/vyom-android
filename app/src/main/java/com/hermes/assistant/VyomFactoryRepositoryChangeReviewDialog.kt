@@ -112,9 +112,12 @@ internal class VyomFactoryRepositoryChangeReviewDialog(
             registry: VyomFactorySystemRegistry,
             approvalStore: VyomFactoryRepositoryApprovalStore,
             onApproved: (VyomFactoryRepositoryChangePolicy.Plan, VyomFactoryRepositoryApprovalStore.Token) -> Unit,
-            onRejected: () -> Unit = {}
+            onRejected: () -> Unit = {},
+            workerModel: VyomFactoryRepositoryWorkerModelAdapter = VyomFactoryIssueEnvelopeWorkerModelAdapter()
         ): VyomFactoryRepositoryChangeReviewDialog {
-            val candidate = parseCandidate(task.number, task.body, registry)
+            val candidate = workerModel.propose(task, registry, object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            })
             return VyomFactoryRepositoryChangeReviewDialog(
                 activity, task, candidate, approvalStore, onApproved, onRejected
             )
