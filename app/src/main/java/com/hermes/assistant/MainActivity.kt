@@ -731,7 +731,9 @@ class MainActivity : Activity() {
                         selfChangeNotice.text = "Inspecting the current feature-branch tree and ranking allowlisted Kotlin files…"
                         io.execute {
                             try {
-                                val suggestions = SelfModificationClient().suggestAllowedPaths(
+                                val suggestions = SelfModificationClient(
+                                    registry = VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
+                                ).suggestAllowedPaths(
                                     token, nvidiaKey, title, task, model
                                 )
                                 runOnUiThread {
@@ -805,7 +807,9 @@ class MainActivity : Activity() {
                         selfChangeNotice.text = "Reading current source and generating a guarded one-file proposal…"
                         io.execute {
                             try {
-                                val draft = SelfModificationClient().generatePatchDraft(token, nvidiaKey, title, path, task, model)
+                                val draft = SelfModificationClient(
+                                    registry = VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
+                                ).generatePatchDraft(token, nvidiaKey, title, path, task, model)
                                 runOnUiThread {
                                     val preview = TextView(this@MainActivity).apply {
                                         text = "File: ${draft.path}\nBase: ${draft.baseSha}\n\nMINIMAL PATCH PREVIEW\n\n${draft.preview}"
@@ -823,7 +827,9 @@ class MainActivity : Activity() {
                                             selfChangeNotice.text = "Creating PR from the reviewed minimal patch…"
                                             io.execute {
                                                 try {
-                                                    val proposalClient = SelfModificationClient()
+                                                    val proposalClient = SelfModificationClient(
+                                    registry = VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
+                                )
                                                     val proposal = proposalClient.createProposal(token, draft, ownerReviewedDiff = true)
                                                     val ownerReviewRouteSaved = linkedFactoryIssueNumber?.let {
                                                         recordFactoryProposalRouteEventNow(
