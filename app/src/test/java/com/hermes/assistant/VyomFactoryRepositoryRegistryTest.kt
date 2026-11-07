@@ -64,6 +64,60 @@ class VyomFactoryRepositoryRegistryTest {
         }
     }
 
+
+    @Test fun sourceRevisionMigrationRequiresOwnerConfirmationAndCompareAndSwap() {
+        val root = createTempDir(prefix = "vyom-repo-registry-")
+        try {
+            val registry = VyomFactoryRepositoryRegistry(root)
+            val original = registry.register(preview(), ownerConfirmed = true)
+            val updatedPreview = preview(commit = "b".repeat(40))
+
+            assertRejected {
+                registry.migrate(updatedPreview, expectedExisting = original, ownerConfirmed = false)
+            }
+            assertEquals(original, registry.list().single())
+
+            val migrated = registry.migrate(
+                updatedPreview,
+                expectedExisting = original,
+                ownerConfirmed = true
+            )
+            assertEquals("b".repeat(40), migrated.commitSha)
+            assertEquals(listOf(migrated), registry.list())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test fun sourceRevisionMigrationRejectsStaleSnapshotAndDifferentRepository() {
+        val root = createTempDir(prefix = "vyom-repo-registry-")
+        try {
+            val registry = VyomFactoryRepositoryRegistry(root)
+            val original = registry.register(preview(), ownerConfirmed = true)
+            assertRejected {
+                registry.migrate(
+                    preview(commit = "b".repeat(40)),
+                    expectedExisting = original.copy(commitSha = "c".repeat(40)),
+                    ownerConfirmed = true
+                )
+            }
+            val otherRepository = preview(commit = "b".repeat(40)).copy(
+                snapshot = preview().snapshot.copy(
+                    source = VyomFactoryRepositoryIntake.SourceRef(
+                        "acme", "other", "https://github.com/acme/other"
+                    ),
+                    commitSha = "b".repeat(40)
+                )
+            )
+            assertRejected {
+                registry.migrate(otherRepository, expectedExisting = original, ownerConfirmed = true)
+            }
+            assertEquals(original, registry.list().single())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun blockedRepositoryCannotBeRegistered() {
         val root = createTempDir(prefix = "vyom-repo-registry-")
         try {
