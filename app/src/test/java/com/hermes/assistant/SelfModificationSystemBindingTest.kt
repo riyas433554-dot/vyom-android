@@ -9,6 +9,11 @@ class SelfModificationSystemBindingTest {
     private val commit = "a".repeat(40)
     private val allowedPath = "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt"
 
+    private fun tempDir(): File = File.createTempFile("vyom-registry-test", ".tmp").apply {
+        delete()
+        mkdirs()
+    }
+
     private fun registry(root: File, paths: List<String> = listOf("app/src/main/java/com/hermes/assistant")): VyomFactorySystemRegistry {
         val registry = VyomFactorySystemRegistry(root)
         registry.register(
@@ -26,7 +31,7 @@ class SelfModificationSystemBindingTest {
 
     @Test(expected = SecurityException::class)
     fun clientRejectsMissingOwnerApprovedBindingBeforeAnyNetworkRequest() {
-        val client = SelfModificationClient(VyomFactorySystemRegistry(File.createTempDir()))
+        val client = SelfModificationClient(VyomFactorySystemRegistry(tempDir()))
         client.createProposal(
             token = "test-token-that-is-long-enough-for-github",
             title = "Improve reply formatting",
@@ -39,7 +44,7 @@ class SelfModificationSystemBindingTest {
     @Test(expected = SecurityException::class)
     fun rejectsSelfModificationWithoutOwnerApprovedSystemBinding() {
         SelfModificationPolicy.requireSystemBinding(
-            VyomFactorySystemRegistry(File.createTempDir()),
+            VyomFactorySystemRegistry(tempDir()),
             "self-modification", repository, commit, allowedPath
         )
     }
@@ -47,7 +52,7 @@ class SelfModificationSystemBindingTest {
     @Test(expected = SecurityException::class)
     fun rejectsRepositoryDifferentFromRegisteredSystemRepository() {
         SelfModificationPolicy.requireSystemBinding(
-            registry(File.createTempDir()),
+            registry(tempDir()),
             "self-modification", "https://github.com/other/repo", commit, allowedPath
         )
     }
@@ -55,7 +60,7 @@ class SelfModificationSystemBindingTest {
     @Test(expected = SecurityException::class)
     fun rejectsCommitDifferentFromRegisteredImmutableBase() {
         SelfModificationPolicy.requireSystemBinding(
-            registry(File.createTempDir()),
+            registry(tempDir()),
             "self-modification", repository, "b".repeat(40), allowedPath
         )
     }
@@ -63,7 +68,7 @@ class SelfModificationSystemBindingTest {
     @Test(expected = SecurityException::class)
     fun rejectsPathOutsideRegistryAllowedRoots() {
         SelfModificationPolicy.requireSystemBinding(
-            registry(File.createTempDir(), listOf("app/src/main/java/com/hermes/assistant/safe")),
+            registry(tempDir(), listOf("app/src/main/java/com/hermes/assistant/safe")),
             "self-modification", repository, commit, allowedPath
         )
     }
@@ -71,7 +76,7 @@ class SelfModificationSystemBindingTest {
     @Test(expected = IllegalArgumentException::class)
     fun rejectsPathOutsideSelfModificationPolicyEvenWhenRegistryAllowsIt() {
         SelfModificationPolicy.requireSystemBinding(
-            registry(File.createTempDir(), listOf("app/src/main/java/com/hermes/assistant")),
+            registry(tempDir(), listOf("app/src/main/java/com/hermes/assistant")),
             "self-modification", repository, commit,
             "app/src/main/java/com/hermes/assistant/MainActivity.kt"
         )
@@ -80,7 +85,7 @@ class SelfModificationSystemBindingTest {
     @Test
     fun returnsExactApprovedBindingForAllowedPath() {
         val binding = SelfModificationPolicy.requireSystemBinding(
-            registry(File.createTempDir()),
+            registry(tempDir()),
             "self-modification", repository, commit, allowedPath
         )
         assertEquals(repository, binding.repositoryUrl)
