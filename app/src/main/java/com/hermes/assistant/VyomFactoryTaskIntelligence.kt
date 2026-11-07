@@ -106,7 +106,7 @@ internal object VyomFactoryTaskIntelligence {
         }
         val detail = match.groupValues[2].trim()
         if (detail.length < 4) null else Finding(stage, kind, detail.take(120), detail)
-    }.distinctBy { it.kind to fingerprint(it.detail) }
+    }.distinctBy { it.kind to fingerprint(it.detail) }.toList()
 
     fun maximumIterations(task: VyomFactoryGitHubClient.Task): Int =
         (maxIterationsPattern.find(cleanBody(task.body))?.groupValues?.get(1)?.toIntOrNull()
