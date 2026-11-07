@@ -34,7 +34,7 @@ internal class SelfModificationClient(
     }
 
     private fun requireDiscoveryBinding(): VyomFactorySystemRegistry.Binding {
-        val activeRegistry = registry ?: throw SecurityException("Self-modification has no owner-approved system registry")
+        val activeRegistry = registry
         val binding = activeRegistry.get(SYSTEM_ID)
             ?: throw SecurityException("Self-modification has no owner-approved repository binding")
         require(binding.allowedPaths.any { root -> root == SELF_MODIFICATION_ROOT || SELF_MODIFICATION_ROOT.startsWith("$root/") ||
