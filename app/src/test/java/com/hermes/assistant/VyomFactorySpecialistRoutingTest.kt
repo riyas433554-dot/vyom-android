@@ -45,7 +45,7 @@ class VyomFactorySpecialistRoutingTest {
                 ))
         )
 
-        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions) { it.number == 10 })
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions, isRunnerEligible = { it.number == 10 }))
     }
 
     @Test fun routesHigherPriorityRepositoryReviewBeforeLowerPriorityExecutableTask() {
@@ -60,7 +60,7 @@ class VyomFactorySpecialistRoutingTest {
 
         assertEquals(
             10,
-            VyomFactorySpecialistRouting.nextOwnerReview(decisions) { it.number == 20 }?.task?.number
+            VyomFactorySpecialistRouting.nextOwnerReview(decisions, isRunnerEligible = { it.number == 20 })?.task?.number
         )
     }
 
