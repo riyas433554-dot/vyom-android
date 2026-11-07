@@ -1189,8 +1189,10 @@ internal class VyomFactoryDialog(
     private fun createStageDetector(journal: VyomFactoryStageDetectorJournal) = VyomFactoryStageDetector(
         loadTasks = { client.listTasks() },
         createTask = { parentIssueNumber, finding, existing ->
-            val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
-            if (proposal == null) null else client.createTask(
+            val proposal = requireNotNull(
+                VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
+            )
+            client.createTask(
                 title = proposal.title,
                 description = proposal.description + "\n\nMax iterations: ${VyomFactoryTaskIntelligence.DEFAULT_MAX_ITERATIONS}",
                 priority = "P2",
