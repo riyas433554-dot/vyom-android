@@ -1612,3 +1612,18 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - CI failures: Debug `42348717901`; Full `42348717907`. Both reached `compileDebugUnitTestKotlin` and failed only on the stale test constructors. Full-history Gitleaks scan passed in Full CI.
 - Corrected test files: `app/src/test/java/com/hermes/assistant/ProposalIssueAuditTest.kt`, `app/src/test/java/com/hermes/assistant/VyomFactoryLifecycleIntegrationTest.kt`. Exact-HEAD CI is pending for the updated branch head; no pass is claimed.
 - Item 4 remains **IN PROGRESS**. Item 5 remains blocked until registry/write-path audit and exact-HEAD Full + Debug CI pass.
+
+
+### Item 4 — exact-HEAD CI pass + final source access audit checkpoint — 2026-11-07
+
+- Exact active branch code HEAD: `9a11258ae1b97a14cce16f4b586a6545d415c922` on `feature/memory-intelligence`.
+- Exact-HEAD Debug CI run `42349071429` = **SUCCESS** and Full CI run `42349071421` = **SUCCESS**; both report the exact same `head_sha=9a11258ae1b97a14cce16f4b586a6545d415c922`. Debug workflow completed `Build and test APKs` and versioned APK packaging/checksum. Full workflow completed secret scan, pinned Gitleaks install, full reachable-history scan, unit tests/debug APK, packaging/checksum and artifact upload. Full run artifact `vyom-phase6-9a11258ae1b97a14cce16f4b586a6545d415c922` exists (46,354,636 bytes); this is CI evidence only, not an authorized final APK publication.
+- Source access audit at this HEAD:
+  - `VyomFactoryEvidencePublisher` is the repository content writer for screenshot evidence; its callsite derives repo from the owner-approved `factory-evidence` binding, requires the `.factory-evidence/` root, checks expected branch HEAD, forbids force updates, verifies the uploaded bytes/hash before issue comment, and records an upload receipt to prevent blind duplicate retries.
+  - `SelfModificationClient` is the separate constrained source proposal writer. It requires the owner-approved `self-modification` binding, derives the API repository from that binding, requires policy + registry path authorization, pins the configured feature-branch HEAD to the immutable registered commit, rechecks before PR creation, and remains PR-only/no auto-merge. Its Contents API PUT writes only to a generated proposal branch; the PR base remains the configured feature branch. It is not a generic worker writer.
+  - `VyomFactoryGitHubClient` writes GitHub Issues task metadata/comments only after resolving `factory-task-engine/issues` from the registry; the repository path is derived from that binding.
+  - `VyomFactoryRepositoryClient.readBoundSystemFile` is registry-bound and commit-pinned for per-system file reads. Its arbitrary-repository inspect/preview endpoints remain read-only intake and treat returned content as untrusted.
+  - `VyomFactorySkillRepositoryClient` performs GET-only remote skill reads; imported content is stored as inert Markdown. `GitHubReleaseAssetClient` is GET-only for release assets. Registry/catalogue file writes are app-private local metadata, not GitHub repository writes.
+  - No generic worker repository write adapter exists. Do not claim repository code execution or worker write isolation as implemented.
+- No source change was made in this checkpoint; this entry records verified CI and audit evidence. The public-repository screenshot exposure caveat remains unresolved and requires owner authorization before deletion/history remediation.
+- Item 4 remains **IN PROGRESS** pending a complete system registry inventory/owner-binding operational review and explicit closure audit. Item 5 has not started. No Android `main`, Render, backend, or production Supabase changes. No physical-device verification or final APK publication claimed.
