@@ -431,7 +431,6 @@ internal class VyomFactoryDialog(
                         claimButton.isEnabled = true
                         releaseClaimButton.isEnabled = false
                         busy = false
-                        dialog.dismiss()
                         try {
                             val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
                             val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
