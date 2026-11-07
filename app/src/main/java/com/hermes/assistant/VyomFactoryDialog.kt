@@ -399,8 +399,7 @@ internal class VyomFactoryDialog(
                 val stageDetector = createStageDetector(detectorJournal)
 
                 // Planning hook: inspect every fresh open task before triage/claim selection.
-                client.listTasks().filter { it.state == "open" && it.metadata.status in setOf("open", "in_progress") }
-                    .forEach { task -> stageDetector.onPlanning(task, task.body) }
+                VyomFactoryPlanningStageHook(stageDetector::onPlanning).inspect(client.listTasks())
 
                 // Run a read-only planner pass over the fresh canonical issue snapshot.
                 // Persist each typed triage outcome before execution; a candidate is
