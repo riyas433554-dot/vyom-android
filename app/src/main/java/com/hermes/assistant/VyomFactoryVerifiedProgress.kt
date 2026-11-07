@@ -46,19 +46,20 @@ internal object VyomFactoryVerifiedProgress {
         val operationKey = if (envelope.isExecutable) {
             "${envelope.target.name.lowercase()}:${envelope.operation}"
         } else null
-        val latestSuccess = operationKey?.let { expected ->
+        val latestAttempt = operationKey?.let { expected ->
             journalEntries.asSequence()
                 .filter {
                     it.issueNumber == task.number &&
-                        it.operationKey == expected &&
-                        it.state == VyomFactoryExecutionJournal.State.SUCCEEDED &&
-                        !it.result.isNullOrBlank()
+                        it.operationKey == expected
                 }
                 .maxWithOrNull(compareBy<VyomFactoryExecutionJournal.Entry> { it.updatedAt }
                     .thenBy { it.startedAt })
         }
-        val implementationVerified = latestSuccess != null
-        val result = latestSuccess?.result.orEmpty()
+        // A later failed/interrupted attempt invalidates an older success for progress.
+        val implementationVerified = latestAttempt?.let {
+            it.state == VyomFactoryExecutionJournal.State.SUCCEEDED && !it.result.isNullOrBlank()
+        } == true
+        val result = if (implementationVerified) latestAttempt?.result.orEmpty() else ""
         val testsVerified = implementationVerified && when (envelope.target) {
             VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE -> {
                 val proposalSha = commitPattern.find(result)?.value?.substringAfter("commit=")
