@@ -17,6 +17,7 @@ internal object VyomFactoryVerifiedProgress {
         val checkedCriteria: Int,
         val totalCriteria: Int,
         val implementationVerified: Boolean,
+        val executionInProgress: Boolean,
         val testsVerified: Boolean,
         val behaviorVerified: Boolean,
         val completionRecorded: Boolean,
@@ -59,6 +60,11 @@ internal object VyomFactoryVerifiedProgress {
         val implementationVerified = latestAttempt?.let {
             it.state == VyomFactoryExecutionJournal.State.SUCCEEDED && !it.result.isNullOrBlank()
         } == true
+        val executionInProgress = latestAttempt?.state in setOf(
+            VyomFactoryExecutionJournal.State.CLAIMED,
+            VyomFactoryExecutionJournal.State.RUNNING,
+            VyomFactoryExecutionJournal.State.STOP_REQUESTED
+        )
         val result = if (implementationVerified) latestAttempt?.result.orEmpty() else ""
         val testsVerified = implementationVerified && when (envelope.target) {
             VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE -> {
@@ -81,16 +87,22 @@ internal object VyomFactoryVerifiedProgress {
         val verifiedComplete = completionRecorded && criteriaComplete &&
             implementationVerified && testsVerified && behaviorVerified
 
-        // Weighted evidence stages: criteria 30, implementation 25, tests 25,
-        // named behavior probe 10, terminal completion 5, active work 5.
-        // The 100th point is reserved for the conjunction above.
+        // Weighted evidence stages: criteria 25, implementation 25, tests 25,
+        // named behavior probe 15, terminal completion 5, started work 5.
+        // An active journal attempt earns only 10/25 implementation points;
+        // a verified result earns 25. The 100th point is reserved for all gates.
         val activePoints = if (task.metadata.status in setOf("in_progress", "completed")) 5 else 0
-        val criteriaPoints = if (criteria.isEmpty()) 0 else (30 * checked / criteria.size)
+        val criteriaPoints = if (criteria.isEmpty()) 0 else (25 * checked / criteria.size)
+        val implementationPoints = when {
+            implementationVerified -> 25
+            executionInProgress -> 10
+            else -> 0
+        }
         val rawPercent = activePoints +
             criteriaPoints +
-            (if (implementationVerified) 25 else 0) +
+            implementationPoints +
             (if (testsVerified) 25 else 0) +
-            (if (behaviorVerified) 10 else 0) +
+            (if (behaviorVerified) 15 else 0) +
             (if (completionRecorded) 5 else 0)
         val percent = if (verifiedComplete) 100 else rawPercent.coerceIn(0, 99)
 
@@ -98,6 +110,7 @@ internal object VyomFactoryVerifiedProgress {
             verifiedComplete -> "VERIFIED COMPLETE"
             completionRecorded -> "COMPLETED · UNVERIFIED"
             !criteriaComplete -> "ACCEPTANCE CRITERIA INCOMPLETE"
+            executionInProgress -> "IMPLEMENTATION RUNNING"
             !implementationVerified -> "IMPLEMENTATION NOT VERIFIED"
             !testsVerified -> "TEST / POSTCONDITION EVIDENCE MISSING"
             !behaviorVerified -> "REQUIRED BEHAVIOR PROBE PENDING"
@@ -110,6 +123,7 @@ internal object VyomFactoryVerifiedProgress {
             checkedCriteria = checked,
             totalCriteria = criteria.size,
             implementationVerified = implementationVerified,
+            executionInProgress = executionInProgress,
             testsVerified = testsVerified,
             behaviorVerified = behaviorVerified,
             completionRecorded = completionRecorded,
