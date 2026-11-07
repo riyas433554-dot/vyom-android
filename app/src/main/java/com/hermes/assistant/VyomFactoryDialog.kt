@@ -53,7 +53,12 @@ internal class VyomFactoryDialog(
             }
         }
     }
-    private val client by lazy { VyomFactoryGitHubClient(token) }
+    private val client by lazy {
+        VyomFactoryGitHubClient(
+            token,
+            VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
+        )
+    }
     private lateinit var dialog: Dialog
     private lateinit var status: TextView
     private lateinit var taskList: LinearLayout
