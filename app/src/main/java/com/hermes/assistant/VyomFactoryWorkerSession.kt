@@ -39,7 +39,11 @@ internal class VyomFactoryWorkerSession(
                 enqueuedAt = timestamp
             )
         })
-        return coordinator.claimNext(snapshot.filter(eligible), ownerId, timestamp, leaseDurationMs)
+        val cycleIssues = VyomFactoryTaskIntelligence.circularDependencyIssues(claimableTasks)
+        val eligibleTasks = VyomFactoryTaskOrdering.sort(claimableTasks).filter { task ->
+            task.number !in cycleIssues && !VyomFactoryTaskIntelligence.isIterationLimitReached(task) && eligible(task)
+        }
+        return coordinator.claimNext(eligibleTasks, ownerId, timestamp, leaseDurationMs)
     }
 
     fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
