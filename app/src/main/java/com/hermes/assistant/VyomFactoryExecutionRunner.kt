@@ -69,6 +69,9 @@ internal class VyomFactoryExecutionRunner(
         // this exact issue/operation and an adapter still declaring idempotency can retry.
         val operationKey = envelope.operationKey()
         val history = journal.all().filter { it.issueNumber == issue }
+        if (history.size >= VyomFactoryTaskIntelligence.maximumIterations(remote)) {
+            return skip("max_iterations_reached")
+        }
         if (history.any { it.operationKey == "legacy:unknown" }) {
             return skip("legacy_attempt_requires_review")
         }
