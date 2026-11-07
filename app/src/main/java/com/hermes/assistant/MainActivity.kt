@@ -835,11 +835,11 @@ class MainActivity : Activity() {
                                                         recordFactoryProposalRouteEventNow(
                                                             it,
                                                             VyomFactorySpecialistRouting.OWNER_REVIEW_OPENED_EVENT,
-                                                            VyomFactoryGitHubClient(token)
+                                                            factoryGitHubClient(token)
                                                         )
                                                     } ?: false
                                                     val issueCommentSaved = ProposalIssueAudit.recordIfLinked(
-                                                        VyomFactoryGitHubClient(token),
+                                                        factoryGitHubClient(token),
                                                         linkedFactoryIssueNumber,
                                                         "Code-fix proposal opened: ${proposal.pullRequestUrl}. Exact-commit CI is pending; owner review is required; no merge or install has occurred."
                                                     )
@@ -857,7 +857,7 @@ class MainActivity : Activity() {
                                                     }
                                                     val verifiedSha = proposalClient.waitForProposalCi(token, proposal.branch)
                                                     val issueCiCommentSaved = ProposalIssueAudit.recordIfLinked(
-                                                        VyomFactoryGitHubClient(token),
+                                                        factoryGitHubClient(token),
                                                         linkedFactoryIssueNumber,
                                                         "Both required CI workflows passed for exact proposal commit ${verifiedSha}. The PR is still unmerged; owner review/merge and a separate signed release are required before installation."
                                                     )
@@ -870,7 +870,7 @@ class MainActivity : Activity() {
                                                     }
                                                 } catch (error: Exception) {
                                                     val failureCommentSaved = ProposalIssueAudit.recordIfLinked(
-                                                        VyomFactoryGitHubClient(token),
+                                                        factoryGitHubClient(token),
                                                         linkedFactoryIssueNumber,
                                                         "Code-fix proposal pipeline did not complete successfully (${error.javaClass.simpleName}). No merge or install was performed; inspect any opened PR/checks before retrying."
                                                     )
@@ -1373,7 +1373,34 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun factoryGitHubClient(token: String): VyomFactoryGitHubClient =
+        VyomFactoryGitHubClient(
+            token,
+            VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
+        )
+
     private fun showVyomFactory(pendingScreenshot: File? = null) {
+        val taskRegistry = VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
+        val taskBinding = taskRegistry.get(VyomFactoryGitHubClient.SYSTEM_ID)
+        if (taskBinding == null ||
+            !taskRegistry.allowsPath(VyomFactoryGitHubClient.SYSTEM_ID, VyomFactoryGitHubClient.ISSUES_PATH)
+        ) {
+            Toast.makeText(
+                this,
+                "Factory task repository needs owner approval. Confirm its repository and 'issues' scope first.",
+                Toast.LENGTH_LONG
+            ).show()
+            VyomFactoryRepositoryReviewDialog(
+                activity = this,
+                onStatus = { message -> Toast.makeText(this, message, Toast.LENGTH_LONG).show() },
+                defaultRepositoryUrl = taskBinding?.repositoryUrl
+                    ?: "https://github.com/riyas433554-dot/vyom-android",
+                defaultSystemId = VyomFactoryGitHubClient.SYSTEM_ID,
+                defaultAllowedPaths = VyomFactoryGitHubClient.ISSUES_PATH,
+                onRegistered = { showVyomFactory(pendingScreenshot) }
+            ).show()
+            return
+        }
         val storedScreenshot = pendingScreenshot?.takeIf { it.isFile } ?: File(filesDir, "factory-evidence")
             .listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp") }
@@ -1427,7 +1454,7 @@ class MainActivity : Activity() {
         if (token.isBlank() || issueNumber <= 0) return
         io.execute {
             runCatching {
-                val client = VyomFactoryGitHubClient(token)
+                val client = factoryGitHubClient(token)
                 val fresh = client.listTasks().firstOrNull { it.number == issueNumber && it.state == "open" }
                     ?: return@runCatching
                 if (event !in fresh.metadata.events) client.updateTask(fresh, additionalEvent = event)
@@ -1508,7 +1535,7 @@ class MainActivity : Activity() {
         }
         io.execute {
             try {
-                val complaints = VyomFactoryTaskOrdering.sort(VyomFactoryGitHubClient(token).listTasks()).map { task ->
+                val complaints = VyomFactoryTaskOrdering.sort(factoryGitHubClient(token).listTasks()).map { task ->
                     JSONObject()
                         .put("source", "factory")
                         .put("issueNumber", task.number)
@@ -3234,7 +3261,7 @@ class MainActivity : Activity() {
         }
         io.execute {
             try {
-                val client = VyomFactoryGitHubClient(token)
+                val client = factoryGitHubClient(token)
                 val task = client.listTasks().firstOrNull {
                     it.number == issueNumber && it.state == "open" &&
                         it.metadata.status in setOf("open", "in_progress")
@@ -3315,7 +3342,7 @@ class MainActivity : Activity() {
                 val rawTitle = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
                 val title = if (MemoryCapturePolicy.isSensitive(rawTitle)) "Sensitive complaint details redacted"
                     else rawTitle.ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
-                val task = VyomFactoryGitHubClient(token).createTask(
+                val task = factoryGitHubClient(token).createTask(
                     title = title,
                     description = record.toIssueDescription(),
                     priority = record.priority,
@@ -3410,7 +3437,7 @@ class MainActivity : Activity() {
         val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
         if (token.isBlank()) return
         try {
-            val remoteOpenTasks = VyomFactoryGitHubClient(token).listTasks()
+            val remoteOpenTasks = factoryGitHubClient(token).listTasks()
                 .asSequence()
                 .filter { it.state == "open" && it.metadata.status == "open" }
                 .map {
@@ -4519,7 +4546,7 @@ class MainActivity : Activity() {
                     rows += "SKIP · Vyom Factory registry · GitHub token is not configured"
                 } else {
                     try {
-                        val factoryTasks = VyomFactoryGitHubClient(factoryToken).listTasks()
+                        val factoryTasks = factoryGitHubClient(factoryToken).listTasks()
                         rows += "PASS · Vyom Factory GitHub Issues read · ${factoryTasks.size} tagged tasks loaded from the shared repository"
                     } catch (factoryError: Exception) {
                         val code = (factoryError as? VyomFactoryGitHubClient.FactoryApiException)?.code
