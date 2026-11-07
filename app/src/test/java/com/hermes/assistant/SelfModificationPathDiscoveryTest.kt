@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class SelfModificationPathDiscoveryTest {
     private val token = "test-token-that-is-long-enough-for-github"
@@ -140,11 +141,24 @@ class SelfModificationPathDiscoveryTest {
         }
     }
 
-    private fun client(github: MockWebServer, model: MockWebServer) =
-        SelfModificationClient(
-            github.url("/repos/test/repo").toString().trimEnd('/'),
-            model.url("/v1/chat/completions").toString()
+    private fun client(github: MockWebServer, model: MockWebServer): SelfModificationClient {
+        val registry = VyomFactorySystemRegistry(File.createTempDir())
+        registry.register(
+            VyomFactorySystemRegistry.Binding(
+                systemId = "self-modification",
+                repositoryUrl = "https://github.com/riyas433554-dot/vyom-android",
+                commitSha = sha,
+                allowedPaths = listOf("app/src/main/java/com/hermes/assistant"),
+                registeredAtEpochMs = 1L
+            ),
+            ownerConfirmed = true
         )
+        return SelfModificationClient(
+            registry = registry,
+            modelApiRoot = model.url("/v1/chat/completions").toString(),
+            apiRootOverrideForTests = github.url("/repos/test/repo").toString().trimEnd('/')
+        )
+    }
 
     private fun tree(vararg paths: String): String =
         JSONObject()
@@ -166,6 +180,8 @@ class SelfModificationPathDiscoveryTest {
         } catch (_: IllegalArgumentException) {
             // expected
         } catch (_: IllegalStateException) {
+            // expected
+        } catch (_: SecurityException) {
             // expected
         }
     }
