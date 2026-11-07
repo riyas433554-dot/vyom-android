@@ -248,6 +248,7 @@ internal class SelfModificationClient(
     }
 
     fun waitForProposalCi(token: String, branch: String, timeoutMillis: Long = 15 * 60 * 1000L): String {
+        requireDiscoveryBinding()
         require(branch.matches(Regex("^vyom-proposal-[a-zA-Z0-9-]+$"))) { "Invalid proposal branch name" }
         val deadline = System.currentTimeMillis() + timeoutMillis
         var lastState = "waiting for both required workflows"
@@ -370,7 +371,7 @@ internal class SelfModificationClient(
                     "- Android's installer remains the final install authority unless a separately verified Power Mode installer is available.\n" +
                     "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
             val prUrl = pr.optString("html_url")
-            require(prUrl.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {
+            require(prUrl.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/")) {
                 "GitHub did not return an approved pull request URL"
             }
             return Proposal(proposalBranch, prUrl)
@@ -388,7 +389,7 @@ internal class SelfModificationClient(
                         .firstOrNull { it.optJSONObject("head")?.optString("ref") == proposalBranch }
                     if (matchingPullRequest == null) null else {
                         val url = matchingPullRequest.optString("html_url")
-                        require(url.startsWith("https://github.com/riyas433554-dot/vyom-android/pull/")) {
+                        require(url.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/")) {
                             "Existing proposal PR returned an invalid URL"
                         }
                         url
