@@ -41,7 +41,23 @@ class VyomFactoryVerifiedProgressTest {
 
     @Test fun successfulJournalWithoutExactShaCiEvidenceDoesNotPassTestGate() {
         val task = task(status = "in_progress")
-        val entry = successEntry(result = "repository_proposal_verified: commit=$commit; pr=https://github.com/x/y/pull/1; ci=pending")
+        val entry = successEntry(result = "repository_proposal_verified: commit=$commit; pr=https://github.com/x/y/pull/1; ci=Full workflow is waiting")
+
+        val progress = VyomFactoryVerifiedProgress.calculate(task, listOf(entry))
+
+        assertTrue(progress.implementationVerified)
+        assertFalse(progress.testsVerified)
+        assertTrue(progress.percent < 100)
+    }
+
+
+    @Test fun ciEvidenceForDifferentCommitCannotVerifyTheProposedImplementation() {
+        val otherSha = "b".repeat(40)
+        val task = task(status = "in_progress")
+        val entry = successEntry(
+            result = "repository_proposal_verified: issue=77; commit=$commit; " +
+                "pr=https://github.com/x/y/pull/1; ci=Both required workflows succeeded for exact commit $otherSha"
+        )
 
         val progress = VyomFactoryVerifiedProgress.calculate(task, listOf(entry))
 
