@@ -1,36 +1,40 @@
-### Item 6 — repository worker: local approval boundary + live adapter wiring — 2026-11-07 (PARTIAL)
+### Item 6 — repository worker: local approval + live runner integration — 2026-11-07 (PARTIAL)
 
-- **Current code HEAD before this HANDOFF refresh:** `bd4aee0d0cc36a618ff87d8d903cd1e35700a267` on `feature/factory-item5-task-intelligence`.
-- **Status: PARTIAL / CI PENDING.** Do not mark CODE-VERIFIED until Full + Debug CI both PASS on the same final HEAD. Exact-head Full run `42372975508` = PENDING; Debug run `42372975340` = IN_PROGRESS at this checkpoint. The HANDOFF refresh itself will create a new HEAD and must receive fresh exact-HEAD CI.
-- Source commit checkpoints:
-  - `75f198e268d6def7f2fa03cf1187af193667cf0e`: restored cumulative branch tree and added the plan-bound approval token store, candidate-only policy validation and token tests.
-  - `300c3da84fc2ac1c2091f0435dda924b1497bf7b`: added structured local repository review UI and test proving issue JSON `ownerApproved=true` is ignored.
-  - `6d81e2d309cd4986da4240d8106d37742124d1a7`: wired the repository adapter through the live Factory runner and added the worker-model adapter interface.
+- **Implementation code HEAD:** `10e61062322c11d0a7e3c982223df720357917b4` on `feature/factory-item5-task-intelligence`.
+- **Status: PARTIAL / EXACT-HEAD CI PENDING.** Exact-HEAD Full run `42373304962` = PENDING; Debug run `42373304952` = IN_PROGRESS at this checkpoint. This HANDOFF-only refresh creates a new repository HEAD; capture fresh Full + Debug run IDs for that final HEAD before calling Item 6 CODE-VERIFIED.
+- Commit checkpoints:
+  - `75f198e268d6def7f2fa03cf1187af193667cf0e`: local approval token core, candidate-only repository policy validation and token tests.
+  - `300c3da84fc2ac1c2091f0435dda924b1497bf7b`: structured local repository review UI and test proving issue JSON `ownerApproved=true` is ignored.
+  - `6d81e2d309cd4986da4240d8106d37742124d1a7`: live runner adapter wiring and worker-model proposal interface.
   - `35749950b2981606c8c5b4fb6e3c79a406c19dc5`: adapter STOP and exact-SHA CI timeout tests.
-  - `3f8980cac49cec93ea424c54ce15a41ff1ed7888`: recovery routing fix so loss of an in-memory approval reopens owner review instead of relying on a persistent issue "opened" comment.
-  - `db391f6f42f5503712b78c037e0ecdba39836b34`: plan hash now binds repo URL, system, issue, attempt, title, branch, immutable base SHA, sorted paths and content hashes; path-traversal review test; exact historical Gitleaks false-positive fingerprints allowlisted.
-  - `29b1fbb03f70f126c2d5fe868f8db28a91e3d6c0` and `36ffb2de33cd2e9b82b2b9a0ca2a3fbdb43a150f`: nonce issue/consume records moved into the existing `VyomFactoryExecutionJournal` SharedPreferences journal; tests now exercise that journal across store recreation.
-  - `bd4aee0d0cc36a618ff87d8d903cd1e35700a267`: reject pre-approved candidate plans and fence repeat repository attempts using journal history.
-- Security/flow implementation:
-  - `VyomFactoryRepositoryChangeReviewDialog.kt` shows registered repository URL, base branch + short immutable SHA, exact file paths, and at most three summary lines. Approve/Reject are local UI actions.
-  - `VyomFactoryRepositoryApproval.kt` issues a five-minute token only from the local approve handler. Its hash binds repository URL + immutable base + paths/content hashes (and plan identity metadata). The nonce, hash, expiry and consumed timestamp are persisted through `VyomFactoryExecutionJournal`; consume is synchronous and fail-closed.
-  - `VyomFactoryRepositoryWorkerModelAdapter.kt` defines the model-output boundary; the current adapter reads a structured repository-change proposal envelope already present in the issue. No new model provider/integration was added. Unstructured requests without the required plan fields remain manual review.
-  - `VyomFactoryRepositoryChangeAdapter.kt` accepts only a pending locally-issued token, checks STOP, verifies/consumes the exact token, then invokes `VyomFactoryRepositoryChangeExecutor`. It never reads issue `ownerApproved` or any issue-controlled approval field. The adapter internally marks the verified plan for the legacy policy guard only after token verification.
-  - `VyomFactoryDialog.kt` now routes the repository specialist path through the new review dialog and live runner adapter. Legacy `MainActivity.openFactoryCodeProposal` / self-modification path was not edited.
-  - Successful adapter output is returned through the existing runner and persisted by `VyomFactoryExecutionJournal.succeed()`. No local shell/command execution was added; repository tests run on GitHub Actions.
-- Tests added/covered:
-  - `VyomFactoryRepositoryApprovalTest`: repository/base/path/content hash tampering, expiry, single-use replay denial, persisted consumed nonce across store/journal recreation, failed journal commit fail-closed.
-  - `VyomFactoryRepositoryChangeReviewDialogTest`: issue JSON `ownerApproved=true` remains unapproved; traversal rejected before approval UI.
-  - `VyomFactoryRepositoryChangeAdapterTest`: missing token rejection and STOP before nonce consumption.
+  - `3f8980cac49cec93ea424c54ce15a41ff1ed7888`: process-restart route correction; unconsumed in-memory approval loss returns to local review.
+  - `db391f6f42f5503712b78c037e0ecdba39836b34`: full plan hash binding, traversal test and exact Gitleaks false-positive fingerprints.
+  - `29b1fbb03f70f126c2d5fe868f8db28a91e3d6c0` / `36ffb2de33cd2e9b82b2b9a0ca2a3fbdb43a150f`: approval nonce issue/consume/expiry/hash records moved into the existing `VyomFactoryExecutionJournal`; restart and failed-persistence tests.
+  - `bd4aee0d0cc36a618ff87d8d903cd1e35700a267`: pre-approved candidate plans rejected; journal history fences duplicate repository attempts.
+  - `000794bd59d7fedac8f682be9cad3d40cd1d04d6`: fixed the CI-discovered named-callback mismatch in `VyomFactorySpecialistRoutingTest.kt` (prior Debug compile failure at lines 48 and 63).
+  - `cfdf0010ee8f899fa5694dfdfcde43226b6a5cbd`: live runner integration test proves approved repository plan dispatches to executor and result reaches `journal.succeed()`.
+  - `10e61062322c11d0a7e3c982223df720357917b4`: end-to-end unauthorized-root rejection and duplicate repository dispatch prevention tests.
+- Approval security:
+  - `VyomFactoryRepositoryChangeReviewDialog.kt` displays registered repo URL, base branch + short immutable SHA, exact paths and max three summary lines. Only local APPROVE issues the token; REJECT/cancel do not.
+  - `VyomFactoryRepositoryApproval.kt` creates a five-minute token bound to repo URL, system, issue/attempt/title/branch, immutable base SHA, sorted paths and file-content hashes.
+  - Approval nonce, plan hash, expiry and consumed timestamp are stored by `VyomFactoryExecutionJournal` (same journal backing store). Consumption is synchronous, single-use and fail-closed across process restart.
+  - `VyomFactoryRepositoryChangeAdapter.kt` requires a pending local token, checks STOP, verifies/consumes it, and only then creates the internally trusted plan passed to `VyomFactoryRepositoryChangeExecutor`. No issue-controlled approval field is read.
+  - Grep/source audit of `VyomFactoryExecutionEnvelope.kt`, `VyomFactoryRepositoryChangeReviewDialog.kt` and `VyomFactoryRepositoryChangeAdapter.kt`: envelope parser has **no** `ownerApproved` reference; review parser reads proposal fields only and explicitly sets `ownerApproved=false`; adapter's only assignment to true occurs after token verification/consumption.
+  - `VyomFactoryRepositoryWorkerModelAdapter.kt` defines the worker-model output boundary. Current implementation adapts a structured repository-change proposal already present in the issue; no new model provider was integrated. Unstructured tasks remain manual review.
+  - `VyomFactoryDialog.kt` routes repository specialist tasks through the new dialog and live runner. Legacy `MainActivity.openFactoryCodeProposal` / self-modification code was not edited.
+- Test coverage:
+  - `VyomFactoryRepositoryApprovalTest`: hash/repo tamper, expiry, replay, journal recreation, persistence failure.
+  - `VyomFactoryRepositoryChangeReviewDialogTest`: issue JSON `ownerApproved=true` ignored; traversal and out-of-root paths rejected before approval.
+  - `VyomFactoryRepositoryChangeAdapterTest`: no token rejection and STOP before nonce consumption.
   - `VyomFactoryRepositoryWorkerModelAdapterTest`: STOP before proposal parsing.
+  - `VyomFactoryExecutionRunnerTest.liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult`: live runner → adapter → executor → journal success, plus second dispatch skipped without another PR.
   - `VyomFactoryRepositoryChangeExecutorTest`: exact-SHA CI timeout.
-  - Existing `VyomFactoryRepositoryChangePolicyTest` covers unauthorized roots, traversal, duplicate paths, file-count/content limits and protected paths. Existing `VyomFactoryExecutionJournalTest` / `VyomFactoryExecutionRunnerTest` cover duplicate attempts, crash recovery, interrupted work, STOP and non-replay.
-- Gitleaks note: Full CI on earlier code heads flagged three already-known false positives (a deliberately fake API-key fixture in `SelfModificationPolicyTest.kt` and commit-SHA strings in handoff docs), attributed to the temporary tree-restoration commit `c77ed5a423082212157e480f92c3497a65d45384`. Exact commit/path/rule/line fingerprints were added to `.gitleaksignore`; no secret values were added to the allowlist.
-- **Remaining limitations:** current worker-model adapter consumes an already-structured plan from the issue; it does not generate file contents from an unstructured task. Repository execution remains draft-PR-only and trusted-repository/feature-branch constrained. Device/phone verification is pending.
-- PR #102 remains open/draft/unmerged with its existing base `feature/memory-intelligence`; no merge or retarget was performed. Android `main`, Render, backend and production Supabase were not touched. Item 7 was not started.
+  - Existing policy/journal/runner tests cover resource/file limits, protected paths, duplicate attempts, expired-lease crash recovery, STOP and no automatic replay.
+- CI history: Full CI on code SHA `db391f6f42f5503712b78c037e0ecdba39836b34` passed the full-history Gitleaks scan after exact false-positive fingerprints were allowlisted, but failed unit-test compilation because routing tests used the trailing lambda after a new callback parameter. That failure was corrected in `000794bd59d7fedac8f682be9cad3d40cd1d04d6`; do not treat earlier failed/cancelled runs as verification.
+- **Remaining limitations:** current worker-model adapter reads an already-structured plan; it does not generate file contents from an unstructured request. Repository executor remains draft-PR-only and trusted-repository/feature-branch constrained. Phone/device verification is pending.
+- PR #102 remains open/draft/unmerged and its base remains `feature/memory-intelligence`; no merge/retarget or PR metadata change was made. Android `main`, Render, backend and production Supabase were not touched. Item 7 was not started.
 
----
-### AUTHORITATIVE CORE STATUS — Item 4 closed at code gate; Item 5 complete at code gate — 2026-11-07
+---### AUTHORITATIVE CORE STATUS — Item 4 closed at code gate; Item 5 complete at code gate — 2026-11-07
 
 This section is the current status authority and supersedes older historical `IN PROGRESS`, `NOT CLOSED`, or `UNVERIFIED` status snapshots for Items 4 and 5 below. Those entries describe earlier checkpoints, not the current state.
 
