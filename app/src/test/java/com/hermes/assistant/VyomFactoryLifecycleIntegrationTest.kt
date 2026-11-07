@@ -21,7 +21,7 @@ class VyomFactoryLifecycleIntegrationTest {
             val evidence = "The requested change is visible on the device after refresh"
             val executionMarker =
                 """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"repository_change","operation":"reviewed_patch","request":"Apply the reviewed Factory change","arguments":{}} -->"""
-            val description = "Factory lifecycle integration test\n- **Verification probe:** $probe\n\nAcceptance criteria:\n- [x] Lifecycle integration succeeds\n\n$executionMarker
+            val description = "Factory lifecycle integration test\n- **Verification probe:** $probe\n\nAcceptance criteria:\n- [x] Lifecycle integration succeeds\n\n$executionMarker"
             val openMetadata = metadata("open", listOf("created"))
             val startedMetadata = openMetadata.copy(
                 status = "in_progress",
