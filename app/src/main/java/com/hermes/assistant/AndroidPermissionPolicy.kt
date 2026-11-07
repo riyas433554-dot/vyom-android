@@ -1,0 +1,70 @@
+package com.hermes.assistant
+
+/**
+ * Models Android grants as observable capabilities. A missing special permission always
+ * requires a system-owned settings flow; an app must never pretend it can grant itself.
+ */
+internal object AndroidPermissionPolicy {
+    enum class Requirement {
+        ACCESSIBILITY,
+        APP_ACCESS_MASTER,
+        ALLOWED_TARGET_APP,
+        MICROPHONE,
+        CAMERA,
+        NOTIFICATIONS,
+        WRITE_SYSTEM_SETTINGS,
+        PLANNER,
+        UI_AGENT_SKILL,
+        STOP_CONTROL
+    }
+
+    enum class GrantState { GRANTED, NEEDS_SYSTEM_APPROVAL }
+
+    enum class TaskCapability {
+        APP_SWITCH,
+        UI_AUTOMATION,
+        SPEECH_INPUT,
+        CAMERA_CAPTURE,
+        FLOATING_PROGRESS,
+        CHANGE_SYSTEM_SETTINGS,
+        BACKGROUND_NOTIFICATIONS
+    }
+
+    data class Readiness(val ready: Boolean, val missing: Set<Requirement>)
+
+    fun readiness(
+        accessibilityEnabled: Boolean,
+        masterAppAccess: Boolean,
+        allowedTargetApps: Int,
+        plannerReady: Boolean = true,
+        uiAgentEnabled: Boolean = true,
+        stopControlOn: Boolean = false
+    ): Readiness {
+        val missing = linkedSetOf<Requirement>()
+        if (!accessibilityEnabled) missing += Requirement.ACCESSIBILITY
+        if (!masterAppAccess) missing += Requirement.APP_ACCESS_MASTER
+        if (allowedTargetApps <= 0) missing += Requirement.ALLOWED_TARGET_APP
+        if (!plannerReady) missing += Requirement.PLANNER
+        if (!uiAgentEnabled) missing += Requirement.UI_AGENT_SKILL
+        if (stopControlOn) missing += Requirement.STOP_CONTROL
+        return Readiness(missing.isEmpty(), missing)
+    }
+
+    fun missingForTask(
+        task: TaskCapability,
+        microphoneGranted: Boolean,
+        cameraGranted: Boolean,
+        notificationsGranted: Boolean,
+        writeSettingsGranted: Boolean
+    ): Set<Requirement> = when (task) {
+        TaskCapability.SPEECH_INPUT -> if (microphoneGranted) emptySet() else setOf(Requirement.MICROPHONE)
+        TaskCapability.CAMERA_CAPTURE -> if (cameraGranted) emptySet() else setOf(Requirement.CAMERA)
+        TaskCapability.FLOATING_PROGRESS -> emptySet() // TYPE_ACCESSIBILITY_OVERLAY is covered by the enabled Accessibility service.
+        TaskCapability.CHANGE_SYSTEM_SETTINGS -> if (writeSettingsGranted) emptySet() else setOf(Requirement.WRITE_SYSTEM_SETTINGS)
+        TaskCapability.BACKGROUND_NOTIFICATIONS -> if (notificationsGranted) emptySet() else setOf(Requirement.NOTIFICATIONS)
+        TaskCapability.APP_SWITCH, TaskCapability.UI_AUTOMATION -> emptySet()
+    }
+
+    fun specialPermissionState(granted: Boolean): GrantState =
+        if (granted) GrantState.GRANTED else GrantState.NEEDS_SYSTEM_APPROVAL
+}

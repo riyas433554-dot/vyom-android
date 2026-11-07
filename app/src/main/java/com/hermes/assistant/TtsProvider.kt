@@ -1,0 +1,160 @@
+package com.hermes.assistant
+
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.AudioFocusRequest
+import android.os.Build
+import android.media.MediaPlayer
+import android.speech.tts.TextToSpeech
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Locale
+import java.util.concurrent.Executors
+
+interface TtsProvider {
+    fun speak(text: String, onComplete: () -> Unit, onError: (String) -> Unit)
+    fun stop()
+    fun status(): String
+}
+
+class AndroidTtsProvider(private val engine: TextToSpeech?) : TtsProvider {
+    override fun speak(text: String, onComplete: () -> Unit, onError: (String) -> Unit) {
+        val tts = engine
+        if (tts == null) { onError("Android TTS unavailable"); return }
+        val fullText = text.trim()
+        if (fullText.isBlank()) { onComplete(); return }
+        val sentenceEnd = Regex("(?<=[.!?。！？])\\s+").find(fullText)
+        val chunk = if (sentenceEnd != null && sentenceEnd.range.first in 1..700) fullText.substring(0, sentenceEnd.range.first).trim() else fullText.take(700)
+        val remaining = fullText.removePrefix(chunk).trim()
+        tts.language = Locale("en", "IN")
+        tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+            override fun onDone(utteranceId: String?) {
+                if (remaining.isNotBlank()) speak(remaining, onComplete, onError) else onComplete()
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) { onError("Android TTS failed") }
+            override fun onError(utteranceId: String?, errorCode: Int) { onError("Android TTS failed ($errorCode)") }
+        })
+        val result = tts.speak(chunk, TextToSpeech.QUEUE_FLUSH, null, "vyom-" + System.nanoTime())
+        if (result == TextToSpeech.ERROR) onError("Android TTS failed")
+    }
+
+    override fun stop() { engine?.stop() }
+    override fun status() = "Android TTS fallback"
+}
+
+class ElevenLabsTtsProvider(
+    private val context: Context,
+    private val apiKey: String,
+    private val voiceId: String,
+    private val fallback: TtsProvider
+) : TtsProvider {
+    private val executor = Executors.newSingleThreadExecutor()
+    @Volatile private var player: MediaPlayer? = null
+    @Volatile private var stopped = false
+    @Volatile private var activeConnection: HttpURLConnection? = null
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var focusRequest: AudioFocusRequest? = null
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change -> if (change <= AudioManager.AUDIOFOCUS_LOSS) stop() }
+    private fun requestAudioFocus(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setOnAudioFocusChangeListener(focusListener).build()
+            focusRequest = request
+            audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        else { @Suppress("DEPRECATION") audioManager.abandonAudioFocus(focusListener) }
+        focusRequest = null
+    }
+
+    override fun status(): String = if (apiKey.isBlank() || voiceId.isBlank()) "ElevenLabs not configured — using Android TTS" else "ElevenLabs voice enabled"
+
+    override fun speak(text: String, onComplete: () -> Unit, onError: (String) -> Unit) {
+        if (apiKey.isBlank() || voiceId.isBlank()) {
+            fallback.speak(text, onComplete) { onError("Android TTS failed: $it") }
+            return
+        }
+        stopped = false
+        executor.execute {
+            var connection: HttpURLConnection? = null
+            try {
+                connection = (URL("https://api.elevenlabs.io/v1/text-to-speech/" + java.net.URLEncoder.encode(voiceId, "UTF-8")).openConnection() as HttpURLConnection).apply {
+                    activeConnection = this
+                    requestMethod = "POST"
+                    connectTimeout = 12000
+                    readTimeout = 30000
+                    doOutput = true
+                    setRequestProperty("xi-api-key", apiKey)
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "audio/mpeg")
+                }
+                // Request and play one sentence at a time. This reduces first-audio latency
+                // and keeps each provider request bounded instead of waiting on a full reply.
+                val fullText = text.trim()
+                val sentenceEnd = Regex("(?<=[.!?。！？])\\s+").find(fullText)
+                val safeText = if (sentenceEnd != null && sentenceEnd.range.first in 1..700) {
+                    fullText.substring(0, sentenceEnd.range.first).trim()
+                } else {
+                    fullText.take(700)
+                }
+                val remainingText = fullText.removePrefix(safeText).trim()
+                val payload = org.json.JSONObject().put("text", safeText).put("model_id", "eleven_multilingual_v2")
+                    .put("voice_settings", org.json.JSONObject().put("stability", 0.5).put("similarity_boost", 0.75))
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                if (connection.responseCode !in 200..299) throw IllegalStateException("ElevenLabs HTTP ${connection.responseCode}")
+                val audioFile = File(context.cacheDir, "vyom-voice-${System.nanoTime()}.mp3")
+                connection.inputStream.use { input -> audioFile.outputStream().use { output -> input.copyTo(output) } }
+                if (stopped) { audioFile.delete(); return@execute }
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (stopped) { audioFile.delete(); return@post }
+                    try {
+                        if (!requestAudioFocus()) throw IllegalStateException("Audio focus unavailable")
+                        player?.release()
+                        player = MediaPlayer().apply {
+                            setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                            setDataSource(audioFile.absolutePath)
+                            setOnCompletionListener {
+                                release(); player = null; audioFile.delete(); abandonAudioFocus()
+                                if (!stopped && remainingText.isNotBlank()) {
+                                    speak(remainingText, onComplete, onError)
+                                } else onComplete()
+                            }
+                            setOnErrorListener { mp, _, _ -> mp.release(); player = null; audioFile.delete(); abandonAudioFocus(); onError("ElevenLabs playback failed"); true }
+                            prepare()
+                            start()
+                        }
+                    } catch (_: Exception) { audioFile.delete(); fallback.speak(text, onComplete) { onError(it) } }
+                }
+            } catch (e: Exception) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (!stopped) fallback.speak(text, onComplete) { onError("ElevenLabs failed; Android TTS failed: $it") }
+                }
+            } finally {
+                connection?.disconnect()
+                if (activeConnection === connection) activeConnection = null
+            }
+        }
+    }
+    override fun stop() {
+        stopped = true
+        try { activeConnection?.disconnect() } catch (_: Exception) {}
+        activeConnection = null
+        fallback.stop()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try { player?.stop() } catch (_: Exception) {}
+            try { player?.release() } catch (_: Exception) {}
+            player = null
+            abandonAudioFocus()
+        }
+    }
+}

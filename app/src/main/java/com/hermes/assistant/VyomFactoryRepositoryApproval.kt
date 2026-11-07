@@ -3,16 +3,12 @@ package com.hermes.assistant
 import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
-import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.UUID
 
 /**
- * Device-local, plan-bound approval. Tokens can only be issued by the local
- * owner-review UI; issue bodies are never an approval source.
- *
- * Consumed nonces are synchronously persisted before verification returns,
- * so process death cannot make a consumed approval reusable.
+ * Device-local, plan-bound approval. Only the local owner-review UI issues tokens.
+ * Consumed nonces are synchronously persisted before verification returns.
  */
 internal class VyomFactoryRepositoryApprovalStore(
     private val prefs: SharedPreferences,
@@ -33,7 +29,7 @@ internal class VyomFactoryRepositoryApprovalStore(
     fun issueFromOwnerReview(plan: VyomFactoryRepositoryChangePolicy.Plan): Token {
         val now = nowMillis()
         val nonce = nonceFactory()
-        require(nonce.matches(Regex("[A-Za-z0-9-]{16,80}"))) { "Invalid approval nonce" }
+        require(nonce.matches(Regex("[A-Za-z0-9-]{16,80}")))
         check(!isConsumed(nonce)) { "Approval nonce was already consumed" }
         return Token(hash(plan), nonce, now + TOKEN_TTL_MS)
     }
@@ -47,20 +43,18 @@ internal class VyomFactoryRepositoryApprovalStore(
         if (now < 0 || token.expiresAtMillis <= now || token.expiresAtMillis - now > TOKEN_TTL_MS) {
             throw SecurityException("Repository approval token expired or has an invalid lifetime")
         }
-        if (!MessageDigest.isEqual(
-                hash(plan).toByteArray(Charsets.US_ASCII),
-                token.planHash.toByteArray(Charsets.US_ASCII)
-            )
-        ) throw SecurityException("Repository approval does not match this exact plan")
+        if (!MessageDigest.isEqual(hash(plan).toByteArray(Charsets.US_ASCII), token.planHash.toByteArray(Charsets.US_ASCII))) {
+            throw SecurityException("Repository approval does not match this exact plan")
+        }
         if (!token.nonce.matches(Regex("[A-Za-z0-9-]{16,80}"))) {
             throw SecurityException("Repository approval nonce is invalid")
         }
         if (isConsumed(token.nonce)) throw SecurityException("Repository approval token was already used")
         val consumed = readConsumed().toMutableSet()
         consumed += token.nonce
-        val array = JSONArray()
-        consumed.sorted().forEach(array::put)
-        check(prefs.edit().putString(KEY_CONSUMED, array.toString()).commit()) {
+        val encoded = JSONArray()
+        consumed.sorted().forEach(encoded::put)
+        check(prefs.edit().putString(KEY_CONSUMED, encoded.toString()).commit()) {
             "Repository approval nonce could not be persisted"
         }
     }
