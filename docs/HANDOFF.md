@@ -1,3 +1,20 @@
+### Item 4 — latest exact-HEAD CI + registry boundary audit — 2026-11-07
+
+- Latest source/documentation HEAD before this note: `04f9d8667623396f98b14c338516dc017babcb38` on `feature/memory-intelligence`.
+- Exact-HEAD Full CI `42349657966` = **SUCCESS**; exact-HEAD Debug CI `42349657917` = **SUCCESS**. Both report that exact `head_sha`. Full CI artifact `vyom-phase6-04f9d8667623396f98b14c338516dc017babcb38` (artifact ID `13565445614`, 46,354,574 bytes) and redacted full-history Gitleaks report (artifact ID `13564958500`) exist. Debug workflow artifact list is empty; its APK upload and signed-release steps were skipped by the workflow gate. This is CI evidence, not a final APK publication or device-install verification.
+- Re-audited the registry and repository-scoped access paths:
+  - `factory-evidence`: only screenshot content writer; owner-bound to `.factory-evidence/`, private-repository check, expected branch-head comparison, non-force ref update, commit-pinned byte/hash readback and receipt.
+  - `self-modification`: owner-bound source proposal path; allowlist + pinned feature-branch base checks, stale-base recheck, PR-only; no merge/release/install/main path.
+  - `factory-task-engine`: Issues namespace is registry-bound through virtual path `issues`; issue metadata/comments are remote writes, not source-content writes. `/user` identity lookup is not repository-scoped.
+  - Bound system file reader is read-only and resolves repo + immutable commit from the registry before network access. Arbitrary repository inspect/preview and skill/release reads remain GET-only and do not grant execution capability.
+  - No generic worker repository writer/executor adapter exists; do not claim generic worker read/write isolation or autonomous repository execution.
+- The registry is app-private device-local storage. GitHub source/CI cannot reveal the entries currently present on the owner's installed phone. Therefore the actual installed binding inventory and owner review of each system's repository + commit + allowed roots remain **NOT VERIFIED**. Registration UI supports explicit owner binding and compare-and-swap migration, but operationally registering/confirming every intended system is still outstanding.
+- Repository remains public and contains a committed `.factory-evidence/issue-101/a1ef05be-53bc-4e39-94c9-005b4b455ef4.png` from earlier work. No deletion, history rewrite, or privacy change was authorized; new evidence publishing rejects public repositories.
+- Item 4 remains **IN PROGRESS / NOT CLOSED** pending owner-side binding inventory/review and the full executor access-boundary proof. Item 5 must not start until Item 4 is explicitly closed and owner says GO.
+- No Android `main`, Render, Hermes backend, or production Supabase changes. No final APK publication or physical-device verification claimed.
+
+---
+
 ### Item 4 isolation test expansion + CI correction — 2026-11-06
 
 - Added tests that two system IDs retain separate repository bindings and cannot borrow each other's allowed roots; repository URL/commit mismatch is rejected; sibling prefix paths (for example `app/src2` when only `app/src` is allowed) are denied. Test commit: `c77324e329990fa849c4be6cf0edd45ab204edd9`.
