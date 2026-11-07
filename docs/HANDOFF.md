@@ -1,3 +1,29 @@
+### AUTHORITATIVE CORE STATUS — Item 4 closed at code gate; Item 5 complete at code gate — 2026-11-07
+
+This section is the current status authority and supersedes older historical `IN PROGRESS`, `NOT CLOSED`, or `UNVERIFIED` status snapshots for Items 4 and 5 below. Those entries describe earlier checkpoints, not the current state.
+
+#### Item 4 — CODE-VERIFIED / PHONE-PENDING
+
+- **Status: CODE-VERIFIED / PHONE-PENDING.** Exact implementation HEAD `26fe7829a8463ee36f3fb64e1ea61b66b5ad042b` passed Full CI `42362014444` (**SUCCESS**) and Debug CI `42362014435` (**SUCCESS**); both run records report that exact SHA.
+- The code gate is closed. Physical owner-side binding review and phone acceptance remain pending; do not call Item 4 phone-verified or fully device-verified.
+
+#### Item 5 — CODE-VERIFIED
+
+- **Status: CODE-VERIFIED** at exact implementation HEAD `2454dd88a3bcc75f1b8873dc4031318609abf069`.
+- Exact-HEAD Full CI `42365908694` = **SUCCESS**; exact-HEAD Debug CI `42365908647` = **SUCCESS**. Both run records report the exact implementation SHA.
+- Planning-stage integration: `VyomFactoryDialog.kt` invokes `VyomFactoryPlanningStageHook` against the fresh task snapshot before triage/claim selection; the hook filters open, live tasks. Spy test: `VyomFactoryPlanningStageHookTest.kt`.
+- Implementation-stage integration: the runner invokes the checkpoint callback at each of its six lifecycle checkpoints; `VyomFactoryDialog.kt` connects that callback to `stageDetector.onImplementationCheckpoint`. The runner checkpoint test asserts all six checkpoint callbacks.
+- Verification-stage integration: runner adapter postcondition results are forwarded to `stageDetector.onVerificationResult`; the owner probe result path also records and invokes the detector. Regression test: `VyomFactoryExecutionRunnerTest.verificationDetectorHookReceivesRealAdapterPostconditionResult`.
+- Detector tests cover all three stage enum calls, recorded findings / "nothing found", duplicate suppression, detector exception containment, journal failure containment, and journal round-trip. New idea findings are created as separate `task_failure` tasks; the parent task body/scope is not modified. Detector-created task description includes the existing default max-iteration limit (3).
+- Key implementation paths: `app/src/main/java/com/hermes/assistant/VyomFactoryStageDetector.kt`, `VyomFactoryStageDetectorJournal.kt`, `VyomFactoryPlanningStageHook.kt`, `VyomFactoryExecutionRunner.kt`, `VyomFactoryDialog.kt`, `VyomFactoryGitHubClient.kt`.
+- Key tests: `app/src/test/java/com/hermes/assistant/VyomFactoryStageDetectorTest.kt`, `VyomFactoryPlanningStageHookTest.kt`, `VyomFactoryExecutionRunnerTest.kt`.
+- Full CI produced artifact `vyom-phase6-a52c3f64695d928d6efb4a888666f0009c791f9a` (artifact ID `13571427761`, 46,384,352 bytes) plus redacted Gitleaks reports. Debug CI passed build/tests and packaging, but APK upload and signed release steps were **SKIPPED by workflow gate**; Debug run has no artifact. Do not claim a downloadable Debug APK.
+- Detector / journal errors are best-effort and do not escape into task execution. A journal write failure is surfaced through `journaled=false`; it cannot convert an otherwise successful side effect into a task failure.
+- **UNVERIFIED:** physical-device execution and on-device persistence acceptance. No claim of phone verification or final APK publication.
+- No Item 6 work started. Android `main`, Render, Hermes backend, and production Supabase were not touched.
+
+---
+
 ### Item 5 — exact-HEAD CI verification — 2026-11-07
 
 - Item 5 implementation/code HEAD: `02e3f205a6ff8ece1d1741a6003139392953f3cd` on `feature/factory-item5-task-intelligence`.
