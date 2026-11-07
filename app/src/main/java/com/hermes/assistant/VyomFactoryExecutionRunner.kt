@@ -65,6 +65,7 @@ internal class VyomFactoryExecutionRunner(
         }
         if (!adapters.supports(envelope)) return skip("capability_unsupported")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
+        safeCheckpoint(remote, "claim_current_before_consent", "lease renewed and claim validated")
         if (externalStopRequested()) return skip("stopped_before_execution")
 
         // Expired leases never authorize replay. Only a persisted due retry for
@@ -113,6 +114,7 @@ internal class VyomFactoryExecutionRunner(
         // journaling so a stop after approval still creates no execution attempt.
         if (externalStopRequested()) return skip("stopped_before_execution")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
+        safeCheckpoint(remote, "claim_current_after_consent", "lease renewed and claim validated")
 
         val attemptId = newAttemptId()
         journal.begin(claim.lease, attemptId, now(), operationKey)

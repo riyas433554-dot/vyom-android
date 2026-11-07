@@ -13,7 +13,7 @@ internal class VyomFactoryStageDetector(
         Int,
         VyomFactoryTaskIntelligence.Finding,
         List<VyomFactoryGitHubClient.Task>
-    ) -> VyomFactoryGitHubClient.Task?,
+    ) -> VyomFactoryGitHubClient.Task,
     private val recordEvent: (Event) -> Unit
 ) {
     enum class Outcome {
@@ -104,12 +104,8 @@ internal class VyomFactoryStageDetector(
                         duplicates++
                     } else {
                         val child = createTask(task.number, finding, existing)
-                        if (child == null) {
-                            duplicates++
-                        } else {
-                            created += child
-                            existing += child
-                        }
+                        created += child
+                        existing += child
                     }
                 }
             }

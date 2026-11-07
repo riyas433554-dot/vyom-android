@@ -240,7 +240,14 @@ class VyomFactoryExecutionRunnerTest {
 
         assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
         assertEquals(
-            listOf("fresh_task_validated", "before_adapter_dispatch", "after_adapter_dispatch", "postcondition_verified"),
+            listOf(
+                "fresh_task_validated",
+                "claim_current_before_consent",
+                "claim_current_after_consent",
+                "before_adapter_dispatch",
+                "after_adapter_dispatch",
+                "postcondition_verified"
+            ),
             checkpoints
         )
     }
