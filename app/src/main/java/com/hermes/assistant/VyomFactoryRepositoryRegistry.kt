@@ -46,19 +46,32 @@ internal class VyomFactoryRepositoryRegistry(private val root: File) {
         val directory = root.canonicalFile
         if (!directory.exists()) check(directory.mkdirs()) { "Could not create app-private repository registry" }
         check(directory.isDirectory) { "Repository registry path is not a directory" }
-        val fileName = VyomFactoryRepositoryIntakeHash.of(snapshot.source.canonicalUrl) + ".json"
+        // Repository catalogue entries are immutable snapshots. Keep multiple commits
+        // for the same repository instead of overwriting history.
+        val legacyFileName = VyomFactoryRepositoryIntakeHash.of(snapshot.source.canonicalUrl) + ".json"
+        val fileName = VyomFactoryRepositoryIntakeHash.of(
+            snapshot.source.canonicalUrl + "\n" + snapshot.commitSha
+        ) + ".json"
+        val legacy = File(directory, legacyFileName).canonicalFile
         val destination = File(directory, fileName).canonicalFile
-        check(destination.parentFile == directory) { "Repository registry path escaped app-private storage" }
-
+        check(destination.parentFile == directory && legacy.parentFile == directory) {
+            "Repository registry path escaped app-private storage"
+        }
         if (destination.exists()) {
             val existing = readEntry(destination)
+            require(existing.canonicalUrl == snapshot.source.canonicalUrl &&
+                existing.commitSha == snapshot.commitSha) {
+                "Repository registry identity hash collision"
+            }
+            return existing
+        }
+        // Backward compatibility for entries created by the URL-only schema-1 key.
+        if (legacy.exists()) {
+            val existing = readEntry(legacy)
             require(existing.canonicalUrl == snapshot.source.canonicalUrl) {
                 "Repository registry identity hash collision"
             }
-            require(existing.commitSha == snapshot.commitSha) {
-                "This repository is already registered at another commit; silent source updates are disabled"
-            }
-            return existing
+            if (existing.commitSha == snapshot.commitSha) return existing
         }
 
         val entry = Entry(
@@ -85,69 +98,6 @@ internal class VyomFactoryRepositoryRegistry(private val root: File) {
             throw IllegalStateException("Could not publish the repository registry entry")
         }
         return readEntry(destination)
-    }
-
-    /**
-     * Explicit owner-approved revision migration for a repository catalogue entry.
-     * The exact previously reviewed entry is required to prevent stale confirmation.
-     */
-    @Synchronized
-    fun migrate(
-        preview: VyomFactoryRepositoryClient.Preview,
-        expectedExisting: Entry,
-        ownerConfirmed: Boolean
-    ): Entry {
-        check(ownerConfirmed) { "Owner must explicitly approve migrating this repository source" }
-        val snapshot = preview.snapshot
-        val assessment = preview.assessment
-        require(assessment.decision != VyomFactoryRepositoryIntake.Decision.BLOCKED) {
-            "Blocked repositories cannot be registered"
-        }
-        require(assessment.source == snapshot.source &&
-            assessment.immutableRef == snapshot.commitSha &&
-            snapshot.commitSha.matches(Regex("^[a-f0-9]{40}$"))) {
-            "Repository assessment does not match the inspected immutable snapshot"
-        }
-        require(!assessment.sourceExecutionAllowed && !assessment.installationApproved) {
-            "Repository intake cannot grant execution or installation permission"
-        }
-        require(snapshot.source.canonicalUrl == expectedExisting.canonicalUrl) {
-            "A source migration cannot change repository identity"
-        }
-
-        val directory = root.canonicalFile
-        check(directory.exists() && directory.isDirectory) { "Repository registry does not exist" }
-        val fileName = VyomFactoryRepositoryIntakeHash.of(snapshot.source.canonicalUrl) + ".json"
-        val destination = File(directory, fileName).canonicalFile
-        check(destination.parentFile == directory && destination.isFile) {
-            "Cannot migrate a repository that is not already registered"
-        }
-        val current = readEntry(destination)
-        if (current != expectedExisting) {
-            throw SecurityException("Repository source changed after owner review; inspect it again before migration")
-        }
-        if (current.commitSha == snapshot.commitSha) return current
-
-        val replacement = Entry(
-            canonicalUrl = snapshot.source.canonicalUrl,
-            commitSha = snapshot.commitSha,
-            licenseSpdx = snapshot.licenseSpdx,
-            kind = assessment.kind,
-            decision = assessment.decision,
-            reasons = assessment.reasons.take(20).map { it.take(120) },
-            detectedKinds = assessment.detectedKinds,
-            addedAtEpochMs = System.currentTimeMillis()
-        )
-        val temp = File(directory, ".$fileName.${UUID.randomUUID()}.migration.tmp")
-        try {
-            writeSynced(temp, encode(replacement).toByteArray(Charsets.UTF_8))
-            if (!temp.renameTo(destination)) {
-                throw IllegalStateException("Could not atomically publish migrated repository source")
-            }
-            return readEntry(destination)
-        } finally {
-            if (temp.exists()) temp.delete()
-        }
     }
 
     @Synchronized
