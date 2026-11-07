@@ -62,6 +62,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("""{"ref":"refs/heads/vyom-proposal-test"}"""))
             server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
             server.enqueue(json("""{"content":{"sha":"${"b".repeat(40)}"}}"""))
+            server.enqueue(json("""{"object":{"sha":"\${"a".repeat(40)}"}}"""))
             server.enqueue(json("""{"html_url":"https://github.com/riyas433554-dot/vyom-android/pull/321"}"""))
 
             val client = client(server)
@@ -72,7 +73,7 @@ class SelfModificationClientIntegrationTest {
                 ownerReviewedDiff = true
             )
             assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
-            val requests = (0 until 7).map { server.takeRequest() }
+            val requests = (0 until 6).map { server.takeRequest() }
             assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST"), requests.map { it.method })
             assertFalse(requests.any { it.path.orEmpty().contains("/merge") })
             assertFalse(requests.any { it.path.orEmpty().contains("/releases") })
@@ -89,6 +90,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("""{"ref":"refs/heads/vyom-proposal-test"}"""))
             server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
             server.enqueue(json("""{"content":{"sha":"${"b".repeat(40)}"}}"""))
+            server.enqueue(json("""{"object":{"sha":"\${"a".repeat(40)}"}}"""))
             server.enqueue(MockResponse().setResponseCode(422).setBody("""{"message":"Validation failed"}"""))
             server.enqueue(json("[]"))
             server.enqueue(MockResponse().setResponseCode(204))
@@ -124,6 +126,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("""{"ref":"refs/heads/vyom-proposal-test"}"""))
             server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
             server.enqueue(json("""{"content":{"sha":"${"b".repeat(40)}"}}"""))
+            server.enqueue(json("""{"object":{"sha":"\${"a".repeat(40)}"}}"""))
             server.enqueue(MockResponse().setResponseCode(500).setBody("""{"message":"Server error"}"""))
             server.enqueue(json("[]"))
 
@@ -137,7 +140,7 @@ class SelfModificationClientIntegrationTest {
                 )
             }
 
-            val requests = (0 until 6).map { server.takeRequest() }
+            val requests = (0 until 7).map { server.takeRequest() }
             assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST", "GET"),
                 requests.map { it.method })
             assertFalse(requests.any { it.method == "DELETE" })
