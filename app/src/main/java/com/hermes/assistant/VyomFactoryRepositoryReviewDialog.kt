@@ -183,6 +183,11 @@ internal class VyomFactoryRepositoryReviewDialog(
                 onStatus("Could not read current system binding · ${error.javaClass.simpleName}")
                 return@setOnClickListener
             }
+            val sameBindingTarget = existing != null &&
+                existing.repositoryUrl == proposedBinding.repositoryUrl &&
+                existing.commitSha == proposedBinding.commitSha &&
+                existing.allowedPaths == proposedBinding.allowedPaths
+            val bindingToPersist = if (sameBindingTarget) existing!! else proposedBinding
             val persist: (Boolean) -> Unit = { migrate ->
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                 worker.execute {
@@ -201,7 +206,7 @@ internal class VyomFactoryRepositoryReviewDialog(
                                 ownerConfirmed = true
                             )
                         } else {
-                            registry.register(proposedBinding, ownerConfirmed = true)
+                            registry.register(bindingToPersist, ownerConfirmed = true)
                         }
                         main.post {
                             if (finished || activity.isFinishing) return@post
@@ -221,7 +226,7 @@ internal class VyomFactoryRepositoryReviewDialog(
                     }
                 }
             }
-            if (existing != null && existing != proposedBinding) {
+            if (existing != null && !sameBindingTarget) {
                 AlertDialog.Builder(activity)
                     .setTitle("MIGRATE SYSTEM BINDING?")
                     .setMessage(
