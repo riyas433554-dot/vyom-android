@@ -395,6 +395,12 @@ internal class VyomFactoryDialog(
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity, foregroundGeneration)
+                val detectorJournal = VyomFactoryStageDetectorJournal(activity.applicationContext)
+                val stageDetector = createStageDetector(detectorJournal)
+
+                // Planning hook: inspect every fresh open task before triage/claim selection.
+                client.listTasks().filter { it.state == "open" && it.metadata.status in setOf("open", "in_progress") }
+                    .forEach { task -> stageDetector.onPlanning(task, task.body) }
 
                 // Run a read-only planner pass over the fresh canonical issue snapshot.
                 // Persist each typed triage outcome before execution; a candidate is
@@ -452,6 +458,9 @@ internal class VyomFactoryDialog(
                         stopRunRequested.get() ||
                             !hostActivity.factoryForegroundGate.isForeground() ||
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
+                    },
+                    onCheckpoint = { task, checkpoint, output ->
+                        stageDetector.onImplementationCheckpoint(task, checkpoint, output)
                     }
                 )
                 VyomFactoryDrainCoordinator.drain(
@@ -1177,6 +1186,22 @@ internal class VyomFactoryDialog(
             .show()
     }
 
+    private fun createStageDetector(journal: VyomFactoryStageDetectorJournal) = VyomFactoryStageDetector(
+        loadTasks = { client.listTasks() },
+        createTask = { parentIssueNumber, finding, existing ->
+            val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
+                ?: return@VyomFactoryStageDetector null
+            client.createTask(
+                title = proposal.title,
+                description = proposal.description,
+                priority = "P2",
+                source = "task_failure",
+                sourceId = proposal.sourceId
+            )
+        },
+        recordEvent = journal::record
+    )
+
     private fun recordVerification(task: VyomFactoryGitHubClient.Task, passed: Boolean, evidence: String) {
         if (busy) return
         busy = true
@@ -1186,6 +1211,8 @@ internal class VyomFactoryDialog(
                 val fresh = client.listTasks().firstOrNull { it.number == task.number }
                     ?: throw IllegalArgumentException("Complaint #${task.number} is no longer in the shared registry")
                 client.recordVerificationResult(fresh, passed, evidence)
+                createStageDetector(VyomFactoryStageDetectorJournal(activity.applicationContext))
+                    .onVerificationResult(fresh, passed, evidence)
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = if (passed) "Probe PASS recorded. DONE is now available for #${task.number}."

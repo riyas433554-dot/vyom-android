@@ -129,17 +129,22 @@ internal class VyomFactoryGitHubClient(
     /** Converts explicit planner/implementation/test markers into independent, idempotent issues. */
     fun createDetectedTasks(parentIssueNumber: Int, stage: VyomFactoryTaskIntelligence.Stage, stageOutput: String): List<Task> {
         require(parentIssueNumber > 0)
-        val existing = listTasks()
-        return VyomFactoryTaskIntelligence.detect(stage, stageOutput).mapNotNull { finding ->
+        return createDetectedTasks(parentIssueNumber, VyomFactoryTaskIntelligence.detect(stage, stageOutput))
+    }
+
+    fun createDetectedTasks(parentIssueNumber: Int, findings: List<VyomFactoryTaskIntelligence.Finding>): List<Task> {
+        require(parentIssueNumber > 0)
+        val existing = listTasks().toMutableList()
+        return findings.mapNotNull { finding ->
             val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
                 ?: return@mapNotNull null
             createTask(
                 title = proposal.title,
-                description = proposal.description,
+                description = proposal.description + "\\n\\nMax iterations: ${VyomFactoryTaskIntelligence.DEFAULT_MAX_ITERATIONS}",
                 priority = "P2",
                 source = "task_failure",
                 sourceId = proposal.sourceId
-            )
+            ).also(existing::add)
         }
     }
 
