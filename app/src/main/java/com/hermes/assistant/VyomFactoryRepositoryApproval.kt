@@ -20,6 +20,8 @@ internal class VyomFactoryRepositoryApprovalStore(
         binding: VyomFactorySystemRegistry.Binding
     ): Token {
         require(binding.systemId == plan.systemId && binding.commitSha == plan.baseCommitSha)
+        val now = nowMillis()
+        require(now >= 0)
         val nonce = nonceFactory()
         require(nonce.matches(Regex("[A-Za-z0-9-]{16,80}")))
         check(!journal.isApprovalNonceConsumed(nonce)) { "Approval nonce was already consumed" }

@@ -20,7 +20,7 @@ class VyomFactoryRepositoryApprovalTest {
     )
 
     @Test fun bindsRepositoryBasePathAndContentHash() {
-        val store = VyomFactoryRepositoryApprovalStore(MemoryPrefs(), { 100L }, { "nonce-123456789012" })
+        val store = store(MemoryPrefs(), { 100L }, { "nonce-123456789012" })
         val token = store.issueFromOwnerReview(plan(), binding)
         assertThrows(SecurityException::class.java) {
             store.verifyAndConsume(plan("tampered"), binding, token, 101L)
@@ -32,18 +32,18 @@ class VyomFactoryRepositoryApprovalTest {
 
     @Test fun consumesOnceAndPersistsAcrossStoreRecreation() {
         val prefs = MemoryPrefs()
-        val token = VyomFactoryRepositoryApprovalStore(prefs, { 100L }, { "nonce-123456789012" })
+        val token = store(prefs, { 100L }, { "nonce-123456789012" })
             .issueFromOwnerReview(plan(), binding)
-        VyomFactoryRepositoryApprovalStore(prefs, { 101L })
+        store(prefs, { 101L })
             .verifyAndConsume(plan(), binding, token)
         assertThrows(SecurityException::class.java) {
-            VyomFactoryRepositoryApprovalStore(prefs, { 102L })
+            store(prefs, { 102L })
                 .verifyAndConsume(plan(), binding, token)
         }
     }
 
     @Test fun expiredTokenIsRejected() {
-        val store = VyomFactoryRepositoryApprovalStore(MemoryPrefs(), { 100L }, { "nonce-123456789012" })
+        val store = store(MemoryPrefs(), { 100L }, { "nonce-123456789012" })
         val token = store.issueFromOwnerReview(plan(), binding)
         assertThrows(SecurityException::class.java) {
             store.verifyAndConsume(plan(), binding, token, 100L + VyomFactoryRepositoryApprovalStore.TOKEN_TTL_MS)
@@ -52,16 +52,25 @@ class VyomFactoryRepositoryApprovalTest {
 
     @Test fun consumedNonceCommitFailureFailsClosed() {
         val prefs = MemoryPrefs()
-        val token = VyomFactoryRepositoryApprovalStore(prefs, { 100L }, { "nonce-123456789012" })
+        val token = store(prefs, { 100L }, { "nonce-123456789012" })
             .issueFromOwnerReview(plan(), binding)
         prefs.failCommit = true
         assertThrows(IllegalStateException::class.java) {
-            VyomFactoryRepositoryApprovalStore(prefs, { 101L }).verifyAndConsume(plan(), binding, token)
+            store(prefs, { 101L }).verifyAndConsume(plan(), binding, token)
         }
         prefs.failCommit = false
-        VyomFactoryRepositoryApprovalStore(prefs, { 102L }).verifyAndConsume(plan(), binding, token)
-        assertTrue(prefs.getString("consumed_nonces_v1", null).orEmpty().contains(token.nonce))
+        store(prefs, { 102L }).verifyAndConsume(plan(), binding, token)
+        assertTrue(VyomFactoryExecutionJournal(prefs, VyomFactoryWorkerLeaseStore(prefs))
+            .isApprovalNonceConsumed(token.nonce))
     }
+
+    private fun store(
+        prefs: MemoryPrefs,
+        now: () -> Long = { 100L },
+        nonce: () -> String = { java.util.UUID.randomUUID().toString() }
+    ) = VyomFactoryRepositoryApprovalStore(
+        VyomFactoryExecutionJournal(prefs, VyomFactoryWorkerLeaseStore(prefs)), now, nonce
+    )
 
     private class MemoryPrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()

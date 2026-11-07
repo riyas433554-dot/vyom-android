@@ -38,7 +38,8 @@ class VyomFactoryRepositoryChangeAdapterTest {
 
     @Test fun stopBlocksBeforeApprovalNonceCanBeConsumed() {
         val prefs = ApprovalPrefs()
-        val store = VyomFactoryRepositoryApprovalStore(prefs, { 100L }, { "nonce-123456789012" })
+        val journal = VyomFactoryExecutionJournal(prefs, VyomFactoryWorkerLeaseStore(prefs))
+        val store = VyomFactoryRepositoryApprovalStore(journal, { 100L }, { "nonce-123456789012" })
         val approval = store.issueFromOwnerReview(plan, registry.get("worker")!!)
         val pending = ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>()
         pending[22] = VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
@@ -46,12 +47,14 @@ class VyomFactoryRepositoryChangeAdapterTest {
             adapter(pending, store).run(envelope, StopNow)
         }
         assertTrue(pending.containsKey(22))
-        assertEquals(null, prefs.getString("consumed_nonces_v1", null))
+        assertEquals(false, journal.isApprovalNonceConsumed(approval.nonce))
     }
 
     private fun adapter(
         pending: ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>,
-        store: VyomFactoryRepositoryApprovalStore = VyomFactoryRepositoryApprovalStore(ApprovalPrefs())
+        store: VyomFactoryRepositoryApprovalStore = VyomFactoryRepositoryApprovalStore(
+            VyomFactoryExecutionJournal(ApprovalPrefs(), VyomFactoryWorkerLeaseStore(ApprovalPrefs()))
+        )
     ) = VyomFactoryRepositoryChangeAdapter(registry, "token-that-is-long-enough-for-github", store, pending)
 
     private class ApprovalPrefs : android.content.SharedPreferences {
