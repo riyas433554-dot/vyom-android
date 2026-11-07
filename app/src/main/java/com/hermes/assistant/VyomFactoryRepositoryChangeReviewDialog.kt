@@ -45,7 +45,11 @@ internal class VyomFactoryRepositoryChangeReviewDialog(
         }
         section("REPOSITORY", candidate.binding.repositoryUrl, 2)
         section("IMMUTABLE BASE", "${candidate.plan.baseBranch} · ${candidate.plan.baseCommitSha.take(12)}", 1)
-        section("FILE PATHS", candidate.plan.changes.joinToString("\n") { "• ${it.path}" }, 8)
+        section(
+            "FILE PATHS",
+            candidate.plan.changes.joinToString("\n") { "• ${it.path}" },
+            candidate.plan.changes.size.coerceAtLeast(1)
+        )
         section("SUMMARY", candidate.summary.lines().take(3).joinToString("\n").ifBlank { candidate.plan.title }, 3)
         val scroll = ScrollView(activity).apply { addView(content) }
         AlertDialog.Builder(activity)
