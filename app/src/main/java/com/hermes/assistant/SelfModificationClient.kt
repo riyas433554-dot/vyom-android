@@ -12,14 +12,14 @@ import java.net.URLEncoder
  * against the working branch. It has no merge, release, install, or main-branch path.
  */
 internal class SelfModificationClient(
-    private val registry: VyomFactorySystemRegistry? = null,
+    private val registry: VyomFactorySystemRegistry,
     private val modelApiRoot: String = DEFAULT_MODEL_API_ROOT,
     private val apiRootOverrideForTests: String? = null
 ) {
     private var resolvedApiRoot: String? = null
 
     private fun requireBinding(path: String): VyomFactorySystemRegistry.Binding {
-        val activeRegistry = registry ?: throw SecurityException("Self-modification has no owner-approved system registry")
+        val activeRegistry = registry
         val binding = activeRegistry.get(SYSTEM_ID)
             ?: throw SecurityException("Self-modification has no owner-approved repository binding")
         val approved = SelfModificationPolicy.requireSystemBinding(
@@ -94,7 +94,7 @@ internal class SelfModificationClient(
             val entry = entries.optJSONObject(index) ?: return@mapNotNull null
             if (entry.optString("type") != "blob") return@mapNotNull null
             entry.optString("path").takeIf {
-                SelfModificationPolicy.isAllowedPath(it) && registry?.allowsPath(SYSTEM_ID, it) == true
+                SelfModificationPolicy.isAllowedPath(it) && registry.allowsPath(SYSTEM_ID, it)
             }
         }.distinct().sorted()
         require(allowedPaths.isNotEmpty()) { "No eligible Kotlin source files were found in the working branch" }
