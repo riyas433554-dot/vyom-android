@@ -60,7 +60,7 @@ internal class VyomFactoryExecutionRunner(
         ) return skip("task_no_longer_open_or_identity_changed")
         safeCheckpoint(remote, "fresh_task_validated", remote.body)
 
-        val envelope = VyomFactoryExecutionEnvelope.parse(remote.body)
+        val envelope = VyomFactoryExecutionEnvelope.parse(remote.body, remote.number)
         if (!envelope.isExecutable || envelope.target == VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW) {
             return skip("manual_review_required")
         }

@@ -30,6 +30,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 /** Live Factory workspace. All visible task data is read from GitHub Issues, never demo fixtures. */
 internal class VyomFactoryDialog(
@@ -73,6 +74,7 @@ internal class VyomFactoryDialog(
     private lateinit var runButton: Button
     private lateinit var stopButton: Button
     private val stopRunRequested = AtomicBoolean(false)
+    private val pendingRepositoryApprovals = ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>()
     private var pendingConfirmationDialog: AlertDialog? = null
     private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
@@ -423,14 +425,45 @@ internal class VyomFactoryDialog(
                         if (!dialog.isShowing) return@post
                         activeClaim = null
                         claimStatus.text = "OWNER REVIEW REQUIRED · #${ownerReview.task.number}"
-                        status.text = "Repository complaint routed to source discovery. Choose a file and review the exact diff; nothing has been changed."
+                        status.text = "Review the exact repository, immutable base, paths and proposed content. No repository write occurs before local approval."
                         runButton.isEnabled = true
                         stopButton.isEnabled = false
                         claimButton.isEnabled = true
                         releaseClaimButton.isEnabled = false
                         busy = false
                         dialog.dismiss()
-                        onProposeFix(ownerReview.task)
+                        try {
+                            val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
+                            val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
+                            VyomFactoryRepositoryChangeReviewDialog.fromIssue(
+                                activity = activity,
+                                task = ownerReview.task,
+                                registry = registry,
+                                approvalStore = approvalStore,
+                                onApproved = { plan, approval ->
+                                    worker.execute {
+                                        try {
+                                            client.addEvent(plan.issueNumber, VyomFactorySpecialistRouting.OWNER_REVIEW_OPENED_EVENT)
+                                            pendingRepositoryApprovals[plan.issueNumber] =
+                                                VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
+                                            main.post { runNextTask() }
+                                        } catch (error: Exception) {
+                                            main.post { onRunnerFailure(error.javaClass.simpleName) }
+                                        }
+                                    }
+                                },
+                                onRejected = {
+                                    worker.execute {
+                                        runCatching {
+                                            client.addEvent(ownerReview.task.number, VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT)
+                                        }
+                                    }
+                                }
+                            ).show()
+                        } catch (error: Exception) {
+                            status.text = "Repository review unavailable: ${error.message ?: error.javaClass.simpleName}"
+                            onRunnerFailure(error.javaClass.simpleName)
+                        }
                     }
                     return@execute
                 }
@@ -447,10 +480,21 @@ internal class VyomFactoryDialog(
                     releaseClaim = { session.release(it) },
                     fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
                     journal = journal,
-                    adapters = VyomFactoryExecutionAdapterRegistry(listOf(adapter)),
+                    adapters = VyomFactoryExecutionAdapterRegistry(listOf(
+                        adapter,
+                        VyomFactoryRepositoryChangeAdapter(
+                            registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry")),
+                            githubToken = token,
+                            approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext),
+                            approvedPlans = pendingRepositoryApprovals
+                        )
+                    )),
                     retrySchedules = retrySchedules,
                     newAttemptId = { UUID.randomUUID().toString() },
-                    prepareExecution = { envelope -> prepareAndroidAction(envelope) },
+                    prepareExecution = { envelope ->
+                        if (envelope.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) envelope
+                        else prepareAndroidAction(envelope)
+                    },
                     // Activity pause/resume invalidates this run permanently, even if
                     // the user returns before the worker reaches its next STOP check.
                     externalStopRequested = {
@@ -574,8 +618,11 @@ internal class VyomFactoryDialog(
     ): Boolean {
         if (task.state != "open" || task.metadata.status !in setOf("open", "in_progress")) return false
         val envelope = VyomFactoryExecutionEnvelope.parse(task.body)
-        if (!envelope.isExecutable ||
-            envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
+        if (!envelope.isExecutable) return false
+        if (envelope.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) {
+            return pendingRepositoryApprovals.containsKey(task.number)
+        }
+        if (envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
             envelope.operation != "set_media_volume" ||
             envelope.arguments.has("confirmation_id")
         ) return false

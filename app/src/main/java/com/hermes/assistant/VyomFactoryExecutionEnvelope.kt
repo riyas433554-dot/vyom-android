@@ -13,7 +13,8 @@ internal data class VyomFactoryExecutionEnvelope(
     val originalRequest: String,
     val operation: String?,
     val arguments: JSONObject,
-    val isExecutable: Boolean
+    val isExecutable: Boolean,
+    val issueNumber: Int = 0
 ) {
     enum class Target {
         ANDROID_ACTION,
@@ -33,7 +34,7 @@ internal data class VyomFactoryExecutionEnvelope(
         )
         private val operationPattern = Regex("[a-z][a-z0-9_]{1,79}")
 
-        fun parse(body: String?): VyomFactoryExecutionEnvelope {
+        fun parse(body: String?, issueNumber: Int = 0): VyomFactoryExecutionEnvelope {
             val safeBody = body.orEmpty()
             val fallbackRequest = safeBody
                 .replace(Regex("<!--\\s*VYOM_FACTORY_META:.*?\\s*-->", setOf(RegexOption.DOT_MATCHES_ALL)), "")
@@ -46,7 +47,8 @@ internal data class VyomFactoryExecutionEnvelope(
                 originalRequest = request,
                 operation = null,
                 arguments = JSONObject(),
-                isExecutable = false
+                isExecutable = false,
+                issueNumber = issueNumber
             )
 
             if (safeBody.isBlank() || safeBody.length > MAX_BODY_LENGTH) return manualReview()
@@ -78,7 +80,8 @@ internal data class VyomFactoryExecutionEnvelope(
                     originalRequest = request,
                     operation = operation,
                     arguments = arguments,
-                    isExecutable = true
+                    isExecutable = true,
+                    issueNumber = issueNumber
                 )
             }.getOrElse { manualReview() }
         }
