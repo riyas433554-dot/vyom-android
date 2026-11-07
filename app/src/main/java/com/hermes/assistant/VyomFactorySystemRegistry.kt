@@ -47,6 +47,49 @@ internal class VyomFactorySystemRegistry(private val root: File) {
         return read(destination)
     }
 
+    /**
+     * Explicit owner-approved compare-and-swap migration. The caller must present
+     * the exact previous binding observed before confirmation; stale confirmations
+     * cannot overwrite a newer registry entry.
+     */
+    @Synchronized
+    fun migrate(
+        replacement: Binding,
+        expectedExisting: Binding,
+        ownerConfirmed: Boolean
+    ): Binding {
+        check(ownerConfirmed) { "Owner approval is required to migrate a system binding" }
+        validate(replacement)
+        require(replacement.systemId == expectedExisting.systemId) {
+            "A migration cannot change the system ID"
+        }
+        val dir = root.canonicalFile
+        check(dir.exists() && dir.isDirectory) { "System registry does not exist" }
+        val destination = File(dir, "${fileKey(replacement.systemId)}.json").canonicalFile
+        check(destination.parentFile == dir) { "System registry path escaped its root" }
+        if (!destination.isFile) throw SecurityException("Cannot migrate a system without an existing binding")
+        val current = read(destination)
+        if (current != expectedExisting) {
+            throw SecurityException("System binding changed after owner review; inspect it again before migration")
+        }
+        if (replacement == current) return current
+
+        val temp = File(dir, ".${destination.name}.${UUID.randomUUID()}.migration.tmp")
+        try {
+            FileOutputStream(temp).use { out ->
+                out.write(encode(replacement).toByteArray(Charsets.UTF_8))
+                out.flush()
+                out.fd.sync()
+            }
+            if (!temp.renameTo(destination)) {
+                throw IllegalStateException("Could not atomically publish migrated system binding")
+            }
+            return read(destination)
+        } finally {
+            if (temp.exists()) temp.delete()
+        }
+    }
+
     @Synchronized
     fun get(systemId: String): Binding? {
         require(systemId.matches(Regex("^[a-z][a-z0-9_.-]{0,63}$")))
