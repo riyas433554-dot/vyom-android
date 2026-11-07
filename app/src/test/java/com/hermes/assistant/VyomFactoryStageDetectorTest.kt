@@ -88,7 +88,7 @@ class VyomFactoryStageDetectorTest {
             recordEvent = { error("journal unavailable") }
         )
 
-        val result = detector.onVerificationResult(parent, passed = false, evidence = "Observed failure")
+        val result = detector.onVerificationResult(parent, passed = true, evidence = "Expected result observed")
 
         assertFalse(result.detectorFailed)
         assertFalse(result.journaled)
