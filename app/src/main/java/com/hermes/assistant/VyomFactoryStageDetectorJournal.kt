@@ -6,7 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Persistent local audit journal for planning, implementation and test detector outcomes. */
-internal class VyomFactoryStageDetectorJournal private constructor(
+internal class VyomFactoryStageDetectorJournal internal constructor(
     private val prefs: SharedPreferences
 ) {
     constructor(context: Context) : this(

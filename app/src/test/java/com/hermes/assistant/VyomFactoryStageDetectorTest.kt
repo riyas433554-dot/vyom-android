@@ -1,5 +1,6 @@
 package com.hermes.assistant
 
+import android.content.SharedPreferences
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -94,4 +95,57 @@ class VyomFactoryStageDetectorTest {
         assertFalse(result.journaled)
         assertEquals(VyomFactoryStageDetector.Outcome.NOTHING_CREATED, result.outcome)
     }
+    @Test fun stageDetectorJournalPersistsEachLifecycleOutcome() {
+        val prefs = MemoryPrefs()
+        val journal = VyomFactoryStageDetectorJournal(prefs)
+        val event = VyomFactoryStageDetector.Event(
+            parentIssueNumber = 26,
+            stage = VyomFactoryTaskIntelligence.Stage.IMPLEMENTATION,
+            checkpoint = "before_adapter_dispatch",
+            outcome = VyomFactoryStageDetector.Outcome.NOTHING_CREATED,
+            findingCount = 0,
+            createdIssueNumbers = emptyList(),
+            duplicateCount = 0,
+            detail = "nothing found",
+            recordedAt = 123L
+        )
+
+        journal.record(event)
+
+        assertEquals(listOf(event), VyomFactoryStageDetectorJournal(prefs).all())
+    }
+
+    private class MemoryPrefs : SharedPreferences {
+        private val values = mutableMapOf<String, Any>()
+        override fun getAll(): MutableMap<String, *> = values.toMutableMap()
+        override fun getString(key: String, defValue: String?): String? = values[key] as? String ?: defValue
+        override fun getStringSet(key: String, defValues: MutableSet<String>?): MutableSet<String>? = defValues
+        override fun getInt(key: String, defValue: Int) = defValue
+        override fun getLong(key: String, defValue: Long) = defValue
+        override fun getFloat(key: String, defValue: Float) = defValue
+        override fun getBoolean(key: String, defValue: Boolean) = defValue
+        override fun contains(key: String) = key in values
+        override fun edit(): SharedPreferences.Editor = Editor()
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) = Unit
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) = Unit
+        private inner class Editor : SharedPreferences.Editor {
+            private val changes = mutableMapOf<String, Any?>()
+            private val removals = mutableSetOf<String>()
+            override fun putString(key: String, value: String?) = apply { changes[key] = value } as SharedPreferences.Editor
+            override fun putStringSet(key: String, values: MutableSet<String>?) = this
+            override fun putInt(key: String, value: Int) = this
+            override fun putLong(key: String, value: Long) = this
+            override fun putFloat(key: String, value: Float) = this
+            override fun putBoolean(key: String, value: Boolean) = this
+            override fun remove(key: String) = apply { removals += key } as SharedPreferences.Editor
+            override fun clear() = this
+            override fun commit(): Boolean {
+                removals.forEach(values::remove)
+                changes.forEach { (key, value) -> if (value == null) values.remove(key) else values[key] = value }
+                return true
+            }
+            override fun apply() { commit() }
+        }
+    }
+
 }
