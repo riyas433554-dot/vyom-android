@@ -1,3 +1,25 @@
+### Item 6 — repository worker foundation — 2026-11-07 (PARTIAL)
+
+- Work started only after owner GO. Current implementation branch remains `feature/factory-item5-task-intelligence`; PR #102 targets `feature/memory-intelligence`. Android `main` is untouched.
+- **Policy test-first evidence:** test-only commit `251d3fa9defca78628e1405b7ffa423123cc6250`; Full CI `42368470830` and Debug CI `42368470888` failed as expected because the new policy symbol did not yet exist.
+- **Policy implementation:** commit `85e98dca8db27892f57b9349ea4536fd043bdf7b`; exact-HEAD Full CI `42368643173` = SUCCESS and Debug CI `42368643192` = SUCCESS. This verifies the registry-bound plan policy and its tests at that code HEAD.
+- Repository proposal executor work:
+  - `VyomFactoryRepositoryChangePolicy.kt`: validates the system registry binding, immutable SHA, allowed paths, protected paths, branch syntax, duplicate paths, file-count/content limits, and approval flag. Blocks Android main/master and security-sensitive/build/workflow/script paths.
+  - `VyomFactoryRepositoryChangeExecutor.kt`: creates an atomic multi-file Git tree/commit, a new non-force proposal branch, verifies branch and base refs, opens a draft PR, and waits for both required workflows on the exact proposal SHA. No merge, release, or install path.
+  - Tests: `VyomFactoryRepositoryChangePolicyTest.kt`, `VyomFactoryRepositoryChangeExecutorTest.kt`.
+  - Executor is deliberately restricted to registered `https://github.com/riyas433554-dot/vyom-android` and `feature/memory-intelligence`, because the exact required CI workflow contract is only known there. Unconfigured external repositories are rejected before network access.
+- Test/fix history:
+  - `5b1e40f4703917298e35f40aa6dec7fbde7271d9`: CI exposed Kotlin fun-interface default-argument compile error.
+  - `46c1ecef232777ecf85ccf6120bb3e7988aa1ca5`: same compile error remained; run Debug `42369102156` failed.
+  - `fa95085222490c63a669cc67468d5801e3676828`: fixed transport interface and added trusted-repository guard; Debug `42369294740` then exposed one failing test: stale-base mismatch was thrown as `IllegalArgumentException` instead of `SecurityException`.
+  - Latest code HEAD `fcf915afd2c2e651c2bc74fb4deb87f20f60e985` changes stale-base mismatch to explicit `SecurityException`.
+  - Latest exact-HEAD CI is pending: Full `42369543808`; Debug `42369543832` is in progress. Do not mark this executor slice CI-verified until both finish successfully.
+- **Not complete / UNVERIFIED:** this executor is not yet wired into the live Factory runner/adapter registry; no AI multi-file plan generator or owner diff-review UI is connected; the `ownerApproved` boolean is only an interim plan field and must be replaced by a one-time UI-issued approval token before production use; no hardened no-secrets/network-isolated command sandbox exists. Existing CI is an exact-SHA gate, not proof of an isolated executor. Generic execution against external repositories is not enabled.
+- Item 6 remains **PARTIAL**, not CODE-VERIFIED. No physical-device verification.
+- No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+---
+
 ### AUTHORITATIVE CORE STATUS — Item 4 closed at code gate; Item 5 complete at code gate — 2026-11-07
 
 This section is the current status authority and supersedes older historical `IN PROGRESS`, `NOT CLOSED`, or `UNVERIFIED` status snapshots for Items 4 and 5 below. Those entries describe earlier checkpoints, not the current state.
