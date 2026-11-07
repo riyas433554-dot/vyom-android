@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.io.File
 
 class VyomFactoryLifecycleIntegrationTest {
     @Test fun startClaimRunRecordProbePassAndCompleteUsesTheSameCanonicalIssue() {
@@ -32,9 +33,21 @@ class VyomFactoryLifecycleIntegrationTest {
             // START persists the in-progress state before the worker is allowed to claim.
             server.enqueue(json(issue(issueNumber, startedMetadata, startedBody, "open").toString()))
             server.enqueue(json("""{"id":1}"""))
+            val registryRoot = tempDir()
+            val registry = VyomFactorySystemRegistry(registryRoot)
+            registry.register(
+                VyomFactorySystemRegistry.Binding(
+                    systemId = VyomFactoryGitHubClient.SYSTEM_ID,
+                    repositoryUrl = "https://github.com/test/repo",
+                    commitSha = "b".repeat(40),
+                    allowedPaths = listOf(VyomFactoryGitHubClient.ISSUES_PATH),
+                    registeredAtEpochMs = 1_000L
+                ),
+                ownerConfirmed = true
+            )
             val client = VyomFactoryGitHubClient(
                 token = "test-token",
-                repository = "test/repo",
+                registry = registry,
                 apiBaseUrl = server.url("/").toString().trimEnd('/')
             )
             val openTask = task(issueNumber, openBody, "open", openMetadata)
@@ -131,6 +144,11 @@ class VyomFactoryLifecycleIntegrationTest {
         } finally {
             server.shutdown()
         }
+    }
+
+    private fun tempDir(): File = File.createTempFile("factory-lifecycle-registry", ".tmp").apply {
+        delete()
+        mkdirs()
     }
 
     private fun metadata(status: String, events: List<String>) = VyomFactoryStatus.Metadata(
