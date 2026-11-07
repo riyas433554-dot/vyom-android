@@ -149,6 +149,33 @@ class SelfModificationClientIntegrationTest {
         }
     }
 
+    @Test fun rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(json("""{"object":{"sha":"${"a".repeat(40)}"}}"""))
+            server.enqueue(json("""{"ref":"refs/heads/vyom-proposal-test"}"""))
+            server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
+            server.enqueue(json("""{"content":{"sha":"${"b".repeat(40)}"}}"""))
+            server.enqueue(json("""{"object":{"sha":"${"c".repeat(40)}"}}"""))
+            server.enqueue(json("[]"))
+            server.enqueue(MockResponse().setResponseCode(204))
+
+            assertRejected {
+                client(server).createProposal(
+                    token, "Improve reply formatting",
+                    "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
+                    ownerReviewedDiff = true
+                )
+            }
+            val requests = (0 until 7).map { server.takeRequest() }
+            assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "GET", "DELETE"), requests.map { it.method })
+            assertFalse(requests.any { it.method == "POST" && it.path.orEmpty().startsWith("/pulls") })
+        } finally {
+            server.shutdown()
+        }
+    }
     @Test fun exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling() {
         val server = MockWebServer()
         server.start()
