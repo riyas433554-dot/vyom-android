@@ -64,6 +64,14 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(fixture.journal.get("attempt-1")?.result.orEmpty().contains("repository_proposal_verified:"))
         assertTrue(fixture.journal.get("attempt-1")?.result.orEmpty().contains(commitSha))
         assertTrue(fixture.journal.isApprovalNonceConsumed(approval.nonce))
+
+        val requestCountAfterSuccess = transport.calls.size
+        val duplicate = fixture.runner(adapter).runNext()
+        assertEquals(
+            VyomFactoryExecutionRunner.Outcome.Skipped(71, "previous_attempt_succeeded"),
+            duplicate
+        )
+        assertEquals(requestCountAfterSuccess, transport.calls.size)
     }
 
     @Test fun executesOwnerStartedInProgressComplaint() {

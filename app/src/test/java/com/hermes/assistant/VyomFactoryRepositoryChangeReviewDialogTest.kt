@@ -6,6 +6,22 @@ import org.junit.Test
 import java.io.File
 
 class VyomFactoryRepositoryChangeReviewDialogTest {
+    @Test fun rejectsPathOutsideTheRegisteredRootBeforeShowingAnApprovalDialog() {
+        val root = File.createTempFile("repo-review-outside", ".tmp").apply { delete(); mkdirs() }
+        val base = "c".repeat(40)
+        val registry = VyomFactorySystemRegistry(root)
+        registry.register(
+            VyomFactorySystemRegistry.Binding(
+                "worker", "https://github.com/riyas433554-dot/vyom-android", base,
+                listOf("app/src/main/java/com/hermes/assistant/allowed"), 1L
+            ), true
+        )
+        val body = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"repository_change","request":"Prepare a proposal","operation":"propose_change","arguments":{"system_id":"worker","title":"Improve safe reply rendering","base_branch":"feature/memory-intelligence","base_commit_sha":"$base","changes":[{"path":"app/src/main/java/com/hermes/assistant/outside/Outside.kt","content":"no"}]}} -->"""
+        org.junit.Assert.assertThrows(SecurityException::class.java) {
+            VyomFactoryRepositoryChangeReviewDialog.parseCandidate(9, body, registry)
+        }
+    }
+
     @Test fun rejectsPathTraversalBeforeShowingAnApprovalDialog() {
         val root = File.createTempFile("repo-review-traversal", ".tmp").apply { delete(); mkdirs() }
         val base = "b".repeat(40)
