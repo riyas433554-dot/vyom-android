@@ -1155,7 +1155,7 @@ internal class VyomFactoryDialog(
     }
 
     private fun progressText(progress: VyomFactoryVerifiedProgress.Snapshot): String =
-        "PROGRESS ${progress.percent}% · ${progress.label}\\n" +
+        "PROGRESS ${progress.percent}% · ${progress.label}\n" +
             "Criteria ${progress.checkedCriteria}/${progress.totalCriteria} · " +
             "Implementation ${if (progress.implementationVerified) "VERIFIED" else if (progress.executionInProgress) "RUNNING" else "PENDING"} · " +
             "Tests ${if (progress.testsVerified) "VERIFIED" else "PENDING"} · " +
