@@ -25,6 +25,18 @@ class SelfModificationSystemBindingTest {
     }
 
     @Test(expected = SecurityException::class)
+    fun clientRejectsMissingOwnerApprovedBindingBeforeAnyNetworkRequest() {
+        val client = SelfModificationClient(VyomFactorySystemRegistry(File.createTempDir()))
+        client.createProposal(
+            token = "test-token-that-is-long-enough-for-github",
+            title = "Improve reply formatting",
+            path = allowedPath,
+            proposedContent = "package com.hermes.assistant",
+            ownerReviewedDiff = true
+        )
+    }
+
+    @Test(expected = SecurityException::class)
     fun rejectsSelfModificationWithoutOwnerApprovedSystemBinding() {
         SelfModificationPolicy.requireSystemBinding(
             VyomFactorySystemRegistry(File.createTempDir()),
