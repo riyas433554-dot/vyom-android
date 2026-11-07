@@ -196,4 +196,38 @@ class VyomFactoryRepositoryChangePolicyTest {
         assertTrue(empty is IllegalArgumentException)
         assertTrue(huge is IllegalArgumentException)
     }
+
+    @Test fun refusesMoreThanMaximumFileCount() {
+        val registry = registry()
+        val changes = (1..(VyomFactoryRepositoryChangePolicy.MAX_FILES + 1)).map { index ->
+            VyomFactoryRepositoryChangePolicy.Change(
+                "app/src/main/java/com/hermes/assistant/GeneratedLimitTest$index.kt",
+                "content-$index"
+            )
+        }
+        val error = runCatching {
+            VyomFactoryRepositoryChangePolicy.validate(plan(changes = changes), registry)
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+    }
+
+    @Test fun refusesAggregateContentAboveMaximumAcrossIndividuallyValidFiles() {
+        val registry = registry()
+        val perFileChars = 166_667
+        val changes = (1..3).map { index ->
+            VyomFactoryRepositoryChangePolicy.Change(
+                "app/src/main/java/com/hermes/assistant/GeneratedAggregateLimit$index.kt",
+                "x".repeat(perFileChars)
+            )
+        }
+        assertTrue(changes.all { it.content.length <= VyomFactoryRepositoryChangePolicy.MAX_FILE_CONTENT_CHARS })
+        assertTrue(changes.sumOf { it.content.length } > VyomFactoryRepositoryChangePolicy.MAX_TOTAL_CONTENT_CHARS)
+
+        val error = runCatching {
+            VyomFactoryRepositoryChangePolicy.validate(plan(changes = changes), registry)
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+    }
 }
