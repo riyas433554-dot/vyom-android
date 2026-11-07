@@ -63,8 +63,10 @@ internal class VyomFactoryRepositoryChangeExecutor(
 
         checkNotStopped(control)
         val baseRef = request(transport, control, "GET", "/git/ref/heads/${plan.baseBranch}")
-        require(readRefSha(baseRef) == plan.baseCommitSha) {
-            "Registered base commit is no longer the head of the approved branch; inspect and rebind before retrying"
+        if (readRefSha(baseRef) != plan.baseCommitSha) {
+            throw SecurityException(
+                "Registered base commit is no longer the head of the approved branch; inspect and rebind before retrying"
+            )
         }
 
         checkNotStopped(control)
