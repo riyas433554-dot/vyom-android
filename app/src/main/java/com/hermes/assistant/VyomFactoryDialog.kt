@@ -417,9 +417,11 @@ internal class VyomFactoryDialog(
                 // Repository complaints have no executable adapter. Hand the oldest
                 // eligible one to the existing owner-reviewed proposal UI instead of
                 // letting the Android-only runner silently skip it.
-                val ownerReview = VyomFactorySpecialistRouting.nextOwnerReview(triageDecisions) { task ->
-                    isEligibleForRunner(task, journal, retrySchedules, adapter)
-                }
+                val ownerReview = VyomFactorySpecialistRouting.nextOwnerReview(
+                    decisions = triageDecisions,
+                    isRunnerEligible = { task -> isEligibleForRunner(task, journal, retrySchedules, adapter) },
+                    isLocallyApproved = { issueNumber -> pendingRepositoryApprovals.containsKey(issueNumber) }
+                )
                 if (ownerReview != null) {
                     main.post {
                         if (!dialog.isShowing) return@post
@@ -442,7 +444,6 @@ internal class VyomFactoryDialog(
                                 onApproved = { plan, approval ->
                                     worker.execute {
                                         try {
-                                            client.addEvent(plan.issueNumber, VyomFactorySpecialistRouting.OWNER_REVIEW_OPENED_EVENT)
                                             pendingRepositoryApprovals[plan.issueNumber] =
                                                 VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
                                             main.post { runNextTask() }

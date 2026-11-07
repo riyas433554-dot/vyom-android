@@ -83,6 +83,17 @@ class VyomFactorySpecialistRoutingTest {
         assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions))
     }
 
+    @Test fun crashLostLocalApprovalAllowsOwnerReviewAgain() {
+        val decisions = listOf(decision(33, "P1", "2026-11-01T00:00:00Z", repositoryReview()))
+        // A new process has no in-memory approval token, so it must re-open local review.
+        assertEquals(33, VyomFactorySpecialistRouting.nextOwnerReview(decisions)?.task?.number)
+    }
+
+    @Test fun locallyApprovedPlanSkipsReviewRouteUntilRunnerConsumesIt() {
+        val decisions = listOf(decision(34, "P1", "2026-11-01T00:00:00Z", repositoryReview()))
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions, isLocallyApproved = { it == 34 }))
+    }
+
     @Test fun doesNotRouteExecutableOrClarificationDecisionsToRepositoryProposal() {
         val decisions = listOf(
             decision(10, "P0", "2026-10-31T00:00:00Z",
