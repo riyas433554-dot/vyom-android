@@ -45,7 +45,7 @@ class VyomFactorySpecialistRoutingTest {
                 ))
         )
 
-        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions) { it.number == 10 })
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions, isRunnerEligible = { it.number == 10 }))
     }
 
     @Test fun routesHigherPriorityRepositoryReviewBeforeLowerPriorityExecutableTask() {
@@ -60,7 +60,7 @@ class VyomFactorySpecialistRoutingTest {
 
         assertEquals(
             10,
-            VyomFactorySpecialistRouting.nextOwnerReview(decisions) { it.number == 20 }?.task?.number
+            VyomFactorySpecialistRouting.nextOwnerReview(decisions, isRunnerEligible = { it.number == 20 })?.task?.number
         )
     }
 
@@ -81,6 +81,17 @@ class VyomFactorySpecialistRoutingTest {
         )
 
         assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions))
+    }
+
+    @Test fun crashLostLocalApprovalAllowsOwnerReviewAgain() {
+        val decisions = listOf(decision(33, "P1", "2026-11-01T00:00:00Z", repositoryReview()))
+        // A new process has no in-memory approval token, so it must re-open local review.
+        assertEquals(33, VyomFactorySpecialistRouting.nextOwnerReview(decisions)?.task?.number)
+    }
+
+    @Test fun locallyApprovedPlanSkipsReviewRouteUntilRunnerConsumesIt() {
+        val decisions = listOf(decision(34, "P1", "2026-11-01T00:00:00Z", repositoryReview()))
+        assertNull(VyomFactorySpecialistRouting.nextOwnerReview(decisions, isLocallyApproved = { it == 34 }))
     }
 
     @Test fun doesNotRouteExecutableOrClarificationDecisionsToRepositoryProposal() {
