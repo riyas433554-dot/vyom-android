@@ -461,6 +461,9 @@ internal class VyomFactoryDialog(
                     },
                     onCheckpoint = { task, checkpoint, output ->
                         stageDetector.onImplementationCheckpoint(task, checkpoint, output)
+                    },
+                    onVerificationResult = { task, passed, evidence ->
+                        stageDetector.onVerificationResult(task, passed, evidence)
                     }
                 )
                 VyomFactoryDrainCoordinator.drain(

@@ -252,6 +252,22 @@ class VyomFactoryExecutionRunnerTest {
         )
     }
 
+    @Test fun verificationDetectorHookReceivesRealAdapterPostconditionResult() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true, verified = false)
+        val results = mutableListOf<Pair<Boolean, String>>()
+
+        val outcome = fixture.runner(
+            adapter,
+            onVerificationResult = { _, passed, evidence -> results += passed to evidence }
+        ).runNext()
+
+        assertEquals(VyomFactoryExecutionRunner.Outcome.Failed(71, "attempt-1", "execution_error"), outcome)
+        assertEquals(1, results.size)
+        assertFalse(results.single().first)
+        assertTrue(results.single().second.contains("did not verify"))
+    }
+
     @Test fun lateStopAfterVerifiedSideEffectDoesNotEraseSuccess() {
         val fixture = Fixture()
         val stop = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -472,7 +488,8 @@ class VyomFactoryExecutionRunnerTest {
             adapter: VyomFactoryExecutionAdapter,
             prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
             externalStopRequested: () -> Boolean = { false },
-            onCheckpoint: (VyomFactoryGitHubClient.Task, String, String) -> Unit = { _, _, _ -> }
+            onCheckpoint: (VyomFactoryGitHubClient.Task, String, String) -> Unit = { _, _, _ -> },
+            onVerificationResult: (VyomFactoryGitHubClient.Task, Boolean, String) -> Unit = { _, _, _ -> }
         ): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
@@ -494,7 +511,8 @@ class VyomFactoryExecutionRunnerTest {
                 prepareExecution = prepareExecution,
                 externalStopRequested = externalStopRequested,
                 executionPermit = executionPermit,
-                onCheckpoint = onCheckpoint
+                onCheckpoint = onCheckpoint,
+                onVerificationResult = onVerificationResult
             )
         }
     }

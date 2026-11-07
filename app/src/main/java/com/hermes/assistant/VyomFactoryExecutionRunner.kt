@@ -20,7 +20,8 @@ internal class VyomFactoryExecutionRunner(
     private val prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
     private val externalStopRequested: () -> Boolean = { false },
     private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit.PROCESS,
-    private val onCheckpoint: (VyomFactoryGitHubClient.Task, String, String) -> Unit = { _, _, _ -> }
+    private val onCheckpoint: (VyomFactoryGitHubClient.Task, String, String) -> Unit = { _, _, _ -> },
+    private val onVerificationResult: (VyomFactoryGitHubClient.Task, Boolean, String) -> Unit = { _, _, _ -> }
 ) {
     sealed class Outcome {
         data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String, val retryScheduleCleared: Boolean) : Outcome()
@@ -140,8 +141,10 @@ internal class VyomFactoryExecutionRunner(
             }
             safeCheckpoint(remote, "after_adapter_dispatch", result)
             if (!adapters.isVerifiedResult(envelope.target, result)) {
+                safeVerificationResult(remote, false, "Adapter did not verify the requested postcondition: " + result.take(500))
                 throw IllegalStateException("Adapter returned without verifying the requested postcondition")
             }
+            safeVerificationResult(remote, true, result)
             safeCheckpoint(remote, "postcondition_verified", result)
             // The adapter has completed and verified its side effect. A STOP
             // arriving now cannot undo it and must not rewrite verified success.
@@ -194,6 +197,11 @@ internal class VyomFactoryExecutionRunner(
     private fun safeCheckpoint(task: VyomFactoryGitHubClient.Task, checkpoint: String, output: String) {
         // Detector/journal errors are advisory and must never fail the underlying task.
         runCatching { onCheckpoint(task, checkpoint, output) }
+    }
+
+    private fun safeVerificationResult(task: VyomFactoryGitHubClient.Task, passed: Boolean, evidence: String) {
+        // Verification discovery is also advisory; it cannot rewrite the action's verified outcome.
+        runCatching { onVerificationResult(task, passed, evidence) }
     }
 
     private fun isValidPreparedEnvelope(
