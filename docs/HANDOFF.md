@@ -1,3 +1,25 @@
+### Item 7 — verifier + evidence-backed progress — 2026-11-07
+
+<badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
+
+- **Verified code/test HEAD:** `34d92589f3ba0f1e97a782584bbfb0b4e9a2161e` on `feature/factory-item5-task-intelligence`.
+- **Exact-HEAD Full CI:** run `42382150570` — **PASS / SUCCESS**; head SHA exactly matches the verified code/test HEAD. `testDebugUnitTest` + `assembleDebug` passed; build log reports `BUILD SUCCESSFUL in 3m 42s`. Full-history Gitleaks scan and redacted report upload passed.
+- **Exact-HEAD Debug CI:** run `42382150563` — **PASS / SUCCESS**; head SHA exactly matches the verified code/test HEAD. `testDebugUnitTest` + `assembleDebug` passed; build log reports `BUILD SUCCESSFUL in 2m 52s`. The no-APK content-update demo package also built successfully. Debug/signed APK artifact upload and signed-release publication were **SKIPPED by workflow gate**.
+- Full CI artifact: `vyom-phase6-27cc1b81713944d75954e93f188d6d2ae65155a6` (artifact ID `13578655333`, 46,416,623 bytes). This is a CI artifact, not a final APK release or device-install verification. Debug workflow returned no artifacts. No final APK publication is claimed.
+- **Implementation:** added `VyomFactoryVerifiedProgress.kt` and `VyomFactoryVerifiedProgressTest.kt`; `VyomFactoryDialog.kt` now displays a per-task progress percentage, bar and evidence breakdown, refreshes it from runner checkpoints / adapter results / owner probe results, and refreshes after a run.
+- **100% rule:** 100 is emitted only when all explicit acceptance criteria are checked, the latest matching issue+operation journal attempt is SUCCEEDED, its test/postcondition proof is valid, the exact named behavior probe has PASS evidence, and the canonical task status is completed. Repository-change test evidence requires the verified proposal marker, commit SHA, draft PR URL, and the `ProposalCiGatePolicy` success evidence for that **same exact commit SHA**. Android actions require `DeviceActionExecutor.auditState(result) == "verified"`.
+- **Live/negative states:** a CLAIMED / RUNNING / STOP_REQUESTED attempt is shown as RUNNING and earns only partial implementation points; a newer FAILED / INTERRUPTED attempt invalidates an older success. A GitHub task already marked completed without the full proof conjunction is shown as **COMPLETED · UNVERIFIED**, never 100%.
+- **Progress weights:** acceptance criteria 25, implementation 25 (10 while actively running), tests/postcondition 25, named behavior probe 15, started state 5, completed state 5. The final 100 is reserved for the full proof conjunction.
+- **Tests added (11):** all proof gates required for 100; implementation/tests without behavior; active attempt; completed without journal proof; missing exact-SHA CI; CI for a different commit; failed/interrupted attempt; newer failure invalidating older success; unchecked acceptance criteria; changed probe invalidating old evidence; and all evidence before DONE remaining at 95%.
+- **Important limitation:** execution journal is device-local SharedPreferences. Cross-device progress synchronization is **UNVERIFIED / NOT IMPLEMENTED**. Existing GitHub DONE status transition still checks acceptance criteria + owner probe; it can therefore record a completed status without local worker proof, but this progress model labels that state UNVERIFIED and keeps it below 100%. Do not describe this as a server-side completion lock.
+- **Phone-pending checklist — Item 7 (do not execute until owner asks):**
+  1. Open Factory task cards and confirm progress shows the criteria / implementation / tests / behavior breakdown; a started task or commit alone must not show 100%.
+  2. On a test repository proposal, confirm exact-SHA Full + Debug CI evidence is required before the tests gate is marked verified; confirm owner probe PASS is a separate gate.
+  3. Confirm a completed issue without successful local journal proof, or with a newer failed attempt / changed probe, remains **COMPLETED · UNVERIFIED** and below 100%; only the complete proof conjunction reaches 100%.
+- No physical-phone verification, cross-device sync verification, final APK publication, or production release is claimed. Item 8 self-upgrade remains **NOT STARTED**. Android `main`, Render, Hermes backend and production Supabase were not touched.
+
+---
+
 ### Item 6 — repository worker: local approval + live runner integration — 2026-11-07
 
 <badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
@@ -33,7 +55,7 @@
   2. Reject one proposal and confirm no repository PR/write occurs; on a fresh proposal, approve locally and confirm the approval is bound to that exact issue/plan.
   3. Confirm the result is only a draft PR on the registered feature branch with exact-SHA CI evidence; do not merge or install.
 - Worker-model adapter consumes an already-structured proposal; no new model provider or unstructured code generation. Executor remains draft-PR-only and trusted-repository/feature-branch constrained.
-- PR #102 remains open/draft/unmerged, with existing base `feature/memory-intelligence`; no merge, retarget or PR metadata change. Its head branch is this implementation branch, so branch commits are reflected in its diff. Android `main`, Render, backend and production Supabase were not touched. Item 7 was not started.
+- PR #102 remains open/draft/unmerged, with existing base `feature/memory-intelligence`; no merge, retarget or PR metadata change. Its head branch is this implementation branch, so branch commits are reflected in its diff. Android `main`, Render, backend and production Supabase were not touched. Item 7 is recorded above as CODE-VERIFIED / PHONE-PENDING; Item 8 remains NOT STARTED.
 
 ---### Item 5 — exact-HEAD CI verification — 2026-11-07
 
