@@ -334,6 +334,7 @@ internal class SelfModificationClient(
 
         val suffix = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(28).ifBlank { "change" }
         val proposalBranch = "vyom-proposal-${System.currentTimeMillis()}-$suffix"
+        val repositoryOwner = java.net.URI(binding.repositoryUrl).path.trim('/').substringBefore('/')
         request("POST", "/git/refs", token, JSONObject()
             .put("ref", "refs/heads/$proposalBranch")
             .put("sha", baseSha))
@@ -383,7 +384,7 @@ internal class SelfModificationClient(
         } catch (failure: Exception) {
             val recoveredPullRequest = ProposalBranchRecovery.recover(
                 findExistingPullRequest = {
-                    val encodedHead = URLEncoder.encode("riyas433554-dot:$proposalBranch", "UTF-8")
+                    val encodedHead = URLEncoder.encode("$repositoryOwner:$proposalBranch", "UTF-8")
                     val pulls = request(
                         "GET",
                         "/pulls?head=$encodedHead&state=all&per_page=10",
