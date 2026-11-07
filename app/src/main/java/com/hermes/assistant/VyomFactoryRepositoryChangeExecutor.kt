@@ -114,10 +114,10 @@ internal class VyomFactoryRepositoryChangeExecutor(
                     .put("ref", "refs/heads/$branch")
                     .put("sha", commitSha)
             )
+            branchCreated = true
             require(readRefSha(createdRef) == commitSha) {
                 "GitHub created a proposal ref that does not point to the expected commit"
             }
-            branchCreated = true
 
             checkNotStopped(control)
             val verifiedRef = request(transport, control, "GET", "/git/ref/heads/$branch")
@@ -234,8 +234,9 @@ internal class VyomFactoryRepositoryChangeExecutor(
         transport: Transport,
         owner: String,
         branch: String,
-        repositoryUrl: String
-    ): Proposal? {
+        repositoryUrl: String,
+        expectedCommitSha: String
+    ): JSONObject? {
         val head = URLEncoder.encode("$owner:$branch", Charsets.UTF_8.name())
         val response = runCatching {
             transport.request("GET", "/pulls?head=$head&state=all&per_page=10")
@@ -249,9 +250,11 @@ internal class VyomFactoryRepositoryChangeExecutor(
         if (!url.startsWith(repositoryUrl.trimEnd('/') + "/pull/")) {
             throw SecurityException("Recovered pull request does not belong to the registered repository")
         }
-        val sha = found.optJSONObject("head")?.optJSONObject("sha")?.optString("sha").orEmpty()
-        if (!SHA.matches(sha)) return null
-        return Proposal(branch, sha, url, "CI status must be rechecked for the recovered exact commit")
+        val sha = found.optJSONObject("head")?.optString("sha").orEmpty()
+        if (sha != expectedCommitSha) {
+            throw SecurityException("Recovered pull request points to a different proposal commit")
+        }
+        return found
     }
 
     private fun deleteBranchIfStillOurs(transport: Transport, branch: String, commitSha: String) {

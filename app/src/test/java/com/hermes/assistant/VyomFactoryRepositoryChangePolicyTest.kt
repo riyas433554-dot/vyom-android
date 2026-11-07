@@ -149,6 +149,32 @@ class VyomFactoryRepositoryChangePolicyTest {
         assertTrue(main is SecurityException)
         assertTrue(injection is IllegalArgumentException)
     }
+ 
+    @Test fun refusesBuildScriptsAndWorkflowFilesEvenWhenRegistryRootAllowsThem() {
+        val registry = registry(listOf("app", ".github", "scripts"))
+        val buildScript = runCatching {
+            VyomFactoryRepositoryChangePolicy.validate(
+                plan(changes = listOf(VyomFactoryRepositoryChangePolicy.Change("app/build.gradle.kts", "unsafe"))),
+                registry
+            )
+        }.exceptionOrNull()
+        val workflow = runCatching {
+            VyomFactoryRepositoryChangePolicy.validate(
+                plan(changes = listOf(VyomFactoryRepositoryChangePolicy.Change(".github/workflows/ci.yml", "unsafe"))),
+                registry
+            )
+        }.exceptionOrNull()
+        val script = runCatching {
+            VyomFactoryRepositoryChangePolicy.validate(
+                plan(changes = listOf(VyomFactoryRepositoryChangePolicy.Change("scripts/run-tests.sh", "unsafe"))),
+                registry
+            )
+        }.exceptionOrNull()
+
+        assertTrue(buildScript is SecurityException)
+        assertTrue(workflow is SecurityException)
+        assertTrue(script is SecurityException)
+    }
 
     @Test fun refusesOversizedOrEmptyChangeSets() {
         val registry = registry()

@@ -50,7 +50,32 @@ internal object VyomFactoryRepositoryChangePolicy {
         "VyomUpdateClient.kt",
         "VyomShizukuShellClient.kt",
         "VyomShizukuUserService.kt",
-        "AndroidManifest.xml"
+        "AndroidManifest.xml",
+        "build.gradle",
+        "build.gradle.kts",
+        "settings.gradle",
+        "settings.gradle.kts",
+        "gradle.properties",
+        "local.properties",
+        "gradlew",
+        "gradlew.bat",
+        "gradle-wrapper.properties",
+        "gradle-wrapper.jar",
+        ".gitmodules",
+        "Dockerfile",
+        "Makefile",
+        "package.json",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "requirements.txt",
+        "pyproject.toml",
+        "Cargo.toml",
+        "Cargo.lock",
+        "go.mod",
+        "go.sum",
+        "Gemfile",
+        "composer.json"
     )
 
     /**
@@ -136,17 +161,18 @@ internal object VyomFactoryRepositoryChangePolicy {
         val normalized = path.lowercase()
         val fileName = path.substringAfterLast('/')
         if (fileName in protectedFileNames) return true
-        if (normalized.startsWith(".github/workflows/") ||
-            normalized.startsWith(".github/actions/") ||
-            normalized.startsWith("gradle/wrapper/") ||
-            normalized == "gradle.properties" ||
-            normalized == "local.properties" ||
-            normalized == ".env" ||
-            normalized.startsWith(".git/")
-        ) return true
-        if (listOf("/secrets/", "/credentials/", "/signing/", "/keystore/").any(normalized::contains)) {
+        val segments = normalized.split("/")
+        if (segments.any { it in setOf(".github", ".git", "gradle", "buildsrc", "build-logic", "scripts") }) {
             return true
         }
-        return listOf(".jks", ".keystore", ".p12", ".pem", ".key").any(normalized::endsWith)
+        if (normalized == ".env" || normalized.startsWith(".env.") ||
+            segments.any { it in setOf("secrets", "credentials", "signing", "keystore") }
+        ) return true
+        if (normalized.endsWith(".gradle") || normalized.endsWith(".gradle.kts") ||
+            normalized.endsWith(".sh") || normalized.endsWith(".bat") ||
+            normalized.endsWith(".cmd") || normalized.endsWith(".ps1")
+        ) return true
+        return listOf(".jks", ".keystore", ".p12", ".pem", ".key", ".cer", ".crt", ".apk", ".aar", ".jar", ".so", ".dll", ".exe")
+            .any(normalized::endsWith)
     }
 }
