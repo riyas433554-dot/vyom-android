@@ -108,12 +108,14 @@ internal object VyomFactoryTaskIntelligence {
         if (detail.length < 4) null else Finding(stage, kind, detail.take(120), detail)
     }.distinctBy { it.kind to fingerprint(it.detail) }
 
-    fun isIterationLimitReached(task: VyomFactoryGitHubClient.Task): Boolean {
-        val body = cleanBody(task.body)
-        val maximum = maxIterationsPattern.find(body)?.groupValues?.get(1)?.toIntOrNull() ?: DEFAULT_MAX_ITERATIONS
-        val used = iterationsUsedPattern.find(body)?.groupValues?.get(1)?.toIntOrNull()
+    fun maximumIterations(task: VyomFactoryGitHubClient.Task): Int =
+        (maxIterationsPattern.find(cleanBody(task.body))?.groupValues?.get(1)?.toIntOrNull()
+            ?: DEFAULT_MAX_ITERATIONS).coerceIn(1, MAX_ITERATIONS)
+
+    fun isIterationLimitReached(task: VyomFactoryGitHubClient.Task, iterationsUsed: Int? = null): Boolean {
+        val used = iterationsUsed ?: iterationsUsedPattern.find(cleanBody(task.body))?.groupValues?.get(1)?.toIntOrNull()
             ?: task.metadata.events.count { it.startsWith("iteration:") }
-        return used >= maximum.coerceIn(1, MAX_ITERATIONS)
+        return used >= maximumIterations(task)
     }
 
     fun acceptanceCriteriaSatisfied(task: VyomFactoryGitHubClient.Task): Boolean {
