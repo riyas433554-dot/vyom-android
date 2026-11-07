@@ -40,8 +40,9 @@ class VyomFactoryExecutionRunnerTest {
                 "app/src/main/java/com/hermes/assistant/SafeReply.kt", "class SafeReply"
             )), false
         )
+        val workerClock = java.util.concurrent.atomic.AtomicLong(2_000L)
         val approvalStore = VyomFactoryRepositoryApprovalStore(
-            fixture.journal, { 2_000L }, { "repo-nonce-1234567890" }
+            fixture.journal, { workerClock.get() }, { "repo-nonce-1234567890" }
         )
         val approval = approvalStore.issueFromOwnerReview(plan, binding)
         val pending = ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>()
@@ -50,8 +51,8 @@ class VyomFactoryExecutionRunnerTest {
         val executor = VyomFactoryRepositoryChangeExecutor(
             registry = registry,
             transportFactory = { _, _ -> transport },
-            nowMillis = { 2_000L },
-            waitMillis = {}
+            nowMillis = { workerClock.get() },
+            waitMillis = { workerClock.addAndGet(it) }
         )
         val adapter = VyomFactoryRepositoryChangeAdapter(
             registry, "github-token-that-is-long-enough", approvalStore, pending, executor
