@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class SelfModificationClientIntegrationTest {
     private val token = "test-token-that-is-long-enough-for-github"
@@ -15,7 +16,7 @@ class SelfModificationClientIntegrationTest {
         val server = MockWebServer()
         server.start()
         try {
-            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val client = client(server)
             assertRejected {
                 client.createProposal(
                     token, "Change protected behavior",
@@ -34,7 +35,7 @@ class SelfModificationClientIntegrationTest {
         val server = MockWebServer()
         server.start()
         try {
-            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val client = client(server)
             assertRejected {
                 client.createProposal(
                     token = token,
@@ -63,7 +64,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("""{"content":{"sha":"${"b".repeat(40)}"}}"""))
             server.enqueue(json("""{"html_url":"https://github.com/riyas433554-dot/vyom-android/pull/321"}"""))
 
-            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val client = client(server)
             val proposal = client.createProposal(
                 token, "Improve reply formatting",
                 "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
@@ -92,7 +93,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("[]"))
             server.enqueue(MockResponse().setResponseCode(204))
 
-            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val client = client(server)
             assertRejected {
                 client.createProposal(
                     token, "Improve reply formatting",
@@ -126,7 +127,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(MockResponse().setResponseCode(500).setBody("""{"message":"Server error"}"""))
             server.enqueue(json("[]"))
 
-            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val client = client(server)
             assertRejected {
                 client.createProposal(
                     token, "Improve reply formatting",
@@ -159,7 +160,7 @@ class SelfModificationClientIntegrationTest {
                         .put("status", "completed").put("conclusion", "failure").put("id", 2))
                 ).toString()
             ))
-            val client = SelfModificationClient(server.url("/repos/test/repo").toString().trimEnd('/'))
+            val client = client(server)
             assertRejected { client.waitForProposalCi(token, "vyom-proposal-test", 10_000) }
             assertEquals(2, server.requestCount)
             assertRejected { client.waitForProposalCi(token, "vyom-proposal-test", 0) }
@@ -167,6 +168,24 @@ class SelfModificationClientIntegrationTest {
         } finally {
             server.shutdown()
         }
+    }
+
+    private fun client(server: MockWebServer): SelfModificationClient {
+        val registry = VyomFactorySystemRegistry(File.createTempDir())
+        registry.register(
+            VyomFactorySystemRegistry.Binding(
+                systemId = "self-modification",
+                repositoryUrl = "https://github.com/riyas433554-dot/vyom-android",
+                commitSha = "a".repeat(40),
+                allowedPaths = listOf("app/src/main/java/com/hermes/assistant"),
+                registeredAtEpochMs = 1L
+            ),
+            ownerConfirmed = true
+        )
+        return SelfModificationClient(
+            registry = registry,
+            apiRootOverrideForTests = server.url("/repos/test/repo").toString().trimEnd('/')
+        )
     }
 
     private fun json(body: String) = MockResponse()
@@ -181,6 +200,8 @@ class SelfModificationClientIntegrationTest {
         } catch (_: IllegalArgumentException) {
             // expected
         } catch (_: IllegalStateException) {
+            // expected
+        } catch (_: SecurityException) {
             // expected
         }
     }
