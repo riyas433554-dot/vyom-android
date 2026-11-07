@@ -6,10 +6,7 @@ import org.json.JSONArray
 import java.security.MessageDigest
 import java.util.UUID
 
-/**
- * Device-local, plan-bound approval. Only the local owner-review UI issues tokens.
- * Consumed nonces are synchronously persisted before verification returns.
- */
+/** Device-local, plan-bound approval. Only the local owner-review UI issues tokens. */
 internal class VyomFactoryRepositoryApprovalStore(
     private val prefs: SharedPreferences,
     private val nowMillis: () -> Long = System::currentTimeMillis,
@@ -19,36 +16,36 @@ internal class VyomFactoryRepositoryApprovalStore(
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     )
 
-    data class Token internal constructor(
-        val planHash: String,
-        val nonce: String,
-        val expiresAtMillis: Long
-    )
+    data class Token internal constructor(val planHash: String, val nonce: String, val expiresAtMillis: Long)
 
     @Synchronized
-    fun issueFromOwnerReview(plan: VyomFactoryRepositoryChangePolicy.Plan): Token {
-        val now = nowMillis()
+    fun issueFromOwnerReview(
+        plan: VyomFactoryRepositoryChangePolicy.Plan,
+        binding: VyomFactorySystemRegistry.Binding
+    ): Token {
+        require(binding.systemId == plan.systemId && binding.commitSha == plan.baseCommitSha)
         val nonce = nonceFactory()
         require(nonce.matches(Regex("[A-Za-z0-9-]{16,80}")))
         check(!isConsumed(nonce)) { "Approval nonce was already consumed" }
-        return Token(hash(plan), nonce, now + TOKEN_TTL_MS)
+        return Token(hash(plan, binding.repositoryUrl), nonce, nowMillis() + TOKEN_TTL_MS)
     }
 
     @Synchronized
     fun verifyAndConsume(
         plan: VyomFactoryRepositoryChangePolicy.Plan,
+        binding: VyomFactorySystemRegistry.Binding,
         token: Token,
         now: Long = nowMillis()
     ) {
+        require(binding.systemId == plan.systemId && binding.commitSha == plan.baseCommitSha)
         if (now < 0 || token.expiresAtMillis <= now || token.expiresAtMillis - now > TOKEN_TTL_MS) {
             throw SecurityException("Repository approval token expired or has an invalid lifetime")
         }
-        if (!MessageDigest.isEqual(hash(plan).toByteArray(Charsets.US_ASCII), token.planHash.toByteArray(Charsets.US_ASCII))) {
+        val expected = hash(plan, binding.repositoryUrl)
+        if (!MessageDigest.isEqual(expected.toByteArray(Charsets.US_ASCII), token.planHash.toByteArray(Charsets.US_ASCII))) {
             throw SecurityException("Repository approval does not match this exact plan")
         }
-        if (!token.nonce.matches(Regex("[A-Za-z0-9-]{16,80}"))) {
-            throw SecurityException("Repository approval nonce is invalid")
-        }
+        if (!token.nonce.matches(Regex("[A-Za-z0-9-]{16,80}"))) throw SecurityException("Invalid approval nonce")
         if (isConsumed(token.nonce)) throw SecurityException("Repository approval token was already used")
         val consumed = readConsumed().toMutableSet()
         consumed += token.nonce
@@ -78,13 +75,10 @@ internal class VyomFactoryRepositoryApprovalStore(
         }
     }
 
-    internal fun hash(plan: VyomFactoryRepositoryChangePolicy.Plan): String {
+    internal fun hash(plan: VyomFactoryRepositoryChangePolicy.Plan, repositoryUrl: String): String {
         val canonical = buildString {
+            append(repositoryUrl).append('\n')
             append(plan.systemId).append('\n')
-            append(plan.issueNumber).append('\n')
-            append(plan.attemptId).append('\n')
-            append(plan.title).append('\n')
-            append(plan.baseBranch).append('\n')
             append(plan.baseCommitSha).append('\n')
             plan.changes.sortedBy { it.path }.forEach {
                 append(it.path).append('\n')
