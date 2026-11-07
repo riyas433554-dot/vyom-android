@@ -1,9 +1,13 @@
 package com.hermes.assistant
 
 import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.IOException
+import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 class VyomFactoryExecutionRunnerTest {
     @Test fun executesOnlyFreshOpenTaskAndPersistsTerminalSuccess() {
@@ -15,6 +19,51 @@ class VyomFactoryExecutionRunnerTest {
         assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
         assertEquals(1, adapter.calls)
         assertEquals(VyomFactoryExecutionJournal.State.SUCCEEDED, fixture.journal.get("attempt-1")?.state)
+    }
+
+    @Test fun liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult() {
+        val fixture = Fixture(executionTarget = "repository_change", executionOperation = "propose_change",
+            executionArguments = """{"system_id":"worker","title":"Improve safe reply output","base_branch":"feature/memory-intelligence","base_commit_sha":"${"a".repeat(40)}","changes":[{"path":"app/src/main/java/com/hermes/assistant/SafeReply.kt","content":"class SafeReply"}]}""")
+        val baseSha = "a".repeat(40)
+        val commitSha = "b".repeat(40)
+        val registryRoot = File.createTempFile("repo-live-runner", ".tmp").apply { delete(); mkdirs() }
+        val registry = VyomFactorySystemRegistry(registryRoot)
+        val binding = VyomFactorySystemRegistry.Binding(
+            "worker", "https://github.com/riyas433554-dot/vyom-android", baseSha,
+            listOf("app/src/main/java/com/hermes/assistant"), 1L
+        )
+        registry.register(binding, ownerConfirmed = true)
+        val plan = VyomFactoryRepositoryChangePolicy.Plan(
+            "worker", 71, "repo-attempt-12345678", "Improve safe reply output",
+            "feature/memory-intelligence", baseSha,
+            listOf(VyomFactoryRepositoryChangePolicy.Change(
+                "app/src/main/java/com/hermes/assistant/SafeReply.kt", "class SafeReply"
+            )), false
+        )
+        val approvalStore = VyomFactoryRepositoryApprovalStore(
+            fixture.journal, { 2_000L }, { "repo-nonce-1234567890" }
+        )
+        val approval = approvalStore.issueFromOwnerReview(plan, binding)
+        val pending = ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>()
+        pending[71] = VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
+        val transport = RepositoryWorkerTransport(baseSha, commitSha)
+        val executor = VyomFactoryRepositoryChangeExecutor(
+            registry = registry,
+            transportFactory = { _, _ -> transport },
+            nowMillis = { 2_000L },
+            waitMillis = {}
+        )
+        val adapter = VyomFactoryRepositoryChangeAdapter(
+            registry, "github-token-that-is-long-enough", approvalStore, pending, executor
+        )
+
+        val outcome = fixture.runner(adapter).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertTrue(transport.calls.any { it.first == "POST" && it.second == "/pulls" })
+        assertTrue(fixture.journal.get("attempt-1")?.result.orEmpty().contains("repository_proposal_verified:"))
+        assertTrue(fixture.journal.get("attempt-1")?.result.orEmpty().contains(commitSha))
+        assertTrue(fixture.journal.isApprovalNonceConsumed(approval.nonce))
     }
 
     @Test fun executesOwnerStartedInProgressComplaint() {
@@ -426,7 +475,8 @@ class VyomFactoryExecutionRunnerTest {
         remoteMetadataStatus: String = "open",
         executionOperation: String = "safe_action",
         executionArguments: String = "{}",
-        private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit()
+        private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit(),
+        executionTarget: String = "android_action"
     ) {
         var claimRequests = 0
         private val prefs = MemoryPrefs()
@@ -437,12 +487,13 @@ class VyomFactoryExecutionRunnerTest {
         private val metadata = VyomFactoryStatus.Metadata(
             "P2", remoteMetadataStatus, "factory", "src-71", "factory:src-71", listOf("created")
         )
+        private val operationField = if (executionTarget == "android_action") "action" else "operation"
         val remote = VyomFactoryGitHubClient.Task(
             71, "Test execution",
             VyomFactoryStatus.withMetadata(
                 "Execute a bounded action",
                 metadata
-            ) + "\n<!-- VYOM_FACTORY_EXECUTION:{\"schema\":1,\"target\":\"android_action\",\"action\":\"$executionOperation\",\"request\":\"run safe action\",\"arguments\":$executionArguments} -->",
+            ) + "\n<!-- VYOM_FACTORY_EXECUTION:{\"schema\":1,\"target\":\"$executionTarget\",\"$operationField\":\"$executionOperation\",\"request\":\"run safe action\",\"arguments\":$executionArguments} -->",
             remoteState, "https://github.com/example/repo/issues/71", "2026-11-04", metadata
         )
         val journal = VyomFactoryExecutionJournal(prefs, leaseStore)
@@ -515,6 +566,39 @@ class VyomFactoryExecutionRunnerTest {
                 onVerificationResult = onVerificationResult
             )
         }
+    }
+
+    private class RepositoryWorkerTransport(
+        private val baseSha: String,
+        private val commitSha: String
+    ) : VyomFactoryRepositoryChangeExecutor.Transport {
+        val calls = mutableListOf<Pair<String, String>>()
+        override fun request(method: String, path: String, body: JSONObject?): JSONObject {
+            calls += method to path
+            return when {
+                method == "GET" && path == "/git/ref/heads/feature/memory-intelligence" ->
+                    JSONObject().put("object", JSONObject().put("sha", baseSha))
+                method == "GET" && path.startsWith("/git/commits/") ->
+                    JSONObject().put("tree", JSONObject().put("sha", "c".repeat(40)))
+                method == "POST" && path == "/git/trees" -> JSONObject().put("sha", "d".repeat(40))
+                method == "POST" && path == "/git/commits" -> JSONObject().put("sha", commitSha)
+                method == "POST" && path == "/git/refs" ->
+                    JSONObject().put("object", JSONObject().put("sha", commitSha))
+                method == "GET" && path.startsWith("/git/ref/heads/vyom-worker-") ->
+                    JSONObject().put("object", JSONObject().put("sha", commitSha))
+                method == "POST" && path == "/pulls" ->
+                    JSONObject().put("html_url", "https://github.com/riyas433554-dot/vyom-android/pull/99")
+                        .put("head", JSONObject().put("ref", "vyom-worker-71-repo-attempt-12345678"))
+                method == "GET" && path.startsWith("/actions/runs?head_sha=") ->
+                    JSONObject().put("workflow_runs", JSONArray()
+                        .put(workflow("Vyom Android CI"))
+                        .put(workflow("Vyom Android Debug")))
+                else -> error("Unexpected repository worker request: $method $path")
+            }
+        }
+        private fun workflow(name: String) = JSONObject()
+            .put("name", name).put("head_sha", commitSha).put("status", "completed")
+            .put("conclusion", "success").put("id", if (name == "Vyom Android CI") 1 else 2)
     }
 
     private class RecordingAdapter(
