@@ -732,9 +732,14 @@ internal class VyomFactoryDialog(
                 val store = VyomFactoryScreenshotEvidenceStore(
                     File(activity.filesDir, "factory-evidence")
                 )
+                val evidenceRepository = VyomFactoryRepositoryIntake.parseUrl(binding.repositoryUrl)
+                    ?: throw SecurityException("Factory evidence repository binding is invalid")
                 val publisher = VyomFactoryEvidencePublisher(
                     registry,
-                    VyomFactoryGitHubEvidenceTransport(token),
+                    VyomFactoryGitHubEvidenceTransport(
+                        token = token,
+                        repository = "${evidenceRepository.owner}/${evidenceRepository.name}"
+                    ),
                     store
                 )
                 val attachment = publisher.publish(
