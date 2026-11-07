@@ -29,9 +29,13 @@ internal class VyomFactoryRepositoryChangeAdapter(
         control: VyomFactoryExecutionControl
     ): String {
         if (envelope.issueNumber <= 0) throw SecurityException("Repository task identity is missing")
+        if (envelope.operation != "propose_change") throw SecurityException("Unsupported repository worker operation")
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
         val approved = approvedPlans.remove(envelope.issueNumber)
             ?: throw SecurityException("A local owner-review approval token is required")
+        if (approved.plan.issueNumber != envelope.issueNumber) {
+            throw SecurityException("Local approval belongs to a different issue")
+        }
         val binding = registry.get(approved.plan.systemId)
             ?: throw SecurityException("Repository binding disappeared after owner review")
         approvalStore.verifyAndConsume(approved.plan, binding, approved.token)
