@@ -188,6 +188,46 @@ internal class VyomFactoryRepositoryReviewDialog(
                 existing.commitSha == proposedBinding.commitSha &&
                 existing.allowedPaths == proposedBinding.allowedPaths
             val bindingToPersist = if (sameBindingTarget) existing!! else proposedBinding
+            val migrateSystem = existing != null && !sameBindingTarget
+            val repositoryRegistry = VyomFactoryRepositoryRegistry(
+                File(activity.filesDir, "factory-repository-registry")
+            )
+            val persist: (Boolean) -> Unit = { migrate ->
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                worker.execute {
+                    try {
+                        val entry = repositoryRegistry.register(preview, ownerConfirmed = true)
+                        require(entry.canonicalUrl == proposedBinding.repositoryUrl &&
+                            entry.commitSha == proposedBinding.commitSha) {
+                            "Inspected repository snapshot changed before registration"
+                        }
+                        val binding = if (migrate && existing != null) {
+                            registry.migrate(
+                                proposedBinding,
+                                expectedExisting = existing,
+                                ownerConfirmed = true
+                            )
+                        } else {
+                            registry.register(bindingToPersist, ownerConfirmed = true)
+                        }
+                        main.post {
+                            if (finished || activity.isFinishing) return@post
+                            onStatus(
+                                "System '${systemId}' ${if (migrate) "migrated" else "bound"} to " +
+                                    "${binding.repositoryUrl} · ${binding.commitSha.take(12)} · " +
+                                    "${binding.allowedPaths.size} allowed path root(s). Repository execution remains gated."
+                            )
+                            finish()
+                        }
+                    } catch (error: Exception) {
+                        main.post {
+                            if (finished || activity.isFinishing) return@post
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                            onStatus("System binding failed · ${error.message?.take(180) ?: error.javaClass.simpleName}")
+                        }
+                    }
+                }
+            }
             if (migrateSystem && existing != null) {
                 AlertDialog.Builder(activity)
                     .setTitle("MIGRATE SYSTEM BINDING?")
