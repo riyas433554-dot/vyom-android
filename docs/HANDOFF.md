@@ -1,32 +1,37 @@
 ### Item 6 — repository worker: local approval + live runner integration — 2026-11-07
 
-<badge color="warning">PARTIAL / PHONE-PENDING</badge>
+<badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
 
-- **Previous verified code/test HEAD:** `801c6aede5cb09200a1063a24833bf0246c9aebb` (Full `42373914181` PASS; Debug `42373914186` PASS).
-- **Current code/test HEAD:** `0e9d2b40c4766a46f4f647df207befabd8dd9ffd` (test-only resource-limit coverage). Exact-HEAD Full CI `42378140652` and Debug CI `42378140654` were triggered; both were still IN_PROGRESS at the latest check. No PASS is claimed yet.
-- **Duration baseline:** On `271d2df9589d5835e94d78d25f73223441816b3c`, Full `42373582266` PASS (261 sec), Debug `42373582268` PASS (330 sec). Latest runs are below 2× baseline (522 / 660 sec); neither was suspected stuck.
+- **Verified code/test SHA:** `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`.
+- **Exact-HEAD Full CI:** run `42378140652` — **PASS / SUCCESS**; run head SHA exactly matches the verified code/test SHA.
+- **Exact-HEAD Debug CI:** run `42378140654` — **PASS / SUCCESS**; run head SHA exactly matches the verified code/test SHA.
+- Both workflow runs and their sole `debug` jobs completed with conclusion `success`. Full CI completed secret scan, full reachable-history Gitleaks scan/report upload, unit tests/debug APK, packaging/checksum and debug APK upload. Debug CI completed build/tests, APK packaging and no-APK content-update demo package; its debug/signed artifact upload and release publication steps were skipped by the workflow gate (not failures). No physical-phone test or final APK publication is claimed.
 - **Approval flow:** local structured review dialog → plan-bound local token → worker-model adapter interface → token-verifying repository adapter → `VyomFactoryRepositoryChangeExecutor` → existing runner journal `succeed()`.
-- **Approval security:** `VyomFactoryRepositoryChangeReviewDialog.kt` shows repo URL, immutable base branch + short SHA, all file paths and max three summary lines. Only local APPROVE issues a token. Token binds repo/system/issue/attempt/title/branch/base SHA/sorted paths/content hashes, nonce and expiry. Nonce state is persisted in `VyomFactoryExecutionJournal`; consumption is single-use and fail-closed across store recreation.
-- **Trust boundary / grep proof:** `VyomFactoryExecutionEnvelope.kt` has no `ownerApproved`; review parser explicitly sets `ownerApproved=false` and never reads the issue field; `VyomFactoryRepositoryChangeAdapter.kt` verifies/consumes the local token before its only `ownerApproved=true` assignment. Adapter also checks exact issue identity and `propose_change`. MainActivity legacy `openFactoryCodeProposal` / self-modification code was not edited. Repository-task route in `VyomFactoryDialog.kt` uses the new review dialog.
-- **Coverage matrix (all rows refer to code/test HEAD above):**
-  - Issue JSON `ownerApproved=true` ignored — PASS: `VyomFactoryRepositoryChangeReviewDialogTest.issueOwnerApprovedTrueIsIgnoredAndNeverCreatesLocalApproval`.
-  - No local token — PASS: `VyomFactoryRepositoryChangeAdapterTest.rejectsWithoutLocalTokenEvenWhenIssueEnvelopeIsExecutable`.
-  - Tampered plan/hash — PASS: `VyomFactoryRepositoryApprovalTest.bindsRepositoryBasePathAndContentHash` (tampered content and repository binding rejected).
-  - Replay — PASS: `VyomFactoryRepositoryApprovalTest.consumesOnceAndPersistsAcrossStoreRecreation`.
-  - Expiry — PASS: `VyomFactoryRepositoryApprovalTest.expiredTokenIsRejected`.
-  - Restart-consumed nonce — PASS: `VyomFactoryRepositoryApprovalTest.consumesOnceAndPersistsAcrossStoreRecreation`; persistence failure fail-closed: `consumedNonceCommitFailureFailsClosed`.
-  - STOP — PASS: `VyomFactoryRepositoryChangeAdapterTest.stopBlocksBeforeApprovalNonceCanBeConsumed`; runner STOP: `VyomFactoryExecutionRunnerTest.externalStopAfterConsentSkipsBeforeJournalAndSideEffect`.
-  - Timeout — PASS: `VyomFactoryRepositoryChangeExecutorTest.timesOutWhenExactShaCiNeverCompletes`.
-  - Crash recovery — PASS: `VyomFactoryExecutionJournalTest.reopenedJournalRecoversExpiredStopRequestedAttemptWithoutReplay` and `startupRecoveryInterruptsExpiredAttemptsWithoutReplayingOrTouchingLiveLeases`.
-  - Path traversal — PASS: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathTraversalBeforeShowingAnApprovalDialog` and `VyomFactoryRepositoryChangePolicyTest.refusesTraversalAndDuplicatePaths`.
-  - Unauthorized path — PASS: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathOutsideTheRegisteredRootBeforeShowingAnApprovalDialog` and `VyomFactoryRepositoryChangePolicyTest.refusesPathsOutsideSystemAllowedRoots`.
-  - Duplicate execution — PASS: `VyomFactoryExecutionRunnerTest.liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult`; journal fencing: `VyomFactoryExecutionJournalTest.beginRejectsSecondNonterminalAttemptForSameIssueAndLease`.
-  - File/resource limits — new tests added at code/test HEAD `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`: `refusesMoreThanMaximumFileCount` verifies 21 files are rejected; `refusesAggregateContentAboveMaximumAcrossIndividuallyValidFiles` verifies 500,001 aggregate characters while each file remains below the 200,000 per-file cap. Exact-HEAD Full `42378140652` and Debug `42378140654` are pending; mark PASS only after both complete successfully.
-  - Worker-model adapter interface — PRESENT: separate `VyomFactoryRepositoryWorkerModelAdapter` fun interface in `VyomFactoryRepositoryWorkerModelAdapter.kt`; STOP test: `VyomFactoryRepositoryWorkerModelAdapterTest.stopPreventsModelProposalParsing`. No provider integration was requested or added.
-  - Review UI fields — PASS by source: `VyomFactoryRepositoryChangeReviewDialog.kt` lines 46–53 (repo, base SHA, all paths, max 3 summary lines).
-- **Status decision:** Item 6 remains **PARTIAL / PHONE-PENDING** until exact-HEAD Full `42378140652` and Debug `42378140654` both PASS on code/test SHA `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`. The missing limit tests are now present; CI completion is the remaining code-verification gate.
-- **Commit checkpoints:** `0e9d2b40c4766a46f4f647df207befabd8dd9ffd` adds explicit max-file-count and aggregate-content-limit tests; `75f198e268d6def7f2fa03cf1187af193667cf0e` token core; `300c3da84fc2ac1c2091f0435dda924b1497bf7b` review UI; `6d81e2d309cd4986da4240d8106d37742124d1a7` runner wiring; `35749950b2981606c8c5b4fb6e3c79a406c19dc5` STOP/timeout tests; `3f8980cac49cec93ea424c54ce15a41ff1ed7888` restart route; `db391f6f42f5503712b78c037e0ecdba39836b34` hash/traversal; `29b1fbb03f70f126c2d5fe868f8db28a91e3d6c0` / `36ffb2de33cd2e9b82b2b9a0ca2a3fbdb43a150f` durable nonce; `bd4aee0d0cc36a618ff87d8d903cd1e35700a267` replay fence; `000794bd59d7fedac8f682be9cad3d40cd1d04d6` routing test compile fix; `cfdf0010ee8f899fa5694dfdfcde43226b6a5cbd` live runner integration; `10e61062322c11d0a7e3c982223df720357917b4` unauthorized root/duplicate dispatch; `271ad4e506cf427a0c17a42933bdd46bb70ee675` reject persistence; `4581b96dab6bdc0617f03ef090a795119f798500` all file paths displayed; `271d2df9589d5835e94d78d25f73223441816b3c` exact issue/operation binding; `801c6aede5cb09200a1063a24833bf0246c9aebb` bounded fake CI clock and exact-HEAD Full/Debug pass.
-- **Phone-pending checklist:** (1) Open Vyom Factory on paired phone with a structured repository-change task. (2) Verify repo/base SHA/all paths/summary; Reject, then open fresh task and Approve locally. (3) Confirm only a draft PR on registered feature branch with exact-SHA CI evidence; do not merge/install.
+- **Coverage matrix — all rows below refer to verified code/test SHA `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`:**
+  - Issue JSON `ownerApproved=true` ignored — **PASS**: `VyomFactoryRepositoryChangeReviewDialogTest.issueOwnerApprovedTrueIsIgnoredAndNeverCreatesLocalApproval`.
+  - No local token — **PASS**: `VyomFactoryRepositoryChangeAdapterTest.rejectsWithoutLocalTokenEvenWhenIssueEnvelopeIsExecutable`.
+  - Tampered plan/hash and repository binding — **PASS**: `VyomFactoryRepositoryApprovalTest.bindsRepositoryBasePathAndContentHash`.
+  - Replay / single-use nonce — **PASS**: `VyomFactoryRepositoryApprovalTest.consumesOnceAndPersistsAcrossStoreRecreation`.
+  - Expiry — **PASS**: `VyomFactoryRepositoryApprovalTest.expiredTokenIsRejected`.
+  - Consumed nonce after restart and persistence failure fail-closed — **PASS**: `consumesOnceAndPersistsAcrossStoreRecreation`, `consumedNonceCommitFailureFailsClosed`.
+  - STOP before token consumption / before side effect — **PASS**: `VyomFactoryRepositoryChangeAdapterTest.stopBlocksBeforeApprovalNonceCanBeConsumed`, `VyomFactoryExecutionRunnerTest.externalStopAfterConsentSkipsBeforeJournalAndSideEffect`.
+  - Exact-SHA CI timeout — **PASS**: `VyomFactoryRepositoryChangeExecutorTest.timesOutWhenExactShaCiNeverCompletes`.
+  - Crash/restart recovery without replay — **PASS**: `VyomFactoryExecutionJournalTest.reopenedJournalRecoversExpiredStopRequestedAttemptWithoutReplay`, `startupRecoveryInterruptsExpiredAttemptsWithoutReplayingOrTouchingLiveLeases`.
+  - Path traversal and duplicate paths — **PASS**: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathTraversalBeforeShowingAnApprovalDialog`, `VyomFactoryRepositoryChangePolicyTest.refusesTraversalAndDuplicatePaths`.
+  - Unauthorized/out-of-registry path — **PASS**: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathOutsideTheRegisteredRootBeforeShowingAnApprovalDialog`, `VyomFactoryRepositoryChangePolicyTest.refusesPathsOutsideSystemAllowedRoots`.
+  - Duplicate execution / journal lease fencing — **PASS**: `VyomFactoryExecutionRunnerTest.liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult`, `VyomFactoryExecutionJournalTest.beginRejectsSecondNonterminalAttemptForSameIssueAndLease`.
+  - Per-file size and empty set — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesOversizedOrEmptyChangeSets`.
+  - Maximum file count — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesMoreThanMaximumFileCount` verifies 21 files are rejected against the 20-file cap.
+  - Aggregate content limit — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesAggregateContentAboveMaximumAcrossIndividuallyValidFiles` verifies 500,001 aggregate characters while each file remains below the 200,000 per-file cap.
+  - Worker-model adapter interface — **PRESENT**: `VyomFactoryRepositoryWorkerModelAdapter` is a separate `fun interface`; STOP-before-parse test `VyomFactoryRepositoryWorkerModelAdapterTest.stopPreventsModelProposalParsing` is present. No provider integration was requested or added.
+  - Issue-controlled approval bypass / source grep — **PASS for the new repository-change path**: `VyomFactoryExecutionEnvelope.kt` contains no `ownerApproved`; `parseCandidate` in `VyomFactoryRepositoryChangeReviewDialog.kt` explicitly sets `ownerApproved=false` and does not read the issue field; the only `ownerApproved=true` assignment is in `VyomFactoryRepositoryChangeAdapter.kt`, after local token removal, issue identity check and `verifyAndConsume`. Test with issue JSON `ownerApproved=true` confirms it is ignored. **Scope note:** legacy `MainActivity.openFactoryCodeProposal` / `onProposeFix` self-modification UI remains present and untouched as explicitly required; it is a separate manually invoked legacy route, not evidence that the issue field can approve the new repository-change adapter.
+  - Review dialog fields — **PASS by source**: `VyomFactoryRepositoryChangeReviewDialog.kt` lines 46–53 show repository URL, immutable base branch + short SHA, all file paths and at most three summary lines. Only the local APPROVE button issues the approval token.
+- **Missing coverage:** none in the Item 6 matrix above. All required matrix rows are covered by source checks/tests, and exact-HEAD Full + Debug CI both pass.
+- **Status:** Item 6 is **CODE-VERIFIED / PHONE-PENDING** on code/test SHA `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`. This HANDOFF-only commit is documentation synchronization; CI verification applies to the code/test SHA above, not this docs-only commit.
+- **Phone-pending checklist — Item 6 (do not execute until owner asks):**
+  1. On the paired phone, open a structured repository-change task and confirm the dialog displays the registered repository, immutable base SHA, every proposed path and no more than three summary lines.
+  2. Reject one proposal and confirm no repository PR/write occurs; on a fresh proposal, approve locally and confirm the approval is bound to that exact issue/plan.
+  3. Confirm the result is only a draft PR on the registered feature branch with exact-SHA CI evidence; do not merge or install.
 - Worker-model adapter consumes an already-structured proposal; no new model provider or unstructured code generation. Executor remains draft-PR-only and trusted-repository/feature-branch constrained.
 - PR #102 remains open/draft/unmerged, with existing base `feature/memory-intelligence`; no merge, retarget or PR metadata change. Its head branch is this implementation branch, so branch commits are reflected in its diff. Android `main`, Render, backend and production Supabase were not touched. Item 7 was not started.
 
@@ -38,6 +43,12 @@
 - Both exact-head runs completed below the stuck thresholds (2× prior duration and 40 minutes). No cancel/rerun was performed. No source changes were made during monitoring.
 - Item 5 is **CODE-VERIFIED** on implementation HEAD `02e3f205a6ff8ece1d1741a6003139392953f3cd`. This does not upgrade automatic stage-by-stage detector invocation: no autonomous planner/implementation/test producer is wired to call `createDetectedTasks`; that remains **UNVERIFIED / NOT COMPLETE**. No physical-device verification or final APK publication is claimed.
 - No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+- **Item 5 phone/runtime acceptance remains pending.** Automatic invocation of the stage detector by autonomous planning, each implementation checkpoint and test/verification producer remains **NOT IMPLEMENTED / NOT VERIFIED**; do not infer that gap is closed from the Item 5 CI pass.
+- **Phone-pending checklist — Item 5 (do not execute until owner asks):**
+  1. On the paired phone, create linked tasks with `Blocked by: #N` prerequisites and a cyclic pair; confirm ready tasks respect dependencies and cyclic tasks remain blocked.
+  2. Exercise a task with unchecked acceptance criteria and the configured iteration cap; confirm DONE is blocked until criteria are checked and retries stop at the cap.
+  3. Probe planning, implementation-checkpoint and verification outputs containing `[BUG]`, `[MISSING_FEATURE]` and `[IDEA]`; record whether separate deduplicated tasks appear. **Automatic stage-hook wiring is not complete, so this is a gap probe, not an expected PASS.**
 
 ---
 
