@@ -29,7 +29,7 @@ class VyomFactoryTaskIntelligenceTest {
         val finding = VyomFactoryTaskIntelligence.Finding(VyomFactoryTaskIntelligence.Stage.IMPLEMENTATION, VyomFactoryTaskIntelligence.FindingKind.IDEA, "Add passkey login", "Support passkey authentication")
         val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parent.number, finding, listOf(parent))
         assertNotNull(proposal); assertEquals(10, proposal!!.parentIssueNumber)
-        assertNotEquals(parent.title, proposal.title); assertEquals("Support passkey authentication", proposal.description)
+        assertNotEquals(parent.title, proposal.title); assertTrue(proposal.description.contains("Support passkey authentication")); assertTrue(proposal.description.contains("This is a separate task"))
         assertTrue(parent.body.contains("Current scope: fix login crash"))
     }
     @Test fun detectorAcceptsPlanningImplementationAndTestingStageMarkers() {
