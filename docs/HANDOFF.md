@@ -1,48 +1,34 @@
 ### Item 6 — repository worker: local approval + live runner integration — 2026-11-07
 
-<badge>CODE-VERIFIED / PHONE-PENDING</badge>
+<badge color="warning">PARTIAL / PHONE-PENDING</badge>
 
-- **Verified code/test SHA:** `801c6aede5cb09200a1063a24833bf0246c9aebb` on `feature/factory-item5-task-intelligence`.
-- **Exact-HEAD CI:** Full `42373914181` — SUCCESS; Debug `42373914186` — SUCCESS. Both runs target the same exact SHA above. Earlier failed/cancelled runs are not used as proof.
-- Commit checkpoints:
-  - `75f198e268d6def7f2fa03cf1187af193667cf0e`: local approval token core, candidate-only repository policy validation and token tests.
-  - `300c3da84fc2ac1c2091f0435dda924b1497bf7b`: structured local repository review UI and test proving issue JSON `ownerApproved=true` is ignored.
-  - `6d81e2d309cd4986da4240d8106d37742124d1a7`: live runner adapter wiring and worker-model proposal interface.
-  - `35749950b2981606c8c5b4fb6e3c79a406c19dc5`: adapter STOP and exact-SHA CI timeout tests.
-  - `3f8980cac49cec93ea424c54ce15a41ff1ed7888`: process-restart route correction; loss of in-memory approval reopens owner review.
-  - `db391f6f42f5503712b78c037e0ecdba39836b34`: full plan hash binding, traversal test and exact Gitleaks false-positive fingerprints.
-  - `29b1fbb03f70f126c2d5fe868f8db28a91e3d6c0` / `36ffb2de33cd2e9b82b2b9a0ca2a3fbdb43a150f`: approval nonce issue/consume/expiry/hash records moved into the existing `VyomFactoryExecutionJournal`; restart and failed-persistence tests.
-  - `bd4aee0d0cc36a618ff87d8d903cd1e35700a267`: pre-approved candidate plans rejected; journal history fences duplicate repository attempts.
-  - `000794bd59d7fedac8f682be9cad3d40cd1d04d6`: fixed CI-discovered named-callback mismatch in routing tests.
-  - `cfdf0010ee8f899fa5694dfdfcde43226b6a5cbd`: live runner integration test proves approved repository plan dispatches to executor and result reaches `journal.succeed()`.
-  - `10e61062322c11d0a7e3c982223df720357917b4`: end-to-end unauthorized-root rejection and duplicate repository dispatch prevention tests.
-  - `271ad4e506cf427a0c17a42933bdd46bb70ee675`: Reject persists deferred status in task metadata.
-  - `4581b96dab6bdc0617f03ef090a795119f798500`: review UI displays every approved file path.
-  - `271d2df9589d5835e94d78d25f73223441816b3c`: repository adapter bound to exact issue and `propose_change` operation.
-  - `801c6aede5cb09200a1063a24833bf0246c9aebb`: bounded fake CI clock in the live-worker integration test; Full + Debug exact-HEAD CI both PASS.
-- Approval security:
-  - `VyomFactoryRepositoryChangeReviewDialog.kt` displays registered repo URL, base branch + short immutable SHA, every file path and max three summary lines. Only local APPROVE issues the token; REJECT/cancel do not.
-  - `VyomFactoryRepositoryApproval.kt` creates a five-minute token bound to repo URL, system, issue/attempt/title/branch, immutable base SHA, sorted paths and file-content hashes.
-  - Approval nonce, plan hash, expiry and consumed timestamp are persisted by `VyomFactoryExecutionJournal`; consumption is synchronous, single-use and fail-closed across process restart.
-  - `VyomFactoryRepositoryChangeAdapter.kt` requires a pending local token, checks STOP, verifies/consumes it, checks exact issue and operation, and only then creates the internally trusted plan passed to `VyomFactoryRepositoryChangeExecutor`. It never reads issue-controlled approval fields.
-  - Grep/source audit: `VyomFactoryExecutionEnvelope.kt` has no `ownerApproved` reference; review parser reads proposal fields only and explicitly sets `ownerApproved=false`; adapter's only assignment to true occurs after token verification/consumption.
-  - `VyomFactoryRepositoryWorkerModelAdapter.kt` defines the worker-model output boundary. Current implementation adapts a structured repository-change proposal already present in the issue; no new model provider was integrated. Unstructured requests remain manual review.
-  - `VyomFactoryDialog.kt` routes repository specialist tasks through the new dialog and live runner. Legacy `MainActivity.openFactoryCodeProposal` / self-modification code was not edited.
-- Test coverage:
-  - `VyomFactoryRepositoryApprovalTest`: hash/repo tamper, expiry, replay, journal recreation, persistence failure.
-  - `VyomFactoryRepositoryChangeReviewDialogTest`: issue JSON `ownerApproved=true` ignored; traversal and out-of-root paths rejected before approval.
-  - `VyomFactoryRepositoryChangeAdapterTest`: no token rejection and STOP before nonce consumption.
-  - `VyomFactoryRepositoryWorkerModelAdapterTest`: STOP before proposal parsing.
-  - `VyomFactoryExecutionRunnerTest.liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult`: live runner → adapter → executor → journal success, plus duplicate dispatch skipped without a second PR.
-  - `VyomFactoryRepositoryChangeExecutorTest`: exact-SHA CI timeout.
-  - Existing policy/journal/runner tests cover resource/file limits, protected paths, duplicate attempts, expired-lease crash recovery, STOP and no automatic replay.
-- Gitleaks: earlier Full CI identified three historical false positives (a deliberately fake API-key fixture and commit-SHA strings in handoff docs) attributed to temporary tree-restoration commit `c77ed5a423082212157e480f92c3497a65d45384`. Exact commit/path/rule/line fingerprints are allowlisted; no secret values were added. Full-history scan passes on verified SHA.
-- **Phone-pending checklist (max 3 steps):**
-  1. Open Vyom Factory on the paired phone and use a repository task with a structured `repository_change` proposal on the locally bound repository.
-  2. Verify repo URL, branch + short base SHA, all paths and ≤3-line summary; test REJECT once, then open a fresh task and APPROVE locally.
-  3. Confirm the runner creates only a draft PR on the registered feature branch with exact-SHA CI evidence; do not merge or install.
-- **Remaining limitation:** the worker-model interface currently consumes an already-structured proposal; it does not generate file contents from an unstructured request. Repository executor remains draft-PR-only and trusted-repository/feature-branch constrained.
-- PR #102 remains open/draft/unmerged with its existing base `feature/memory-intelligence`; no merge, retarget or PR metadata edit was performed. Its head branch is this implementation branch, so its diff advances with these commits. Android `main`, Render, backend and production Supabase were not touched. Item 7 was not started.
+- **Code/test HEAD:** `801c6aede5cb09200a1063a24833bf0246c9aebb`.
+- **Exact-HEAD CI:** Full `42373914181` PASS (277 sec); Debug `42373914186` PASS (409 sec). Both target the exact code/test SHA above.
+- **Duration baseline:** On `271d2df9589d5835e94d78d25f73223441816b3c`, Full `42373582266` PASS (261 sec), Debug `42373582268` PASS (330 sec). Latest runs are below 2× baseline (522 / 660 sec); neither was suspected stuck.
+- **Approval flow:** local structured review dialog → plan-bound local token → worker-model adapter interface → token-verifying repository adapter → `VyomFactoryRepositoryChangeExecutor` → existing runner journal `succeed()`.
+- **Approval security:** `VyomFactoryRepositoryChangeReviewDialog.kt` shows repo URL, immutable base branch + short SHA, all file paths and max three summary lines. Only local APPROVE issues a token. Token binds repo/system/issue/attempt/title/branch/base SHA/sorted paths/content hashes, nonce and expiry. Nonce state is persisted in `VyomFactoryExecutionJournal`; consumption is single-use and fail-closed across store recreation.
+- **Trust boundary / grep proof:** `VyomFactoryExecutionEnvelope.kt` has no `ownerApproved`; review parser explicitly sets `ownerApproved=false` and never reads the issue field; `VyomFactoryRepositoryChangeAdapter.kt` verifies/consumes the local token before its only `ownerApproved=true` assignment. Adapter also checks exact issue identity and `propose_change`. MainActivity legacy `openFactoryCodeProposal` / self-modification code was not edited. Repository-task route in `VyomFactoryDialog.kt` uses the new review dialog.
+- **Coverage matrix (all rows refer to code/test HEAD above):**
+  - Issue JSON `ownerApproved=true` ignored — PASS: `VyomFactoryRepositoryChangeReviewDialogTest.issueOwnerApprovedTrueIsIgnoredAndNeverCreatesLocalApproval`.
+  - No local token — PASS: `VyomFactoryRepositoryChangeAdapterTest.rejectsWithoutLocalTokenEvenWhenIssueEnvelopeIsExecutable`.
+  - Tampered plan/hash — PASS: `VyomFactoryRepositoryApprovalTest.bindsRepositoryBasePathAndContentHash` (tampered content and repository binding rejected).
+  - Replay — PASS: `VyomFactoryRepositoryApprovalTest.consumesOnceAndPersistsAcrossStoreRecreation`.
+  - Expiry — PASS: `VyomFactoryRepositoryApprovalTest.expiredTokenIsRejected`.
+  - Restart-consumed nonce — PASS: `VyomFactoryRepositoryApprovalTest.consumesOnceAndPersistsAcrossStoreRecreation`; persistence failure fail-closed: `consumedNonceCommitFailureFailsClosed`.
+  - STOP — PASS: `VyomFactoryRepositoryChangeAdapterTest.stopBlocksBeforeApprovalNonceCanBeConsumed`; runner STOP: `VyomFactoryExecutionRunnerTest.externalStopAfterConsentSkipsBeforeJournalAndSideEffect`.
+  - Timeout — PASS: `VyomFactoryRepositoryChangeExecutorTest.timesOutWhenExactShaCiNeverCompletes`.
+  - Crash recovery — PASS: `VyomFactoryExecutionJournalTest.reopenedJournalRecoversExpiredStopRequestedAttemptWithoutReplay` and `startupRecoveryInterruptsExpiredAttemptsWithoutReplayingOrTouchingLiveLeases`.
+  - Path traversal — PASS: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathTraversalBeforeShowingAnApprovalDialog` and `VyomFactoryRepositoryChangePolicyTest.refusesTraversalAndDuplicatePaths`.
+  - Unauthorized path — PASS: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathOutsideTheRegisteredRootBeforeShowingAnApprovalDialog` and `VyomFactoryRepositoryChangePolicyTest.refusesPathsOutsideSystemAllowedRoots`.
+  - Duplicate execution — PASS: `VyomFactoryExecutionRunnerTest.liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult`; journal fencing: `VyomFactoryExecutionJournalTest.beginRejectsSecondNonterminalAttemptForSameIssueAndLease`.
+  - File/resource limits — PARTIAL: PASS for oversized single-file content / empty set: `VyomFactoryRepositoryChangePolicyTest.refusesOversizedOrEmptyChangeSets`. **MISSING** explicit tests for the 20-file cap and 500,000-character aggregate cap; production guards exist in `VyomFactoryRepositoryChangePolicy.kt`.
+  - Worker-model adapter interface — PRESENT: separate `VyomFactoryRepositoryWorkerModelAdapter` fun interface in `VyomFactoryRepositoryWorkerModelAdapter.kt`; STOP test: `VyomFactoryRepositoryWorkerModelAdapterTest.stopPreventsModelProposalParsing`. No provider integration was requested or added.
+  - Review UI fields — PASS by source: `VyomFactoryRepositoryChangeReviewDialog.kt` lines 46–53 (repo, base SHA, all paths, max 3 summary lines).
+- **Status decision:** do **not** mark Item 6 CODE-VERIFIED yet. Exact-HEAD Full + Debug pass, but the explicit file-count and aggregate-content limit tests are missing. Add those tests and run Full + Debug on the resulting exact HEAD before changing this status.
+- **Commit checkpoints:** `75f198e268d6def7f2fa03cf1187af193667cf0e` token core; `300c3da84fc2ac1c2091f0435dda924b1497bf7b` review UI; `6d81e2d309cd4986da4240d8106d37742124d1a7` runner wiring; `35749950b2981606c8c5b4fb6e3c79a406c19dc5` STOP/timeout tests; `3f8980cac49cec93ea424c54ce15a41ff1ed7888` restart route; `db391f6f42f5503712b78c037e0ecdba39836b34` hash/traversal; `29b1fbb03f70f126c2d5fe868f8db28a91e3d6c0` / `36ffb2de33cd2e9b82b2b9a0ca2a3fbdb43a150f` durable nonce; `bd4aee0d0cc36a618ff87d8d903cd1e35700a267` replay fence; `000794bd59d7fedac8f682be9cad3d40cd1d04d6` routing test compile fix; `cfdf0010ee8f899fa5694dfdfcde43226b6a5cbd` live runner integration; `10e61062322c11d0a7e3c982223df720357917b4` unauthorized root/duplicate dispatch; `271ad4e506cf427a0c17a42933bdd46bb70ee675` reject persistence; `4581b96dab6bdc0617f03ef090a795119f798500` all file paths displayed; `271d2df9589d5835e94d78d25f73223441816b3c` exact issue/operation binding; `801c6aede5cb09200a1063a24833bf0246c9aebb` bounded fake CI clock and exact-HEAD Full/Debug pass.
+- **Phone-pending checklist:** (1) Open Vyom Factory on paired phone with a structured repository-change task. (2) Verify repo/base SHA/all paths/summary; Reject, then open fresh task and Approve locally. (3) Confirm only a draft PR on registered feature branch with exact-SHA CI evidence; do not merge/install.
+- Worker-model adapter consumes an already-structured proposal; no new model provider or unstructured code generation. Executor remains draft-PR-only and trusted-repository/feature-branch constrained.
+- PR #102 remains open/draft/unmerged, with existing base `feature/memory-intelligence`; no merge, retarget or PR metadata change. Its head branch is this implementation branch, so branch commits are reflected in its diff. Android `main`, Render, backend and production Supabase were not touched. Item 7 was not started.
 
 ---### Item 5 — exact-HEAD CI verification — 2026-11-07
 
