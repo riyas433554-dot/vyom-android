@@ -118,6 +118,23 @@ class VyomFactoryRepositoryChangeExecutorTest {
         assertTrue(transport.calls.any { it.method == "POST" && it.path == "/pulls" })
     }
 
+    @Test fun timesOutWhenExactShaCiNeverCompletes() {
+        val clock = java.util.concurrent.atomic.AtomicLong(0L)
+        val transport = RecordingTransport(baseSha, commitSha, ciAvailable = false)
+        val timedExecutor = VyomFactoryRepositoryChangeExecutor(
+            registry = registry(),
+            transportFactory = { _, _ -> transport },
+            nowMillis = { clock.get() },
+            waitMillis = { clock.addAndGet(it) }
+        )
+        val error = runCatching {
+            timedExecutor.execute(plan(), TOKEN, NeverStop, timeoutMillis = 1_000)
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalStateException)
+        assertTrue(error?.message.orEmpty().contains("Timed out waiting for exact-SHA"))
+    }
+
     @Test fun rejectsPullRequestUrlOutsideRegisteredRepository() {
         val transport = RecordingTransport(baseSha, commitSha, pullUrl = "https://github.com/other/repo/pull/72")
         val error = runCatching {
@@ -141,7 +158,8 @@ class VyomFactoryRepositoryChangeExecutorTest {
         private val baseSha: String,
         private val commitSha: String,
         private val ciConclusion: String = "success",
-        private val pullUrl: String = "https://github.com/riyas433554-dot/vyom-android/pull/72"
+        private val pullUrl: String = "https://github.com/riyas433554-dot/vyom-android/pull/72",
+        private val ciAvailable: Boolean = true
     ) : VyomFactoryRepositoryChangeExecutor.Transport {
         data class Call(val method: String, val path: String, val body: JSONObject?)
         val calls = mutableListOf<Call>()
@@ -165,9 +183,9 @@ class VyomFactoryRepositoryChangeExecutorTest {
                     JSONObject().put("html_url", pullUrl)
                         .put("head", JSONObject().put("ref", "vyom-worker-71-attempt-12345678"))
                 method == "GET" && path.startsWith("/actions/runs?head_sha=") -> {
-                    val runs = JSONArray()
+                    val runs = if (ciAvailable) JSONArray()
                         .put(workflow("Vyom Android CI", ciConclusion, 2L))
-                        .put(workflow("Vyom Android Debug", ciConclusion, 3L))
+                        .put(workflow("Vyom Android Debug", ciConclusion, 3L)) else JSONArray()
                     JSONObject().put("workflow_runs", runs)
                 }
                 method == "GET" && path.startsWith("/git/ref/heads/") ->
