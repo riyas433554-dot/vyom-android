@@ -22,6 +22,7 @@ class VyomFactoryTaskIntelligenceTest {
     @Test fun taskStopsAtItsConfiguredMaximumIteration() {
         assertTrue(VyomFactoryTaskIntelligence.isIterationLimitReached(task(8, "Fix retry loop", "P1", "Max iterations: 2\nIterations used: 2")))
         assertFalse(VyomFactoryTaskIntelligence.isIterationLimitReached(task(9, "Fix retry loop", "P1", "Max iterations: 3\nIterations used: 2")))
+        assertTrue(VyomFactoryTaskIntelligence.isIterationLimitReached(task(90, "Retry", "P1", "Max iterations: 2"), iterationsUsed = 2))
     }
     @Test fun detectorIdeaBecomesSeparateTaskWithoutChangingCurrentTaskScope() {
         val parent = task(10, "Fix login crash", "P1", "Current scope: fix login crash")
@@ -32,9 +33,12 @@ class VyomFactoryTaskIntelligenceTest {
         assertTrue(parent.body.contains("Current scope: fix login crash"))
     }
     @Test fun detectorAcceptsPlanningImplementationAndTestingStageMarkers() {
-        val found = VyomFactoryTaskIntelligence.detect(VyomFactoryTaskIntelligence.Stage.TEST, "[BUG] Null result when input is empty\n[IDEA] Add offline mode")
-        assertEquals(2, found.size)
-        assertEquals(setOf(VyomFactoryTaskIntelligence.FindingKind.BUG, VyomFactoryTaskIntelligence.FindingKind.IDEA), found.map { it.kind }.toSet())
+        val planning = VyomFactoryTaskIntelligence.detect(VyomFactoryTaskIntelligence.Stage.PLANNING, "[MISSING_FEATURE] Add export")
+        val implementation = VyomFactoryTaskIntelligence.detect(VyomFactoryTaskIntelligence.Stage.IMPLEMENTATION, "[BUG] Null result when input is empty")
+        val testing = VyomFactoryTaskIntelligence.detect(VyomFactoryTaskIntelligence.Stage.TEST, "[IDEA] Add offline mode")
+        assertEquals(VyomFactoryTaskIntelligence.Stage.PLANNING, planning.single().stage)
+        assertEquals(VyomFactoryTaskIntelligence.FindingKind.BUG, implementation.single().kind)
+        assertEquals(VyomFactoryTaskIntelligence.FindingKind.IDEA, testing.single().kind)
     }
     @Test fun completionRequiresExplicitAcceptanceCriteriaAndAllChecked() {
         assertFalse(VyomFactoryTaskIntelligence.acceptanceCriteriaSatisfied(task(11, "Ship", "P1", "No criteria")))
