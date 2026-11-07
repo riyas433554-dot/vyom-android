@@ -49,21 +49,22 @@ class VyomFactoryRepositoryRegistryTest {
         }
     }
 
-    @Test fun aDifferentRevisionCannotSilentlyReplaceRegisteredSource() {
+    @Test fun differentRevisionsAreStoredAsSeparateImmutableSnapshots() {
         val root = createTempDir(prefix = "vyom-repo-registry-")
         try {
             val registry = VyomFactoryRepositoryRegistry(root)
-            registry.register(preview(), ownerConfirmed = true)
+            val first = registry.register(preview(), ownerConfirmed = true)
+            val second = registry.register(preview(commit = "b".repeat(40)), ownerConfirmed = true)
 
-            assertRejected {
-                registry.register(preview(commit = "b".repeat(40)), ownerConfirmed = true)
-            }
-            assertEquals("a".repeat(40), registry.list().single().commitSha)
+            assertEquals("a".repeat(40), first.commitSha)
+            assertEquals("b".repeat(40), second.commitSha)
+            assertEquals(2, registry.list().size)
+            assertTrue(registry.list().any { it == first })
+            assertTrue(registry.list().any { it == second })
         } finally {
             root.deleteRecursively()
         }
     }
-
 
     @Test fun sourceRevisionMigrationRequiresOwnerConfirmationAndCompareAndSwap() {
         val root = createTempDir(prefix = "vyom-repo-registry-")
