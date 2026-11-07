@@ -24,11 +24,27 @@ class VyomFactoryVerifiedProgressTest {
         val task = task(status = "in_progress")
         val progress = VyomFactoryVerifiedProgress.calculate(task, listOf(successEntry()))
 
-        assertEquals(85, progress.percent)
+        assertEquals(80, progress.percent)
         assertTrue(progress.implementationVerified)
         assertTrue(progress.testsVerified)
         assertFalse(progress.behaviorVerified)
         assertFalse(progress.verifiedComplete)
+    }
+
+    @Test fun activeJournalAttemptShowsRealRunningProgressWithoutCallingItVerified() {
+        val task = task(status = "in_progress")
+        val running = successEntry().copy(
+            state = VyomFactoryExecutionJournal.State.RUNNING,
+            result = null
+        )
+
+        val progress = VyomFactoryVerifiedProgress.calculate(task, listOf(running))
+
+        assertTrue(progress.executionInProgress)
+        assertFalse(progress.implementationVerified)
+        assertFalse(progress.testsVerified)
+        assertEquals("IMPLEMENTATION RUNNING", progress.label)
+        assertTrue(progress.percent < 100)
     }
 
     @Test fun completedIssueWithoutSuccessfulJournalIsExplicitlyUnverified() {
