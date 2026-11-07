@@ -459,7 +459,13 @@ internal class VyomFactoryDialog(
                                 onRejected = {
                                     worker.execute {
                                         runCatching {
-                                            client.addEvent(ownerReview.task.number, VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT)
+                                            val fresh = client.listTasks().firstOrNull {
+                                                it.number == ownerReview.task.number && it.state == "open"
+                                            } ?: return@runCatching
+                                            client.updateTask(
+                                                fresh,
+                                                additionalEvent = VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT
+                                            )
                                         }
                                     }
                                 }
