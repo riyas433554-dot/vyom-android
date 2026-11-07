@@ -82,6 +82,22 @@ class VyomFactoryVerifiedProgressTest {
         assertTrue(progress.percent < 100)
     }
 
+    @Test fun newerFailedAttemptInvalidatesAnOlderVerifiedSuccess() {
+        val task = task(status = "in_progress")
+        val olderSuccess = successEntry()
+        val newerFailure = successEntry(attemptId = "attempt-2").copy(
+            state = VyomFactoryExecutionJournal.State.FAILED,
+            updatedAt = 3_000L,
+            result = null
+        )
+
+        val progress = VyomFactoryVerifiedProgress.calculate(task, listOf(olderSuccess, newerFailure))
+
+        assertFalse(progress.implementationVerified)
+        assertFalse(progress.testsVerified)
+        assertTrue(progress.percent < 100)
+    }
+
     @Test fun incompleteAcceptanceCriteriaPreventVerifiedCompletion() {
         val task = task(
             status = "completed",
