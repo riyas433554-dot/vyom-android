@@ -12,9 +12,47 @@ import java.net.URLEncoder
  * against the working branch. It has no merge, release, install, or main-branch path.
  */
 internal class SelfModificationClient(
-    private val apiRoot: String = DEFAULT_API_ROOT,
-    private val modelApiRoot: String = DEFAULT_MODEL_API_ROOT
+    private val registry: VyomFactorySystemRegistry? = null,
+    private val modelApiRoot: String = DEFAULT_MODEL_API_ROOT,
+    private val apiRootOverrideForTests: String? = null
 ) {
+    private var resolvedApiRoot: String? = null
+
+    private fun requireBinding(path: String): VyomFactorySystemRegistry.Binding {
+        val activeRegistry = registry ?: throw SecurityException("Self-modification has no owner-approved system registry")
+        val binding = activeRegistry.get(SYSTEM_ID)
+            ?: throw SecurityException("Self-modification has no owner-approved repository binding")
+        val approved = SelfModificationPolicy.requireSystemBinding(
+            activeRegistry, SYSTEM_ID, binding.repositoryUrl, binding.commitSha, path
+        )
+        val parsed = java.net.URI(approved.repositoryUrl)
+        require(parsed.scheme == "https" && parsed.host == "github.com" && parsed.path.trim('/').split('/').size == 2) {
+            "Self-modification repository binding is not a canonical GitHub repository"
+        }
+        resolvedApiRoot = apiRootOverrideForTests ?: "https://api.github.com/repos/" + parsed.path.trim('/')
+        return approved
+    }
+
+    private fun requireDiscoveryBinding(): VyomFactorySystemRegistry.Binding {
+        val activeRegistry = registry ?: throw SecurityException("Self-modification has no owner-approved system registry")
+        val binding = activeRegistry.get(SYSTEM_ID)
+            ?: throw SecurityException("Self-modification has no owner-approved repository binding")
+        require(binding.allowedPaths.any { root -> root == SELF_MODIFICATION_ROOT || SELF_MODIFICATION_ROOT.startsWith("$root/") ||
+            root.startsWith("$SELF_MODIFICATION_ROOT/") }) {
+            "Self-modification registry roots do not intersect the source policy"
+        }
+        val parsed = java.net.URI(binding.repositoryUrl)
+        require(parsed.scheme == "https" && parsed.host == "github.com" && parsed.path.trim('/').split('/').size == 2)
+        resolvedApiRoot = apiRootOverrideForTests ?: "https://api.github.com/repos/" + parsed.path.trim('/')
+        return binding
+    }
+
+    private fun requirePinnedHead(binding: VyomFactorySystemRegistry.Binding, ref: JSONObject) {
+        val sha = ref.optJSONObject("object")?.optString("sha").orEmpty()
+        require(sha.matches(Regex("^[a-f0-9]{40}$")) && sha == binding.commitSha) {
+            "Self-modification branch HEAD differs from the owner-approved immutable registry commit"
+        }
+    }
     data class Proposal(val branch: String, val pullRequestUrl: String)
     data class Draft(
         val title: String,
@@ -38,6 +76,7 @@ internal class SelfModificationClient(
         model: String,
         maxCandidates: Int = 5
     ): PathSuggestions {
+        val binding = requireDiscoveryBinding()
         SelfModificationPolicy.validateDiscoveryTask(title, task)
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents read permission" }
         require(nvidiaApiKey.trim().length >= 20) { "Configure the NVIDIA API key before discovering source files" }
@@ -45,8 +84,8 @@ internal class SelfModificationClient(
         require(maxCandidates in 1..5) { "Source discovery is limited to 1–5 suggestions" }
 
         val initialBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
-        val initialBaseSha = initialBaseRef.optJSONObject("object")?.optString("sha").orEmpty()
-        require(initialBaseSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the working branch head" }
+        requirePinnedHead(binding, initialBaseRef)
+        val initialBaseSha = binding.commitSha
         val tree = request("GET", "/git/trees/$initialBaseSha?recursive=1", token = token)
         require(!tree.optBoolean("truncated", true)) { "Repository tree was truncated; source discovery stopped safely" }
         val entries = tree.optJSONArray("tree")
@@ -54,7 +93,9 @@ internal class SelfModificationClient(
         val allowedPaths = (0 until entries.length()).mapNotNull { index ->
             val entry = entries.optJSONObject(index) ?: return@mapNotNull null
             if (entry.optString("type") != "blob") return@mapNotNull null
-            entry.optString("path").takeIf { SelfModificationPolicy.isAllowedPath(it) }
+            entry.optString("path").takeIf {
+                SelfModificationPolicy.isAllowedPath(it) && registry?.allowsPath(SYSTEM_ID, it) == true
+            }
         }.distinct().sorted()
         require(allowedPaths.isNotEmpty()) { "No eligible Kotlin source files were found in the working branch" }
         require(allowedPaths.size <= MAX_DISCOVERY_PATHS) {
@@ -113,7 +154,7 @@ internal class SelfModificationClient(
 
             val latestBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
             val latestBaseSha = latestBaseRef.optJSONObject("object")?.optString("sha").orEmpty()
-            require(latestBaseSha == initialBaseSha) {
+            require(latestBaseSha == initialBaseSha && latestBaseSha == binding.commitSha) {
                 "The working branch changed during source discovery. Run discovery again from the latest source."
             }
             return PathSuggestions(initialBaseSha, selected)
@@ -130,12 +171,13 @@ internal class SelfModificationClient(
         task: String,
         model: String
     ): Draft {
+        val binding = requireBinding(path)
         SelfModificationPolicy.validateTask(title, path, task)
         require(nvidiaApiKey.trim().length >= 20) { "Configure the NVIDIA API key before generating a code proposal" }
         require(model.isNotBlank() && model.length <= 120) { "Choose a supported code-generation model" }
         val initialBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
-        val initialBaseSha = initialBaseRef.optJSONObject("object")?.optString("sha").orEmpty()
-        require(initialBaseSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the working branch head" }
+        requirePinnedHead(binding, initialBaseRef)
+        val initialBaseSha = binding.commitSha
         val currentSource = readCurrentSource(token, path, initialBaseSha)
         require(currentSource.length <= 200_000) { "Current source file exceeds the safe generation limit" }
 
@@ -193,7 +235,7 @@ internal class SelfModificationClient(
             require(proposedContent != currentSource) { "The model did not produce a source change" }
             val latestBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
             val latestBaseSha = latestBaseRef.optJSONObject("object")?.optString("sha").orEmpty()
-            require(latestBaseSha == initialBaseSha) {
+            require(latestBaseSha == initialBaseSha && latestBaseSha == binding.commitSha) {
                 "The working branch changed during code generation. No PR was created; generate again from the latest source."
             }
             val preview = operations.joinToString("\n\n") { operation ->
@@ -277,12 +319,13 @@ internal class SelfModificationClient(
         require(ownerReviewedDiff) {
             "Owner must explicitly review and approve the exact proposed diff before opening a pull request"
         }
+        val binding = requireBinding(path)
         SelfModificationPolicy.validate(title, path, proposedContent)
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
 
         val baseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
-        val currentBaseSha = baseRef.optJSONObject("object")?.optString("sha").orEmpty()
-        require(currentBaseSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the working branch head" }
+        requirePinnedHead(binding, baseRef)
+        val currentBaseSha = binding.commitSha
         require(expectedBaseSha == null || expectedBaseSha == currentBaseSha) {
             "The working branch changed before proposal creation. No PR was created; retry from the latest source."
         }
@@ -375,7 +418,7 @@ internal class SelfModificationClient(
         body: JSONObject? = null,
         allowNotFound: Boolean = false
     ): JSONObject {
-        val connection = (URL(apiRoot.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
+        val connection = (URL((resolvedApiRoot ?: throw SecurityException("Repository binding must be resolved before GitHub access")).trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 15_000
             readTimeout = 30_000
@@ -428,7 +471,8 @@ internal class SelfModificationClient(
     private class GitHubApiException(val statusCode: Int, message: String) : IllegalStateException(message)
 
     companion object {
-        private const val DEFAULT_API_ROOT = "https://api.github.com/repos/riyas433554-dot/vyom-android"
+        private const val SYSTEM_ID = "self-modification"
+        private const val SELF_MODIFICATION_ROOT = "app/src/main/java/com/hermes/assistant"
         private const val BASE_BRANCH = SelfModificationPolicy.PROPOSAL_BASE_BRANCH
         private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
         private const val MAX_DISCOVERY_PATHS = 500
