@@ -73,7 +73,7 @@ class SelfModificationClientIntegrationTest {
             )
             assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
             val requests = (0 until 5).map { server.takeRequest() }
-            assertEquals(listOf("GET", "POST", "GET", "PUT", "POST"), requests.map { it.method })
+            assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST"), requests.map { it.method })
             assertFalse(requests.any { it.path.orEmpty().contains("/merge") })
             assertFalse(requests.any { it.path.orEmpty().contains("/releases") })
         } finally {
@@ -104,7 +104,7 @@ class SelfModificationClientIntegrationTest {
             }
 
             val requests = (0 until 7).map { server.takeRequest() }
-            assertEquals(listOf("GET", "POST", "GET", "PUT", "POST", "GET", "DELETE"),
+            assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST", "GET", "DELETE"),
                 requests.map { it.method })
             assertTrue(requests[1].body.readUtf8().contains("refs/heads/vyom-proposal-"))
             assertTrue(requests[3].path!!.contains("/contents/"))
@@ -138,7 +138,7 @@ class SelfModificationClientIntegrationTest {
             }
 
             val requests = (0 until 6).map { server.takeRequest() }
-            assertEquals(listOf("GET", "POST", "GET", "PUT", "POST", "GET"),
+            assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST", "GET"),
                 requests.map { it.method })
             assertFalse(requests.any { it.method == "DELETE" })
         } finally {
