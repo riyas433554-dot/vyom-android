@@ -133,7 +133,7 @@ internal class VyomFactoryEvidencePublisher(
 /** GitHub Git-Database transport. Source files are changed only through this publisher. */
 internal class VyomFactoryGitHubEvidenceTransport(
     private val token: String,
-    private val repository: String = VyomFactoryGitHubClient.DEFAULT_REPOSITORY,
+    private val repository: String,
     private val apiBaseUrl: String = "https://api.github.com",
     private val http: OkHttpClient = OkHttpClient.Builder().callTimeout(30, TimeUnit.SECONDS).build()
 ) : VyomFactoryEvidencePublisher.Transport {
