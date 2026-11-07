@@ -16,7 +16,7 @@ class VyomFactoryRepositoryApprovalTest {
         "worker", 10, "attempt-12345678", "Safe change", "feature/factory-item5-task-intelligence",
         base, listOf(VyomFactoryRepositoryChangePolicy.Change(
             "app/src/main/java/com/hermes/assistant/Safe.kt", content
-        )), true
+        )), false
     )
 
     @Test fun bindsRepositoryBasePathAndContentHash() {

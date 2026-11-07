@@ -19,6 +19,7 @@ internal class VyomFactoryRepositoryApprovalStore(
         plan: VyomFactoryRepositoryChangePolicy.Plan,
         binding: VyomFactorySystemRegistry.Binding
     ): Token {
+        check(!plan.ownerApproved) { "A repository plan must not carry pre-existing approval" }
         require(binding.systemId == plan.systemId && binding.commitSha == plan.baseCommitSha)
         val now = nowMillis()
         require(now >= 0)
@@ -38,6 +39,7 @@ internal class VyomFactoryRepositoryApprovalStore(
         token: Token,
         now: Long = nowMillis()
     ) {
+        check(!plan.ownerApproved) { "Issue-controlled approval flags are not accepted" }
         require(binding.systemId == plan.systemId && binding.commitSha == plan.baseCommitSha)
         if (now < 0 || token.expiresAtMillis <= now || token.expiresAtMillis - now > TOKEN_TTL_MS) {
             throw SecurityException("Repository approval token expired or has an invalid lifetime")

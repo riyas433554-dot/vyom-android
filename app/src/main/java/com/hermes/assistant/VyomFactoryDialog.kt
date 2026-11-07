@@ -419,7 +419,12 @@ internal class VyomFactoryDialog(
                 val ownerReview = VyomFactorySpecialistRouting.nextOwnerReview(
                     decisions = triageDecisions,
                     isRunnerEligible = { task -> isEligibleForRunner(task, journal, retrySchedules, adapter) },
-                    isLocallyApproved = { issueNumber -> pendingRepositoryApprovals.containsKey(issueNumber) }
+                    isLocallyApproved = { issueNumber ->
+                        pendingRepositoryApprovals.containsKey(issueNumber) ||
+                            journal.all().any {
+                                it.issueNumber == issueNumber && it.operationKey.startsWith("repository_change:")
+                            }
+                    }
                 )
                 if (ownerReview != null) {
                     main.post {

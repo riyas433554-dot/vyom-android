@@ -52,9 +52,12 @@ class VyomFactoryRepositoryChangeAdapterTest {
 
     private fun adapter(
         pending: ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>,
-        store: VyomFactoryRepositoryApprovalStore = VyomFactoryRepositoryApprovalStore(
-            VyomFactoryExecutionJournal(ApprovalPrefs(), VyomFactoryWorkerLeaseStore(ApprovalPrefs()))
-        )
+        store: VyomFactoryRepositoryApprovalStore = run {
+            val prefs = ApprovalPrefs()
+            VyomFactoryRepositoryApprovalStore(
+                VyomFactoryExecutionJournal(prefs, VyomFactoryWorkerLeaseStore(prefs))
+            )
+        }
     ) = VyomFactoryRepositoryChangeAdapter(registry, "token-that-is-long-enough-for-github", store, pending)
 
     private class ApprovalPrefs : android.content.SharedPreferences {
