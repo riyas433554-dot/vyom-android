@@ -41,6 +41,28 @@ internal object SelfModificationPolicy {
         return true
     }
 
+    /**
+     * Self-modification is a separate Factory system: both the registry boundary
+     * and this narrower source-file policy must authorize every target path.
+     */
+    fun requireSystemBinding(
+        registry: VyomFactorySystemRegistry,
+        systemId: String,
+        repositoryUrl: String,
+        commitSha: String,
+        path: String
+    ): VyomFactorySystemRegistry.Binding {
+        require(isAllowedPath(path)) {
+            "Self-modification policy rejected this source path"
+        }
+        return registry.requireAuthorizedBinding(
+            systemId = systemId,
+            relativePath = path,
+            repositoryUrl = repositoryUrl,
+            commitSha = commitSha
+        )
+    }
+
     fun validateDiscoveryTask(title: String, task: String) {
         require(title.trim().length in 8..MAX_TITLE_LENGTH) { "Proposal title must be 8–120 characters" }
         require(task.isNotBlank()) { "Describe the code change before generating a proposal" }
