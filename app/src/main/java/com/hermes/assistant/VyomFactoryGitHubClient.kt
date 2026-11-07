@@ -126,6 +126,23 @@ internal class VyomFactoryGitHubClient(
         return updateTask(current, newDescription = updatedDescription, additionalEvent = event)
     }
 
+    /** Converts explicit planner/implementation/test markers into independent, idempotent issues. */
+    fun createDetectedTasks(parentIssueNumber: Int, stage: VyomFactoryTaskIntelligence.Stage, stageOutput: String): List<Task> {
+        require(parentIssueNumber > 0)
+        val existing = listTasks()
+        return VyomFactoryTaskIntelligence.detect(stage, stageOutput).mapNotNull { finding ->
+            val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
+                ?: return@mapNotNull null
+            createTask(
+                title = proposal.title,
+                description = proposal.description,
+                priority = "P2",
+                source = "task_failure",
+                sourceId = proposal.sourceId
+            )
+        }
+    }
+
     fun listEvents(issueNumber: Int): List<String> {
         require(issueNumber > 0)
         val array = JSONArray(execute("GET", "/issues/$issueNumber/comments?per_page=50&sort=created&direction=desc"))
