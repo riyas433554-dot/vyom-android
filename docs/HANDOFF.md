@@ -1,3 +1,14 @@
+### Item 5 — exact-HEAD CI verification — 2026-11-07
+
+- Item 5 implementation/code HEAD: `02e3f205a6ff8ece1d1741a6003139392953f3cd` on `feature/factory-item5-task-intelligence`.
+- Exact-HEAD Full CI run `42363894376` = **SUCCESS** (started 10:25:29Z, updated/completed 10:29:55Z; duration 4m26s). Previous Full PASS `42362014444` duration was 4m00s. Full CI produced versioned artifact `vyom-phase6-819fbf5424be89ae4c2125f147acc1cdd972aeaf` (artifact ID `13571271465`, 46,368,789 bytes) and redacted full-history Gitleaks report artifact `13570452730`.
+- Exact-HEAD Debug CI run `42363894388` = **SUCCESS** (started 10:25:29Z, updated/completed 10:32:21Z; duration 6m52s). Previous Debug PASS `42362014435` duration was 7m13s. Build/tests, versioned APK packaging/checksums, and no-APK content update demo package completed successfully. Debug APK upload and signed CI release steps were **SKIPPED by workflow gate**; Debug run produced no artifacts. Do not claim Debug artifact publication.
+- Both exact-head runs completed below the stuck thresholds (2× prior duration and 40 minutes). No cancel/rerun was performed. No source changes were made during monitoring.
+- Item 5 is **CODE-VERIFIED** on implementation HEAD `02e3f205a6ff8ece1d1741a6003139392953f3cd`. This does not upgrade automatic stage-by-stage detector invocation: no autonomous planner/implementation/test producer is wired to call `createDetectedTasks`; that remains **UNVERIFIED / NOT COMPLETE**. No physical-device verification or final APK publication is claimed.
+- No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+---
+
 ### Item 4 — CODE-VERIFIED / PHONE-PENDING — 2026-11-07
 
 - Exact source HEAD audited: `26fe7829a8463ee36f3fb64e1ea61b66b5ad042b`.
