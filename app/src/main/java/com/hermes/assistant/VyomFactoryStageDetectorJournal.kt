@@ -28,6 +28,7 @@ internal class VyomFactoryStageDetectorJournal internal constructor(
                     .put("created_issue_numbers", JSONArray(item.createdIssueNumbers))
                     .put("duplicate_count", item.duplicateCount)
                     .put("detail", item.detail)
+                    .put("finding_summaries", JSONArray(item.findingSummaries))
                     .put("recorded_at", item.recordedAt))
             }
             check(prefs.edit().putString(KEY_EVENTS, array.toString()).commit()) {
@@ -55,6 +56,9 @@ internal class VyomFactoryStageDetectorJournal internal constructor(
                     createdIssueNumbers = (0 until ids.length()).map { ids.getInt(it) },
                     duplicateCount = item.getInt("duplicate_count"),
                     detail = item.getString("detail"),
+                    findingSummaries = item.optJSONArray("finding_summaries")?.let { summaries ->
+                        (0 until summaries.length()).map { summaries.getString(it) }
+                    }.orEmpty(),
                     recordedAt = item.getLong("recorded_at")
                 )
             }

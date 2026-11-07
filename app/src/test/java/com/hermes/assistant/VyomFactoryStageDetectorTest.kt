@@ -40,6 +40,8 @@ class VyomFactoryStageDetectorTest {
             stages
         )
         assertEquals(3, events.size)
+        assertEquals(listOf("IDEA: Add export support"), events.first().findingSummaries)
+        assertEquals(listOf("BUG: Null output on empty input"), events[1].findingSummaries)
         assertEquals(VyomFactoryStageDetector.Outcome.NOTHING_CREATED, events.last().outcome)
         assertEquals("Current scope stays fixed", parent.body)
     }

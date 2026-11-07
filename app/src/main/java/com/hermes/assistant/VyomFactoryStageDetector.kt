@@ -29,6 +29,7 @@ internal class VyomFactoryStageDetector(
         val createdIssueNumbers: List<Int>,
         val duplicateCount: Int,
         val detail: String,
+        val findingSummaries: List<String> = emptyList(),
         val recordedAt: Long = System.currentTimeMillis()
     )
 
@@ -117,13 +118,15 @@ internal class VyomFactoryStageDetector(
             finish(
                 task, stage, checkpoint, outcome, findings.size, created, duplicates,
                 if (findings.isEmpty()) "nothing found" else "detector findings processed",
-                detectorFailed = false
+                detectorFailed = false,
+                findingSummaries = findings.map { it.kind.name + ": " + it.title }
             )
         } catch (error: Exception) {
             finish(
                 task, stage, checkpoint, Outcome.PERSISTENCE_FAILED, findings.size, emptyList(), 0,
                 error.javaClass.simpleName + ": " + (error.message ?: "finding persistence error"),
-                detectorFailed = false
+                detectorFailed = false,
+                findingSummaries = findings.map { it.kind.name + ": " + it.title }
             )
         }
     }
@@ -137,7 +140,8 @@ internal class VyomFactoryStageDetector(
         created: List<VyomFactoryGitHubClient.Task>,
         duplicateCount: Int,
         detail: String,
-        detectorFailed: Boolean
+        detectorFailed: Boolean,
+        findingSummaries: List<String> = emptyList()
     ): Result {
         val event = Event(
             parentIssueNumber = task.number,
@@ -147,7 +151,8 @@ internal class VyomFactoryStageDetector(
             findingCount = findingCount,
             createdIssueNumbers = created.map { it.number },
             duplicateCount = duplicateCount,
-            detail = detail.take(500)
+            detail = detail.take(500),
+            findingSummaries = findingSummaries.map { it.take(160) }.take(50)
         )
         val journaled = runCatching { recordEvent(event) }.isSuccess
         return Result(outcome, findingCount, created, duplicateCount, detectorFailed, journaled)
