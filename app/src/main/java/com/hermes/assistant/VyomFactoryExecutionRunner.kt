@@ -140,7 +140,7 @@ internal class VyomFactoryExecutionRunner(
             if (!adapters.isVerifiedResult(envelope.target, result)) {
                 throw IllegalStateException("Adapter returned without verifying the requested postcondition")
             }
-            safeCheckpoint(remote, "postcondition_verified", "[IDEA] Consider follow-up after verified operation: " + result.take(300))
+            safeCheckpoint(remote, "postcondition_verified", result)
             // The adapter has completed and verified its side effect. A STOP
             // arriving now cannot undo it and must not rewrite verified success.
             if (!journal.succeed(claim.lease, attemptId, now(), result)) {

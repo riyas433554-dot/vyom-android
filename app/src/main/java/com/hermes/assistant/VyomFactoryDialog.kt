@@ -1190,10 +1190,9 @@ internal class VyomFactoryDialog(
         loadTasks = { client.listTasks() },
         createTask = { parentIssueNumber, finding, existing ->
             val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
-                ?: return@VyomFactoryStageDetector null
-            client.createTask(
+            if (proposal == null) null else client.createTask(
                 title = proposal.title,
-                description = proposal.description,
+                description = proposal.description + "\n\nMax iterations: ${VyomFactoryTaskIntelligence.DEFAULT_MAX_ITERATIONS}",
                 priority = "P2",
                 source = "task_failure",
                 sourceId = proposal.sourceId

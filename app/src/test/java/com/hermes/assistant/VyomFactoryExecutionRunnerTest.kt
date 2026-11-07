@@ -228,6 +228,23 @@ class VyomFactoryExecutionRunnerTest {
         assertNull(fixture.activeLease())
     }
 
+    @Test fun detectorHookRunsAtEveryExplicitRunnerCheckpoint() {
+        val fixture = Fixture()
+        val adapter = RecordingAdapter(fail = false, isIdempotent = true)
+        val checkpoints = mutableListOf<String>()
+
+        val outcome = fixture.runner(
+            adapter,
+            onCheckpoint = { _, checkpoint, _ -> checkpoints += checkpoint }
+        ).runNext()
+
+        assertTrue(outcome is VyomFactoryExecutionRunner.Outcome.Succeeded)
+        assertEquals(
+            listOf("fresh_task_validated", "before_adapter_dispatch", "after_adapter_dispatch", "postcondition_verified"),
+            checkpoints
+        )
+    }
+
     @Test fun lateStopAfterVerifiedSideEffectDoesNotEraseSuccess() {
         val fixture = Fixture()
         val stop = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -447,7 +464,8 @@ class VyomFactoryExecutionRunnerTest {
         fun runner(
             adapter: VyomFactoryExecutionAdapter,
             prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
-            externalStopRequested: () -> Boolean = { false }
+            externalStopRequested: () -> Boolean = { false },
+            onCheckpoint: (VyomFactoryGitHubClient.Task, String, String) -> Unit = { _, _, _ -> }
         ): VyomFactoryExecutionRunner {
             val registry = VyomFactoryExecutionAdapterRegistry(listOf(adapter))
             return VyomFactoryExecutionRunner(
@@ -468,7 +486,8 @@ class VyomFactoryExecutionRunnerTest {
                 newAttemptId = { "attempt-${++attemptSequence}" },
                 prepareExecution = prepareExecution,
                 externalStopRequested = externalStopRequested,
-                executionPermit = executionPermit
+                executionPermit = executionPermit,
+                onCheckpoint = onCheckpoint
             )
         }
     }
