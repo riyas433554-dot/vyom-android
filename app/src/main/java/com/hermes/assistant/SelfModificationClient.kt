@@ -355,6 +355,11 @@ internal class SelfModificationClient(
             if (currentSha != null) payload.put("sha", currentSha)
             request("PUT", "/contents/$encodedPath", token, payload)
 
+            // Recheck the registered base immediately before opening the PR. If the
+            // working branch moved during upload, leave no PR against a mixed base.
+            val latestBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
+            requirePinnedHead(binding, latestBaseRef)
+
             pullRequestCreationAttempted = true
             val pr = request("POST", "/pulls", token, JSONObject()
                 .put("title", "[Vyom proposal] $title")
