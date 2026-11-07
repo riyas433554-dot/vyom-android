@@ -208,9 +208,12 @@ internal class VyomFactoryDialog(
             text = "INSPECT / REGISTER ANY GITHUB REPOSITORY"
             textSize = 9f
             setOnClickListener {
-                VyomFactoryRepositoryReviewDialog(activity) { message ->
-                    if (::dialog.isInitialized && dialog.isShowing) status.text = message
-                }.show()
+                VyomFactoryRepositoryReviewDialog(
+                    activity,
+                    onStatus = { message ->
+                        if (::dialog.isInitialized && dialog.isShowing) status.text = message
+                    }
+                ).show()
             }
         }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
