@@ -165,7 +165,7 @@ class SelfModificationClientIntegrationTest {
                 client(server).createProposal(
                     token, "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
                     ownerReviewedDiff = true
                 )
             }
