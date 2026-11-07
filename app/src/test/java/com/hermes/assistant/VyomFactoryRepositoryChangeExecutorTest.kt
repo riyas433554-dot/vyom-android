@@ -13,7 +13,7 @@ class VyomFactoryRepositoryChangeExecutorTest {
     private val baseSha = "a".repeat(40)
     private val commitSha = "b".repeat(40)
 
-    private fun registry(): VyomFactorySystemRegistry {
+    private fun registry(repositoryUrl: String = repository): VyomFactorySystemRegistry {
         val root = File.createTempFile("vyom-executor-registry", ".tmp").apply {
             delete()
             mkdirs()
@@ -22,7 +22,7 @@ class VyomFactoryRepositoryChangeExecutorTest {
             it.register(
                 VyomFactorySystemRegistry.Binding(
                     systemId = "factory-worker",
-                    repositoryUrl = repository,
+                    repositoryUrl = repositoryUrl,
                     commitSha = baseSha,
                     allowedPaths = listOf(
                         "app/src/main/java/com/hermes/assistant",
@@ -75,6 +75,18 @@ class VyomFactoryRepositoryChangeExecutorTest {
         assertFalse(transport.calls.any { it.path.contains("/merge") })
     }
 
+
+    @Test fun refusesUntrustedRepositoryBeforeAnyNetworkRequest() {
+        val transport = RecordingTransport(baseSha, commitSha)
+        val error = runCatching {
+            executor(transport, registry("https://github.com/example/project"))
+                .execute(plan(), TOKEN, NeverStop, timeoutMillis = 1_000)
+        }.exceptionOrNull()
+
+        assertTrue(error is SecurityException)
+        assertTrue(transport.calls.isEmpty())
+    }
+
     @Test fun staleRegisteredBaseStopsBeforeAnyRepositoryWrite() {
         val transport = RecordingTransport("c".repeat(40), commitSha)
         val error = runCatching {
@@ -115,8 +127,11 @@ class VyomFactoryRepositoryChangeExecutorTest {
         assertTrue(error is SecurityException)
     }
 
-    private fun executor(transport: RecordingTransport) = VyomFactoryRepositoryChangeExecutor(
-        registry = registry(),
+    private fun executor(
+        transport: RecordingTransport,
+        registry: VyomFactorySystemRegistry = registry()
+    ) = VyomFactoryRepositoryChangeExecutor(
+        registry = registry,
         transportFactory = { _, _ -> transport },
         nowMillis = { 10_000L },
         waitMillis = {}

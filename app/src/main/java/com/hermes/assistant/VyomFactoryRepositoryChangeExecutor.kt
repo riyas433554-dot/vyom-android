@@ -27,7 +27,7 @@ internal class VyomFactoryRepositoryChangeExecutor(
     private val waitMillis: (Long) -> Unit = { Thread.sleep(it) }
 ) {
     fun interface Transport {
-        fun request(method: String, path: String, body: JSONObject? = null): JSONObject
+        fun request(method: String, path: String, body: JSONObject?): JSONObject
     }
 
     data class Proposal(
@@ -50,6 +50,12 @@ internal class VyomFactoryRepositoryChangeExecutor(
         require(timeoutMillis in 1_000L..MAX_CI_TIMEOUT_MS) { "Invalid repository worker CI timeout" }
         val source = VyomFactoryRepositoryIntake.parseUrl(binding.repositoryUrl)
             ?: throw SecurityException("Registered repository URL is invalid")
+        if (source.owner != TRUSTED_OWNER || source.name != TRUSTED_REPOSITORY) {
+            throw SecurityException("No trusted exact-SHA CI execution contract is configured for this repository")
+        }
+        if (plan.baseBranch != SelfModificationPolicy.PROPOSAL_BASE_BRANCH) {
+            throw SecurityException("Repository worker base branch is not the owner-approved Factory feature branch")
+        }
         val apiRoot = "https://api.github.com/repos/${source.owner}/${source.name}"
         val transport = transportFactory(apiRoot, token)
         val branch = "vyom-worker-${plan.issueNumber}-${plan.attemptId.take(32)}"
@@ -240,7 +246,7 @@ internal class VyomFactoryRepositoryChangeExecutor(
     ): JSONObject? {
         val head = URLEncoder.encode("$owner:$branch", Charsets.UTF_8.name())
         val response = runCatching {
-            transport.request("GET", "/pulls?head=$head&state=all&per_page=10")
+            transport.request("GET", "/pulls?head=$head&state=all&per_page=10", null)
         }.getOrNull() ?: return null
         val pulls = response.optJSONArray("_array") ?: response.optJSONArray("pulls") ?: return null
         val found = (0 until pulls.length()).asSequence()
@@ -260,9 +266,9 @@ internal class VyomFactoryRepositoryChangeExecutor(
 
     private fun deleteBranchIfStillOurs(transport: Transport, branch: String, commitSha: String) {
         runCatching {
-            val current = transport.request("GET", "/git/ref/heads/$branch")
+            val current = transport.request("GET", "/git/ref/heads/$branch", null)
             if (readRefSha(current) == commitSha) {
-                transport.request("DELETE", "/git/refs/heads/$branch")
+                transport.request("DELETE", "/git/refs/heads/$branch", null)
             }
         }
     }
@@ -334,6 +340,8 @@ internal class VyomFactoryRepositoryChangeExecutor(
 
     companion object {
         private val SHA = Regex("^[a-f0-9]{40}$")
+        private const val TRUSTED_OWNER = "riyas433554-dot"
+        private const val TRUSTED_REPOSITORY = "vyom-android"
         private const val CI_POLL_INTERVAL_MS = 5_000L
         private const val DEFAULT_CI_TIMEOUT_MS = 15 * 60 * 1_000L
         private const val MAX_CI_TIMEOUT_MS = 20 * 60 * 1_000L
