@@ -80,6 +80,7 @@ internal class VyomFactoryDialog(
     private lateinit var claimStatus: TextView
     private lateinit var retryStatus: TextView
     private lateinit var historyStatus: TextView
+    private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerOwnerId: String by lazy {
@@ -514,9 +515,25 @@ internal class VyomFactoryDialog(
                     },
                     onCheckpoint = { task, checkpoint, output ->
                         stageDetector.onImplementationCheckpoint(task, checkpoint, output)
+                        main.post {
+                            if (::dialog.isInitialized && dialog.isShowing) {
+                                refreshTaskProgress(task)
+                                status.text = "Issue #${task.number} · checkpoint ${checkpoint.replace('_', ' ')} recorded."
+                            }
+                        }
                     },
                     onVerificationResult = { task, passed, evidence ->
                         stageDetector.onVerificationResult(task, passed, evidence)
+                        main.post {
+                            if (::dialog.isInitialized && dialog.isShowing) {
+                                refreshTaskProgress(task)
+                                status.text = if (passed) {
+                                    "Issue #${task.number} · adapter postcondition verified; owner probe remains separate."
+                                } else {
+                                    "Issue #${task.number} · adapter postcondition failed; no completion progress awarded."
+                                }
+                            }
+                        }
                     }
                 )
                 VyomFactoryDrainCoordinator.drain(
@@ -611,6 +628,7 @@ internal class VyomFactoryDialog(
                 releaseClaimButton.isEnabled = false
                 refreshRetryOverview()
                 busy = false
+                refresh()
             }
         }
     }
@@ -1061,6 +1079,7 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     status.text = errorMessage(error)
                     taskList.removeAllViews()
+        progressViews.clear()
                     taskList.addView(message("Could not load the shared registry. No local fake tasks were substituted."))
                     busy = false
                 }
@@ -1135,6 +1154,26 @@ internal class VyomFactoryDialog(
         }
     }
 
+    private fun progressText(progress: VyomFactoryVerifiedProgress.Snapshot): String =
+        "PROGRESS ${progress.percent}% · ${progress.label}\\n" +
+            "Criteria ${progress.checkedCriteria}/${progress.totalCriteria} · " +
+            "Implementation ${if (progress.implementationVerified) "VERIFIED" else if (progress.executionInProgress) "RUNNING" else "PENDING"} · " +
+            "Tests ${if (progress.testsVerified) "VERIFIED" else "PENDING"} · " +
+            "Behavior ${if (progress.behaviorVerified) "VERIFIED" else "PENDING"}"
+
+    private fun refreshTaskProgress(task: VyomFactoryGitHubClient.Task) {
+        val views = progressViews[task.number] ?: return
+        val snapshot = runCatching {
+            VyomFactoryVerifiedProgress.calculate(
+                task,
+                VyomFactoryExecutionJournal(activity.applicationContext).all()
+            )
+        }.getOrNull() ?: return
+        views.first.text = progressText(snapshot)
+        views.first.contentDescription = progressText(snapshot)
+        views.second.progress = snapshot.percent
+    }
+
     private fun render(tasks: List<VyomFactoryGitHubClient.Task>) {
         val orderedTasks = VyomFactoryTaskOrdering.sort(tasks)
         taskList.removeAllViews()
@@ -1173,22 +1212,16 @@ internal class VyomFactoryDialog(
             val verifiedProgress = executionEntries?.let {
                 VyomFactoryVerifiedProgress.calculate(task, it)
             }
-            card.addView(TextView(activity).apply {
-                text = if (verifiedProgress == null) {
-                    "PROGRESS UNAVAILABLE · EXECUTION JOURNAL UNREADABLE"
-                } else {
-                    "PROGRESS ${verifiedProgress.percent}% · ${verifiedProgress.label}\n" +
-                        "Criteria ${verifiedProgress.checkedCriteria}/${verifiedProgress.totalCriteria} · " +
-                        "Implementation ${if (verifiedProgress.implementationVerified) "VERIFIED" else "PENDING"} · " +
-                        "Tests ${if (verifiedProgress.testsVerified) "VERIFIED" else "PENDING"} · " +
-                        "Behavior ${if (verifiedProgress.behaviorVerified) "VERIFIED" else "PENDING"}"
-                }
+            val progressLabel = TextView(activity).apply {
+                text = verifiedProgress?.let(::progressText)
+                    ?: "PROGRESS UNAVAILABLE · EXECUTION JOURNAL UNREADABLE"
                 textSize = 9f
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(0, dp(3), 0, dp(3))
                 contentDescription = text.toString()
-            })
+            }
+            card.addView(progressLabel)
             verifiedProgress?.let { progress ->
                 val bar = android.widget.ProgressBar(
                     activity, null, android.R.attr.progressBarStyleHorizontal
@@ -1198,6 +1231,7 @@ internal class VyomFactoryDialog(
                     isIndeterminate = false
                     contentDescription = "Verified task progress ${progress.percent} percent"
                 }
+                progressViews[task.number] = progressLabel to bar
                 card.addView(bar, LinearLayout.LayoutParams(-1, dp(6)).apply {
                     bottomMargin = dp(7)
                 })
@@ -1306,12 +1340,13 @@ internal class VyomFactoryDialog(
             try {
                 val fresh = client.listTasks().firstOrNull { it.number == task.number }
                     ?: throw IllegalArgumentException("Complaint #${task.number} is no longer in the shared registry")
-                client.recordVerificationResult(fresh, passed, evidence)
+                val verified = client.recordVerificationResult(fresh, passed, evidence)
                 createStageDetector(VyomFactoryStageDetectorJournal(activity.applicationContext))
                     .onVerificationResult(fresh, passed, evidence)
                 main.post {
                     if (!dialog.isShowing) return@post
-                    status.text = if (passed) "Probe PASS recorded. DONE is now available for #${task.number}."
+                    refreshTaskProgress(verified)
+                    status.text = if (passed) "Probe PASS recorded for #${task.number}; progress now reflects the persisted evidence."
                         else "Probe FAIL recorded. Complaint #${task.number} remains open."
                     busy = false
                     refresh()
