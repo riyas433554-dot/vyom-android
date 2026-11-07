@@ -1142,6 +1142,9 @@ internal class VyomFactoryDialog(
             taskList.addView(message("No Factory complaints registered yet. Use the form above to create the first shared task."))
             return
         }
+        val executionEntries = runCatching {
+            VyomFactoryExecutionJournal(activity.applicationContext).all()
+        }.getOrNull()
         orderedTasks.forEach { task ->
             val card = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1166,6 +1169,39 @@ internal class VyomFactoryDialog(
                 text = description; textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 maxLines = 3; setPadding(0, 0, 0, dp(6))
             })
+
+            val verifiedProgress = executionEntries?.let {
+                VyomFactoryVerifiedProgress.calculate(task, it)
+            }
+            card.addView(TextView(activity).apply {
+                text = if (verifiedProgress == null) {
+                    "PROGRESS UNAVAILABLE · EXECUTION JOURNAL UNREADABLE"
+                } else {
+                    "PROGRESS ${verifiedProgress.percent}% · ${verifiedProgress.label}\n" +
+                        "Criteria ${verifiedProgress.checkedCriteria}/${verifiedProgress.totalCriteria} · " +
+                        "Implementation ${if (verifiedProgress.implementationVerified) "VERIFIED" else "PENDING"} · " +
+                        "Tests ${if (verifiedProgress.testsVerified) "VERIFIED" else "PENDING"} · " +
+                        "Behavior ${if (verifiedProgress.behaviorVerified) "VERIFIED" else "PENDING"}"
+                }
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                setPadding(0, dp(3), 0, dp(3))
+                contentDescription = text.toString()
+            })
+            verifiedProgress?.let { progress ->
+                val bar = android.widget.ProgressBar(
+                    activity, null, android.R.attr.progressBarStyleHorizontal
+                ).apply {
+                    max = 100
+                    this.progress = progress.percent
+                    isIndeterminate = false
+                    contentDescription = "Verified task progress ${progress.percent} percent"
+                }
+                card.addView(bar, LinearLayout.LayoutParams(-1, dp(6)).apply {
+                    bottomMargin = dp(7)
+                })
+            }
             val controls = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             fun action(label: String, next: String) {
                 controls.addView(Button(activity).apply {
