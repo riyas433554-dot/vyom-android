@@ -72,7 +72,7 @@ class SelfModificationClientIntegrationTest {
                 ownerReviewedDiff = true
             )
             assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
-            val requests = (0 until 5).map { server.takeRequest() }
+            val requests = (0 until 7).map { server.takeRequest() }
             assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST"), requests.map { it.method })
             assertFalse(requests.any { it.path.orEmpty().contains("/merge") })
             assertFalse(requests.any { it.path.orEmpty().contains("/releases") })
@@ -103,12 +103,12 @@ class SelfModificationClientIntegrationTest {
                 )
             }
 
-            val requests = (0 until 7).map { server.takeRequest() }
+            val requests = (0 until 8).map { server.takeRequest() }
             assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST", "GET", "DELETE"),
                 requests.map { it.method })
             assertTrue(requests[1].body.readUtf8().contains("refs/heads/vyom-proposal-"))
             assertTrue(requests[3].path!!.contains("/contents/"))
-            assertTrue(requests[6].path!!.contains("/git/refs/heads/"))
+            assertTrue(requests[7].path!!.contains("/git/refs/heads/"))
             assertFalse(requests.any { it.path.orEmpty().contains("/merge") })
             assertFalse(requests.any { it.path.orEmpty().contains("/releases") })
         } finally {
