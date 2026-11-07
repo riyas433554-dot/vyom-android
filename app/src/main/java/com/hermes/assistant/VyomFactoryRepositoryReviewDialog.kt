@@ -188,18 +188,38 @@ internal class VyomFactoryRepositoryReviewDialog(
                 existing.commitSha == proposedBinding.commitSha &&
                 existing.allowedPaths == proposedBinding.allowedPaths
             val bindingToPersist = if (sameBindingTarget) existing!! else proposedBinding
-            val persist: (Boolean) -> Unit = { migrate ->
+            val repositoryRegistry = VyomFactoryRepositoryRegistry(
+                File(activity.filesDir, "factory-repository-registry")
+            )
+            val existingRepository = try {
+                repositoryRegistry.list().firstOrNull {
+                    it.canonicalUrl == preview.snapshot.source.canonicalUrl
+                }
+            } catch (error: Exception) {
+                onStatus("Could not read repository source registry · ${error.javaClass.simpleName}")
+                return@setOnClickListener
+            }
+            val migrateRepository = existingRepository != null &&
+                existingRepository.commitSha != preview.snapshot.commitSha
+            val migrateSystem = existing != null && !sameBindingTarget
+            val persist: (Boolean, Boolean) -> Unit = { migrateSystemNow, migrateRepositoryNow ->
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                 worker.execute {
                     try {
-                        val entry = VyomFactoryRepositoryRegistry(
-                            File(activity.filesDir, "factory-repository-registry")
-                        ).register(preview, ownerConfirmed = true)
+                        val entry = if (migrateRepositoryNow && existingRepository != null) {
+                            repositoryRegistry.migrate(
+                                preview,
+                                expectedExisting = existingRepository,
+                                ownerConfirmed = true
+                            )
+                        } else {
+                            repositoryRegistry.register(preview, ownerConfirmed = true)
+                        }
                         require(entry.canonicalUrl == proposedBinding.repositoryUrl &&
                             entry.commitSha == proposedBinding.commitSha) {
                             "Inspected repository snapshot changed before registration"
                         }
-                        val binding = if (migrate && existing != null) {
+                        val binding = if (migrateSystemNow && existing != null) {
                             registry.migrate(
                                 proposedBinding,
                                 expectedExisting = existing,
@@ -211,7 +231,7 @@ internal class VyomFactoryRepositoryReviewDialog(
                         main.post {
                             if (finished || activity.isFinishing) return@post
                             onStatus(
-                                "System '${systemId}' ${if (migrate) "migrated" else "bound"} to " +
+                                "System '${systemId}' ${if (migrateSystemNow) "migrated" else "bound"} to " +
                                     "${binding.repositoryUrl} · ${binding.commitSha.take(12)} · " +
                                     "${binding.allowedPaths.size} allowed path root(s). Repository execution remains gated."
                             )
@@ -226,21 +246,31 @@ internal class VyomFactoryRepositoryReviewDialog(
                     }
                 }
             }
-            if (existing != null && !sameBindingTarget) {
+            if (migrateSystem || migrateRepository) {
+                val message = buildString {
+                    if (migrateSystem && existing != null) {
+                        append("SYSTEM BINDING\nCURRENT: ${existing.repositoryUrl} @ ${existing.commitSha}\n")
+                        append("PATHS: ${existing.allowedPaths.joinToString()}\n")
+                        append("NEW: ${proposedBinding.repositoryUrl} @ ${proposedBinding.commitSha}\n")
+                        append("NEW PATHS: ${proposedBinding.allowedPaths.joinToString()}\n\n")
+                    }
+                    if (migrateRepository && existingRepository != null) {
+                        append("SOURCE CATALOGUE\nCURRENT COMMIT: ${existingRepository.commitSha}\n")
+                        append("NEW COMMIT: ${preview.snapshot.commitSha}\n\n")
+                    }
+                    append("Only confirm if you are the owner and intend to migrate these immutable records. ")
+                    append("No repository code is installed or executed by this operation.")
+                }
                 AlertDialog.Builder(activity)
-                    .setTitle("MIGRATE SYSTEM BINDING?")
-                    .setMessage(
-                        "This system is already bound. Replacing it changes the repository, immutable commit, " +
-                            "and/or allowed path roots.\n\nCURRENT\n${existing.repositoryUrl}\n${existing.commitSha}\n" +
-                            "${existing.allowedPaths.joinToString()}\n\nNEW\n${proposedBinding.repositoryUrl}\n" +
-                            "${proposedBinding.commitSha}\n${proposedBinding.allowedPaths.joinToString()}\n\n" +
-                            "Only confirm if you are the owner and intend to migrate this system. Existing workers remain gated."
-                    )
-                    .setPositiveButton("CONFIRM MIGRATION") { _, _ -> persist(true) }
+                    .setTitle("CONFIRM REGISTRY MIGRATION?")
+                    .setMessage(message)
+                    .setPositiveButton("CONFIRM MIGRATION") { _, _ ->
+                        persist(migrateSystem, migrateRepository)
+                    }
                     .setNegativeButton("CANCEL", null)
                     .show()
             } else {
-                persist(false)
+                persist(false, false)
             }
         }
     }
