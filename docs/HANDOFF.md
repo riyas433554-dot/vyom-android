@@ -1577,3 +1577,9 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Latest code HEAD `252a51d4c52715c51f8f389a86fa50c12a9a4ed3`: Full CI `42348154408` = **PENDING**; Debug CI `42348154378` = **IN_PROGRESS**. Recheck both against the final HANDOFF-updated HEAD; no pass claimed for this batch yet.
 - Item 4 remains **IN PROGRESS**. Do not start Item 5. Remaining audit must enumerate all system IDs and confirm each repository write path has a binding and path gate; worker repository execution remains unavailable until a dedicated isolated writer adapter is implemented and verified.
 - No Android `main`, Render, backend, or production Supabase changes. No physical-device verification or final APK publication claimed.
+
+### Item 4 — remaining GitHub Issues system binding gap — 2026-11-07
+
+- Further source audit found `VyomFactoryGitHubClient` is the Factory task ledger and performs GitHub Issues writes (`POST /issues`, `PATCH /issues/{n}`, `POST /issues/{n}/comments`) against its hard-coded `DEFAULT_REPOSITORY = riyas433554-dot/vyom-android`. These are issue metadata/comment writes, not Contents API source-file writes, but the task-engine repository target is not yet resolved through `VyomFactorySystemRegistry`.
+- This is an Item 4 gap: add an explicit `factory-task-engine` binding (repository URL + virtual allowed root such as `issues`), derive the Issues API repository from that binding, fail closed on missing/mismatched binding, and provide a reachable owner-registration path before making the binding mandatory. Do not break the initial Factory onboarding path.
+- Until that work is completed, Item 4 cannot be closed and Item 5 must not start. This audit finding is not yet implemented.
