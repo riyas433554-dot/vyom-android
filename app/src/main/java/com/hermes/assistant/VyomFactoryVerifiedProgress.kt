@@ -60,11 +60,14 @@ internal object VyomFactoryVerifiedProgress {
         val implementationVerified = latestSuccess != null
         val result = latestSuccess?.result.orEmpty()
         val testsVerified = implementationVerified && when (envelope.target) {
-            VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE ->
+            VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE -> {
+                val proposalSha = commitPattern.find(result)?.value?.substringAfter("commit=")
+                val ciSha = Regex("Both required workflows succeeded for exact commit ([a-f0-9]{40})")
+                    .find(result.substringAfter("ci=", ""))?.groupValues?.getOrNull(1)
                 result.startsWith("repository_proposal_verified:") &&
-                    commitPattern.containsMatchIn(result) &&
-                    pullPattern.containsMatchIn(result) &&
-                    result.substringAfter("ci=", "").isNotBlank()
+                    proposalSha != null && proposalSha == ciSha &&
+                    pullPattern.containsMatchIn(result)
+            }
             VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ->
                 DeviceActionExecutor.auditState(result) == "verified"
             else -> false
