@@ -93,7 +93,7 @@ internal class VyomFactoryGitHubClient(
             )) {
             throw IllegalStateException("Cannot complete this task until every explicit acceptance criterion is checked")
         }
-        if (VyomFactoryVerificationPolicy.blocksCompletion(current.metadata.status, newStatus, description, metadata.events))
+        if (VyomFactoryVerificationPolicy.blocksCompletion(current.metadata.status, newStatus, description, metadata.events)) {
             throw IllegalStateException("Cannot close this complaint until its assigned device probe has a recorded PASS result")
         }
         val body = VyomFactoryStatus.withMetadata(description, metadata)
