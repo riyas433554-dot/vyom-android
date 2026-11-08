@@ -1,47 +1,58 @@
 package com.hermes.assistant
 
 /**
- * Evidence-backed task progress. A task is never shown as 100% merely because
- * it was edited, committed, started, or marked completed in GitHub.
+ * Ordered, evidence-backed task progress.
  *
- * The execution journal proves the exact issue + operation completed through
- * a verified adapter. Repository-change results additionally carry the
- * proposal commit/PR and the executor's exact-SHA CI evidence. Android actions
- * require the adapter's independently checked postcondition. The named owner
- * probe and every explicit acceptance criterion are separate gates.
+ * Journal result is the durable implementation receipt: it must contain the
+ * exact implementation commit SHA. CI evidence is accepted only for that SHA.
+ * Criteria and the optional named device probe are later, independent gates.
  */
 internal object VyomFactoryVerifiedProgress {
+    enum class Stage {
+        NOT_STARTED,
+        IMPLEMENTATION_DONE,
+        CI_VERIFIED,
+        CRITERIA_VERIFIED,
+        PROBE_VERIFIED
+    }
+
     data class Snapshot(
         val percent: Int,
+        val stage: Stage,
         val label: String,
         val checkedCriteria: Int,
         val totalCriteria: Int,
+        val commitSha: String?,
         val implementationVerified: Boolean,
-        val executionInProgress: Boolean,
-        val testsVerified: Boolean,
-        val behaviorVerified: Boolean,
-        val completionRecorded: Boolean,
-        val verifiedComplete: Boolean
+        val ciVerified: Boolean,
+        val criteriaVerified: Boolean,
+        val probeRequired: Boolean,
+        val probeVerified: Boolean,
+        val executionInProgress: Boolean
     )
 
     private val criteriaHeader = Regex("(?im)^\\s*Acceptance criteria\\s*:\\s*$")
     private val criteriaItem = Regex("(?m)^\\s*[-*]\\s*\\[([ xX])\\]\\s+(.+?)\\s*$")
-    private val commitPattern = Regex("commit=[a-f0-9]{40}")
-    private val pullPattern = Regex("pr=https://github\\.com/[^\\s]+/pull/[0-9]+")
+    private val commitPattern = Regex("commit=([a-f0-9]{40})")
+    private val ciPattern = Regex("Both required workflows succeeded for exact commit ([a-f0-9]{40})")
 
     fun calculate(
         task: VyomFactoryGitHubClient.Task,
         journalEntries: List<VyomFactoryExecutionJournal.Entry>
     ): Snapshot {
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        val criteria = criteriaHeader.find(description)?.let { header ->
-            criteriaItem.findAll(description.substring(header.range.last + 1)).toList()
+        val criteriaSection = criteriaHeader.find(description)?.let { header ->
+            val remaining = description.substring(header.range.last + 1)
+            val end = Regex("(?m)^\\s*(?:#{1,6}\\s|<!--)").find(remaining)?.range?.first
+                ?: remaining.length
+            remaining.substring(0, end)
         }.orEmpty()
+        val criteria = criteriaItem.findAll(criteriaSection).toList()
         val checked = criteria.count {
             it.groupValues[1].equals("x", ignoreCase = true) &&
                 it.groupValues[2].trim().length >= 4
         }
-        val criteriaComplete = criteria.isNotEmpty() && checked == criteria.size
+        val criteriaVerified = criteria.isNotEmpty() && checked == criteria.size
 
         val envelope = VyomFactoryExecutionEnvelope.parse(task.body, task.number)
         val operationKey = if (envelope.isExecutable) {
@@ -49,85 +60,72 @@ internal object VyomFactoryVerifiedProgress {
         } else null
         val latestAttempt = operationKey?.let { expected ->
             journalEntries.asSequence()
-                .filter {
-                    it.issueNumber == task.number &&
-                        it.operationKey == expected
-                }
-                .maxWithOrNull(compareBy<VyomFactoryExecutionJournal.Entry> { it.updatedAt }
-                    .thenBy { it.startedAt })
+                .filter { it.issueNumber == task.number && it.operationKey == expected }
+                .maxWithOrNull(
+                    compareBy<VyomFactoryExecutionJournal.Entry> { it.updatedAt }
+                        .thenBy { it.startedAt }
+                )
         }
-        // A later failed/interrupted attempt invalidates an older success for progress.
-        val implementationVerified = latestAttempt?.let {
-            it.state == VyomFactoryExecutionJournal.State.SUCCEEDED && !it.result.isNullOrBlank()
-        } == true
         val executionInProgress = latestAttempt?.state in setOf(
             VyomFactoryExecutionJournal.State.CLAIMED,
             VyomFactoryExecutionJournal.State.RUNNING,
             VyomFactoryExecutionJournal.State.STOP_REQUESTED
         )
-        val result = if (implementationVerified) latestAttempt?.result.orEmpty() else ""
-        val testsVerified = implementationVerified && when (envelope.target) {
-            VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE -> {
-                val proposalSha = commitPattern.find(result)?.value?.substringAfter("commit=")
-                val ciSha = Regex("Both required workflows succeeded for exact commit ([a-f0-9]{40})")
-                    .find(result.substringAfter("ci=", ""))?.groupValues?.getOrNull(1)
-                result.startsWith("repository_proposal_verified:") &&
-                    proposalSha != null && proposalSha == ciSha &&
-                    pullPattern.containsMatchIn(result)
-            }
-            VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ->
-                DeviceActionExecutor.auditState(result) == "verified"
-            else -> false
-        }
-        val behaviorVerified = VyomFactoryVerificationPolicy.canComplete(
+
+        // Only the latest successful attempt may contribute. A newer STOP,
+        // failure, or crash-recovered INTERRUPTED attempt invalidates old proof.
+        val result = latestAttempt?.takeIf {
+            it.state == VyomFactoryExecutionJournal.State.SUCCEEDED
+        }?.result.orEmpty()
+        val commitSha = commitPattern.find(result)?.groupValues?.getOrNull(1)
+        val implementationVerified = commitSha != null
+        val ciSha = ciPattern.find(result.substringAfter("ci=", ""))
+            ?.groupValues?.getOrNull(1)
+        val ciVerified = implementationVerified && ciSha == commitSha
+
+        val probeRequired = VyomFactoryVerificationPolicy.assignedProbe(description) != null
+        val probeVerified = !probeRequired || VyomFactoryVerificationPolicy.canComplete(
             description,
             task.metadata.events
         )
-        val completionRecorded = task.metadata.status == "completed"
-        val verifiedComplete = completionRecorded && criteriaComplete &&
-            implementationVerified && testsVerified && behaviorVerified
 
-        // Weighted evidence stages: criteria 25, implementation 25, tests 25,
-        // named behavior probe 15, terminal completion 5, started work 5.
-        // An active journal attempt earns only 10/25 implementation points;
-        // a verified result earns 25. The 100th point is reserved for all gates.
-        val activePoints = if (task.metadata.status in setOf("in_progress", "completed")) 5 else 0
-        val criteriaPoints = if (criteria.isEmpty()) 0 else (25 * checked / criteria.size)
-        val implementationPoints = when {
-            implementationVerified -> 25
-            executionInProgress -> 10
-            else -> 0
+        val stage = when {
+            !implementationVerified -> Stage.NOT_STARTED
+            !ciVerified -> Stage.IMPLEMENTATION_DONE
+            !criteriaVerified -> Stage.CI_VERIFIED
+            probeRequired && !probeVerified -> Stage.CRITERIA_VERIFIED
+            else -> Stage.PROBE_VERIFIED
         }
-        val rawPercent = activePoints +
-            criteriaPoints +
-            implementationPoints +
-            (if (testsVerified) 25 else 0) +
-            (if (behaviorVerified) 15 else 0) +
-            (if (completionRecorded) 5 else 0)
-        val percent = if (verifiedComplete) 100 else rawPercent.coerceIn(0, 99)
-
+        val percent = when (stage) {
+            Stage.NOT_STARTED -> 0
+            Stage.IMPLEMENTATION_DONE -> 25
+            Stage.CI_VERIFIED -> 50
+            Stage.CRITERIA_VERIFIED -> if (probeRequired) 99 else 100
+            Stage.PROBE_VERIFIED -> 100
+        }
         val label = when {
-            verifiedComplete -> "VERIFIED COMPLETE"
-            completionRecorded -> "COMPLETED · UNVERIFIED"
-            !criteriaComplete -> "ACCEPTANCE CRITERIA INCOMPLETE"
-            executionInProgress -> "IMPLEMENTATION RUNNING"
-            !implementationVerified -> "IMPLEMENTATION NOT VERIFIED"
-            !testsVerified -> "TEST / POSTCONDITION EVIDENCE MISSING"
-            !behaviorVerified -> "REQUIRED BEHAVIOR PROBE PENDING"
-            else -> "READY FOR VERIFIED COMPLETION"
+            executionInProgress && !implementationVerified -> "IMPLEMENTATION RUNNING"
+            !implementationVerified -> "NOT_STARTED"
+            !ciVerified -> "IMPLEMENTATION DONE · CI PENDING"
+            !criteriaVerified -> "CI VERIFIED · CRITERIA PENDING"
+            probeRequired && !probeVerified -> "PHONE-PENDING"
+            !probeRequired -> "CRITERIA VERIFIED · DEVICE PROBE NOT REQUIRED"
+            else -> "PROBE VERIFIED"
         }
 
         return Snapshot(
             percent = percent,
+            stage = stage,
             label = label,
             checkedCriteria = checked,
             totalCriteria = criteria.size,
+            commitSha = commitSha,
             implementationVerified = implementationVerified,
-            executionInProgress = executionInProgress,
-            testsVerified = testsVerified,
-            behaviorVerified = behaviorVerified,
-            completionRecorded = completionRecorded,
-            verifiedComplete = verifiedComplete
+            ciVerified = ciVerified,
+            criteriaVerified = criteriaVerified,
+            probeRequired = probeRequired,
+            probeVerified = probeVerified,
+            executionInProgress = executionInProgress
         )
     }
 }
