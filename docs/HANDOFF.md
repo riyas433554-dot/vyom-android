@@ -12,10 +12,10 @@
   - No new SystemBinding test is included in these six. Total suite count: **UNVERIFIED**. No total has been invented.
 - **Legacy approval path: CLOSED.** Boolean-only legacy overloads reject before any GitHub request; final PR creation consumes a one-time local approval bound to the exact draft. No merge/release/install path was added.
 - **Four exact Gitleaks fingerprints and reasons (only these four are the reviewed batch entries):**
-  1. `4f6878bffd983a77cec1cc12060f6ec5be76c007:app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt:generic-api-key:72` — TEST_FIXTURE: fixed synthetic string in a unit test; literal only, not loaded from configuration or storage.
-  2. `4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF_HISTORY.md:generic-api-key:2529` — FALSE_POSITIVE: ordinary English wording in device-local lease documentation; no credential value.
-  3. `4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF.md:generic-api-key:988` — FALSE_POSITIVE: documented Git commit identifier, not a credential.
-  4. `dfc0bc5285e9cafa34e54db324528f52676f9a84:.gitleaksignore:generic-api-key:17` — FALSE_POSITIVE: historical ignore-file self-comment; neutral replacement comment avoids the triggering wording. No wildcard or broad suppression was added.
+  1. `sha:4f6878bffd98 | app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt | line 72` — TEST_FIXTURE: fixed synthetic string in a unit test; literal only, not loaded from configuration or storage.
+  2. `sha:4f6878bffd98 | docs/HANDOFF_HISTORY.md | line 2529` — FALSE_POSITIVE: ordinary English wording in device-local lease documentation; no credential value.
+  3. `sha:4f6878bffd98 | docs/HANDOFF.md | line 988` — FALSE_POSITIVE: documented Git commit identifier, not a credential.
+  4. `sha:dfc0bc5285e9 | .gitleaksignore | line 17` — FALSE_POSITIVE: historical ignore-file self-comment; neutral replacement comment avoids the triggering wording. No wildcard or broad suppression was added.
 - **History note:** `sha:044b196a87ad` / `sha:4f6878bffd98` were temporary snapshot churn; net diff from the base is only the test file. Remove that churn through PR #104 **squash merge** after owner approval; no force-push or history rewrite. PR #104 is not merged.
 - **Deferred assertRejected coverage (not claimed newly added or passed by this six-test list):**
   1. `rejectsProtectedPathBeforeMakingAnyGitHubRequest` — `IllegalArgumentException`
