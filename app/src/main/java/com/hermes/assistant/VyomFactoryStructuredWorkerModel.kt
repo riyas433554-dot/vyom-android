@@ -282,6 +282,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 inputTokens = response.inputTokens
                 outputTokens = response.outputTokens
                 require(inputTokens >= 0 && outputTokens >= 0) { "Worker provider returned invalid token usage" }
+                require(outputTokens <= limits.maxOutputTokens) { "Worker provider exceeded the output token limit" }
                 val total = inputTokens.toLong() + outputTokens.toLong()
                 if (journal.tokensForTask(task.number) + total > limits.maxTokensPerTask) {
                     throw IllegalArgumentException("Worker task token budget exceeded")

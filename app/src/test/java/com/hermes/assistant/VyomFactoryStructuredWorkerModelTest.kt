@@ -334,4 +334,24 @@ class VyomFactoryStructuredWorkerModelTest {
     }
 
 
+
+    @Test fun providerCannotExceedConfiguredOutputTokenLimit() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(validJson(), inputTokens = 10, outputTokens = 4_097)
+        }
+        val journal = MemoryJournal()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            adapter(provider, journal).propose(
+                task(), registry(), object : VyomFactoryExecutionControl {
+                    override fun shouldStop() = false
+                }
+            )
+        }
+
+        assertEquals("FAILED", journal.entries.single().result)
+        assertTrue(journal.entries.single().providerCallStarted)
+    }
+
+
 }

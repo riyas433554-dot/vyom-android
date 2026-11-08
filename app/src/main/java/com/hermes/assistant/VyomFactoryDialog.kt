@@ -1528,7 +1528,7 @@ internal class VyomFactoryDialog(
 
     private fun showWorkerModelKeyDialog() {
         val input = EditText(activity).apply {
-            hint = "Provider API key"
+            hint = "Provider credential"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
         }
