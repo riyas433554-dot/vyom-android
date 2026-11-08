@@ -183,6 +183,7 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("[]"))
             server.enqueue(MockResponse().setResponseCode(204))
 
+            val client = client(server)
             assertRejected {
                 approvedProposal(
                     client,
