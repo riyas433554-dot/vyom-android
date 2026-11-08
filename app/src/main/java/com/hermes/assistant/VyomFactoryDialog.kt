@@ -401,14 +401,19 @@ internal class VyomFactoryDialog(
                 val detectorJournal = VyomFactoryStageDetectorJournal(activity.applicationContext)
                 val stageDetector = createStageDetector(detectorJournal)
 
-                // Planning hook: inspect every fresh open task before triage/claim selection.
-                VyomFactoryPlanningStageHook(stageDetector::onPlanning).inspect(client.listTasks())
+                // This is the live RUN NEXT planning path: detector and triage share
+                // one fresh GitHub snapshot. Active device-local leases are excluded.
+                val planningSnapshot = client.listTasks()
+                VyomFactoryLivePlanningStage(stageDetector::onPlanning).inspect(
+                    planningSnapshot,
+                    session.activeClaimedIssueNumbers()
+                )
 
-                // Run a read-only planner pass over the fresh canonical issue snapshot.
+                // Run a read-only planner pass over that same canonical issue snapshot.
                 // Persist each typed triage outcome before execution; a candidate is
                 // never treated as executable until the runner independently validates it.
                 val triageRegistry = VyomFactoryCapabilityRegistry(adapter.capabilities)
-                val triageDecisions = VyomFactoryTaskTriage().evaluate(client.listTasks(), triageRegistry)
+                val triageDecisions = VyomFactoryTaskTriage().evaluate(planningSnapshot, triageRegistry)
                 triageDecisions.forEach { decision ->
                     if (decision.eventKey !in decision.task.metadata.events) {
                         client.updateTask(decision.task, additionalEvent = decision.eventKey)
