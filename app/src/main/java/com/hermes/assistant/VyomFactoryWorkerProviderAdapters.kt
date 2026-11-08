@@ -109,7 +109,6 @@ internal class NvidiaNemotronWorkerModelProvider(
             .put("temperature", 0.1)
             .put("max_tokens", maxOutputTokens)
             .put("stream", false)
-            .put("response_format", JSONObject().put("type", "json_object"))
         val result = transport.post(
             ENDPOINT,
             mapOf(
