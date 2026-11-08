@@ -566,6 +566,7 @@ class MainActivity : Activity() {
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
             else -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
         }
+        lateinit var workerModelIdInput: EditText
         val workerProviderButton = Button(this).apply {
             text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
             setOnClickListener {
@@ -577,11 +578,9 @@ class MainActivity : Activity() {
                         } else {
                             GoogleGemmaWorkerModelProvider.PROVIDER_ID
                         }
-                        workerProviderPrefsUpdate@ run {
-                            workerModelPrefs.edit()
-                                .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
-                                .apply()
-                        }
+                        workerModelPrefs.edit()
+                            .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
+                            .apply()
                         workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
                         workerModelIdInput.setText(
                             workerModelPrefs.getString(
@@ -595,7 +594,7 @@ class MainActivity : Activity() {
             }
         }
         settingsContent.addView(workerProviderButton, LinearLayout.LayoutParams(-1, dp(42)))
-        val workerModelIdInput = EditText(this).apply {
+        workerModelIdInput = EditText(this).apply {
             hint = "Worker model ID"
             setSingleLine(true)
             setTextColor(Color.WHITE)
