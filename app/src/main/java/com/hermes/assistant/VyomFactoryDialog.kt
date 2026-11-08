@@ -30,6 +30,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 /** Live Factory workspace. All visible task data is read from GitHub Issues, never demo fixtures. */
 internal class VyomFactoryDialog(
@@ -73,11 +74,13 @@ internal class VyomFactoryDialog(
     private lateinit var runButton: Button
     private lateinit var stopButton: Button
     private val stopRunRequested = AtomicBoolean(false)
+    private val pendingRepositoryApprovals = ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>()
     private var pendingConfirmationDialog: AlertDialog? = null
     private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
     private lateinit var retryStatus: TextView
     private lateinit var historyStatus: TextView
+    private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerOwnerId: String by lazy {
@@ -395,37 +398,88 @@ internal class VyomFactoryDialog(
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity, foregroundGeneration)
+                val detectorJournal = VyomFactoryStageDetectorJournal(activity.applicationContext)
+                val stageDetector = createStageDetector(detectorJournal)
 
-                // Run a read-only planner pass over the fresh canonical issue snapshot.
+                // This is the live RUN NEXT planning path: detector and triage share
+                // one fresh GitHub snapshot. Active device-local leases are excluded.
+                val planningSnapshot = client.listTasks()
+                VyomFactoryLivePlanningStage(stageDetector::onPlanning).inspect(
+                    planningSnapshot,
+                    session.activeClaimedIssueNumbers()
+                )
+
+                // Run a read-only planner pass over that same canonical issue snapshot.
                 // Persist each typed triage outcome before execution; a candidate is
                 // never treated as executable until the runner independently validates it.
                 val triageRegistry = VyomFactoryCapabilityRegistry(adapter.capabilities)
-                val triageDecisions = VyomFactoryTaskTriage().evaluate(client.listTasks(), triageRegistry)
+                val triageDecisions = VyomFactoryTaskTriage().evaluate(planningSnapshot, triageRegistry)
                 triageDecisions.forEach { decision ->
                     if (decision.eventKey !in decision.task.metadata.events) {
                         client.updateTask(decision.task, additionalEvent = decision.eventKey)
                     }
                 }
 
-                // Repository complaints have no executable adapter. Hand the oldest
-                // eligible one to the existing owner-reviewed proposal UI instead of
-                // letting the Android-only runner silently skip it.
-                val ownerReview = VyomFactorySpecialistRouting.nextOwnerReview(triageDecisions) { task ->
-                    isEligibleForRunner(task, journal, retrySchedules, adapter)
-                }
+                // Repository proposals are reviewed locally before the repository
+                // adapter becomes eligible. The legacy self-modification UI is not used here.
+                val ownerReview = VyomFactorySpecialistRouting.nextOwnerReview(
+                    decisions = triageDecisions,
+                    isRunnerEligible = { task -> isEligibleForRunner(task, journal, retrySchedules, adapter) },
+                    isLocallyApproved = { issueNumber ->
+                        pendingRepositoryApprovals.containsKey(issueNumber) ||
+                            journal.all().any {
+                                it.issueNumber == issueNumber && it.operationKey.startsWith("repository_change:")
+                            }
+                    }
+                )
                 if (ownerReview != null) {
                     main.post {
                         if (!dialog.isShowing) return@post
                         activeClaim = null
                         claimStatus.text = "OWNER REVIEW REQUIRED · #${ownerReview.task.number}"
-                        status.text = "Repository complaint routed to source discovery. Choose a file and review the exact diff; nothing has been changed."
+                        status.text = "Review the exact repository, immutable base, paths and proposed content. No repository write occurs before local approval."
                         runButton.isEnabled = true
                         stopButton.isEnabled = false
                         claimButton.isEnabled = true
                         releaseClaimButton.isEnabled = false
                         busy = false
-                        dialog.dismiss()
-                        onProposeFix(ownerReview.task)
+                        try {
+                            val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
+                            val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
+                            VyomFactoryRepositoryChangeReviewDialog.fromIssue(
+                                activity = activity,
+                                task = ownerReview.task,
+                                registry = registry,
+                                approvalStore = approvalStore,
+                                onApproved = { plan, approval ->
+                                    worker.execute {
+                                        try {
+                                            pendingRepositoryApprovals[plan.issueNumber] =
+                                                VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
+                                            main.post { runNextTask() }
+                                        } catch (error: Exception) {
+                                            main.post { onRunnerFailure(error.javaClass.simpleName) }
+                                        }
+                                    }
+                                },
+                                onRejected = {
+                                    worker.execute {
+                                        runCatching {
+                                            val fresh = client.listTasks().firstOrNull {
+                                                it.number == ownerReview.task.number && it.state == "open"
+                                            } ?: return@runCatching
+                                            client.updateTask(
+                                                fresh,
+                                                additionalEvent = VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT
+                                            )
+                                        }
+                                    }
+                                }
+                            ).show()
+                        } catch (error: Exception) {
+                            status.text = "Repository review unavailable: ${error.message ?: error.javaClass.simpleName}"
+                            onRunnerFailure(error.javaClass.simpleName)
+                        }
                     }
                     return@execute
                 }
@@ -442,16 +496,49 @@ internal class VyomFactoryDialog(
                     releaseClaim = { session.release(it) },
                     fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
                     journal = journal,
-                    adapters = VyomFactoryExecutionAdapterRegistry(listOf(adapter)),
+                    adapters = VyomFactoryExecutionAdapterRegistry(listOf(
+                        adapter,
+                        VyomFactoryRepositoryChangeAdapter(
+                            registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry")),
+                            githubToken = token,
+                            approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext),
+                            approvedPlans = pendingRepositoryApprovals
+                        )
+                    )),
                     retrySchedules = retrySchedules,
                     newAttemptId = { UUID.randomUUID().toString() },
-                    prepareExecution = { envelope -> prepareAndroidAction(envelope) },
+                    prepareExecution = { envelope ->
+                        if (envelope.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) envelope
+                        else prepareAndroidAction(envelope)
+                    },
                     // Activity pause/resume invalidates this run permanently, even if
                     // the user returns before the worker reaches its next STOP check.
                     externalStopRequested = {
                         stopRunRequested.get() ||
                             !hostActivity.factoryForegroundGate.isForeground() ||
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
+                    },
+                    onCheckpoint = { task, checkpoint, output ->
+                        stageDetector.onImplementationCheckpoint(task, checkpoint, output)
+                        main.post {
+                            if (::dialog.isInitialized && dialog.isShowing) {
+                                refreshTaskProgress(task)
+                                status.text = "Issue #${task.number} · checkpoint ${checkpoint.replace('_', ' ')} recorded."
+                            }
+                        }
+                    },
+                    onVerificationResult = { task, passed, evidence ->
+                        stageDetector.onVerificationResult(task, passed, evidence)
+                        main.post {
+                            if (::dialog.isInitialized && dialog.isShowing) {
+                                refreshTaskProgress(task)
+                                status.text = if (passed) {
+                                    "Issue #${task.number} · adapter postcondition verified; owner probe remains separate."
+                                } else {
+                                    "Issue #${task.number} · adapter postcondition failed; no completion progress awarded."
+                                }
+                            }
+                        }
                     }
                 )
                 VyomFactoryDrainCoordinator.drain(
@@ -546,6 +633,7 @@ internal class VyomFactoryDialog(
                 releaseClaimButton.isEnabled = false
                 refreshRetryOverview()
                 busy = false
+                refresh()
             }
         }
     }
@@ -563,8 +651,11 @@ internal class VyomFactoryDialog(
     ): Boolean {
         if (task.state != "open" || task.metadata.status !in setOf("open", "in_progress")) return false
         val envelope = VyomFactoryExecutionEnvelope.parse(task.body)
-        if (!envelope.isExecutable ||
-            envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
+        if (!envelope.isExecutable) return false
+        if (envelope.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) {
+            return pendingRepositoryApprovals.containsKey(task.number)
+        }
+        if (envelope.target != VyomFactoryExecutionEnvelope.Target.ANDROID_ACTION ||
             envelope.operation != "set_media_volume" ||
             envelope.arguments.has("confirmation_id")
         ) return false
@@ -993,6 +1084,7 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     status.text = errorMessage(error)
                     taskList.removeAllViews()
+        progressViews.clear()
                     taskList.addView(message("Could not load the shared registry. No local fake tasks were substituted."))
                     busy = false
                 }
@@ -1014,7 +1106,7 @@ internal class VyomFactoryDialog(
             val history = VyomFactoryExecutionHistory.summarize(
                 VyomFactoryExecutionJournal(activity.applicationContext).all()
             )
-            historyStatus.text = (listOf(history.label) + history.latest.map { it.label }).joinToString("\\n")
+            historyStatus.text = (listOf(history.label) + history.latest.map { it.label }).joinToString("\n")
             historyStatus.contentDescription = "${history.total} persisted attempts; ${history.active} active, ${history.succeeded} verified, ${history.failed} failed, ${history.interrupted} interrupted. Latest attempt rows are redacted."
         } catch (error: Exception) {
             retryStatus.text = "RETRY STATUS UNAVAILABLE · REVIEW REQUIRED"
@@ -1067,6 +1159,27 @@ internal class VyomFactoryDialog(
         }
     }
 
+    private fun progressText(progress: VyomFactoryVerifiedProgress.Snapshot): String =
+        "PROGRESS ${progress.percent}% · ${progress.label}\n" +
+            "Stage: ${progress.stage.name} · Commit: ${progress.commitSha?.take(8) ?: "PENDING"}\n" +
+            "CI ${if (progress.ciVerified) "PASS" else "PENDING"} · " +
+            "Criteria ${progress.checkedCriteria}/${progress.totalCriteria} " +
+            "${if (progress.criteriaVerified) "VERIFIED" else "PENDING"} · " +
+            "Device ${if (!progress.probeRequired) "N/A" else if (progress.probeVerified) "PASS" else "PHONE-PENDING"}"
+
+    private fun refreshTaskProgress(task: VyomFactoryGitHubClient.Task) {
+        val views = progressViews[task.number] ?: return
+        val snapshot = runCatching {
+            VyomFactoryVerifiedProgress.calculate(
+                task,
+                VyomFactoryExecutionJournal(activity.applicationContext).all()
+            )
+        }.getOrNull() ?: return
+        views.first.text = progressText(snapshot)
+        views.first.contentDescription = progressText(snapshot)
+        views.second.progress = snapshot.percent
+    }
+
     private fun render(tasks: List<VyomFactoryGitHubClient.Task>) {
         val orderedTasks = VyomFactoryTaskOrdering.sort(tasks)
         taskList.removeAllViews()
@@ -1074,6 +1187,9 @@ internal class VyomFactoryDialog(
             taskList.addView(message("No Factory complaints registered yet. Use the form above to create the first shared task."))
             return
         }
+        val executionEntries = runCatching {
+            VyomFactoryExecutionJournal(activity.applicationContext).all()
+        }.getOrNull()
         orderedTasks.forEach { task ->
             val card = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1098,6 +1214,34 @@ internal class VyomFactoryDialog(
                 text = description; textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 maxLines = 3; setPadding(0, 0, 0, dp(6))
             })
+
+            val verifiedProgress = executionEntries?.let {
+                VyomFactoryVerifiedProgress.calculate(task, it)
+            }
+            val progressLabel = TextView(activity).apply {
+                text = verifiedProgress?.let(::progressText)
+                    ?: "PROGRESS UNAVAILABLE · EXECUTION JOURNAL UNREADABLE"
+                textSize = 9f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                setPadding(0, dp(3), 0, dp(3))
+                contentDescription = text.toString()
+            }
+            card.addView(progressLabel)
+            verifiedProgress?.let { progress ->
+                val bar = android.widget.ProgressBar(
+                    activity, null, android.R.attr.progressBarStyleHorizontal
+                ).apply {
+                    max = 100
+                    this.progress = progress.percent
+                    isIndeterminate = false
+                    contentDescription = "Verified task progress ${progress.percent} percent"
+                }
+                progressViews[task.number] = progressLabel to bar
+                card.addView(bar, LinearLayout.LayoutParams(-1, dp(6)).apply {
+                    bottomMargin = dp(7)
+                })
+            }
             val controls = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             fun action(label: String, next: String) {
                 controls.addView(Button(activity).apply {
@@ -1177,6 +1321,23 @@ internal class VyomFactoryDialog(
             .show()
     }
 
+    private fun createStageDetector(journal: VyomFactoryStageDetectorJournal) = VyomFactoryStageDetector(
+        loadTasks = { client.listTasks() },
+        createTask = { parentIssueNumber, finding, existing ->
+            val proposal = requireNotNull(
+                VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
+            )
+            client.createTask(
+                title = proposal.title,
+                description = proposal.description + "\n\nMax iterations: ${VyomFactoryTaskIntelligence.DEFAULT_MAX_ITERATIONS}",
+                priority = "P2",
+                source = "task_failure",
+                sourceId = proposal.sourceId
+            )
+        },
+        recordEvent = journal::record
+    )
+
     private fun recordVerification(task: VyomFactoryGitHubClient.Task, passed: Boolean, evidence: String) {
         if (busy) return
         busy = true
@@ -1185,10 +1346,13 @@ internal class VyomFactoryDialog(
             try {
                 val fresh = client.listTasks().firstOrNull { it.number == task.number }
                     ?: throw IllegalArgumentException("Complaint #${task.number} is no longer in the shared registry")
-                client.recordVerificationResult(fresh, passed, evidence)
+                val verified = client.recordVerificationResult(fresh, passed, evidence)
+                createStageDetector(VyomFactoryStageDetectorJournal(activity.applicationContext))
+                    .onVerificationResult(fresh, passed, evidence)
                 main.post {
                     if (!dialog.isShowing) return@post
-                    status.text = if (passed) "Probe PASS recorded. DONE is now available for #${task.number}."
+                    refreshTaskProgress(verified)
+                    status.text = if (passed) "Probe PASS recorded for #${task.number}; progress now reflects the persisted evidence."
                         else "Probe FAIL recorded. Complaint #${task.number} remains open."
                     busy = false
                     refresh()
@@ -1210,9 +1374,9 @@ internal class VyomFactoryDialog(
                 val comments = client.listEvents(task.number)
                 val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
                 val history = if (comments.isEmpty()) "No comments or event notes recorded yet."
-                    else comments.joinToString("\\n\\n")
-                val details = "Status: ${task.metadata.status} · Priority: ${task.metadata.priority}\\n\\n" +
-                    description + "\\n\\nEVENT HISTORY\\n" + history
+                    else comments.joinToString("\n\n")
+                val details = "Status: ${task.metadata.status} · Priority: ${task.metadata.priority}\n\n" +
+                    description + "\n\nEVENT HISTORY\n" + history
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = "Task #${task.number} history loaded."

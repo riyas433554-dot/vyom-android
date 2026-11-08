@@ -12,10 +12,16 @@ import org.json.JSONObject
  * to this app process's lease operations. It is not a multi-process or cross-device
  * transaction. Expired attempts are marked interrupted and are never auto-replayed.
  */
+internal interface VyomFactoryApprovalNonceJournal {
+    fun issueApprovalNonce(nonce: String, planHash: String, expiresAtMillis: Long)
+    fun consumeApprovalNonce(nonce: String, planHash: String, expiresAtMillis: Long, now: Long): Boolean
+    fun isApprovalNonceConsumed(nonce: String): Boolean
+}
+
 internal class VyomFactoryExecutionJournal internal constructor(
     private val prefs: SharedPreferences,
     private val leases: VyomFactoryWorkerLeaseStore
-) {
+) : VyomFactoryApprovalNonceJournal {
     constructor(context: Context) : this(
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
         VyomFactoryWorkerLeaseStore(context.applicationContext.getSharedPreferences(LEASE_PREFS, Context.MODE_PRIVATE))
@@ -41,6 +47,85 @@ internal class VyomFactoryExecutionJournal internal constructor(
     ) {
         val isTerminal: Boolean
             get() = state == State.SUCCEEDED || state == State.FAILED || state == State.INTERRUPTED
+    }
+
+    override fun issueApprovalNonce(nonce: String, planHash: String, expiresAtMillis: Long) =
+        synchronized(VyomFactoryExecutionLock.LOCK) {
+            require(nonce.matches(APPROVAL_NONCE))
+            require(planHash.matches(SHA256))
+            require(expiresAtMillis > 0)
+            val approvals = readApprovalNonces().toMutableMap()
+            check(nonce !in approvals) { "Approval nonce already exists" }
+            check(approvals.size < MAX_APPROVAL_NONCES) { "Approval nonce journal is full" }
+            approvals[nonce] = ApprovalNonce(planHash, expiresAtMillis, null)
+            persistApprovalNonces(approvals)
+        }
+
+    override fun consumeApprovalNonce(
+        nonce: String,
+        planHash: String,
+        expiresAtMillis: Long,
+        now: Long
+    ): Boolean = synchronized(VyomFactoryExecutionLock.LOCK) {
+        require(now >= 0)
+        val approvals = readApprovalNonces().toMutableMap()
+        val current = approvals[nonce] ?: return@synchronized false
+        if (current.planHash != planHash || current.expiresAtMillis != expiresAtMillis ||
+            current.consumedAtMillis != null || now >= current.expiresAtMillis
+        ) return@synchronized false
+        approvals[nonce] = current.copy(consumedAtMillis = now)
+        persistApprovalNonces(approvals)
+        true
+    }
+
+    override fun isApprovalNonceConsumed(nonce: String): Boolean =
+        synchronized(VyomFactoryExecutionLock.LOCK) {
+            readApprovalNonces()[nonce]?.consumedAtMillis != null
+        }
+
+    private data class ApprovalNonce(
+        val planHash: String,
+        val expiresAtMillis: Long,
+        val consumedAtMillis: Long?
+    )
+
+    private fun readApprovalNonces(): Map<String, ApprovalNonce> {
+        val raw = prefs.getString(KEY_APPROVAL_NONCES, null) ?: return emptyMap()
+        return try {
+            val array = JSONArray(raw)
+            require(array.length() <= MAX_APPROVAL_NONCES)
+            buildMap {
+                for (i in 0 until array.length()) {
+                    val item = array.getJSONObject(i)
+                    val nonce = item.getString("nonce")
+                    val value = ApprovalNonce(
+                        item.getString("plan_hash"),
+                        item.getLong("expires_at"),
+                        if (item.isNull("consumed_at")) null else item.getLong("consumed_at")
+                    )
+                    require(nonce.matches(APPROVAL_NONCE) && value.planHash.matches(SHA256) &&
+                        value.expiresAtMillis > 0 &&
+                        (value.consumedAtMillis == null || value.consumedAtMillis >= 0))
+                    require(put(nonce, value) == null) { "Duplicate approval nonce" }
+                }
+            }
+        } catch (error: Exception) {
+            throw IllegalStateException("Approval nonce journal is unreadable; refusing approval", error)
+        }
+    }
+
+    private fun persistApprovalNonces(approvals: Map<String, ApprovalNonce>) {
+        val array = JSONArray()
+        approvals.toSortedMap().forEach { (nonce, value) ->
+            array.put(JSONObject()
+                .put("nonce", nonce)
+                .put("plan_hash", value.planHash)
+                .put("expires_at", value.expiresAtMillis)
+                .put("consumed_at", value.consumedAtMillis))
+        }
+        check(prefs.edit().putString(KEY_APPROVAL_NONCES, array.toString()).commit()) {
+            "Approval nonce journal could not be persisted"
+        }
     }
 
     /** Creates a unique attempt only while the exact supplied lease is current. */
@@ -281,6 +366,10 @@ internal class VyomFactoryExecutionJournal internal constructor(
         private const val PREFS = "vyom_factory_execution_journal"
         private const val LEASE_PREFS = "vyom_factory_worker_leases"
         private const val KEY_ATTEMPTS = "attempts_v1"
+        private const val KEY_APPROVAL_NONCES = "repository_approval_nonces_v1"
+        private const val MAX_APPROVAL_NONCES = 10_000
+        private val APPROVAL_NONCE = Regex("[A-Za-z0-9-]{16,80}")
+        private val SHA256 = Regex("[a-f0-9]{64}")
         private const val MAX_ATTEMPT_ID_LENGTH = 160
         private const val MAX_RESULT_LENGTH = 8_000
         private const val MAX_ERROR_LENGTH = 1_000

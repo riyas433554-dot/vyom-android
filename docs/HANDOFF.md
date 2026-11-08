@@ -1,3 +1,225 @@
+### Item 5 — live planning + legacy approval closure — 2026-11-08
+
+- **Status: LIVE-WIRED.** Code/test HEAD: `sha:fbc2b7a19578` on `fix/item7-progress-gates`. PR #104 remains **OPEN + DRAFT + UNMERGED**; no merge performed.
+- **Owner-confirmed exact-HEAD CI:** Full run `42483553086`; Debug run `42483553144`. Owner confirmed both green on full HEAD `sha:fbc2b7a19578` (`fbc2b7a19578e4cb1594e64a6ff046fd849408c1`). Owner also confirmed Full-history Gitleaks findings = 0. The GitHub connector still reports these jobs as `in_progress` and job-log download returned `404 BlobNotFound`; therefore literal log lines `no leaks found`, `FULL_HISTORY_GITLEAKS_FINDINGS=0`, and `testDebugUnitTest BUILD SUCCESSFUL` are **NOT INDEPENDENTLY RETRIEVED** in this checkpoint. Do not infer a total test count: **UNVERIFIED**. Both exact run IDs and SHA are recorded from the owner-confirmed Actions page.
+- **Test additions — exact six newly added @Test methods:**
+  1. `SelfModificationApprovalGateTest.approvalIsBoundToExactDraftAndCanBeConsumedOnlyOnce`
+  2. `SelfModificationApprovalGateTest.changedDraftCannotReuseApprovalToken`
+  3. `SelfModificationApprovalGateTest.expiredOrClearedApprovalCannotBeConsumed`
+  4. `SelfModificationClientIntegrationTest.rejectsLegacyBooleanApprovalEvenWhenTrueBeforeAnyGitHubRequest`
+  5. `VyomFactoryLivePlanningStageIntegrationTest.livePlanningInvokesDetectorOnceAndSkipsClosedAndLocallyClaimedTasks`
+  6. `VyomFactoryLivePlanningStageIntegrationTest.livePlanningContainsDetectorFailureAndContinuesToNextTask`
+  - No new SystemBinding test is included in these six. Total suite count: **UNVERIFIED**. No total has been invented.
+- **Legacy approval path: CLOSED.** Boolean-only legacy overloads reject before any GitHub request; final PR creation consumes a one-time local approval bound to the exact draft. No merge/release/install path was added.
+- **Four exact Gitleaks fingerprints and reasons (only these four are the reviewed batch entries):**
+  1. `sha:4f6878bffd98 | app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt | line 72` — TEST_FIXTURE: fixed synthetic string in a unit test; literal only, not loaded from configuration or storage.
+  2. `sha:4f6878bffd98 | docs/HANDOFF_HISTORY.md | line 2529` — FALSE_POSITIVE: ordinary English wording in device-local lease documentation; no credential value.
+  3. `sha:4f6878bffd98 | docs/HANDOFF.md | line 988` — FALSE_POSITIVE: documented Git commit identifier, not a credential.
+  4. `sha:dfc0bc5285e9 | .gitleaksignore | line 17` — FALSE_POSITIVE: historical ignore-file self-comment; neutral replacement comment avoids the triggering wording. No wildcard or broad suppression was added.
+- **History note:** `sha:044b196a87ad` / `sha:4f6878bffd98` were temporary snapshot churn; net diff from the base is only the test file. Remove that churn through PR #104 **squash merge** after owner approval; no force-push or history rewrite. PR #104 is not merged.
+- **Deferred assertRejected coverage (not claimed newly added or passed by this six-test list):**
+  1. `rejectsProtectedPathBeforeMakingAnyGitHubRequest` — `IllegalArgumentException`
+  2. `rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest` — `SecurityException`
+  3. `confirmedPrCreationFailureCleansBranchButNeverMergesOrInstalls` — `IllegalStateException`
+  4. `uncertainPrCreationFailurePreservesBranchForManualRecovery` — `IllegalStateException`
+  5. `rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest` — `IllegalArgumentException`
+  6. `exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling` — `IllegalStateException`
+- **Squash merge procedure — instructions only; NOT EXECUTED:**
+  1. Open PR #104 and confirm base `feature/factory-item5-task-intelligence`, head `fix/item7-progress-gates`, and expected diff.
+  2. Confirm PR checks are green on the latest head and resolve any review conversations.
+  3. Select **Squash and merge** (do not use merge commit or rebase).
+  4. Review the squash commit message and final file summary; confirm no Android `main`, Render, backend, production Supabase, or PR #102 changes are included.
+  5. Click **Squash and merge** only after explicit owner GO; then verify PR #104 is merged and record the resulting base-branch SHA. Until then PR #104 stays open/draft/unmerged.
+- Item 8 remains **NOT STARTED**. Wait for explicit owner GO. Android `main`, Render, backend, production Supabase, and PR #102 remain locked and untouched.
+
+---
+
+### Item 5 live-planning integration + legacy self-modification approval gate — 2026-11-08
+
+- **Implementation branch:** `fix/item7-progress-gates`. Current code/test SHA at the time of this entry: `c39fddd3a9eccd33fbda129251c949e5f31b0e4f`. The later `c39fddd` commit is a whitespace-minimized refactor of the token-gated proposal writer; it does not change behavior.
+- **Stacked PR:** [#104](https://github.com/riyas433554-dot/vyom-android/pull/104), head `fix/item7-progress-gates`, base `feature/factory-item5-task-intelligence`, **open + draft + unmerged**. GitHub reports `mergeable=true`; compare is **24 ahead / 0 behind** with merge-base equal to Item 5 base SHA `3aba5079451f3b410016542722644a99979b7d95`. No merge conflict is indicated. Do not mark ready-for-review or merge.
+- **PR #102 untouched:** title remains `[DRAFT] Factory Item 5 — dependency-aware task intelligence`; base remains `feature/memory-intelligence`; head remains `feature/factory-item5-task-intelligence`; open/draft/unmerged.
+- **Live planning wiring implemented, but NOT YET LIVE-WIRED:** `VyomFactoryDialog.runNextTask()` now takes one fresh `planningSnapshot`, calls `VyomFactoryLivePlanningStage(stageDetector::onPlanning)` before `VyomFactoryTaskTriage.evaluate`, and passes the same snapshot to triage. Active device-local leases are read through `WorkerSession → WorkerClaimCoordinator → WorkerLeaseStore` and excluded; the existing hook still filters closed tasks. Unexpected detector exceptions are contained so planning continues. Existing `VyomFactoryPlanningStageHookTest` was not changed.
+- **New live-planning integration tests committed; CI is not complete yet:**
+  - `VyomFactoryLivePlanningStageIntegrationTest.livePlanningInvokesDetectorOnceAndSkipsClosedAndLocallyClaimedTasks` — CI PENDING.
+  - `VyomFactoryLivePlanningStageIntegrationTest.livePlanningContainsDetectorFailureAndContinuesToNextTask` — CI PENDING.
+  - Do not write **LIVE-WIRED** until these tests pass on exact-SHA CI.
+- **Legacy path audit:** `VyomFactoryDialog.onProposeFix` → `MainActivity.openFactoryCodeProposal` only pre-fills the self-change form and opens it. The separate chat phrase `vyom ye badlo` opens the same form. Discovery and patch generation are read-only; the final preview's `OPEN PR` action is where GitHub writes begin. Previously, `createProposal(..., ownerReviewedDiff = true)` accepted a boolean, not a local token.
+- **Legacy write gate implemented:** `SelfModificationApprovalGate` issues a process-memory, single-use, 2-minute token bound to the exact draft fields (title, path, base SHA, proposed content, preview, summary). Only the final local `OPEN PR` tap issues it; the app also checks the foreground generation. `SelfModificationClient.createProposal` consumes the exact-draft token before entering the private GitHub-write method. Both legacy boolean-only overloads now throw before any network request. Tokens are cleared on Activity pause/destroy. The legacy path remains PR-only; no merge/release/install path was added.
+- **Approval test matrix — CI PENDING:**
+  - `SelfModificationApprovalGateTest.approvalIsBoundToExactDraftAndCanBeConsumedOnlyOnce`
+  - `SelfModificationApprovalGateTest.changedDraftCannotReuseApprovalToken`
+  - `SelfModificationApprovalGateTest.expiredOrClearedApprovalCannotBeConsumed`
+  - `SelfModificationClientIntegrationTest.rejectsLegacyBooleanApprovalEvenWhenTrueBeforeAnyGitHubRequest`
+  - `SelfModificationClientIntegrationTest.successfulProposalStopsAtUnmergedPrWithoutReleaseOrInstall`
+  - `SelfModificationSystemBindingTest.clientRejectsMissingOwnerApprovedBindingBeforeAnyNetworkRequest`
+- **Other legacy proposal regression tests — CI PENDING:** `SelfModificationClientIntegrationTest.rejectsProtectedPathBeforeMakingAnyGitHubRequest`, `rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest`, `confirmedPrCreationFailureCleansBranchButNeverMergesOrInstalls`, `uncertainPrCreationFailurePreservesBranchForManualRecovery`, `rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest`, and `exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling`.
+- **CI trigger:** added `fix/item7-progress-gates` to the push branch filters in both `.github/workflows/vyom-android-ci.yml` and `.github/workflows/vyom-android-debug.yml`, because this stacked PR targets the Item 5 branch rather than the older PR-trigger base filters.
+- **Exact-SHA runs currently pending/in progress:** Full CI push run `42451339919` = PENDING; Debug CI push run `42451339915` = IN_PROGRESS. Both report `head_branch=fix/item7-progress-gates` and `head_sha=c39fddd3a9eccd33fbda129251c949e5f31b0e4f`. No PASS is claimed while these runs are incomplete.
+- **New commits in this batch (each is a separate commit):**
+  - `0a4d63bddc75d2dcfb43143bd3f905c239c95e72` — live-planning integration test.
+  - `97a8409cac2d349da58dc335dd20137e2d3433f8` — approval-token tests.
+  - `304ec4a4ee0bbce885688b8172116c569001cf85` — tokenized proposal integration coverage.
+  - `ff84d6d74f185d6701ebb01bdc7f6a4211877818` — exact-diff one-time approval gate.
+  - `7e186a44953a43b62bc0dc66e031ddcd6335e628` — disable boolean-only proposal approval.
+  - `dba49c56a7d15762aa3001bf898c2e5b600567f1` — gate legacy PR writes with local token.
+  - `ca466553d6a1c0d60fbcbbc49e608203b2d2283e` — live-planning detector boundary.
+  - `358cebb034f03a66c7e8791931cc0a1d6fdcd505` — expose active local claims.
+  - `87886b36acb46ec138481a810cfc89e6fec5739b` — expose active claims to coordinator.
+  - `69b077498c3978c97d4f992cd11af6f6e4d601f0` — expose active claims from worker session.
+  - `5cd4300394a1841c3cbe11f1ce59863daecf4b8e` — wire detector into live RUN NEXT planning.
+  - `8405c1d32d699f4cf602fd22bcf8195ad6847d00` — clean live-planning test fixture.
+  - `250c72f04a902fef8d5fdaf8782476fe499f83f6` — clean approval test fixture.
+  - `81e8de0fc3c282428a3e7f0141b990ef37133a25` — enable Full + Debug push checks on this branch.
+  - `66b989680d3bb9a7cf2e7639220ea67f9888ddfa` — preserve missing-binding rejection coverage.
+  - `7b5205a2c7b3c5fa66d5ef0f0dcdc2fe5c135aa2` — fix base-movement test fixture.
+  - `394de019b3d7a1417b5c7adf9d5918d83525c5b2` — unit-returning detector journal callback.
+  - `c39fddd3a9eccd33fbda129251c949e5f31b0e4f` — reduce SelfModificationClient token-gate diff to the minimal method-boundary change.
+- Item 7 remains **CODE-VERIFIED / PHONE-PENDING** as documented above. Item 5 live-planning integration remains **CI-PENDING / NOT YET LIVE-WIRED**. Item 8 remains **NOT STARTED**. No cherry-pick, PR #102 metadata change, merge, ready-for-review transition, Android `main`, Render, backend, or production Supabase change. No phone probe is claimed.
+
+---
+
+### Item 7 — sequential evidence progress gate — 2026-11-08
+
+<badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
+
+- **Verified implementation/code HEAD:** `6a51e0201e402643bb33ae77e14bb03b954bd867` on branch `fix/item7-progress-gates`.
+- **Exact-HEAD Full CI:** run `42449421304` — **SUCCESS**. `head_branch=fix/item7-progress-gates`; `head_sha=6a51e0201e402643bb33ae77e14bb03b954bd867`. The `testDebugUnitTest`, debug APK build, packaging/checksum and debug APK upload steps succeeded.
+- **Exact-HEAD Debug CI:** run `42449421267` — **SUCCESS**. `head_branch=fix/item7-progress-gates`; `head_sha=6a51e0201e402643bb33ae77e14bb03b954bd867`. The `testDebugUnitTest`, APK build and versioned APK packaging/checksum steps succeeded.
+- Both workflows tested the exact same committed HEAD. The Gradle suite total is **654 tests: 654 passed, 0 failed**. The prior 654-test run on the same test-source tree had one failing assertion; commit `6a51e02` changes only the production formula in `VyomFactoryVerifiedProgress.kt`, and both exact-HEAD unit-test tasks now succeed.
+- **Progress test matrix — 15/15 PASS** (`VyomFactoryVerifiedProgressTest.kt`):
+  - `noJournalCommitMeansZeroNotStarted` — PASS
+  - `commitShaInLatestSuccessfulJournalMeansImplementationDoneAtTwentyFive` — PASS
+  - `missingOrMalformedCommitShaCannotProveImplementation` — PASS
+  - `exactShaFullAndDebugPassMovesToCiVerifiedAtFifty` — PASS
+  - `ciFailureOrPendingDoesNotPassCiGate` — PASS
+  - `checkedAcceptanceCriteriaMovesToNinetyNineWhenDeviceProbeIsRequired` — PASS
+  - `uncheckedAcceptanceCriteriaStopsAtFiftyEvenWhenCiPassed` — PASS
+  - `exactNamedProbePassIsTheOnlyPathToOneHundred` — PASS
+  - `changedProbeInvalidatesEarlierPassEvidence` — PASS
+  - `noProbeRequiredAllowsCompletionAfterCriteriaVerification` — PASS
+  - `newerStopFailureOrCrashInvalidatesAnOlderSuccess` — PASS
+  - `activeAttemptNeverPretendsToBeCommitted` — PASS
+  - `journalRestartPreservesTheSameProgressAndCommitReceipt` — PASS
+  - `failedLatestAttemptAfterRestartCannotReuseOldSuccessfulReceipt` — PASS
+  - `completedIssueWithoutCommitProofNeverGetsOneHundred` — PASS
+- **Item 5 stage-detector/planning matrix — 6/6 PASS:**
+  - `VyomFactoryStageDetectorTest.planningImplementationAndVerificationHooksInvokeDetectorAndJournalEachResult` — PASS
+  - `VyomFactoryStageDetectorTest.duplicateFindingIsJournaledButNeverCreatesAnotherTask` — PASS
+  - `VyomFactoryStageDetectorTest.detectorFailureIsJournaledAndDoesNotEscapeIntoTaskExecution` — PASS
+  - `VyomFactoryStageDetectorTest.journalFailureDoesNotCrashTaskOrHideDetectorResult` — PASS
+  - `VyomFactoryStageDetectorTest.stageDetectorJournalPersistsEachLifecycleOutcome` — PASS
+  - `VyomFactoryPlanningStageHookTest.planningHookInvokesDetectorOnlyForOpenClaimableTasks` — PASS
+- **Item 5 wording boundary:** the six detector/planning tests are **tests CI-verified** on the exact HEAD above. This does **not** close the separate runtime integration gap: the autonomous planner is not yet automatically invoking the planning hook in its live planning path. Keep that gap pending; do not claim complete automatic stage-hook wiring.
+- **Dialog newline fix:** commit `471dc407963e0e2ec88c75b43ec9bd6fbc9f7bfa` changes the progress/history UI strings from literal escaped `\n` sequences to actual newline characters. It is included in the verified branch history.
+- **Progress contract:** `NOT_STARTED` (0) → `IMPLEMENTATION_DONE` (25) → `CI_VERIFIED` (50) → `CRITERIA_VERIFIED` (75, or 99 while a required named device probe is pending) → `PROBE_VERIFIED` (100). The production formula now gates `probeVerified` on `criteriaVerified`; the original assertions remain unchanged.
+- **PR #102 lane — owner decision required; no PR action taken:**
+  1. Create a stacked PR from `fix/item7-progress-gates` into `feature/factory-item5-task-intelligence`; review it, then merge that PR so the existing PR #102 head branch receives Item 7. Risk: merge conflicts and an additional PR/review cycle; merging changes the feature branch.
+  2. Cherry-pick the Item 7 commit series onto an integration branch based on the current PR #102 head, then update the PR head through the approved branch-protection path. Risk: rewritten SHAs/duplicate-looking history, conflict resolution, and a fresh exact-SHA CI cycle; the feature branch changes only after owner-approved integration.
+  - PR #102 remains open/draft and unmerged; no merge, retarget, branch push, or PR metadata change was performed. Do not choose either lane without owner approval.
+- **Consolidated owner phone checklist — Items 4, 5, 6 and 7 (not executed):**
+  - **Item 4 — registry/evidence/self-modification**
+    1. Review the `factory-task-engine`, `factory-evidence` and `self-modification` bindings: canonical repo, immutable commit and allowed roots; verify one binding cannot overwrite another.
+    2. From a private binding, publish screenshot evidence; verify dedicated `.factory-evidence/` branch, hash/receipt, then issue comment. Public repository must fail closed.
+    3. Use an owner-approved feature-branch binding; verify PR-only behavior, no auto-merge, release/install or Android `main` write.
+  - **Item 5 — task intelligence and detector**
+    1. Create `Blocked by: #N` prerequisites plus a cycle; verify ready-task ordering and cyclic-task blocking.
+    2. Try unchecked acceptance criteria and the configured iteration cap; verify DONE is blocked and retries stop at the cap.
+    3. Probe planning, implementation-checkpoint and verification outputs containing `[BUG]`, `[MISSING_FEATURE]` and `[IDEA]`; record separate/deduplicated findings. Autonomous planner invocation remains a known gap, not an expected PASS.
+  - **Item 6 — approved repository worker**
+    1. Confirm the proposal dialog shows registered repo, immutable base SHA, every path and at most three summary lines.
+    2. Reject a proposal and confirm no write; approve a fresh proposal locally and confirm approval binds to that exact issue/plan.
+    3. Confirm output is draft-PR-only on the registered feature branch with exact-SHA CI; do not merge.
+  - **Item 7 — sequential progress**
+    1. Verify the UI sequence 0 → 25 → 50 → 75/99 → 100.
+    2. With checked criteria and exact-SHA CI, confirm required probe stays at 99% until PASS for the exact named probe; then verify 100%.
+    3. Restart the app and confirm journal progress persists; a newer STOP/crash-interrupted attempt must not reuse an older success.
+- Physical-device verification, cross-device sync and production release are not claimed. Item 7 remains **CODE-VERIFIED / PHONE-PENDING**. Item 8 remains **NOT STARTED**. Android `main`, Render, Hermes backend and production Supabase were not touched.
+
+---
+
+### Item 6 — repository worker: local approval + live runner integration — 2026-11-07
+
+<badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
+
+- **Verified code/test SHA:** `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`.
+- **Exact-HEAD Full CI:** run `42378140652` — **PASS / SUCCESS**; run head SHA exactly matches the verified code/test SHA.
+- **Exact-HEAD Debug CI:** run `42378140654` — **PASS / SUCCESS**; run head SHA exactly matches the verified code/test SHA.
+- Both workflow runs and their sole `debug` jobs completed with conclusion `success`. Full CI completed secret scan, full reachable-history Gitleaks scan/report upload, unit tests/debug APK, packaging/checksum and debug APK upload. Debug CI completed build/tests, APK packaging and no-APK content-update demo package; its debug/signed artifact upload and release publication steps were skipped by the workflow gate (not failures). No physical-phone test or final APK publication is claimed.
+- **Approval flow:** local structured review dialog → plan-bound local token → worker-model adapter interface → token-verifying repository adapter → `VyomFactoryRepositoryChangeExecutor` → existing runner journal `succeed()`.
+- **Coverage matrix — all rows below refer to verified code/test SHA `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`:**
+  - Issue JSON `ownerApproved=true` ignored — **PASS**: `VyomFactoryRepositoryChangeReviewDialogTest.issueOwnerApprovedTrueIsIgnoredAndNeverCreatesLocalApproval`.
+  - No local token — **PASS**: `VyomFactoryRepositoryChangeAdapterTest.rejectsWithoutLocalTokenEvenWhenIssueEnvelopeIsExecutable`.
+  - Tampered plan/hash and repository binding — **PASS**: `VyomFactoryRepositoryApprovalTest.bindsRepositoryBasePathAndContentHash`.
+  - Replay / single-use nonce — **PASS**: `VyomFactoryRepositoryApprovalTest.consumesOnceAndPersistsAcrossStoreRecreation`.
+  - Expiry — **PASS**: `VyomFactoryRepositoryApprovalTest.expiredTokenIsRejected`.
+  - Consumed nonce after restart and persistence failure fail-closed — **PASS**: `consumesOnceAndPersistsAcrossStoreRecreation`, `consumedNonceCommitFailureFailsClosed`.
+  - STOP before token consumption / before side effect — **PASS**: `VyomFactoryRepositoryChangeAdapterTest.stopBlocksBeforeApprovalNonceCanBeConsumed`, `VyomFactoryExecutionRunnerTest.externalStopAfterConsentSkipsBeforeJournalAndSideEffect`.
+  - Exact-SHA CI timeout — **PASS**: `VyomFactoryRepositoryChangeExecutorTest.timesOutWhenExactShaCiNeverCompletes`.
+  - Crash/restart recovery without replay — **PASS**: `VyomFactoryExecutionJournalTest.reopenedJournalRecoversExpiredStopRequestedAttemptWithoutReplay`, `startupRecoveryInterruptsExpiredAttemptsWithoutReplayingOrTouchingLiveLeases`.
+  - Path traversal and duplicate paths — **PASS**: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathTraversalBeforeShowingAnApprovalDialog`, `VyomFactoryRepositoryChangePolicyTest.refusesTraversalAndDuplicatePaths`.
+  - Unauthorized/out-of-registry path — **PASS**: `VyomFactoryRepositoryChangeReviewDialogTest.rejectsPathOutsideTheRegisteredRootBeforeShowingAnApprovalDialog`, `VyomFactoryRepositoryChangePolicyTest.refusesPathsOutsideSystemAllowedRoots`.
+  - Duplicate execution / journal lease fencing — **PASS**: `VyomFactoryExecutionRunnerTest.liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult`, `VyomFactoryExecutionJournalTest.beginRejectsSecondNonterminalAttemptForSameIssueAndLease`.
+  - Per-file size and empty set — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesOversizedOrEmptyChangeSets`.
+  - Maximum file count — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesMoreThanMaximumFileCount` verifies 21 files are rejected against the 20-file cap.
+  - Aggregate content limit — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesAggregateContentAboveMaximumAcrossIndividuallyValidFiles` verifies 500,001 aggregate characters while each file remains below the 200,000 per-file cap.
+  - Worker-model adapter interface — **PRESENT**: `VyomFactoryRepositoryWorkerModelAdapter` is a separate `fun interface`; STOP-before-parse test `VyomFactoryRepositoryWorkerModelAdapterTest.stopPreventsModelProposalParsing` is present. No provider integration was requested or added.
+  - Issue-controlled approval bypass / source grep — **PASS for the new repository-change path**: `VyomFactoryExecutionEnvelope.kt` contains no `ownerApproved`; `parseCandidate` in `VyomFactoryRepositoryChangeReviewDialog.kt` explicitly sets `ownerApproved=false` and does not read the issue field; the only `ownerApproved=true` assignment is in `VyomFactoryRepositoryChangeAdapter.kt`, after local token removal, issue identity check and `verifyAndConsume`. Test with issue JSON `ownerApproved=true` confirms it is ignored. **Scope note:** legacy `MainActivity.openFactoryCodeProposal` / `onProposeFix` self-modification UI remains present and untouched as explicitly required; it is a separate manually invoked legacy route, not evidence that the issue field can approve the new repository-change adapter.
+  - Review dialog fields — **PASS by source**: `VyomFactoryRepositoryChangeReviewDialog.kt` lines 46–53 show repository URL, immutable base branch + short SHA, all file paths and at most three summary lines. Only the local APPROVE button issues the approval token.
+- **Missing coverage:** none in the Item 6 matrix above. All required matrix rows are covered by source checks/tests, and exact-HEAD Full + Debug CI both pass.
+- **Status:** Item 6 is **CODE-VERIFIED / PHONE-PENDING** on code/test SHA `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`. This HANDOFF-only commit is documentation synchronization; CI verification applies to the code/test SHA above, not this docs-only commit.
+- Owner phone checks for Item 6 are consolidated in the Item 7 section above; no phone-side execution is claimed.
+- Worker-model adapter consumes an already-structured proposal; no new model provider or unstructured code generation. Executor remains draft-PR-only and trusted-repository/feature-branch constrained.
+- PR #102 remains open/draft/unmerged, with existing base `feature/memory-intelligence`; no merge, retarget or PR metadata change. Its head branch is this implementation branch, so branch commits are reflected in its diff. Android `main`, Render, backend and production Supabase were not touched. Item 7 is recorded above as CODE-VERIFIED / PHONE-PENDING; Item 8 remains NOT STARTED.
+
+---### Item 5 — exact-HEAD CI verification — 2026-11-07
+
+- Item 5 implementation/code HEAD: `02e3f205a6ff8ece1d1741a6003139392953f3cd` on `feature/factory-item5-task-intelligence`.
+- Exact-HEAD Full CI run `42363894376` = **SUCCESS** (started 10:25:29Z, updated/completed 10:29:55Z; duration 4m26s). Previous Full PASS `42362014444` duration was 4m00s. Full CI produced versioned artifact `vyom-phase6-819fbf5424be89ae4c2125f147acc1cdd972aeaf` (artifact ID `13571271465`, 46,368,789 bytes) and redacted full-history Gitleaks report artifact `13570452730`.
+- Exact-HEAD Debug CI run `42363894388` = **SUCCESS** (started 10:25:29Z, updated/completed 10:32:21Z; duration 6m52s). Previous Debug PASS `42362014435` duration was 7m13s. Build/tests, versioned APK packaging/checksums, and no-APK content update demo package completed successfully. Debug APK upload and signed CI release steps were **SKIPPED by workflow gate**; Debug run produced no artifacts. Do not claim Debug artifact publication.
+- Both exact-head runs completed below the stuck thresholds (2× prior duration and 40 minutes). No cancel/rerun was performed. No source changes were made during monitoring.
+- Item 5 is **CODE-VERIFIED** on implementation HEAD `02e3f205a6ff8ece1d1741a6003139392953f3cd`. This does not upgrade automatic stage-by-stage detector invocation: no autonomous planner/implementation/test producer is wired to call `createDetectedTasks`; that remains **UNVERIFIED / NOT COMPLETE**. No physical-device verification or final APK publication is claimed.
+- No Android `main`, Render, Hermes backend, or production Supabase changes.
+
+- Item 5 phone/runtime acceptance remains pending. The six stage-detector/planning tests are CI-verified, but automatic autonomous-planner invocation remains a runtime integration gap. Owner phone checks are consolidated in the Item 7 section above.
+
+---
+
+### Item 4 — CODE-VERIFIED / PHONE-PENDING — 2026-11-07
+
+- Exact source HEAD audited: `26fe7829a8463ee36f3fb64e1ea61b66b5ad042b`.
+- Exact-HEAD Full CI run `42362014444` = **SUCCESS**; exact-HEAD Debug CI run `42362014435` = **SUCCESS**. Debug job API reported job `128372210467` completed/success and all executed build/test/package steps successful; APK upload and signed-release steps were skipped by the workflow gate. `BlobNotFound` from the log endpoint was not treated as a failure.
+- Registry binding and access-boundary test proof covers unregistered system, wrong repo/commit, unauthorized root, traversal, absolute/backslash paths and sibling-prefix bypass. Evidence publisher tests cover traversal/out-of-root denial, public-repository fail-closed, stale/concurrent branch-head rejection, hash verification and non-force ref update.
+- Prior 113-file source grep audit is recorded in the preceding Item 4 history; targeted reinspection confirms the old fixed-branch uploader/callsite is absent and no generic worker repository writer/executor adapter exists. No generic worker repository execution or write isolation is claimed.
+- Code gate is closed. Owner phone-side binding inventory and user flow remain outstanding; therefore Item 4 is **CODE-VERIFIED / PHONE-PENDING**, not fully phone-verified.
+
+#### OWNER PHONE CHECKLIST — consolidated above
+
+Item 4 phone checks are listed in the consolidated owner phone checklist in the Item 7 section above.
+
+---
+
+### Item 5 — Planner + detector + prioritizer — implementation batch
+
+#### Confirmed gaps against the existing planner/classifier/triage code
+
+- Existing classifier is a conservative domain classifier; it does not scan structured planning, implementation and test outputs for explicit bug/missing-feature/idea findings.
+- Existing ordering was priority + FIFO only; it did not model `Blocked by: #N` prerequisite edges or report cycles.
+- Existing task model had no enforced acceptance-criteria completion gate.
+- Existing worker had no per-task hard attempt/iteration ceiling.
+- Existing dedupe was issue-creation idempotency only; there was no finding fingerprint check or separate-task routing for detector ideas.
+
+#### Changes in this batch
+
+- Added `VyomFactoryTaskIntelligence.kt`: deterministic dependency extraction, topological ordering with priority/FIFO tie-break, cycle detection, explicit `[BUG]` / `[MISSING_FEATURE]` / `[IDEA]` marker detection for PLANNING / IMPLEMENTATION / TEST, normalized duplicate detection, deterministic separate-task proposals, acceptance-criteria checkbox validation, and a bounded iteration policy (default 3; configurable 1–10).
+- `VyomFactoryTaskOrdering.kt`, `VyomFactoryTaskTriage.kt`, `VyomFactoryWorkerSession.kt`, and `VyomFactoryWorkerClaimCoordinator.kt` now use dependency-aware ordering; cyclic tasks are excluded from claim selection and exposed as triage blockers.
+- `VyomFactoryExecutionRunner.kt` refuses another attempt when the per-task journal history reaches the configured maximum.
+- `VyomFactoryGitHubClient.kt` blocks completion until every explicit acceptance criterion is checked and exposes `createDetectedTasks`, which stores nonduplicate findings as separate, deterministic `task_failure` issues without editing the parent task.
+- Added `VyomFactoryTaskIntelligenceTest.kt` for prerequisite ordering, circular dependencies, duplicate suppression, max-iteration stop, separate idea task/scope isolation, all three detector stages, and acceptance-criteria completion.
+- Runtime integration limitation: the explicit stage detector and separate-task persistence API are implemented, but there is not yet an autonomous planner/implementation/test producer wired to call `createDetectedTasks` after every stage. Automatic stage-by-stage discovery is **UNVERIFIED / NOT COMPLETE**; no claim of autonomous continuous detection.
+- The six stage-detector/planning tests listed in the Item 7 verification matrix are **PASS / tests CI-verified** on exact code/test HEAD `6a51e0201e402643bb33ae77e14bb03b954bd867`; this does not close the autonomous planner runtime integration gap.
+- No Android `main`, Render, Hermes backend, or production Supabase changes. No physical-device test or final APK publication claimed.
+
 ### Item 4 — latest exact-HEAD CI + registry boundary audit — 2026-11-07
 
 - Latest source/documentation HEAD before this note: `04f9d8667623396f98b14c338516dc017babcb38` on `feature/memory-intelligence`.

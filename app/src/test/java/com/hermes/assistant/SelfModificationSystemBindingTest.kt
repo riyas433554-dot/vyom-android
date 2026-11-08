@@ -32,12 +32,21 @@ class SelfModificationSystemBindingTest {
     @Test(expected = SecurityException::class)
     fun clientRejectsMissingOwnerApprovedBindingBeforeAnyNetworkRequest() {
         val client = SelfModificationClient(VyomFactorySystemRegistry(tempDir()))
-        client.createProposal(
-            token = "test-token-that-is-long-enough-for-github",
+        val draft = SelfModificationClient.Draft(
             title = "Improve reply formatting",
             path = allowedPath,
+            baseSha = commit,
             proposedContent = "package com.hermes.assistant",
-            ownerReviewedDiff = true
+            preview = "exact diff",
+            requestSummary = "test missing binding"
+        )
+        val gate = SelfModificationApprovalGate(nowMillis = { 1_000L })
+        val approval = gate.issueFromOwnerReview(draft)
+        client.createProposal(
+            token = "test-token-that-is-long-enough-for-github",
+            draft = draft,
+            approval = approval,
+            approvalGate = gate
         )
     }
 

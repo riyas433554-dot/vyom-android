@@ -84,6 +84,15 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
         readAll()[issueNumber]?.takeIf { it.expiresAt > now }
     }
 
+    /** Snapshot of currently claimed issue numbers on this device; expired leases are excluded. */
+    fun activeIssueNumbers(now: Long): Set<Int> = synchronized(VyomFactoryExecutionLock.LOCK) {
+        require(now >= 0)
+        readAll().values.asSequence()
+            .filter { it.expiresAt > now }
+            .map { it.issueNumber }
+            .toSet()
+    }
+
     private fun validate(issueNumber: Int, ownerId: String, now: Long, durationMs: Long) {
         require(issueNumber > 0)
         require(ownerId.isNotBlank() && ownerId.length <= 160 && ownerId.none { it.isISOControl() })
