@@ -5,11 +5,13 @@ on:
     branches:
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
+      - feature/real-worker-model
       - vyom-proposal-*
   pull_request:
     branches:
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
+      - feature/factory-item5-task-intelligence
 
 permissions:
   contents: read

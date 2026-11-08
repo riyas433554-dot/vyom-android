@@ -284,7 +284,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 require(inputTokens >= 0 && outputTokens >= 0) { "Worker provider returned invalid token usage" }
                 val total = inputTokens.toLong() + outputTokens.toLong()
                 if (journal.tokensForTask(task.number) + total > limits.maxTokensPerTask) {
-                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
                     throw IllegalArgumentException("Worker task token budget exceeded")
                 }
                 if (control.shouldStop()) {
@@ -300,7 +299,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 if (error.message == "Worker model request timed out") throw error
                 lastFailure = error
                 if (attempt >= limits.maxRetries || error.message?.contains("provider failed") != true) {
-                    record(task.number, inputTokens, outputTokens, "FAILED")
+                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
                     throw error
                 }
                 record(task.number, inputTokens, outputTokens, "FAILED")
