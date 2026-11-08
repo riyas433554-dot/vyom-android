@@ -401,14 +401,19 @@ internal class VyomFactoryDialog(
                 val detectorJournal = VyomFactoryStageDetectorJournal(activity.applicationContext)
                 val stageDetector = createStageDetector(detectorJournal)
 
-                // Planning hook: inspect every fresh open task before triage/claim selection.
-                VyomFactoryPlanningStageHook(stageDetector::onPlanning).inspect(client.listTasks())
+                // This is the live RUN NEXT planning path: detector and triage share
+                // one fresh GitHub snapshot. Active device-local leases are excluded.
+                val planningSnapshot = client.listTasks()
+                VyomFactoryLivePlanningStage(stageDetector::onPlanning).inspect(
+                    planningSnapshot,
+                    session.activeClaimedIssueNumbers()
+                )
 
-                // Run a read-only planner pass over the fresh canonical issue snapshot.
+                // Run a read-only planner pass over that same canonical issue snapshot.
                 // Persist each typed triage outcome before execution; a candidate is
                 // never treated as executable until the runner independently validates it.
                 val triageRegistry = VyomFactoryCapabilityRegistry(adapter.capabilities)
-                val triageDecisions = VyomFactoryTaskTriage().evaluate(client.listTasks(), triageRegistry)
+                val triageDecisions = VyomFactoryTaskTriage().evaluate(planningSnapshot, triageRegistry)
                 triageDecisions.forEach { decision ->
                     if (decision.eventKey !in decision.task.metadata.events) {
                         client.updateTask(decision.task, additionalEvent = decision.eventKey)
@@ -1101,7 +1106,7 @@ internal class VyomFactoryDialog(
             val history = VyomFactoryExecutionHistory.summarize(
                 VyomFactoryExecutionJournal(activity.applicationContext).all()
             )
-            historyStatus.text = (listOf(history.label) + history.latest.map { it.label }).joinToString("\\n")
+            historyStatus.text = (listOf(history.label) + history.latest.map { it.label }).joinToString("\n")
             historyStatus.contentDescription = "${history.total} persisted attempts; ${history.active} active, ${history.succeeded} verified, ${history.failed} failed, ${history.interrupted} interrupted. Latest attempt rows are redacted."
         } catch (error: Exception) {
             retryStatus.text = "RETRY STATUS UNAVAILABLE · REVIEW REQUIRED"
@@ -1155,8 +1160,8 @@ internal class VyomFactoryDialog(
     }
 
     private fun progressText(progress: VyomFactoryVerifiedProgress.Snapshot): String =
-        "PROGRESS ${progress.percent}% · ${progress.label}\\n" +
-            "Stage: ${progress.stage.name} · Commit: ${progress.commitSha?.take(8) ?: "PENDING"}\\n" +
+        "PROGRESS ${progress.percent}% · ${progress.label}\n" +
+            "Stage: ${progress.stage.name} · Commit: ${progress.commitSha?.take(8) ?: "PENDING"}\n" +
             "CI ${if (progress.ciVerified) "PASS" else "PENDING"} · " +
             "Criteria ${progress.checkedCriteria}/${progress.totalCriteria} " +
             "${if (progress.criteriaVerified) "VERIFIED" else "PENDING"} · " +
@@ -1369,9 +1374,9 @@ internal class VyomFactoryDialog(
                 val comments = client.listEvents(task.number)
                 val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
                 val history = if (comments.isEmpty()) "No comments or event notes recorded yet."
-                    else comments.joinToString("\\n\\n")
-                val details = "Status: ${task.metadata.status} · Priority: ${task.metadata.priority}\\n\\n" +
-                    description + "\\n\\nEVENT HISTORY\\n" + history
+                    else comments.joinToString("\n\n")
+                val details = "Status: ${task.metadata.status} · Priority: ${task.metadata.priority}\n\n" +
+                    description + "\n\nEVENT HISTORY\n" + history
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = "Task #${task.number} history loaded."

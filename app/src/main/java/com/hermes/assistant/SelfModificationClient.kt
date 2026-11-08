@@ -299,15 +299,27 @@ internal class SelfModificationClient(
         return String(java.util.Base64.getDecoder().decode(encoded), Charsets.UTF_8)
     }
 
+    /** Only a fresh local approval for this exact reviewed draft can reach GitHub writes. */
+    fun createProposal(
+        token: String,
+        draft: Draft,
+        approval: SelfModificationApprovalGate.Token,
+        approvalGate: SelfModificationApprovalGate
+    ): Proposal {
+        approvalGate.consume(draft, approval)
+        return createProposalAuthorized(token, draft)
+    }
+
+    /** Legacy boolean consent is deliberately disabled; it is not an owner-issued token. */
     fun createProposal(
         token: String,
         draft: Draft,
         ownerReviewedDiff: Boolean = false
-    ): Proposal = createProposal(
-        token, draft.title, draft.path, draft.proposedContent,
-        draft.requestSummary, draft.baseSha, ownerReviewedDiff
+    ): Proposal = throw SecurityException(
+        "A one-time local approval token for the exact reviewed diff is required"
     )
 
+    /** Legacy boolean consent is deliberately disabled for every raw-content overload. */
     fun createProposal(
         token: String,
         title: String,
@@ -316,10 +328,16 @@ internal class SelfModificationClient(
         requestSummary: String = "",
         expectedBaseSha: String? = null,
         ownerReviewedDiff: Boolean = false
-    ): Proposal {
-        require(ownerReviewedDiff) {
-            "Owner must explicitly review and approve the exact proposed diff before opening a pull request"
-        }
+    ): Proposal = throw SecurityException(
+        "A one-time local approval token for the exact reviewed diff is required"
+    )
+
+    private fun createProposalAuthorized(token: String, draft: Draft): Proposal {
+        val title = draft.title
+        val path = draft.path
+        val proposedContent = draft.proposedContent
+        val requestSummary = draft.requestSummary
+        val expectedBaseSha = draft.baseSha
         val binding = requireBinding(path)
         SelfModificationPolicy.validate(title, path, proposedContent)
         require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
@@ -413,6 +431,8 @@ internal class SelfModificationClient(
             if (recoveredPullRequest != null) return Proposal(proposalBranch, recoveredPullRequest)
             throw failure
         }
+
+
     }
 
     private fun encodePathSegment(value: String): String =

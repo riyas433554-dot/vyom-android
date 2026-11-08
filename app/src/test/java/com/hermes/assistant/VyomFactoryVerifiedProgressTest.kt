@@ -37,7 +37,10 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun exactShaFullAndDebugPassMovesToCiVerifiedAtFifty() {
-        val progress = calculate(task(), listOf(entry()))
+        val incompleteCriteria = task(
+            description = description().replace("[x] Verify the required CI checks", "[ ] Verify the required CI checks")
+        )
+        val progress = calculate(incompleteCriteria, listOf(entry()))
         assertEquals(50, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.CI_VERIFIED, progress.stage)
         assertTrue(progress.ciVerified)
@@ -68,7 +71,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun uncheckedAcceptanceCriteriaStopsAtFiftyEvenWhenCiPassed() {
-        val incomplete = task(description().replace("[x] Add the reviewed implementation", "[ ] Add the reviewed implementation"))
+        val incomplete = task(description = description().replace("[x] Add the reviewed implementation", "[ ] Add the reviewed implementation"))
         val progress = calculate(incomplete, listOf(entry()), events = listOf(passEvent()))
         assertEquals(50, progress.percent)
         assertFalse(progress.criteriaVerified)
@@ -83,7 +86,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun changedProbeInvalidatesEarlierPassEvidence() {
-        val changed = task(description().replace(probe, "Open settings and confirm the new preference is visible"))
+        val changed = task(description = description().replace(probe, "Open settings and confirm the new preference is visible"))
         val progress = calculate(changed, listOf(entry()), events = listOf(passEvent()))
         assertEquals(99, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.CRITERIA_VERIFIED, progress.stage)
@@ -91,7 +94,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun noProbeRequiredAllowsCompletionAfterCriteriaVerification() {
-        val noProbe = task(description().replace("- **Verification probe:** $probe\n\n", ""))
+        val noProbe = task(description = description().replace("- **Verification probe:** $probe\n\n", ""))
         val progress = calculate(noProbe, listOf(entry()))
         assertEquals(100, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.PROBE_VERIFIED, progress.stage)
