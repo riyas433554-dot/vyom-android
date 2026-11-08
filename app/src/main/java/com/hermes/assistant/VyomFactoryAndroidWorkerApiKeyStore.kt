@@ -19,7 +19,7 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFacto
     override fun saveKey(value: CharArray) {
         require(value.isNotEmpty() && value.size <= MAX_KEY_CHARS) { "Worker provider key length is invalid" }
         val bytes = Charsets.UTF_8.newEncoder().encode(CharBuffer.wrap(value)).let { encoded ->
-            ByteArray(encoded.remaining()).also(encoded::get)
+            ByteArray(encoded.remaining()).also { encoded.get(it) }
         }
         try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
@@ -54,7 +54,7 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFacto
         }
         return try {
             val decoded = Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(plaintext))
-            CharArray(decoded.remaining()).also(decoded::get)
+            CharArray(decoded.remaining()).also { decoded.get(it) }
         } catch (_: Exception) {
             throw IllegalStateException("Worker provider key encoding is invalid")
         } finally {

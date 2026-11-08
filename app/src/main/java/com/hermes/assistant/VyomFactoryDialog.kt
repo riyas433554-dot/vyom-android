@@ -75,6 +75,7 @@ internal class VyomFactoryDialog(
     private lateinit var stopButton: Button
     private val stopRunRequested = AtomicBoolean(false)
     private val pendingRepositoryApprovals = ConcurrentHashMap<Int, VyomFactoryRepositoryChangeAdapter.ApprovedPlan>()
+    private val dismissedRepositoryReviews = ConcurrentHashMap<Int, Boolean>()
     private var pendingConfirmationDialog: AlertDialog? = null
     private var cancelPendingConfirmation: (() -> Unit)? = null
     private lateinit var claimStatus: TextView
@@ -414,7 +415,15 @@ internal class VyomFactoryDialog(
                 // never treated as executable until the runner independently validates it.
                 val triageRegistry = VyomFactoryCapabilityRegistry(adapter.capabilities)
                 val triageDecisions = VyomFactoryTaskTriage().evaluate(client.listTasks(), triageRegistry)
+                // Repository model review is strictly read-only until the owner approves.
+                // Do not append even a triage event to those issues before approval/rejection.
+                val repositoryReviewIssues = triageDecisions.filter { decision ->
+                    val plan = decision.plan
+                    plan is VyomFactoryTaskPlanner.Plan.NeedsOwnerReview &&
+                        plan.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY
+                }.map { it.task.number }.toSet()
                 triageDecisions.forEach { decision ->
+                    if (decision.task.number in repositoryReviewIssues) return@forEach
                     if (decision.eventKey !in decision.task.metadata.events) {
                         client.updateTask(decision.task, additionalEvent = decision.eventKey)
                     }
@@ -427,6 +436,7 @@ internal class VyomFactoryDialog(
                     isRunnerEligible = { task -> isEligibleForRunner(task, journal, retrySchedules, adapter) },
                     isLocallyApproved = { issueNumber ->
                         pendingRepositoryApprovals.containsKey(issueNumber) ||
+                            dismissedRepositoryReviews.containsKey(issueNumber) ||
                             journal.all().any {
                                 it.issueNumber == issueNumber && it.operationKey.startsWith("repository_change:")
                             }
@@ -471,7 +481,7 @@ internal class VyomFactoryDialog(
                                             }
                                         }
                                     },
-                                    onRejected = { /* Reject is local-only: no issue, branch or repository write. */ }
+                                    onRejected = { dismissedRepositoryReviews[ownerReview.task.number] = true }
                                 )
                                 main.post {
                                     if (!dialog.isShowing) return@post
