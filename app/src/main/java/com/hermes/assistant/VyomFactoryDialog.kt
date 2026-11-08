@@ -1155,11 +1155,12 @@ internal class VyomFactoryDialog(
     }
 
     private fun progressText(progress: VyomFactoryVerifiedProgress.Snapshot): String =
-        "PROGRESS ${progress.percent}% · ${progress.label}\n" +
-            "Criteria ${progress.checkedCriteria}/${progress.totalCriteria} · " +
-            "Implementation ${if (progress.implementationVerified) "VERIFIED" else if (progress.executionInProgress) "RUNNING" else "PENDING"} · " +
-            "Tests ${if (progress.testsVerified) "VERIFIED" else "PENDING"} · " +
-            "Behavior ${if (progress.behaviorVerified) "VERIFIED" else "PENDING"}"
+        "PROGRESS ${progress.percent}% · ${progress.label}\\n" +
+            "Stage: ${progress.stage.name} · Commit: ${progress.commitSha?.take(8) ?: "PENDING"}\\n" +
+            "CI ${if (progress.ciVerified) "PASS" else "PENDING"} · " +
+            "Criteria ${progress.checkedCriteria}/${progress.totalCriteria} " +
+            "${if (progress.criteriaVerified) "VERIFIED" else "PENDING"} · " +
+            "Device ${if (!progress.probeRequired) "N/A" else if (progress.probeVerified) "PASS" else "PHONE-PENDING"}"
 
     private fun refreshTaskProgress(task: VyomFactoryGitHubClient.Task) {
         val views = progressViews[task.number] ?: return
