@@ -58,4 +58,19 @@ class VyomFactoryRepositoryChangeReviewDialogTest {
         assertEquals(base, candidate.plan.baseCommitSha)
         assertEquals(1, candidate.plan.changes.size)
     }
+
+    @Test fun reviewContentIncludesEveryProposedPathAndUntruncatedFileBody() {
+        val longContent = "README line\n" + "content ".repeat(2_000)
+        val formatted = VyomFactoryRepositoryChangeReviewDialog.formatFileContents(
+            listOf(
+                VyomFactoryRepositoryChangePolicy.Change("README.md", longContent),
+                VyomFactoryRepositoryChangePolicy.Change("docs/notes.md", "second file body")
+            )
+        )
+
+        assertTrue(formatted.contains("PATH: README.md"))
+        assertTrue(formatted.contains(longContent))
+        assertTrue(formatted.contains("PATH: docs/notes.md"))
+        assertTrue(formatted.contains("second file body"))
+    }
 }

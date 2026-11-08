@@ -50,6 +50,7 @@ internal class VyomFactoryRepositoryChangeReviewDialog(
             candidate.plan.changes.joinToString("\n") { "• ${it.path}" },
             candidate.plan.changes.size.coerceAtLeast(1)
         )
+        section("PROPOSED FILE CONTENT", formatFileContents(candidate.plan.changes), Int.MAX_VALUE)
         section("SUMMARY", candidate.summary.lines().take(3).joinToString("\n").ifBlank { candidate.plan.title }, 3)
         val scroll = ScrollView(activity).apply { addView(content) }
         AlertDialog.Builder(activity)
@@ -74,6 +75,9 @@ internal class VyomFactoryRepositoryChangeReviewDialog(
     }
 
     companion object {
+        internal fun formatFileContents(changes: List<VyomFactoryRepositoryChangePolicy.Change>): String =
+            changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" }
+
         /** Issue fields are proposal input only. In particular, ownerApproved is never read. */
         fun parseCandidate(
             issueNumber: Int,
