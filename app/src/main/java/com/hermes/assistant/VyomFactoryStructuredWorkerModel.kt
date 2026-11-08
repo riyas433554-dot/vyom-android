@@ -302,9 +302,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
                     throw error
                 }
-                record(task.number, inputTokens, outputTokens, "FAILED")
+                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
             } catch (error: Exception) {
-                record(task.number, inputTokens, outputTokens, "FAILED")
+                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
                 throw error
             } finally {
                 apiKey.fill('\u0000')
