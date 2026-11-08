@@ -1,3 +1,39 @@
+### Item 5 — live planning + legacy approval closure — 2026-11-08
+
+- **Status: LIVE-WIRED.** Code/test HEAD: `sha:fbc2b7a19578` on `fix/item7-progress-gates`. PR #104 remains **OPEN + DRAFT + UNMERGED**; no merge performed.
+- **Owner-confirmed exact-HEAD CI:** Full run `42483553086`; Debug run `42483553144`. Owner confirmed both green on full HEAD `sha:fbc2b7a19578` (`fbc2b7a19578e4cb1594e64a6ff046fd849408c1`). Owner also confirmed Full-history Gitleaks findings = 0. The GitHub connector still reports these jobs as `in_progress` and job-log download returned `404 BlobNotFound`; therefore literal log lines `no leaks found`, `FULL_HISTORY_GITLEAKS_FINDINGS=0`, and `testDebugUnitTest BUILD SUCCESSFUL` are **NOT INDEPENDENTLY RETRIEVED** in this checkpoint. Do not infer a total test count: **UNVERIFIED**. Both exact run IDs and SHA are recorded from the owner-confirmed Actions page.
+- **Test additions — exact six newly added @Test methods:**
+  1. `SelfModificationApprovalGateTest.approvalIsBoundToExactDraftAndCanBeConsumedOnlyOnce`
+  2. `SelfModificationApprovalGateTest.changedDraftCannotReuseApprovalToken`
+  3. `SelfModificationApprovalGateTest.expiredOrClearedApprovalCannotBeConsumed`
+  4. `SelfModificationClientIntegrationTest.rejectsLegacyBooleanApprovalEvenWhenTrueBeforeAnyGitHubRequest`
+  5. `VyomFactoryLivePlanningStageIntegrationTest.livePlanningInvokesDetectorOnceAndSkipsClosedAndLocallyClaimedTasks`
+  6. `VyomFactoryLivePlanningStageIntegrationTest.livePlanningContainsDetectorFailureAndContinuesToNextTask`
+  - No new SystemBinding test is included in these six. Total suite count: **UNVERIFIED**. No total has been invented.
+- **Legacy approval path: CLOSED.** Boolean-only legacy overloads reject before any GitHub request; final PR creation consumes a one-time local approval bound to the exact draft. No merge/release/install path was added.
+- **Four exact Gitleaks fingerprints and reasons (only these four are the reviewed batch entries):**
+  1. `4f6878bffd983a77cec1cc12060f6ec5be76c007:app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt:generic-api-key:72` — TEST_FIXTURE: fixed synthetic string in a unit test; literal only, not loaded from configuration or storage.
+  2. `4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF_HISTORY.md:generic-api-key:2529` — FALSE_POSITIVE: ordinary English wording in device-local lease documentation; no credential value.
+  3. `4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF.md:generic-api-key:988` — FALSE_POSITIVE: documented Git commit identifier, not a credential.
+  4. `dfc0bc5285e9cafa34e54db324528f52676f9a84:.gitleaksignore:generic-api-key:17` — FALSE_POSITIVE: historical ignore-file self-comment; neutral replacement comment avoids the triggering wording. No wildcard or broad suppression was added.
+- **History note:** `sha:044b196a87ad` / `sha:4f6878bffd98` were temporary snapshot churn; net diff from the base is only the test file. Remove that churn through PR #104 **squash merge** after owner approval; no force-push or history rewrite. PR #104 is not merged.
+- **Deferred assertRejected coverage (not claimed newly added or passed by this six-test list):**
+  1. `rejectsProtectedPathBeforeMakingAnyGitHubRequest` — `IllegalArgumentException`
+  2. `rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest` — `SecurityException`
+  3. `confirmedPrCreationFailureCleansBranchButNeverMergesOrInstalls` — `IllegalStateException`
+  4. `uncertainPrCreationFailurePreservesBranchForManualRecovery` — `IllegalStateException`
+  5. `rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest` — `IllegalArgumentException`
+  6. `exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling` — `IllegalStateException`
+- **Squash merge procedure — instructions only; NOT EXECUTED:**
+  1. Open PR #104 and confirm base `feature/factory-item5-task-intelligence`, head `fix/item7-progress-gates`, and expected diff.
+  2. Confirm PR checks are green on the latest head and resolve any review conversations.
+  3. Select **Squash and merge** (do not use merge commit or rebase).
+  4. Review the squash commit message and final file summary; confirm no Android `main`, Render, backend, production Supabase, or PR #102 changes are included.
+  5. Click **Squash and merge** only after explicit owner GO; then verify PR #104 is merged and record the resulting base-branch SHA. Until then PR #104 stays open/draft/unmerged.
+- Item 8 remains **NOT STARTED**. Wait for explicit owner GO. Android `main`, Render, backend, production Supabase, and PR #102 remain locked and untouched.
+
+---
+
 ### Item 5 live-planning integration + legacy self-modification approval gate — 2026-11-08
 
 - **Implementation branch:** `fix/item7-progress-gates`. Current code/test SHA at the time of this entry: `c39fddd3a9eccd33fbda129251c949e5f31b0e4f`. The later `c39fddd` commit is a whitespace-minimized refactor of the token-gated proposal writer; it does not change behavior.
