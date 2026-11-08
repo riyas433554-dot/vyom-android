@@ -6,6 +6,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class VyomFactoryStructuredWorkerModelTest {
@@ -251,4 +256,74 @@ class VyomFactoryStructuredWorkerModelTest {
         assertTrue(candidate.plan.changes.isNotEmpty())
         // The model adapter has no GitHub write client or approval-token issuer.
     }
+
+    @Test fun stopCancelsAnInFlightProviderCall() {
+        val started = CountDownLatch(1)
+        val interrupted = CountDownLatch(1)
+        val shouldStop = AtomicBoolean(false)
+        val provider = object : VyomFactoryWorkerModelProvider {
+            override val providerId = "slow-fake"
+            override fun generate(
+                request: VyomFactoryWorkerModelProvider.Request,
+                apiKey: CharArray,
+                maxOutputTokens: Int
+            ): VyomFactoryWorkerModelProvider.Response {
+                started.countDown()
+                try {
+                    Thread.sleep(5_000)
+                } catch (error: InterruptedException) {
+                    interrupted.countDown()
+                    throw error
+                }
+                return VyomFactoryWorkerModelProvider.Response(validJson(), 1, 1)
+            }
+        }
+        val journal = MemoryJournal()
+        val worker = adapter(provider, journal)
+        val caller = Executors.newSingleThreadExecutor()
+        try {
+            val result = caller.submit<VyomFactoryRepositoryChangeReviewDialog.Candidate> {
+                worker.propose(task(), registry(), object : VyomFactoryExecutionControl {
+                    override fun shouldStop() = shouldStop.get()
+                })
+            }
+            assertTrue(started.await(1, TimeUnit.SECONDS))
+            shouldStop.set(true)
+            assertThrows(ExecutionException::class.java) { result.get(2, TimeUnit.SECONDS) }
+            assertTrue(interrupted.await(1, TimeUnit.SECONDS))
+            assertEquals("STOPPED", journal.entries.single().result)
+        } finally {
+            caller.shutdownNow()
+        }
+    }
+
+    @Test fun providerFailureUsesOnlyTheConfiguredSingleRetry() {
+        val calls = AtomicInteger()
+        val provider = object : VyomFactoryWorkerModelProvider {
+            override val providerId = "retry-fake"
+            override fun generate(
+                request: VyomFactoryWorkerModelProvider.Request,
+                apiKey: CharArray,
+                maxOutputTokens: Int
+            ): VyomFactoryWorkerModelProvider.Response {
+                calls.incrementAndGet()
+                throw IllegalStateException("transient provider failure")
+            }
+        }
+        val journal = MemoryJournal()
+
+        assertThrows(IllegalStateException::class.java) {
+            adapter(
+                provider, journal,
+                limits = VyomFactoryWorkerModelLimits(maxRetries = 1)
+            ).propose(task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            })
+        }
+
+        assertEquals(2, calls.get())
+        assertEquals(listOf("FAILED", "FAILED"), journal.entries.map { it.result })
+    }
+
+
 }

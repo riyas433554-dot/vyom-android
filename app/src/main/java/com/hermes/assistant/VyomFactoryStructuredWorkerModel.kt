@@ -237,7 +237,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 }
                 val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(limits.timeoutMillis)
                 val response = try {
-                    while (true) {
+                    var completed: VyomFactoryWorkerModelProvider.Response? = null
+                    while (completed == null) {
                         if (control.shouldStop()) {
                             future.cancel(true)
                             record(task.number, 0, 0, "STOPPED")
@@ -250,7 +251,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                             throw IllegalStateException("Worker model request timed out")
                         }
                         try {
-                            break future.get(
+                            completed = future.get(
                                 minOf(remaining, TimeUnit.MILLISECONDS.toNanos(200)),
                                 TimeUnit.NANOSECONDS
                             )
@@ -258,6 +259,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                             // Poll STOP while respecting the overall bounded timeout.
                         }
                     }
+                    completed
                 } catch (failure: ExecutionException) {
                     val cause = failure.cause
                     throw IllegalStateException("Worker model provider failed (${cause?.javaClass?.simpleName ?: "unknown"})")
