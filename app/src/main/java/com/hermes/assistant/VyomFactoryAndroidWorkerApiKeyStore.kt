@@ -12,8 +12,18 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 /** Encrypts the owner-entered provider key with an AES key held by Android Keystore. */
-internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFactoryWorkerApiKeyStore {
+internal class VyomFactoryAndroidWorkerApiKeyStore(
+    context: Context,
+    private val providerId: String = NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+) : VyomFactoryWorkerApiKeyStore {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val keyIv get() = "${KEY_IV_PREFIX}_$providerId"
+    private val keyCiphertext get() = "${KEY_CIPHERTEXT_PREFIX}_$providerId"
+    private val keyAlias get() = "${KEY_ALIAS_PREFIX}_$providerId"
+
+    init {
+        require(providerId in SUPPORTED_PROVIDER_IDS) { "Unsupported worker credential provider" }
+    }
 
     @Synchronized
     override fun saveKey(value: CharArray) {
@@ -26,8 +36,8 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFacto
             cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
             val encrypted = cipher.doFinal(bytes)
             val editor = prefs.edit()
-                .putString(KEY_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-                .putString(KEY_CIPHERTEXT, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                .putString(keyIv, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                .putString(keyCiphertext, Base64.encodeToString(encrypted, Base64.NO_WRAP))
             check(editor.commit()) { "Worker provider key could not be stored" }
             encrypted.fill(0)
         } catch (_: Exception) {
@@ -39,8 +49,8 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFacto
 
     @Synchronized
     override fun readKey(): CharArray? {
-        val ivValue = prefs.getString(KEY_IV, null) ?: return null
-        val ciphertextValue = prefs.getString(KEY_CIPHERTEXT, null) ?: return null
+        val ivValue = prefs.getString(keyIv, null) ?: return null
+        val ciphertextValue = prefs.getString(keyCiphertext, null) ?: return null
         val iv = Base64.decode(ivValue, Base64.NO_WRAP)
         val ciphertext = Base64.decode(ciphertextValue, Base64.NO_WRAP)
         val plaintext = try {
@@ -65,21 +75,21 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFacto
 
     @Synchronized
     override fun clear() {
-        check(prefs.edit().remove(KEY_IV).remove(KEY_CIPHERTEXT).commit()) {
+        check(prefs.edit().remove(keyIv).remove(keyCiphertext).commit()) {
             "Worker provider key could not be cleared"
         }
         runCatching {
-            KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }.deleteEntry(KEY_ALIAS)
+            KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }.deleteEntry(keyAlias)
         }
     }
 
     private fun getOrCreateKey(): SecretKey {
         val store = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        (store.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        (store.getKey(keyAlias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         generator.init(
             KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
+                keyAlias,
                 KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
             )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -92,9 +102,13 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(context: Context) : VyomFacto
 
     companion object {
         private const val PREFS = "vyom_factory_worker_api_key"
-        private const val KEY_IV = "encrypted_key_iv"
-        private const val KEY_CIPHERTEXT = "encrypted_key_ciphertext"
-        private const val KEY_ALIAS = "vyom_factory_worker_provider_aes"
+        private const val KEY_IV_PREFIX = "encrypted_key_iv"
+        private const val KEY_CIPHERTEXT_PREFIX = "encrypted_key_ciphertext"
+        private const val KEY_ALIAS_PREFIX = "vyom_factory_worker_provider_aes"
+        private val SUPPORTED_PROVIDER_IDS = setOf(
+            NvidiaNemotronWorkerModelProvider.PROVIDER_ID,
+            GoogleGemmaWorkerModelProvider.PROVIDER_ID
+        )
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val MAX_KEY_CHARS = 500
