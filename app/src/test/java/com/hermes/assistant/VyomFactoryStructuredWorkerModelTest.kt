@@ -39,14 +39,19 @@ class VyomFactoryStructuredWorkerModelTest {
         var calls = 0
         var lastRequest: VyomFactoryWorkerModelProvider.Request? = null
         var lastKey: String? = null
+        var lastMaxInputTokens: Int = 0
+        var lastMaxOutputTokens: Int = 0
         override fun generate(
             request: VyomFactoryWorkerModelProvider.Request,
             apiKey: CharArray,
+            maxInputTokens: Int,
             maxOutputTokens: Int
         ): VyomFactoryWorkerModelProvider.Response {
             calls++
             lastRequest = request
             lastKey = String(apiKey)
+            lastMaxInputTokens = maxInputTokens
+            lastMaxOutputTokens = maxOutputTokens
             return response()
         }
     }
@@ -114,6 +119,8 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals(repository, provider.lastRequest!!.repository)
         assertEquals(baseSha, provider.lastRequest!!.baseSha)
         assertEquals(listOf("docs"), provider.lastRequest!!.allowedPaths)
+        assertEquals(4_096, provider.lastMaxInputTokens)
+        assertEquals(4_096, provider.lastMaxOutputTokens)
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(120, journal.entries.single().inputTokens)
         assertEquals(80, journal.entries.single().outputTokens)
