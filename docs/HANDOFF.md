@@ -1,6 +1,6 @@
 ### Item 5 live-planning integration + legacy self-modification approval gate — 2026-11-08
 
-- **Implementation branch:** `fix/item7-progress-gates`. Current code/test SHA at the time of this entry: `394de019b3d7a1417b5c7adf9d5918d83525c5b2`.
+- **Implementation branch:** `fix/item7-progress-gates`. Current code/test SHA at the time of this entry: `c39fddd3a9eccd33fbda129251c949e5f31b0e4f`. The later `c39fddd` commit is a whitespace-minimized refactor of the token-gated proposal writer; it does not change behavior.
 - **Stacked PR:** [#104](https://github.com/riyas433554-dot/vyom-android/pull/104), head `fix/item7-progress-gates`, base `feature/factory-item5-task-intelligence`, **open + draft + unmerged**. GitHub reports `mergeable=true`; compare is **24 ahead / 0 behind** with merge-base equal to Item 5 base SHA `3aba5079451f3b410016542722644a99979b7d95`. No merge conflict is indicated. Do not mark ready-for-review or merge.
 - **PR #102 untouched:** title remains `[DRAFT] Factory Item 5 — dependency-aware task intelligence`; base remains `feature/memory-intelligence`; head remains `feature/factory-item5-task-intelligence`; open/draft/unmerged.
 - **Live planning wiring implemented, but NOT YET LIVE-WIRED:** `VyomFactoryDialog.runNextTask()` now takes one fresh `planningSnapshot`, calls `VyomFactoryLivePlanningStage(stageDetector::onPlanning)` before `VyomFactoryTaskTriage.evaluate`, and passes the same snapshot to triage. Active device-local leases are read through `WorkerSession → WorkerClaimCoordinator → WorkerLeaseStore` and excluded; the existing hook still filters closed tasks. Unexpected detector exceptions are contained so planning continues. Existing `VyomFactoryPlanningStageHookTest` was not changed.
@@ -19,7 +19,7 @@
   - `SelfModificationSystemBindingTest.clientRejectsMissingOwnerApprovedBindingBeforeAnyNetworkRequest`
 - **Other legacy proposal regression tests — CI PENDING:** `SelfModificationClientIntegrationTest.rejectsProtectedPathBeforeMakingAnyGitHubRequest`, `rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest`, `confirmedPrCreationFailureCleansBranchButNeverMergesOrInstalls`, `uncertainPrCreationFailurePreservesBranchForManualRecovery`, `rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest`, and `exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling`.
 - **CI trigger:** added `fix/item7-progress-gates` to the push branch filters in both `.github/workflows/vyom-android-ci.yml` and `.github/workflows/vyom-android-debug.yml`, because this stacked PR targets the Item 5 branch rather than the older PR-trigger base filters.
-- **Exact-SHA runs currently pending/in progress:** Full CI push run `42451130991`; Debug CI push run `42451130990`. Both report `head_branch=fix/item7-progress-gates` and `head_sha=394de019b3d7a1417b5c7adf9d5918d83525c5b2`. No PASS is claimed while these runs are incomplete.
+- **Exact-SHA runs currently pending/in progress:** Full CI push run `42451339919` = PENDING; Debug CI push run `42451339915` = IN_PROGRESS. Both report `head_branch=fix/item7-progress-gates` and `head_sha=c39fddd3a9eccd33fbda129251c949e5f31b0e4f`. No PASS is claimed while these runs are incomplete.
 - **New commits in this batch (each is a separate commit):**
   - `0a4d63bddc75d2dcfb43143bd3f905c239c95e72` — live-planning integration test.
   - `97a8409cac2d349da58dc335dd20137e2d3433f8` — approval-token tests.
@@ -38,6 +38,7 @@
   - `66b989680d3bb9a7cf2e7639220ea67f9888ddfa` — preserve missing-binding rejection coverage.
   - `7b5205a2c7b3c5fa66d5ef0f0dcdc2fe5c135aa2` — fix base-movement test fixture.
   - `394de019b3d7a1417b5c7adf9d5918d83525c5b2` — unit-returning detector journal callback.
+  - `c39fddd3a9eccd33fbda129251c949e5f31b0e4f` — reduce SelfModificationClient token-gate diff to the minimal method-boundary change.
 - Item 7 remains **CODE-VERIFIED / PHONE-PENDING** as documented above. Item 5 live-planning integration remains **CI-PENDING / NOT YET LIVE-WIRED**. Item 8 remains **NOT STARTED**. No cherry-pick, PR #102 metadata change, merge, ready-for-review transition, Android `main`, Render, backend, or production Supabase change. No phone probe is claimed.
 
 ---
