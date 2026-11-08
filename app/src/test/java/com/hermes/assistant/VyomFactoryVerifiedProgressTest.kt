@@ -177,12 +177,13 @@ class VyomFactoryVerifiedProgressTest {
 
     private fun task(
         status: String = "in_progress",
-        description: String = description()
+        description: String = description(),
+        events: List<String> = emptyList()
     ): VyomFactoryGitHubClient.Task {
         val metadata = VyomFactoryStatus.Metadata(
             priority = "P2", status = status, source = "factory",
             sourceId = "progress-77", idempotencyKey = "factory:progress-77",
-            events = emptyList()
+            events = events
         )
         return VyomFactoryGitHubClient.Task(
             number = 77, title = "[VYOM FACTORY][P2] Progress verification",
