@@ -354,6 +354,35 @@ class VyomFactoryStructuredWorkerModelTest {
 
 
 
+    @Test fun cumulativeTaskTokenBudgetBlocksFurtherProviderCalls() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response("not-json", inputTokens = 120, outputTokens = 80)
+        }
+        val journal = MemoryJournal()
+        val worker = adapter(
+            provider,
+            journal,
+            limits = VyomFactoryWorkerModelLimits(
+                maxTokensPerTask = 256,
+                maxOutputTokens = 128,
+                maxRetries = 1
+            )
+        )
+        val control = object : VyomFactoryExecutionControl {
+            override fun shouldStop() = false
+        }
+
+        assertThrows(IllegalArgumentException::class.java) {
+            worker.propose(task(), registry(), control)
+        }
+        assertThrows(IllegalStateException::class.java) {
+            worker.propose(task(), registry(), control)
+        }
+
+        assertEquals(1, provider.calls)
+        assertEquals("BLOCKED", journal.entries.last().result)
+    }
+
     @Test fun providerCannotExceedConfiguredOutputTokenLimit() {
         val provider = FakeProvider {
             VyomFactoryWorkerModelProvider.Response(validJson(), inputTokens = 10, outputTokens = 4_097)
