@@ -6,7 +6,7 @@
 - **Exact-HEAD CI:** Full `42486785759`; Debug `42486785757`. Both ran on branch `feature/real-worker-model`, HEAD `sha:accaf27a44e4`, and concluded SUCCESS.
 - **Full-history scan:** literal log output `no leaks found` and `FULL_HISTORY_GITLEAKS_FINDINGS=0`.
 - **Gradle:** Full log `> Task :app:testDebugUnitTest` followed by `BUILD SUCCESSFUL in 2m 38s`; Debug log `> Task :app:testDebugUnitTest` followed by `BUILD SUCCESSFUL in 2m 43s`. Total suite count was not emitted in the retrieved logs: **UNVERIFIED**. The new worker test file contains 14 test methods.
-- **APK artifact:** Full run produced `vyom-phase6-accaf27a44e4` (versioned debug APK and checksum).
+- **APK artifact prefix:** `vyom-phase6-accaf27a44e4` (the actual artifact name is versioned with the full build SHA; debug APK and checksum were uploaded).
 
 ### Worker boundary and safety
 
