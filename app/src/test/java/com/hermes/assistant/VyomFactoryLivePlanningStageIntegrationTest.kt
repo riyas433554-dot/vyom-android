@@ -19,7 +19,6 @@ class VyomFactoryLivePlanningStageIntegrationTest {
         )
 
     @Test fun livePlanningInvokesDetectorOnceAndSkipsClosedAndLocallyClaimedTasks() {
-        val detected = mutableListOf<Int>()
         val journal = mutableListOf<VyomFactoryStageDetector.Event>()
         val detector = VyomFactoryStageDetector(
             detect = { _, _ -> emptyList() },
@@ -31,7 +30,7 @@ class VyomFactoryLivePlanningStageIntegrationTest {
 
         livePlanning.inspect(
             tasks = listOf(
-                task(1, "open", "open").also { detected.clear() },
+                task(1, "open", "open"),
                 task(2, "closed", "completed"),
                 task(3, "open", "in_progress")
             ),
