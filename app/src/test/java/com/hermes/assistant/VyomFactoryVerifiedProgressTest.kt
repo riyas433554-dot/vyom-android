@@ -71,7 +71,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun uncheckedAcceptanceCriteriaStopsAtFiftyEvenWhenCiPassed() {
-        val incomplete = task(description().replace("[x] Add the reviewed implementation", "[ ] Add the reviewed implementation"))
+        val incomplete = task(description = description().replace("[x] Add the reviewed implementation", "[ ] Add the reviewed implementation"))
         val progress = calculate(incomplete, listOf(entry()), events = listOf(passEvent()))
         assertEquals(50, progress.percent)
         assertFalse(progress.criteriaVerified)
@@ -86,7 +86,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun changedProbeInvalidatesEarlierPassEvidence() {
-        val changed = task(description().replace(probe, "Open settings and confirm the new preference is visible"))
+        val changed = task(description = description().replace(probe, "Open settings and confirm the new preference is visible"))
         val progress = calculate(changed, listOf(entry()), events = listOf(passEvent()))
         assertEquals(99, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.CRITERIA_VERIFIED, progress.stage)
@@ -94,7 +94,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun noProbeRequiredAllowsCompletionAfterCriteriaVerification() {
-        val noProbe = task(description().replace("- **Verification probe:** $probe\n\n", ""))
+        val noProbe = task(description = description().replace("- **Verification probe:** $probe\n\n", ""))
         val progress = calculate(noProbe, listOf(entry()))
         assertEquals(100, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.PROBE_VERIFIED, progress.stage)
@@ -190,7 +190,7 @@ class VyomFactoryVerifiedProgressTest {
         )
         return VyomFactoryGitHubClient.Task(
             number = 77, title = "[VYOM FACTORY][P2] Progress verification",
-            body = description,
+            body = VyomFactoryStatus.withMetadata(description, metadata),
             state = if (status == "completed") "closed" else "open",
             url = "https://github.com/riyas433554-dot/vyom-android/issues/77",
             updatedAt = "2026-11-08T00:00:00Z", metadata = metadata
