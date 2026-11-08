@@ -13,9 +13,10 @@ internal fun interface VyomFactoryRepositoryWorkerModelAdapter {
 }
 
 /**
- * Adapts the structured model proposal already recorded in the task envelope.
- * This does not call or configure a new model integration.
+ * Issue-controlled JSON is no longer accepted as a worker plan. GitHub issue
+ * text is untrusted task data and cannot impersonate a model response.
  */
+@Deprecated("Use VyomFactoryStructuredWorkerModelAdapter with an owner-selected provider")
 internal class VyomFactoryIssueEnvelopeWorkerModelAdapter : VyomFactoryRepositoryWorkerModelAdapter {
     override fun propose(
         task: VyomFactoryGitHubClient.Task,
@@ -23,8 +24,6 @@ internal class VyomFactoryIssueEnvelopeWorkerModelAdapter : VyomFactoryRepositor
         control: VyomFactoryExecutionControl
     ): VyomFactoryRepositoryChangeReviewDialog.Candidate {
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
-        val candidate = VyomFactoryRepositoryChangeReviewDialog.parseCandidate(task.number, task.body, registry)
-        if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
-        return candidate
+        throw SecurityException("Issue-controlled worker proposals are disabled")
     }
 }
