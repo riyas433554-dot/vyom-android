@@ -174,6 +174,7 @@ class VyomFactoryStructuredWorkerModelTest {
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
                 apiKey: CharArray,
+                maxInputTokens: Int,
                 maxOutputTokens: Int
             ): VyomFactoryWorkerModelProvider.Response {
                 calls.incrementAndGet()
@@ -284,6 +285,7 @@ class VyomFactoryStructuredWorkerModelTest {
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
                 apiKey: CharArray,
+                maxInputTokens: Int,
                 maxOutputTokens: Int
             ): VyomFactoryWorkerModelProvider.Response {
                 started.countDown()
@@ -323,6 +325,7 @@ class VyomFactoryStructuredWorkerModelTest {
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
                 apiKey: CharArray,
+                maxInputTokens: Int,
                 maxOutputTokens: Int
             ): VyomFactoryWorkerModelProvider.Response {
                 calls.incrementAndGet()
