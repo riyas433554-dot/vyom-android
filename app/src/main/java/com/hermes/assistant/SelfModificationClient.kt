@@ -307,10 +307,7 @@ internal class SelfModificationClient(
         approvalGate: SelfModificationApprovalGate
     ): Proposal {
         approvalGate.consume(draft, approval)
-        return createProposalAuthorized(
-            token, draft.title, draft.path, draft.proposedContent,
-            draft.requestSummary, draft.baseSha
-        )
+        return createProposalAuthorized(token, draft)
     }
 
     /** Legacy boolean consent is deliberately disabled; it is not an owner-issued token. */
@@ -335,108 +332,107 @@ internal class SelfModificationClient(
         "A one-time local approval token for the exact reviewed diff is required"
     )
 
-    private fun createProposalAuthorized(
-        token: String,
-        title: String,
-        path: String,
-        proposedContent: String,
-        requestSummary: String,
-        expectedBaseSha: String?
-    ): Proposal {
-            val binding = requireBinding(path)
-            SelfModificationPolicy.validate(title, path, proposedContent)
-            require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
-    
-            val baseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
-            requirePinnedHead(binding, baseRef)
-            val currentBaseSha = binding.commitSha
-            require(expectedBaseSha == null || expectedBaseSha == currentBaseSha) {
-                "The working branch changed before proposal creation. No PR was created; retry from the latest source."
+    private fun createProposalAuthorized(token: String, draft: Draft): Proposal {
+        val title = draft.title
+        val path = draft.path
+        val proposedContent = draft.proposedContent
+        val requestSummary = draft.requestSummary
+        val expectedBaseSha = draft.baseSha
+        val binding = requireBinding(path)
+        SelfModificationPolicy.validate(title, path, proposedContent)
+        require(token.trim().length >= 20) { "Add a GitHub token with repository Contents and Pull requests permissions in device settings" }
+
+        val baseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
+        requirePinnedHead(binding, baseRef)
+        val currentBaseSha = binding.commitSha
+        require(expectedBaseSha == null || expectedBaseSha == currentBaseSha) {
+            "The working branch changed before proposal creation. No PR was created; retry from the latest source."
+        }
+        val baseSha = expectedBaseSha ?: currentBaseSha
+
+        val suffix = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(28).ifBlank { "change" }
+        val proposalBranch = "vyom-proposal-${System.currentTimeMillis()}-$suffix"
+        val repositoryOwner = java.net.URI(binding.repositoryUrl).path.trim('/').substringBefore('/')
+        request("POST", "/git/refs", token, JSONObject()
+            .put("ref", "refs/heads/$proposalBranch")
+            .put("sha", baseSha))
+
+        var pullRequestCreationAttempted = false
+        try {
+            val encodedPath = path.split("/").joinToString("/") { encodePathSegment(it) }
+            val existing = request(
+                "GET",
+                "/contents/$encodedPath?ref=" + URLEncoder.encode(proposalBranch, "UTF-8"),
+                token = token,
+                allowNotFound = true
+            )
+            val currentSha = existing.optString("sha").takeIf { it.matches(Regex("^[a-f0-9]{40}$")) }
+            val payload = JSONObject()
+                .put("message", "proposal: $title")
+                .put("content", java.util.Base64.getEncoder().encodeToString(proposedContent.toByteArray(Charsets.UTF_8)))
+                .put("branch", proposalBranch)
+            if (currentSha != null) payload.put("sha", currentSha)
+            request("PUT", "/contents/$encodedPath", token, payload)
+
+            // Recheck the registered base immediately before opening the PR. If the
+            // working branch moved during upload, leave no PR against a mixed base.
+            val latestBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
+            requirePinnedHead(binding, latestBaseRef)
+
+            pullRequestCreationAttempted = true
+            val pr = request("POST", "/pulls", token, JSONObject()
+                .put("title", "[Vyom proposal] $title")
+                .put("head", proposalBranch)
+                .put("base", BASE_BRANCH)
+                .put("draft", false)
+                .put("body", "## Constrained self-modification proposal\n\n" +
+                    "- Proposed file: `$path`\n" +
+                    (if (requestSummary.isBlank()) "" else "- Requested change: ${requestSummary.take(1_000)}\n") +
+                    "- Source base commit: `$baseSha`.\n" +
+                    "- Created by Vyom's user-requested proposal workflow.\n" +
+                    "- This PR is never auto-merged. The owner reviewed the minimal patch preview before opening it.\n" +
+                    "- Vyom waits for both CI workflows and stages a signed APK only when its manifest commit, SHA-256 and certificate are verified.\n" +
+                    "- Android's installer remains the final install authority unless a separately verified Power Mode installer is available.\n" +
+                    "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
+            val prUrl = pr.optString("html_url")
+            require(prUrl.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/")) {
+                "GitHub did not return an approved pull request URL"
             }
-            val baseSha = expectedBaseSha ?: currentBaseSha
-    
-            val suffix = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(28).ifBlank { "change" }
-            val proposalBranch = "vyom-proposal-${System.currentTimeMillis()}-$suffix"
-            val repositoryOwner = java.net.URI(binding.repositoryUrl).path.trim('/').substringBefore('/')
-            request("POST", "/git/refs", token, JSONObject()
-                .put("ref", "refs/heads/$proposalBranch")
-                .put("sha", baseSha))
-    
-            var pullRequestCreationAttempted = false
-            try {
-                val encodedPath = path.split("/").joinToString("/") { encodePathSegment(it) }
-                val existing = request(
-                    "GET",
-                    "/contents/$encodedPath?ref=" + URLEncoder.encode(proposalBranch, "UTF-8"),
-                    token = token,
-                    allowNotFound = true
-                )
-                val currentSha = existing.optString("sha").takeIf { it.matches(Regex("^[a-f0-9]{40}$")) }
-                val payload = JSONObject()
-                    .put("message", "proposal: $title")
-                    .put("content", java.util.Base64.getEncoder().encodeToString(proposedContent.toByteArray(Charsets.UTF_8)))
-                    .put("branch", proposalBranch)
-                if (currentSha != null) payload.put("sha", currentSha)
-                request("PUT", "/contents/$encodedPath", token, payload)
-    
-                // Recheck the registered base immediately before opening the PR. If the
-                // working branch moved during upload, leave no PR against a mixed base.
-                val latestBaseRef = request("GET", "/git/ref/heads/$BASE_BRANCH", token = token)
-                requirePinnedHead(binding, latestBaseRef)
-    
-                pullRequestCreationAttempted = true
-                val pr = request("POST", "/pulls", token, JSONObject()
-                    .put("title", "[Vyom proposal] $title")
-                    .put("head", proposalBranch)
-                    .put("base", BASE_BRANCH)
-                    .put("draft", false)
-                    .put("body", "## Constrained self-modification proposal\n\n" +
-                        "- Proposed file: `$path`\n" +
-                        (if (requestSummary.isBlank()) "" else "- Requested change: ${requestSummary.take(1_000)}\n") +
-                        "- Source base commit: `$baseSha`.\n" +
-                        "- Created by Vyom's user-requested proposal workflow.\n" +
-                        "- This PR is never auto-merged. The owner reviewed the minimal patch preview before opening it.\n" +
-                        "- Vyom waits for both CI workflows and stages a signed APK only when its manifest commit, SHA-256 and certificate are verified.\n" +
-                        "- Android's installer remains the final install authority unless a separately verified Power Mode installer is available.\n" +
-                        "- Policy-critical files are blocked by the in-app allowlist; CODEOWNERS assigns owner review (required enforcement depends on branch protection)." ))
-                val prUrl = pr.optString("html_url")
-                require(prUrl.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/")) {
-                    "GitHub did not return an approved pull request URL"
-                }
-                return Proposal(proposalBranch, prUrl)
-            } catch (failure: Exception) {
-                val recoveredPullRequest = ProposalBranchRecovery.recover(
-                    findExistingPullRequest = {
-                        val encodedHead = URLEncoder.encode("$repositoryOwner:$proposalBranch", "UTF-8")
-                        val pulls = request(
-                            "GET",
-                            "/pulls?head=$encodedHead&state=all&per_page=10",
-                            token
-                        ).optJSONArray("_array") ?: JSONArray()
-                        val matchingPullRequest = (0 until pulls.length()).asSequence()
-                            .mapNotNull { pulls.optJSONObject(it) }
-                            .firstOrNull { it.optJSONObject("head")?.optString("ref") == proposalBranch }
-                        if (matchingPullRequest == null) null else {
-                            val url = matchingPullRequest.optString("html_url")
-                            require(url.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/")) {
-                                "Existing proposal PR returned an invalid URL"
-                            }
-                            url
+            return Proposal(proposalBranch, prUrl)
+        } catch (failure: Exception) {
+            val recoveredPullRequest = ProposalBranchRecovery.recover(
+                findExistingPullRequest = {
+                    val encodedHead = URLEncoder.encode("$repositoryOwner:$proposalBranch", "UTF-8")
+                    val pulls = request(
+                        "GET",
+                        "/pulls?head=$encodedHead&state=all&per_page=10",
+                        token
+                    ).optJSONArray("_array") ?: JSONArray()
+                    val matchingPullRequest = (0 until pulls.length()).asSequence()
+                        .mapNotNull { pulls.optJSONObject(it) }
+                        .firstOrNull { it.optJSONObject("head")?.optString("ref") == proposalBranch }
+                    if (matchingPullRequest == null) null else {
+                        val url = matchingPullRequest.optString("html_url")
+                        require(url.startsWith(binding.repositoryUrl.trimEnd('/') + "/pull/")) {
+                            "Existing proposal PR returned an invalid URL"
                         }
-                    },
-                    deleteBranch = {
-                        if (pullRequestCreationAttempted &&
-                            (failure !is GitHubApiException || failure.statusCode !in 400..499)
-                        ) {
-                            throw IllegalStateException("PR creation outcome is uncertain; preserving proposal branch")
-                        }
-                        request("DELETE", "/git/refs/heads/${encodePathSegment(proposalBranch)}", token)
+                        url
                     }
-                )
-                if (recoveredPullRequest != null) return Proposal(proposalBranch, recoveredPullRequest)
-                throw failure
-            }
-    
+                },
+                deleteBranch = {
+                    if (pullRequestCreationAttempted &&
+                        (failure !is GitHubApiException || failure.statusCode !in 400..499)
+                    ) {
+                        throw IllegalStateException("PR creation outcome is uncertain; preserving proposal branch")
+                    }
+                    request("DELETE", "/git/refs/heads/${encodePathSegment(proposalBranch)}", token)
+                }
+            )
+            if (recoveredPullRequest != null) return Proposal(proposalBranch, recoveredPullRequest)
+            throw failure
+        }
+
+
     }
 
     private fun encodePathSegment(value: String): String =
