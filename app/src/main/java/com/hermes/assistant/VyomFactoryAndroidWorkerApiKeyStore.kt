@@ -28,22 +28,26 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
     @Synchronized
     override fun saveKey(value: CharArray) {
         require(value.isNotEmpty() && value.size <= MAX_KEY_CHARS) { "Worker provider key length is invalid" }
-        val bytes = Charsets.UTF_8.newEncoder().encode(CharBuffer.wrap(value)).let { encoded ->
-            ByteArray(encoded.remaining()).also { encoded.get(it) }
-        }
+        val encoded = Charsets.UTF_8.newEncoder().encode(CharBuffer.wrap(value))
+        val bytes = ByteArray(encoded.remaining()).also { encoded.get(it) }
+        var encrypted: ByteArray? = null
+        var iv: ByteArray? = null
         try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
-            val encrypted = cipher.doFinal(bytes)
+            encrypted = cipher.doFinal(bytes)
+            iv = cipher.iv
             val editor = prefs.edit()
-                .putString(keyIv, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                .putString(keyIv, Base64.encodeToString(iv, Base64.NO_WRAP))
                 .putString(keyCiphertext, Base64.encodeToString(encrypted, Base64.NO_WRAP))
             check(editor.commit()) { "Worker provider key could not be stored" }
-            encrypted.fill(0)
         } catch (_: Exception) {
             throw IllegalStateException("Worker provider key could not be encrypted")
         } finally {
+            encrypted?.fill(0)
+            iv?.fill(0)
             bytes.fill(0)
+            if (encoded.hasArray()) encoded.array().fill(0)
         }
     }
 
@@ -62,12 +66,14 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
         } finally {
             ciphertext.fill(0)
         }
-        return try {
-            val decoded = Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(plaintext))
+        var decoded: CharBuffer? = null
+        try {
+            decoded = Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(plaintext))
             CharArray(decoded.remaining()).also { decoded.get(it) }
         } catch (_: Exception) {
             throw IllegalStateException("Worker provider key encoding is invalid")
         } finally {
+            decoded?.takeIf { it.hasArray() }?.array()?.fill('\\u0000')
             plaintext.fill(0)
             iv.fill(0)
         }

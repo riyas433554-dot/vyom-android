@@ -608,6 +608,8 @@ class MainActivity : Activity() {
             hint = "NVIDIA Nemotron worker key (blank = keep saved)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
+            isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             textSize = 13f
@@ -617,6 +619,8 @@ class MainActivity : Activity() {
             hint = "Google Gemma worker key (blank = keep saved)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
+            isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             textSize = 13f
