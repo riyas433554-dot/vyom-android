@@ -170,6 +170,11 @@ internal class VyomFactoryDialog(
             leftMargin = dp(8)
         })
         workerPanel.addView(workerActions)
+        workerPanel.addView(Button(activity).apply {
+            text = "STORE / REPLACE WORKER MODEL KEY"
+            textSize = 9f
+            setOnClickListener { showWorkerModelKeyDialog() }
+        }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(5) })
         runButton = Button(activity).apply {
             text = "RUN NEXT VERIFIED ACTION"; textSize = 9f
             setOnClickListener { runNextTask() }
@@ -438,42 +443,59 @@ internal class VyomFactoryDialog(
                         claimButton.isEnabled = true
                         releaseClaimButton.isEnabled = false
                         busy = false
-                        try {
-                            val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
-                            val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
-                            VyomFactoryRepositoryChangeReviewDialog.fromIssue(
-                                activity = activity,
-                                task = ownerReview.task,
-                                registry = registry,
-                                approvalStore = approvalStore,
-                                onApproved = { plan, approval ->
-                                    worker.execute {
-                                        try {
-                                            pendingRepositoryApprovals[plan.issueNumber] =
-                                                VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
-                                            main.post { runNextTask() }
-                                        } catch (error: Exception) {
-                                            main.post { onRunnerFailure(error.javaClass.simpleName) }
+                        val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
+                        val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
+                        val modelControl = object : VyomFactoryExecutionControl {
+                            override fun shouldStop(): Boolean =
+                                stopRunRequested.get() ||
+                                    !hostActivity.factoryForegroundGate.isForeground() ||
+                                    hostActivity.factoryForegroundGate.generation() != foregroundGeneration
+                        }
+                        worker.execute {
+                            try {
+                                val review = VyomFactoryRepositoryChangeReviewDialog.fromIssue(
+                                    activity = activity,
+                                    task = ownerReview.task,
+                                    registry = registry,
+                                    approvalStore = approvalStore,
+                                    workerModel = VyomFactoryWorkerModelRuntime.adapter(activity.applicationContext),
+                                    control = modelControl,
+                                    onApproved = { plan, approval ->
+                                        worker.execute {
+                                            try {
+                                                pendingRepositoryApprovals[plan.issueNumber] =
+                                                    VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
+                                                main.post { runNextTask() }
+                                            } catch (error: Exception) {
+                                                main.post { onRunnerFailure(error.javaClass.simpleName) }
+                                            }
+                                        }
+                                    },
+                                    onRejected = {
+                                        worker.execute {
+                                            runCatching {
+                                                val fresh = client.listTasks().firstOrNull {
+                                                    it.number == ownerReview.task.number && it.state == "open"
+                                                } ?: return@runCatching
+                                                client.updateTask(
+                                                    fresh,
+                                                    additionalEvent = VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT
+                                                )
+                                            }
                                         }
                                     }
-                                },
-                                onRejected = {
-                                    worker.execute {
-                                        runCatching {
-                                            val fresh = client.listTasks().firstOrNull {
-                                                it.number == ownerReview.task.number && it.state == "open"
-                                            } ?: return@runCatching
-                                            client.updateTask(
-                                                fresh,
-                                                additionalEvent = VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT
-                                            )
-                                        }
-                                    }
+                                )
+                                main.post {
+                                    if (!dialog.isShowing || modelControl.shouldStop()) return@post
+                                    review.show()
                                 }
-                            ).show()
-                        } catch (error: Exception) {
-                            status.text = "Repository review unavailable: ${error.message ?: error.javaClass.simpleName}"
-                            onRunnerFailure(error.javaClass.simpleName)
+                            } catch (error: Exception) {
+                                main.post {
+                                    if (!dialog.isShowing) return@post
+                                    status.text = "Worker plan unavailable: ${error.javaClass.simpleName}"
+                                    onRunnerFailure(error.javaClass.simpleName)
+                                }
+                            }
                         }
                     }
                     return@execute
@@ -1492,4 +1514,39 @@ internal class VyomFactoryDialog(
             else -> error.message?.take(180) ?: "Factory request failed."
         }
     }
+
+    private fun showWorkerModelKeyDialog() {
+        val input = EditText(activity).apply {
+            hint = "Provider API key"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+        }
+        val prompt = AlertDialog.Builder(activity)
+            .setTitle("STORE WORKER MODEL KEY")
+            .setMessage("The key is encrypted with Android Keystore. No provider is selected yet, so live model calls remain disabled.")
+            .setView(input)
+            .setPositiveButton("SAVE ENCRYPTED", null)
+            .setNegativeButton("CANCEL", null)
+            .create()
+        prompt.setOnShowListener {
+            prompt.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val editable = input.text
+                val value = CharArray(editable.length)
+                android.text.TextUtils.getChars(editable, 0, editable.length, value, 0)
+                try {
+                    VyomFactoryAndroidWorkerApiKeyStore(activity.applicationContext).saveKey(value)
+                    status.text = "Worker provider key stored encrypted on this device. Live calls remain disabled pending provider selection."
+                    input.text?.clear()
+                    prompt.dismiss()
+                } catch (error: Exception) {
+                    input.error = "Could not securely store the key"
+                } finally {
+                    value.fill('\\u0000')
+                }
+            }
+        }
+        prompt.show()
+    }
+
+
 }

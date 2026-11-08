@@ -117,11 +117,12 @@ internal class VyomFactoryRepositoryChangeReviewDialog(
             approvalStore: VyomFactoryRepositoryApprovalStore,
             onApproved: (VyomFactoryRepositoryChangePolicy.Plan, VyomFactoryRepositoryApprovalStore.Token) -> Unit,
             onRejected: () -> Unit = {},
-            workerModel: VyomFactoryRepositoryWorkerModelAdapter = VyomFactoryIssueEnvelopeWorkerModelAdapter()
-        ): VyomFactoryRepositoryChangeReviewDialog {
-            val candidate = workerModel.propose(task, registry, object : VyomFactoryExecutionControl {
+            workerModel: VyomFactoryRepositoryWorkerModelAdapter = VyomFactoryDisabledWorkerModelAdapter(),
+            control: VyomFactoryExecutionControl = object : VyomFactoryExecutionControl {
                 override fun shouldStop() = false
-            })
+            }
+        ): VyomFactoryRepositoryChangeReviewDialog {
+            val candidate = workerModel.propose(task, registry, control)
             return VyomFactoryRepositoryChangeReviewDialog(
                 activity, task, candidate, approvalStore, onApproved, onRejected
             )
