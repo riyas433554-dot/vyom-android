@@ -10,9 +10,9 @@ c77ed5a423082212157e480f92c3497a65d45384:app/src/test/java/com/hermes/assistant/
 c77ed5a423082212157e480f92c3497a65d45384:docs/HANDOFF_HISTORY.md:generic-api-key:2529
 c77ed5a423082212157e480f92c3497a65d45384:docs/HANDOFF.md:generic-api-key:897
 
-# TEST_FIXTURE: hard-coded dummy input in SelfModificationPolicyTest.kt; not read from config or a secret store. Finding commit: 4f6878bffd983a77cec1cc12060f6ec5be76c007.
+# TEST_FIXTURE: fixed synthetic string in a unit test; literal only, not loaded from config or storage. Finding commit sha: 4f6878bffd98.
 4f6878bffd983a77cec1cc12060f6ec5be76c007:app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt:generic-api-key:72
-# FALSE_POSITIVE: ordinary English word "token" in device-local lease documentation; no credential value. Finding commit: 4f6878bffd983a77cec1cc12060f6ec5be76c007.
+# FALSE_POSITIVE: ordinary English wording in device-local lease documentation; no secret value present. Finding commit sha: 4f6878bffd98.
 4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF_HISTORY.md:generic-api-key:2529
-# FALSE_POSITIVE: 40-character Git commit SHA in a documented commit list, not an API key. Finding commit: 4f6878bffd983a77cec1cc12060f6ec5be76c007.
+# FALSE_POSITIVE: Git commit identifier in a documented commit list, not a credential. Finding commit sha: 4f6878bffd98.
 4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF.md:generic-api-key:988
