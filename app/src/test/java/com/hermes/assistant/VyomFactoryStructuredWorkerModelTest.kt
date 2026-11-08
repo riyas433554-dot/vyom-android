@@ -26,8 +26,10 @@ class VyomFactoryStructuredWorkerModelTest {
     private class MemoryJournal : VyomFactoryWorkerModelCallJournal {
         val entries = mutableListOf<VyomFactoryWorkerModelCallJournal.Entry>()
         override fun record(entry: VyomFactoryWorkerModelCallJournal.Entry) { entries += entry }
-        override fun callsSince(epochMillis: Long): Int = entries.count { it.timestampMillis >= epochMillis }
-        override fun callsForTask(taskNumber: Int): Int = entries.count { it.taskNumber == taskNumber }
+        override fun callsSince(epochMillis: Long): Int = entries.count { it.timestampMillis >= epochMillis && it.providerCallStarted }
+        override fun callsForTask(taskNumber: Int): Int = entries.count { it.taskNumber == taskNumber && it.providerCallStarted }
+        override fun hasSuccessfulCall(taskNumber: Int): Boolean = entries.any { it.taskNumber == taskNumber && it.providerCallStarted && it.result == "SUCCESS" }
+        override fun tokensForTask(taskNumber: Int): Long = entries.filter { it.taskNumber == taskNumber && it.providerCallStarted }.sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
     }
 
     private class FakeProvider(
@@ -53,7 +55,7 @@ class VyomFactoryStructuredWorkerModelTest {
         {
           "repository": "$repository",
           "base_sha": "$baseSha",
-          "files": [{"path": "$path", "content": "# Worker guide\n\nUpdated by owner-reviewed plan.\n"}]
+          "files": [{"path": "$path", "content": "Updated by owner-reviewed plan."}]
         }
     """.trimIndent()
 
@@ -297,6 +299,7 @@ class VyomFactoryStructuredWorkerModelTest {
             assertThrows(ExecutionException::class.java) { result.get(2, TimeUnit.SECONDS) }
             assertTrue(interrupted.await(1, TimeUnit.SECONDS))
             assertEquals("STOPPED", journal.entries.single().result)
+            assertTrue(journal.entries.single().providerCallStarted)
         } finally {
             caller.shutdownNow()
         }

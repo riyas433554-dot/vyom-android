@@ -52,13 +52,15 @@ internal interface VyomFactoryWorkerModelCallJournal {
         val inputTokens: Int,
         val outputTokens: Int,
         val result: String,
-        val providerId: String
+        val providerId: String,
+        val providerCallStarted: Boolean = false
     )
 
     fun record(entry: Entry)
     fun callsSince(epochMillis: Long): Int
     fun callsForTask(taskNumber: Int): Int
     fun tokensForTask(taskNumber: Int): Long
+    fun hasSuccessfulCall(taskNumber: Int): Boolean
 }
 
 /** Persisted audit metadata only: no credential, prompt, model output or issue body. */
@@ -85,7 +87,8 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
                 .put("input_tokens", row.inputTokens)
                 .put("output_tokens", row.outputTokens)
                 .put("result", row.result)
-                .put("provider_id", row.providerId))
+                .put("provider_id", row.providerId)
+                .put("provider_call_started", row.providerCallStarted))
         }
         check(prefs.edit().putString(KEY_ENTRIES, array.toString()).commit()) {
             "Worker model journal could not be persisted"
@@ -93,16 +96,20 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
     }
 
     override fun callsSince(epochMillis: Long): Int = synchronized(LOCK) {
-        read().count { it.timestampMillis >= epochMillis && it.result in CALL_RESULTS }
+        read().count { it.timestampMillis >= epochMillis && it.providerCallStarted }
     }
 
     override fun callsForTask(taskNumber: Int): Int = synchronized(LOCK) {
-        read().count { it.taskNumber == taskNumber && it.result in CALL_RESULTS }
+        read().count { it.taskNumber == taskNumber && it.providerCallStarted }
     }
 
     override fun tokensForTask(taskNumber: Int): Long = synchronized(LOCK) {
-        read().filter { it.taskNumber == taskNumber && it.result in CALL_RESULTS }
+        read().filter { it.taskNumber == taskNumber && it.providerCallStarted }
             .sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
+    }
+
+    override fun hasSuccessfulCall(taskNumber: Int): Boolean = synchronized(LOCK) {
+        read().any { it.taskNumber == taskNumber && it.result == "SUCCESS" && it.providerCallStarted }
     }
 
     private fun read(): List<VyomFactoryWorkerModelCallJournal.Entry> {
@@ -118,7 +125,8 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
                     inputTokens = item.getInt("input_tokens"),
                     outputTokens = item.getInt("output_tokens"),
                     result = item.getString("result"),
-                    providerId = item.getString("provider_id")
+                    providerId = item.getString("provider_id"),
+                    providerCallStarted = item.optBoolean("provider_call_started", false)
                 ).also { row ->
                     require(row.taskNumber > 0 && row.timestampMillis >= 0 &&
                         row.inputTokens >= 0 && row.outputTokens >= 0 &&
@@ -137,7 +145,6 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
         private const val MAX_ENTRIES = 5_000
         private val LOCK = Any()
         private val RESULTS = setOf("SUCCESS", "FAILED", "BLOCKED", "TIMEOUT", "STOPPED")
-        private val CALL_RESULTS = setOf("SUCCESS", "FAILED", "TIMEOUT")
     }
 }
 
@@ -198,6 +205,10 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             record(task.number, 0, 0, "BLOCKED")
             throw IllegalStateException("Worker daily model-call cap reached")
         }
+        if (journal.hasSuccessfulCall(task.number)) {
+            record(task.number, 0, 0, "BLOCKED")
+            throw IllegalStateException("Worker task already has a successful model plan")
+        }
         if (journal.callsForTask(task.number) > limits.maxRetries) {
             record(task.number, 0, 0, "BLOCKED")
             throw IllegalStateException("Worker task retry limit reached")
@@ -215,6 +226,10 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             if (control.shouldStop()) {
                 record(task.number, 0, 0, "STOPPED")
                 throw VyomFactoryExecutionStoppedException()
+            }
+            if (journal.hasSuccessfulCall(task.number)) {
+                record(task.number, 0, 0, "BLOCKED")
+                throw IllegalStateException("Worker task already has a successful model plan")
             }
             if (journal.callsForTask(task.number) > limits.maxRetries) {
                 record(task.number, 0, 0, "BLOCKED")
@@ -241,13 +256,13 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     while (completed == null) {
                         if (control.shouldStop()) {
                             future.cancel(true)
-                            record(task.number, 0, 0, "STOPPED")
+                            record(task.number, 0, 0, "STOPPED", providerCallStarted = true)
                             throw VyomFactoryExecutionStoppedException()
                         }
                         val remaining = deadline - System.nanoTime()
                         if (remaining <= 0L) {
                             future.cancel(true)
-                            record(task.number, 0, 0, "TIMEOUT")
+                            record(task.number, 0, 0, "TIMEOUT", providerCallStarted = true)
                             throw IllegalStateException("Worker model request timed out")
                         }
                         try {
@@ -269,15 +284,15 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 require(inputTokens >= 0 && outputTokens >= 0) { "Worker provider returned invalid token usage" }
                 val total = inputTokens.toLong() + outputTokens.toLong()
                 if (journal.tokensForTask(task.number) + total > limits.maxTokensPerTask) {
-                    record(task.number, inputTokens, outputTokens, "FAILED")
+                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
                     throw IllegalArgumentException("Worker task token budget exceeded")
                 }
                 if (control.shouldStop()) {
-                    record(task.number, inputTokens, outputTokens, "STOPPED")
+                    record(task.number, inputTokens, outputTokens, "STOPPED", providerCallStarted = true)
                     throw VyomFactoryExecutionStoppedException()
                 }
                 val candidate = parseCandidate(task.number, task.title, response.structuredOutput, binding, registry)
-                record(task.number, inputTokens, outputTokens, "SUCCESS")
+                record(task.number, inputTokens, outputTokens, "SUCCESS", providerCallStarted = true)
                 return candidate
             } catch (error: VyomFactoryExecutionStoppedException) {
                 throw error
@@ -309,8 +324,12 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     ): VyomFactoryRepositoryChangeReviewDialog.Candidate {
         require(raw.length in 2..MAX_MODEL_OUTPUT_CHARS) { "Worker model output is empty or too large" }
         val tokener = JSONTokener(raw)
-        val root = tokener.nextValue() as? JSONObject
-            ?: throw IllegalArgumentException("Worker model output must be a JSON object")
+        val root = try {
+            tokener.nextValue() as? JSONObject
+                ?: throw IllegalArgumentException("Worker model output must be a JSON object")
+        } catch (_: Exception) {
+            throw IllegalArgumentException("Worker model output is malformed")
+        }
         require(tokener.nextClean().code == 0) { "Worker model output contains trailing data" }
         val expected = setOf("repository", "base_sha", "files")
         val actual = root.keys().asSequence().toSet()
@@ -359,7 +378,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         return clean.takeIf { it.length in 8..120 } ?: "Implement approved task #$issueNumber"
     }
 
-    private fun record(taskNumber: Int, input: Int, output: Int, result: String) {
+    private fun record(taskNumber: Int, input: Int, output: Int, result: String, providerCallStarted: Boolean = false) {
         journal.record(
             VyomFactoryWorkerModelCallJournal.Entry(
                 taskNumber = taskNumber,
@@ -367,7 +386,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 inputTokens = input,
                 outputTokens = output,
                 result = result,
-                providerId = provider.providerId
+                providerId = provider.providerId,
+                providerCallStarted = providerCallStarted
             )
         )
     }

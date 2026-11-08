@@ -1552,7 +1552,7 @@ internal class VyomFactoryDialog(
                 } catch (error: Exception) {
                     input.error = "Could not securely store the key"
                 } finally {
-                    value.fill('\\u0000')
+                    value.fill('\u0000')
                 }
             }
         }
