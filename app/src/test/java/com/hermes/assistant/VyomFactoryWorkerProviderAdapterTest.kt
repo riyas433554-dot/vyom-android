@@ -79,9 +79,12 @@ class VyomFactoryWorkerProviderAdapterTest {
         val result = provider.generate(request(), "nvidia-test-key".toCharArray(), 4096, 2048)
 
         assertEquals("nvidia-nemotron", provider.providerId)
-        assertEquals(NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID,
-            JSONObject(transport.body!!).getString("model"))
-        val messages = JSONObject(transport.body!!).getJSONArray("messages")
+        val payload = JSONObject(transport.body!!)
+        assertEquals(NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID, payload.getString("model"))
+        assertEquals(2048, payload.getInt("max_tokens"))
+        assertFalse(payload.has("response_format"))
+        assertFalse(payload.getBoolean("stream"))
+        val messages = payload.getJSONArray("messages")
         assertEquals("system", messages.getJSONObject(0).getString("role"))
         assertTrue(messages.getJSONObject(0).getString("content").contains("SYSTEM:"))
         assertEquals("user", messages.getJSONObject(1).getString("role"))
