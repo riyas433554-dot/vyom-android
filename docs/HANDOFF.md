@@ -1,22 +1,40 @@
-### Item 7 — verifier + evidence-backed progress — 2026-11-07
+### Item 7 — sequential evidence progress gate — 2026-11-08
 
-<badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
+<badge color="warning">IMPLEMENTED / CI-PENDING / PHONE-PENDING</badge>
 
-- **Verified code/test HEAD:** `34d92589f3ba0f1e97a782584bbfb0b4e9a2161e` on `feature/factory-item5-task-intelligence`.
-- **Exact-HEAD Full CI:** run `42382150570` — **PASS / SUCCESS**; head SHA exactly matches the verified code/test HEAD. `testDebugUnitTest` + `assembleDebug` passed; build log reports `BUILD SUCCESSFUL in 3m 42s`. Full-history Gitleaks scan and redacted report upload passed.
-- **Exact-HEAD Debug CI:** run `42382150563` — **PASS / SUCCESS**; head SHA exactly matches the verified code/test HEAD. `testDebugUnitTest` + `assembleDebug` passed; build log reports `BUILD SUCCESSFUL in 2m 52s`. The no-APK content-update demo package also built successfully. Debug/signed APK artifact upload and signed-release publication were **SKIPPED by workflow gate**.
-- Full CI artifact: `vyom-phase6-27cc1b81713944d75954e93f188d6d2ae65155a6` (artifact ID `13578655333`, 46,416,623 bytes). This is a CI artifact, not a final APK release or device-install verification. Debug workflow returned no artifacts. No final APK publication is claimed.
-- **Implementation:** added `VyomFactoryVerifiedProgress.kt` and `VyomFactoryVerifiedProgressTest.kt`; `VyomFactoryDialog.kt` now displays a per-task progress percentage, bar and evidence breakdown, refreshes it from runner checkpoints / adapter results / owner probe results, and refreshes after a run.
-- **100% rule:** 100 is emitted only when all explicit acceptance criteria are checked, the latest matching issue+operation journal attempt is SUCCEEDED, its test/postcondition proof is valid, the exact named behavior probe has PASS evidence, and the canonical task status is completed. Repository-change test evidence requires the verified proposal marker, commit SHA, draft PR URL, and the `ProposalCiGatePolicy` success evidence for that **same exact commit SHA**. Android actions require `DeviceActionExecutor.auditState(result) == "verified"`.
-- **Live/negative states:** a CLAIMED / RUNNING / STOP_REQUESTED attempt is shown as RUNNING and earns only partial implementation points; a newer FAILED / INTERRUPTED attempt invalidates an older success. A GitHub task already marked completed without the full proof conjunction is shown as **COMPLETED · UNVERIFIED**, never 100%.
-- **Progress weights:** acceptance criteria 25, implementation 25 (10 while actively running), tests/postcondition 25, named behavior probe 15, started state 5, completed state 5. The final 100 is reserved for the full proof conjunction.
-- **Tests added (11):** all proof gates required for 100; implementation/tests without behavior; active attempt; completed without journal proof; missing exact-SHA CI; CI for a different commit; failed/interrupted attempt; newer failure invalidating older success; unchecked acceptance criteria; changed probe invalidating old evidence; and all evidence before DONE remaining at 95%.
-- **Important limitation:** execution journal is device-local SharedPreferences. Cross-device progress synchronization is **UNVERIFIED / NOT IMPLEMENTED**. Existing GitHub DONE status transition still checks acceptance criteria + owner probe; it can therefore record a completed status without local worker proof, but this progress model labels that state UNVERIFIED and keeps it below 100%. Do not describe this as a server-side completion lock.
+- **Current code/test commit before this HANDOFF synchronization:** `471dc407963e0e2ec88c75b43ec9bd6fbc9f7bfa` on `fix/item7-progress-gates`. This is a separate follow-up branch because GitHub rejected direct commits to the protected Item 5 branch with “Changes must be made through a pull request.”
+- **Draft PR #103:** `fix/item7-progress-gates` → `feature/memory-intelligence`; open, not merged. PR #102 was not edited, merged, or retargeted. PR #103 exists only to carry the follow-up commits through branch protection and enable the repository's configured CI trigger.
+- **Sequential progress contract:** `VyomFactoryVerifiedProgress` now exposes exactly these ordered states: `NOT_STARTED` (0), `IMPLEMENTATION_DONE` (25), `CI_VERIFIED` (50), `CRITERIA_VERIFIED` (75, or 99 when a named device probe is required but pending), and `PROBE_VERIFIED` (100). A task with no assigned device probe can finish after criteria verification; the UI explicitly labels the probe as not required.
+- **Implementation proof:** only the latest journal attempt for the exact issue + operation can count; it must be `SUCCEEDED` and its persisted result must contain a valid 40-character `commit=` SHA. A later STOP_REQUESTED, FAILED, or crash-recovered INTERRUPTED attempt invalidates an older success. A started attempt without a committed SHA remains 0 and is labelled RUNNING.
+- **CI proof:** the journal result must contain `ProposalCiGatePolicy`'s success evidence, which is produced only when both required workflows (`Vyom Android CI` and `Vyom Android Debug`) completed successfully for the exact same commit SHA. A pending, failed, malformed, or mismatched SHA cannot pass the CI stage.
+- **Acceptance / device proof:** all non-empty explicit acceptance checkboxes in the task's Acceptance criteria section must be checked after CI proof. If a named Verification probe exists, only a PASS event for the exact current probe unlocks 100%; pending/failed/mismatched probe stays at 99% maximum. Canonical task status alone, a commit alone, or CI alone cannot produce 100%.
+- **Current CI history (none is a PASS):**
+  - Earlier Full run `42440669881` and Debug run `42440669829` failed test compilation on the earlier HEAD with `VyomFactoryVerifiedProgressTest.kt:166:61 No parameter with name 'events' found`.
+  - Next Full run `42441014179` and Debug run `42441014185` reached unit tests on the corrected test-helper HEAD; 654 tests ran and 4 progress tests failed. The observed failures were `exactShaFullAndDebugPassMovesToCiVerifiedAtFifty` (wrong expected stage because the fixture had all criteria checked) and three fixture construction exceptions at test line 190.
+  - The test fixture and expected stage were corrected in commit `49b4c622a769a9d5a1c89475dee55179a79f9a43`; progress UI line breaks were corrected in `471dc407963e0e2ec88c75b43ec9bd6fbc9f7bfa`. New exact-HEAD Full + Debug runs are still required. No CI pass is claimed.
+- **Progress test matrix — `app/src/test/java/com/hermes/assistant/VyomFactoryVerifiedProgressTest.kt`:**
+  - `noJournalCommitMeansZeroNotStarted` — CI-PENDING
+  - `commitShaInLatestSuccessfulJournalMeansImplementationDoneAtTwentyFive` — CI-PENDING
+  - `missingOrMalformedCommitShaCannotProveImplementation` — CI-PENDING
+  - `exactShaFullAndDebugPassMovesToCiVerifiedAtFifty` — CI-PENDING
+  - `ciFailureOrPendingDoesNotPassCiGate` — CI-PENDING
+  - `checkedAcceptanceCriteriaMovesToNinetyNineWhenDeviceProbeIsRequired` — CI-PENDING
+  - `uncheckedAcceptanceCriteriaStopsAtFiftyEvenWhenCiPassed` — CI-PENDING
+  - `exactNamedProbePassIsTheOnlyPathToOneHundred` — CI-PENDING
+  - `changedProbeInvalidatesEarlierPassEvidence` — CI-PENDING
+  - `noProbeRequiredAllowsCompletionAfterCriteriaVerification` — CI-PENDING
+  - `newerStopFailureOrCrashInvalidatesAnOlderSuccess` — CI-PENDING
+  - `activeAttemptNeverPretendsToBeCommitted` — CI-PENDING
+  - `journalRestartPreservesTheSameProgressAndCommitReceipt` — CI-PENDING
+  - `failedLatestAttemptAfterRestartCannotReuseOldSuccessfulReceipt` — CI-PENDING
+  - `completedIssueWithoutCommitProofNeverGetsOneHundred` — CI-PENDING
+- **Item 5 stage-detector gap:** the verifier-result hook is already called from the runner's `onVerificationResult` callback, and the owner probe result path also calls `onVerificationResult`; implementation checkpoints call `onImplementationCheckpoint`. The detector's stage test is `VyomFactoryStageDetectorTest.planningImplementationAndVerificationHooksInvokeDetectorAndJournalEachResult`. However, the actual autonomous planner does not yet automatically invoke `onPlanning`. Track this as **ITEM5-PLANNING-STAGE-HOOK-PENDING** and close it before Item 8; do not mark all automatic stage-hook wiring complete.
 - **Phone-pending checklist — Item 7 (do not execute until owner asks):**
-  1. Open Factory task cards and confirm progress shows the criteria / implementation / tests / behavior breakdown; a started task or commit alone must not show 100%.
-  2. On a test repository proposal, confirm exact-SHA Full + Debug CI evidence is required before the tests gate is marked verified; confirm owner probe PASS is a separate gate.
-  3. Confirm a completed issue without successful local journal proof, or with a newer failed attempt / changed probe, remains **COMPLETED · UNVERIFIED** and below 100%; only the complete proof conjunction reaches 100%.
-- No physical-phone verification, cross-device sync verification, final APK publication, or production release is claimed. Item 8 self-upgrade remains **NOT STARTED**. Android `main`, Render, Hermes backend and production Supabase were not touched.
+  1. Open Factory task cards and confirm the visible sequence: 0 NOT_STARTED → 25 IMPLEMENTATION_DONE → 50 CI_VERIFIED → 75/99 CRITERIA_VERIFIED → 100 PROBE_VERIFIED.
+  2. On a probe-required test task, verify a checked-criteria task with exact-SHA CI but no phone PASS remains at 99%; submit PASS for the exact named probe and confirm it reaches 100%.
+  3. Restart the app and verify journal-backed progress is unchanged; then test a newer STOP/crash-interrupted attempt and confirm it cannot reuse an older success.
+- Device verification, cross-device sync, final APK publication, and production release are not claimed. Item 8 remains **NOT STARTED**. Android `main`, Render, Hermes backend, and production Supabase were not touched.
+
 
 ---
 
