@@ -454,14 +454,37 @@ internal object VyomFactoryWorkerModelFeatureFlags {
     const val REAL_MODEL_CALLS_ENABLED = false
 }
 
-
 internal object VyomFactoryWorkerModelRuntime {
-    @Suppress("UNUSED_PARAMETER")
+    const val SETTINGS_PREFS = "vyom_factory_worker_model_settings"
+    const val SELECTED_PROVIDER = "provider_id"
+    const val MODEL_ID_SUFFIX = "_model_id"
+
     fun adapter(context: Context): VyomFactoryRepositoryWorkerModelAdapter {
-        if (VyomFactoryWorkerModelFeatureFlags.REAL_MODEL_CALLS_ENABLED) {
-            throw IllegalStateException("Live model calls are enabled without a selected provider implementation")
+        val journal = VyomFactoryWorkerModelJournal(context)
+        if (!VyomFactoryWorkerModelFeatureFlags.REAL_MODEL_CALLS_ENABLED) {
+            return VyomFactoryDisabledWorkerModelAdapter(journal)
         }
-        return VyomFactoryDisabledWorkerModelAdapter(VyomFactoryWorkerModelJournal(context))
+        val prefs = context.applicationContext.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+        val providerId = prefs.getString(SELECTED_PROVIDER, NvidiaNemotronWorkerModelProvider.PROVIDER_ID)
+            ?: NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+        val modelId = prefs.getString(
+            providerId + MODEL_ID_SUFFIX,
+            when (providerId) {
+                NvidiaNemotronWorkerModelProvider.PROVIDER_ID -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
+                GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
+                else -> throw SecurityException("Unsupported worker model provider")
+            }
+        ) ?: throw SecurityException("Worker model ID is missing")
+        val provider: VyomFactoryWorkerModelProvider = when (providerId) {
+            NvidiaNemotronWorkerModelProvider.PROVIDER_ID -> NvidiaNemotronWorkerModelProvider(modelId)
+            GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider(modelId)
+            else -> throw SecurityException("Unsupported worker model provider")
+        }
+        return VyomFactoryStructuredWorkerModelAdapter(
+            provider = provider,
+            keyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, providerId),
+            journal = journal
+        )
     }
 }
 
