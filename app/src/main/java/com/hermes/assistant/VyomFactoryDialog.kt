@@ -515,7 +515,13 @@ internal class VyomFactoryDialog(
                     },
                     isClaimCurrent = { session.renewAndCheck(it) },
                     releaseClaim = { session.release(it) },
-                    fetchFreshTask = { number -> client.listTasks().firstOrNull { it.number == number } },
+                    fetchFreshTask = { number ->
+                        val remote = client.listTasks().firstOrNull { it.number == number }
+                        val approved = pendingRepositoryApprovals[number]
+                        if (remote != null && approved != null) {
+                            remote.copy(body = VyomFactoryLocalApprovedPlanEnvelope.body(approved.plan))
+                        } else remote
+                    },
                     journal = journal,
                     adapters = VyomFactoryExecutionAdapterRegistry(listOf(
                         adapter,
@@ -671,6 +677,7 @@ internal class VyomFactoryDialog(
         adapter: VyomFactoryAndroidActionAdapter
     ): Boolean {
         if (task.state != "open" || task.metadata.status !in setOf("open", "in_progress")) return false
+        if (pendingRepositoryApprovals.containsKey(task.number)) return true
         val envelope = VyomFactoryExecutionEnvelope.parse(task.body)
         if (!envelope.isExecutable) return false
         if (envelope.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) {

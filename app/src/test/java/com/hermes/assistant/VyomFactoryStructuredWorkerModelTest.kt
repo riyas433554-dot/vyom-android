@@ -53,9 +53,6 @@ class VyomFactoryStructuredWorkerModelTest {
         {
           "repository": "$repository",
           "base_sha": "$baseSha",
-          "base_branch": "feature/memory-intelligence",
-          "title": "Improve the worker README guide",
-          "summary": "Adds a concise usage note.",
           "files": [{"path": "$path", "content": "# Worker guide\n\nUpdated by owner-reviewed plan.\n"}]
         }
     """.trimIndent()
@@ -108,6 +105,7 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("worker", candidate.plan.systemId)
         assertEquals(baseSha, candidate.plan.baseCommitSha)
         assertEquals("docs/README.md", candidate.plan.changes.single().path)
+        assertEquals("feature/memory-intelligence", candidate.plan.baseBranch)
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(1, provider.calls)
         assertEquals(120, journal.entries.single().inputTokens)
@@ -254,6 +252,12 @@ class VyomFactoryStructuredWorkerModelTest {
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(0, candidate.plan.issueNumber - 42)
         assertTrue(candidate.plan.changes.isNotEmpty())
+        val routed = VyomFactoryExecutionEnvelope.parse(
+            VyomFactoryLocalApprovedPlanEnvelope.body(candidate.plan), candidate.plan.issueNumber
+        )
+        assertTrue(routed.isExecutable)
+        assertEquals(VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE, routed.target)
+        assertEquals("propose_change", routed.operation)
         // The model adapter has no GitHub write client or approval-token issuer.
     }
 
