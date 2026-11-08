@@ -1,3 +1,47 @@
+### Item 5 live-planning integration + legacy self-modification approval gate — 2026-11-08
+
+- **Implementation branch:** `fix/item7-progress-gates`. Current code/test SHA at the time of this entry: `394de019b3d7a1417b5c7adf9d5918d83525c5b2`.
+- **Stacked PR:** [#104](https://github.com/riyas433554-dot/vyom-android/pull/104), head `fix/item7-progress-gates`, base `feature/factory-item5-task-intelligence`, **open + draft + unmerged**. GitHub reports `mergeable=true`; compare is **24 ahead / 0 behind** with merge-base equal to Item 5 base SHA `3aba5079451f3b410016542722644a99979b7d95`. No merge conflict is indicated. Do not mark ready-for-review or merge.
+- **PR #102 untouched:** title remains `[DRAFT] Factory Item 5 — dependency-aware task intelligence`; base remains `feature/memory-intelligence`; head remains `feature/factory-item5-task-intelligence`; open/draft/unmerged.
+- **Live planning wiring implemented, but NOT YET LIVE-WIRED:** `VyomFactoryDialog.runNextTask()` now takes one fresh `planningSnapshot`, calls `VyomFactoryLivePlanningStage(stageDetector::onPlanning)` before `VyomFactoryTaskTriage.evaluate`, and passes the same snapshot to triage. Active device-local leases are read through `WorkerSession → WorkerClaimCoordinator → WorkerLeaseStore` and excluded; the existing hook still filters closed tasks. Unexpected detector exceptions are contained so planning continues. Existing `VyomFactoryPlanningStageHookTest` was not changed.
+- **New live-planning integration tests committed; CI is not complete yet:**
+  - `VyomFactoryLivePlanningStageIntegrationTest.livePlanningInvokesDetectorOnceAndSkipsClosedAndLocallyClaimedTasks` — CI PENDING.
+  - `VyomFactoryLivePlanningStageIntegrationTest.livePlanningContainsDetectorFailureAndContinuesToNextTask` — CI PENDING.
+  - Do not write **LIVE-WIRED** until these tests pass on exact-SHA CI.
+- **Legacy path audit:** `VyomFactoryDialog.onProposeFix` → `MainActivity.openFactoryCodeProposal` only pre-fills the self-change form and opens it. The separate chat phrase `vyom ye badlo` opens the same form. Discovery and patch generation are read-only; the final preview's `OPEN PR` action is where GitHub writes begin. Previously, `createProposal(..., ownerReviewedDiff = true)` accepted a boolean, not a local token.
+- **Legacy write gate implemented:** `SelfModificationApprovalGate` issues a process-memory, single-use, 2-minute token bound to the exact draft fields (title, path, base SHA, proposed content, preview, summary). Only the final local `OPEN PR` tap issues it; the app also checks the foreground generation. `SelfModificationClient.createProposal` consumes the exact-draft token before entering the private GitHub-write method. Both legacy boolean-only overloads now throw before any network request. Tokens are cleared on Activity pause/destroy. The legacy path remains PR-only; no merge/release/install path was added.
+- **Approval test matrix — CI PENDING:**
+  - `SelfModificationApprovalGateTest.approvalIsBoundToExactDraftAndCanBeConsumedOnlyOnce`
+  - `SelfModificationApprovalGateTest.changedDraftCannotReuseApprovalToken`
+  - `SelfModificationApprovalGateTest.expiredOrClearedApprovalCannotBeConsumed`
+  - `SelfModificationClientIntegrationTest.rejectsLegacyBooleanApprovalEvenWhenTrueBeforeAnyGitHubRequest`
+  - `SelfModificationClientIntegrationTest.successfulProposalStopsAtUnmergedPrWithoutReleaseOrInstall`
+  - `SelfModificationSystemBindingTest.clientRejectsMissingOwnerApprovedBindingBeforeAnyNetworkRequest`
+- **Other legacy proposal regression tests — CI PENDING:** `SelfModificationClientIntegrationTest.rejectsProtectedPathBeforeMakingAnyGitHubRequest`, `rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest`, `confirmedPrCreationFailureCleansBranchButNeverMergesOrInstalls`, `uncertainPrCreationFailurePreservesBranchForManualRecovery`, `rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest`, and `exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling`.
+- **CI trigger:** added `fix/item7-progress-gates` to the push branch filters in both `.github/workflows/vyom-android-ci.yml` and `.github/workflows/vyom-android-debug.yml`, because this stacked PR targets the Item 5 branch rather than the older PR-trigger base filters.
+- **Exact-SHA runs currently pending/in progress:** Full CI push run `42451130991`; Debug CI push run `42451130990`. Both report `head_branch=fix/item7-progress-gates` and `head_sha=394de019b3d7a1417b5c7adf9d5918d83525c5b2`. No PASS is claimed while these runs are incomplete.
+- **New commits in this batch (each is a separate commit):**
+  - `0a4d63bddc75d2dcfb43143bd3f905c239c95e72` — live-planning integration test.
+  - `97a8409cac2d349da58dc335dd20137e2d3433f8` — approval-token tests.
+  - `304ec4a4ee0bbce885688b8172116c569001cf85` — tokenized proposal integration coverage.
+  - `ff84d6d74f185d6701ebb01bdc7f6a4211877818` — exact-diff one-time approval gate.
+  - `7e186a44953a43b62bc0dc66e031ddcd6335e628` — disable boolean-only proposal approval.
+  - `dba49c56a7d15762aa3001bf898c2e5b600567f1` — gate legacy PR writes with local token.
+  - `ca466553d6a1c0d60fbcbbc49e608203b2d2283e` — live-planning detector boundary.
+  - `358cebb034f03a66c7e8791931cc0a1d6fdcd505` — expose active local claims.
+  - `87886b36acb46ec138481a810cfc89e6fec5739b` — expose active claims to coordinator.
+  - `69b077498c3978c97d4f992cd11af6f6e4d601f0` — expose active claims from worker session.
+  - `5cd4300394a1841c3cbe11f1ce59863daecf4b8e` — wire detector into live RUN NEXT planning.
+  - `8405c1d32d699f4cf602fd22bcf8195ad6847d00` — clean live-planning test fixture.
+  - `250c72f04a902fef8d5fdaf8782476fe499f83f6` — clean approval test fixture.
+  - `81e8de0fc3c282428a3e7f0141b990ef37133a25` — enable Full + Debug push checks on this branch.
+  - `66b989680d3bb9a7cf2e7639220ea67f9888ddfa` — preserve missing-binding rejection coverage.
+  - `7b5205a2c7b3c5fa66d5ef0f0dcdc2fe5c135aa2` — fix base-movement test fixture.
+  - `394de019b3d7a1417b5c7adf9d5918d83525c5b2` — unit-returning detector journal callback.
+- Item 7 remains **CODE-VERIFIED / PHONE-PENDING** as documented above. Item 5 live-planning integration remains **CI-PENDING / NOT YET LIVE-WIRED**. Item 8 remains **NOT STARTED**. No cherry-pick, PR #102 metadata change, merge, ready-for-review transition, Android `main`, Render, backend, or production Supabase change. No phone probe is claimed.
+
+---
+
 ### Item 7 — sequential evidence progress gate — 2026-11-08
 
 <badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
