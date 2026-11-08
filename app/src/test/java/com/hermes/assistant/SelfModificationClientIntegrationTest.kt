@@ -61,15 +61,20 @@ class SelfModificationClientIntegrationTest {
         val server = MockWebServer()
         server.start()
         try {
-            assertRejected {
+            val rejection = runCatching {
                 client(server).createProposal(
                     token,
                     "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
                     ownerReviewedDiff = true
                 )
-            }
+            }.exceptionOrNull()
+            val securityRejection = rejection as? SecurityException
+                ?: throw AssertionError("Expected SecurityException for legacy boolean approval", rejection)
+            assertTrue(
+                securityRejection.message.orEmpty().contains("one-time local approval token")
+            )
             assertEquals(0, server.requestCount)
         } finally {
             server.shutdown()
