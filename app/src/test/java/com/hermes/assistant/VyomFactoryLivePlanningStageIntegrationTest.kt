@@ -24,7 +24,7 @@ class VyomFactoryLivePlanningStageIntegrationTest {
             detect = { _, _ -> emptyList() },
             loadTasks = { emptyList() },
             createTask = { _, _, _ -> error("No task should be created") },
-            recordEvent = journal::add
+            recordEvent = { journal.add(it) }
         )
         val livePlanning = VyomFactoryLivePlanningStage(detector::onPlanning)
 
