@@ -84,10 +84,11 @@ internal object VyomFactoryVerifiedProgress {
         val ciVerified = implementationVerified && ciSha == commitSha
 
         val probeRequired = VyomFactoryVerificationPolicy.assignedProbe(description) != null
-        val probeVerified = !probeRequired || VyomFactoryVerificationPolicy.canComplete(
-            description,
-            task.metadata.events
-        )
+        val probeVerified = criteriaVerified &&
+            (!probeRequired || VyomFactoryVerificationPolicy.canComplete(
+                description,
+                task.metadata.events
+            ))
 
         val stage = when {
             !implementationVerified -> Stage.NOT_STARTED
