@@ -66,7 +66,7 @@ class SelfModificationClientIntegrationTest {
                     token,
                     "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
                     ownerReviewedDiff = true
                 )
             }
@@ -92,7 +92,7 @@ class SelfModificationClientIntegrationTest {
                     client,
                     "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
                 )
             assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
             val requests = (0 until 6).map { server.takeRequest() }
@@ -123,7 +123,7 @@ class SelfModificationClientIntegrationTest {
                     client,
                     "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
                 )
             }
 
@@ -158,7 +158,7 @@ class SelfModificationClientIntegrationTest {
                     client,
                     "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
                 )
             }
 
@@ -189,7 +189,7 @@ class SelfModificationClientIntegrationTest {
                     client,
                     "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
+                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\""
                 )
             }
             val requests = (0 until 7).map { server.takeRequest() }
