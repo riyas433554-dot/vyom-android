@@ -634,7 +634,7 @@ class MainActivity : Activity() {
                     try {
                         VyomFactoryAndroidWorkerApiKeyStore(applicationContext, providerId).saveKey(value)
                     } finally {
-                        value.fill('\\u0000')
+                        value.fill('\u0000')
                         input.text?.clear()
                     }
                 }
