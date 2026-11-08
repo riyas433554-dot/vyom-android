@@ -103,6 +103,7 @@ class VyomFactoryStructuredWorkerModelTest {
         )
 
         assertEquals("worker", candidate.plan.systemId)
+        assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(baseSha, candidate.plan.baseCommitSha)
         assertEquals("docs/README.md", candidate.plan.changes.single().path)
         assertEquals("feature/memory-intelligence", candidate.plan.baseBranch)

@@ -259,7 +259,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                             // Poll STOP while respecting the overall bounded timeout.
                         }
                     }
-                    completed
+                    completed ?: throw IllegalStateException("Worker provider returned no result")
                 } catch (failure: ExecutionException) {
                     val cause = failure.cause
                     throw IllegalStateException("Worker model provider failed (${cause?.javaClass?.simpleName ?: "unknown"})")
@@ -276,7 +276,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     record(task.number, inputTokens, outputTokens, "STOPPED")
                     throw VyomFactoryExecutionStoppedException()
                 }
-                val candidate = parseCandidate(task.number, response.structuredOutput, binding, registry)
+                val candidate = parseCandidate(task.number, task.title, response.structuredOutput, binding, registry)
                 record(task.number, inputTokens, outputTokens, "SUCCESS")
                 return candidate
             } catch (error: VyomFactoryExecutionStoppedException) {
@@ -302,6 +302,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
 
     private fun parseCandidate(
         issueNumber: Int,
+        taskTitle: String,
         raw: String,
         binding: VyomFactorySystemRegistry.Binding,
         registry: VyomFactorySystemRegistry
@@ -337,7 +338,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             systemId = WORKER_SYSTEM_ID,
             issueNumber = issueNumber,
             attemptId = UUID.randomUUID().toString(),
-            title = taskTitleForPlan(issueNumber),
+            title = taskTitleForPlan(issueNumber, taskTitle),
             baseBranch = baseBranch,
             baseCommitSha = binding.commitSha,
             changes = changes,
@@ -349,9 +350,13 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         return VyomFactoryRepositoryChangeReviewDialog.Candidate(plan, binding, summary)
     }
 
-    private fun taskTitleForPlan(issueNumber: Int): String {
-        val title = "Implement approved task #$issueNumber"
-        return title.take(120)
+    private fun taskTitleForPlan(issueNumber: Int, sourceTitle: String): String {
+        val clean = sourceTitle
+            .removePrefix("[VYOM FACTORY]")
+            .replace(Regex("^\\[[Pp][0-3]\\]\\s*"), "")
+            .trim()
+            .take(120)
+        return clean.takeIf { it.length in 8..120 } ?: "Implement approved task #$issueNumber"
     }
 
     private fun record(taskNumber: Int, input: Int, output: Int, result: String) {
