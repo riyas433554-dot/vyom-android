@@ -566,7 +566,17 @@ class MainActivity : Activity() {
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
             else -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
         }
-        lateinit var workerModelIdInput: EditText
+        val workerModelIdInput = EditText(this).apply {
+            hint = "Worker model ID"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(workerModelPrefs.getString(
+                selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
+                defaultWorkerModel(selectedWorkerProviderId)
+            ))
+        }
         val workerProviderButton = Button(this).apply {
             text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
             setOnClickListener {
@@ -594,17 +604,6 @@ class MainActivity : Activity() {
             }
         }
         settingsContent.addView(workerProviderButton, LinearLayout.LayoutParams(-1, dp(42)))
-        workerModelIdInput = EditText(this).apply {
-            hint = "Worker model ID"
-            setSingleLine(true)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            textSize = 13f
-            setText(workerModelPrefs.getString(
-                selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
-                defaultWorkerModel(selectedWorkerProviderId)
-            ))
-        }
         settingsContent.addView(workerModelIdInput, LinearLayout.LayoutParams(-1, dp(44)))
         val workerNvidiaKeyInput = EditText(this).apply {
             hint = "NVIDIA Nemotron worker key (blank = keep saved)"
