@@ -73,7 +73,7 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
         } catch (_: Exception) {
             throw IllegalStateException("Worker provider key encoding is invalid")
         } finally {
-            decoded?.takeIf { it.hasArray() }?.array()?.fill('\\u0000')
+            decoded?.takeIf { it.hasArray() }?.array()?.fill('\u0000')
             plaintext.fill(0)
             iv.fill(0)
         }
