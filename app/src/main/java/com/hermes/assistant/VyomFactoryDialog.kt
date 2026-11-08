@@ -438,11 +438,11 @@ internal class VyomFactoryDialog(
                         activeClaim = null
                         claimStatus.text = "OWNER REVIEW REQUIRED · #${ownerReview.task.number}"
                         status.text = "Review the exact repository, immutable base, paths and proposed content. No repository write occurs before local approval."
-                        runButton.isEnabled = true
-                        stopButton.isEnabled = false
-                        claimButton.isEnabled = true
+                        runButton.isEnabled = false
+                        stopButton.isEnabled = true
+                        claimButton.isEnabled = false
                         releaseClaimButton.isEnabled = false
-                        busy = false
+                        busy = true
                         val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
                         val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
                         val modelControl = object : VyomFactoryExecutionControl {
@@ -471,27 +471,31 @@ internal class VyomFactoryDialog(
                                             }
                                         }
                                     },
-                                    onRejected = {
-                                        worker.execute {
-                                            runCatching {
-                                                val fresh = client.listTasks().firstOrNull {
-                                                    it.number == ownerReview.task.number && it.state == "open"
-                                                } ?: return@runCatching
-                                                client.updateTask(
-                                                    fresh,
-                                                    additionalEvent = VyomFactorySpecialistRouting.OWNER_REVIEW_DEFERRED_EVENT
-                                                )
-                                            }
-                                        }
-                                    }
+                                    onRejected = { /* Reject is local-only: no issue, branch or repository write. */ }
                                 )
                                 main.post {
-                                    if (!dialog.isShowing || modelControl.shouldStop()) return@post
+                                    if (!dialog.isShowing) return@post
+                                    if (modelControl.shouldStop()) {
+                                        busy = false
+                                        runButton.isEnabled = true
+                                        stopButton.isEnabled = false
+                                        claimButton.isEnabled = true
+                                        status.text = "Worker stopped before owner review; no plan was shown."
+                                        return@post
+                                    }
+                                    busy = false
+                                    runButton.isEnabled = true
+                                    stopButton.isEnabled = false
+                                    claimButton.isEnabled = true
                                     review.show()
                                 }
                             } catch (error: Exception) {
                                 main.post {
                                     if (!dialog.isShowing) return@post
+                                    busy = false
+                                    runButton.isEnabled = true
+                                    stopButton.isEnabled = false
+                                    claimButton.isEnabled = true
                                     status.text = "Worker plan unavailable: ${error.javaClass.simpleName}"
                                     onRunnerFailure(error.javaClass.simpleName)
                                 }

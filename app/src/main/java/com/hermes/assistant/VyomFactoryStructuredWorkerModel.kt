@@ -93,15 +93,15 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
     }
 
     override fun callsSince(epochMillis: Long): Int = synchronized(LOCK) {
-        read().count { it.timestampMillis >= epochMillis }
+        read().count { it.timestampMillis >= epochMillis && it.result in CALL_RESULTS }
     }
 
     override fun callsForTask(taskNumber: Int): Int = synchronized(LOCK) {
-        read().count { it.taskNumber == taskNumber }
+        read().count { it.taskNumber == taskNumber && it.result in CALL_RESULTS }
     }
 
     override fun tokensForTask(taskNumber: Int): Long = synchronized(LOCK) {
-        read().filter { it.taskNumber == taskNumber }
+        read().filter { it.taskNumber == taskNumber && it.result in CALL_RESULTS }
             .sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
     }
 
@@ -137,6 +137,7 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
         private const val MAX_ENTRIES = 5_000
         private val LOCK = Any()
         private val RESULTS = setOf("SUCCESS", "FAILED", "BLOCKED", "TIMEOUT", "STOPPED")
+        private val CALL_RESULTS = setOf("SUCCESS", "FAILED", "TIMEOUT")
     }
 }
 
@@ -365,6 +366,17 @@ The owner must review and explicitly approve the plan. You have no permission to
 /** Live provider calls remain disabled until the owner selects and reviews one provider. */
 internal object VyomFactoryWorkerModelFeatureFlags {
     const val REAL_MODEL_CALLS_ENABLED = false
+}
+
+
+internal object VyomFactoryWorkerModelRuntime {
+    @Suppress("UNUSED_PARAMETER")
+    fun adapter(context: Context): VyomFactoryRepositoryWorkerModelAdapter {
+        if (VyomFactoryWorkerModelFeatureFlags.REAL_MODEL_CALLS_ENABLED) {
+            throw IllegalStateException("Live model calls are enabled without a selected provider implementation")
+        }
+        return VyomFactoryDisabledWorkerModelAdapter()
+    }
 }
 
 internal class VyomFactoryDisabledWorkerModelAdapter : VyomFactoryRepositoryWorkerModelAdapter {
