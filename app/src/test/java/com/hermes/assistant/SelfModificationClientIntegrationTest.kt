@@ -17,14 +17,17 @@ class SelfModificationClientIntegrationTest {
         server.start()
         try {
             val client = client(server)
-            assertRejected {
-                client.createProposal(
-                    token, "Change protected behavior",
-                    "app/src/main/java/com/hermes/assistant/MainActivity.kt",
-                    "package com.hermes.assistant",
-                    ownerReviewedDiff = true
-                )
-            }
+            val gate = SelfModificationApprovalGate(nowMillis = { 1_000L }, newNonce = { "approval-nonce-00000004" })
+            val draft = SelfModificationClient.Draft(
+                "Change protected behavior",
+                "app/src/main/java/com/hermes/assistant/MainActivity.kt",
+                "a".repeat(40),
+                "package com.hermes.assistant",
+                "reviewed diff",
+                "protected path test"
+            )
+            val approval = gate.issueFromOwnerReview(draft)
+            assertRejected { client.createProposal(token, draft, approval, gate) }
             assertEquals(0, server.requestCount)
         } finally {
             server.shutdown()
@@ -54,6 +57,25 @@ class SelfModificationClientIntegrationTest {
         }
     }
 
+    @Test fun rejectsLegacyBooleanApprovalEvenWhenTrueBeforeAnyGitHubRequest() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            assertRejected {
+                client(server).createProposal(
+                    token,
+                    "Improve reply formatting",
+                    "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\"",
+                    ownerReviewedDiff = true
+                )
+            }
+            assertEquals(0, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
     @Test fun successfulProposalStopsAtUnmergedPrWithoutReleaseOrInstall() {
         val server = MockWebServer()
         server.start()
@@ -66,12 +88,12 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(json("""{"html_url":"https://github.com/riyas433554-dot/vyom-android/pull/321"}"""))
 
             val client = client(server)
-            val proposal = client.createProposal(
-                token, "Improve reply formatting",
-                "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
-                ownerReviewedDiff = true
-            )
+            val proposal = approvedProposal(
+                    client,
+                    "Improve reply formatting",
+                    "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
+                )
             assertEquals("https://github.com/riyas433554-dot/vyom-android/pull/321", proposal.pullRequestUrl)
             val requests = (0 until 6).map { server.takeRequest() }
             assertEquals(listOf("GET", "POST", "GET", "PUT", "GET", "POST"), requests.map { it.method })
@@ -97,11 +119,11 @@ class SelfModificationClientIntegrationTest {
 
             val client = client(server)
             assertRejected {
-                client.createProposal(
-                    token, "Improve reply formatting",
+                approvedProposal(
+                    client,
+                    "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
-                    ownerReviewedDiff = true
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
                 )
             }
 
@@ -132,11 +154,11 @@ class SelfModificationClientIntegrationTest {
 
             val client = client(server)
             assertRejected {
-                client.createProposal(
-                    token, "Improve reply formatting",
+                approvedProposal(
+                    client,
+                    "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
-                    ownerReviewedDiff = true
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
                 )
             }
 
@@ -162,11 +184,11 @@ class SelfModificationClientIntegrationTest {
             server.enqueue(MockResponse().setResponseCode(204))
 
             assertRejected {
-                client(server).createProposal(
-                    token, "Improve reply formatting",
+                approvedProposal(
+                    client,
+                    "Improve reply formatting",
                     "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt",
-                    "package com.hermes.assistant\ninternal fun reply() = \"reviewed\"",
-                    ownerReviewedDiff = true
+                    "package com.hermes.assistant\\ninternal fun reply() = \\"reviewed\\""
                 )
             }
             val requests = (0 until 7).map { server.takeRequest() }
@@ -198,6 +220,27 @@ class SelfModificationClientIntegrationTest {
         } finally {
             server.shutdown()
         }
+    }
+
+    private fun approvedProposal(
+        client: SelfModificationClient,
+        title: String,
+        path: String,
+        content: String
+    ): SelfModificationClient.Proposal {
+        val draft = SelfModificationClient.Draft(
+            title = title,
+            path = path,
+            baseSha = "a".repeat(40),
+            proposedContent = content,
+            preview = "exact reviewed diff",
+            requestSummary = "owner reviewed proposal"
+        )
+        val gate = SelfModificationApprovalGate(
+            nowMillis = { 1_000L },
+            newNonce = { "approval-nonce-00000005" }
+        )
+        return client.createProposal(token, draft, gate.issueFromOwnerReview(draft), gate)
     }
 
     private fun tempDir(): File = File.createTempFile("vyom-registry-test", ".tmp").apply {
