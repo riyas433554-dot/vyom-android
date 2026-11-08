@@ -1,5 +1,6 @@
 package com.hermes.assistant
 
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -7,13 +8,36 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
+private fun nvidiaSuccessResponse(): String {
+    val output = JSONObject()
+        .put("repository", "https://github.com/example/repo")
+        .put("base_sha", "a".repeat(40))
+        .put("files", JSONArray().put(JSONObject().put("path", "README.md").put("content", "hello")))
+        .toString()
+    return JSONObject()
+        .put("choices", JSONArray().put(JSONObject().put("message", JSONObject().put("content", output))))
+        .put("usage", JSONObject().put("prompt_tokens", 41).put("completion_tokens", 19))
+        .toString()
+}
+
+private fun gemmaSuccessResponse(): String {
+    val output = JSONObject()
+        .put("repository", "https://github.com/example/repo")
+        .put("base_sha", "a".repeat(40))
+        .put("files", JSONArray().put(JSONObject().put("path", "README.md").put("content", "hello")))
+        .toString()
+    return JSONObject()
+        .put("candidates", JSONArray().put(JSONObject().put(
+            "content", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", output)))
+        )))
+        .put("usageMetadata", JSONObject().put("promptTokenCount", 52).put("candidatesTokenCount", 23))
+        .toString()
+}
+
 class VyomFactoryWorkerProviderAdapterTest {
     private class FakeTransport(
         var response: VyomFactoryWorkerModelHttpTransport.Response =
-            VyomFactoryWorkerModelHttpTransport.Response(
-                200,
-                """{"choices":[{"message":{"content":"{\\"repository\\":\\"repo\\",\\"base_sha\\":\\"sha\\",\\"files\\":[{\\"path\\":\\"README.md\\",\\"content\\":\\"hello\\"}]}"}}],"usage":{"prompt_tokens":41,"completion_tokens":19}}"""
-            )
+            VyomFactoryWorkerModelHttpTransport.Response(200, nvidiaSuccessResponse())
     ) : VyomFactoryWorkerModelHttpTransport {
         var url: String? = null
         var headers: Map<String, String> = emptyMap()
@@ -72,10 +96,7 @@ class VyomFactoryWorkerProviderAdapterTest {
 
     @Test fun googleGemmaUsesSeparateSystemInstructionAndApiKeyHeader() {
         val transport = FakeTransport(
-            VyomFactoryWorkerModelHttpTransport.Response(
-                200,
-                """{"candidates":[{"content":{"parts":[{"text":"{\\"repository\\":\\"https://github.com/example/repo\\",\\"base_sha\\":\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\",\\"files\\":[{\\"path\\":\\"README.md\\",\\"content\\":\\"hello\\"}]}"}]}}],"usageMetadata":{"promptTokenCount":52,"candidatesTokenCount":23}}"""
-            )
+            VyomFactoryWorkerModelHttpTransport.Response(200, gemmaSuccessResponse())
         )
         val provider = GoogleGemmaWorkerModelProvider(transport = transport)
 
@@ -129,5 +150,14 @@ class VyomFactoryWorkerProviderAdapterTest {
         assertThrows(IllegalArgumentException::class.java) {
             provider.generate(request(), "google-test-key".toCharArray(), 4096, 2048)
         }
+    }
+
+    @Test fun stopDelegatesToTransportCancellation() {
+        val transport = FakeTransport()
+        val provider = GoogleGemmaWorkerModelProvider(transport = transport)
+
+        provider.cancelCurrentCall()
+
+        assertTrue(transport.cancelled)
     }
 }

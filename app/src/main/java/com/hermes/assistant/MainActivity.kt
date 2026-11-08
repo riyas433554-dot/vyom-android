@@ -577,31 +577,30 @@ class MainActivity : Activity() {
                 defaultWorkerModel(selectedWorkerProviderId)
             ))
         }
-        val workerProviderButton = Button(this).apply {
-            text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
-            setOnClickListener {
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Select Factory worker provider")
-                    .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma")) { _, which ->
-                        selectedWorkerProviderId = if (which == 0) {
-                            NvidiaNemotronWorkerModelProvider.PROVIDER_ID
-                        } else {
-                            GoogleGemmaWorkerModelProvider.PROVIDER_ID
-                        }
-                        workerModelPrefs.edit()
-                            .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
-                            .apply()
-                        workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
-                        workerModelIdInput.setText(
-                            workerModelPrefs.getString(
-                                selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
-                                defaultWorkerModel(selectedWorkerProviderId)
-                            )
-                        )
+        val workerProviderButton = Button(this)
+        workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+        workerProviderButton.setOnClickListener {
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle("Select Factory worker provider")
+                .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma")) { _, which ->
+                    selectedWorkerProviderId = if (which == 0) {
+                        NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+                    } else {
+                        GoogleGemmaWorkerModelProvider.PROVIDER_ID
                     }
-                    .setNegativeButton("CANCEL", null)
-                    .show()
-            }
+                    workerModelPrefs.edit()
+                        .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
+                        .apply()
+                    workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+                    workerModelIdInput.setText(
+                        workerModelPrefs.getString(
+                            selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
+                            defaultWorkerModel(selectedWorkerProviderId)
+                        )
+                    )
+                }
+                .setNegativeButton("CANCEL", null)
+                .show()
         }
         settingsContent.addView(workerProviderButton, LinearLayout.LayoutParams(-1, dp(42)))
         settingsContent.addView(workerModelIdInput, LinearLayout.LayoutParams(-1, dp(44)))
