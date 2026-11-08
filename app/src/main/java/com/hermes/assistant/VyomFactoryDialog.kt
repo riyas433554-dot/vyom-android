@@ -171,11 +171,6 @@ internal class VyomFactoryDialog(
             leftMargin = dp(8)
         })
         workerPanel.addView(workerActions)
-        workerPanel.addView(Button(activity).apply {
-            text = "STORE / REPLACE WORKER MODEL KEY"
-            textSize = 9f
-            setOnClickListener { showWorkerModelKeyDialog() }
-        }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(5) })
         runButton = Button(activity).apply {
             text = "RUN NEXT VERIFIED ACTION"; textSize = 9f
             setOnClickListener { runNextTask() }
@@ -1533,39 +1528,6 @@ internal class VyomFactoryDialog(
             422 -> "GitHub rejected the task data (422). Check title, labels and issue permissions."
             else -> error.message?.take(180) ?: "Factory request failed."
         }
-    }
-
-    private fun showWorkerModelKeyDialog() {
-        val input = EditText(activity).apply {
-            hint = "Provider credential"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setSingleLine(true)
-        }
-        val prompt = AlertDialog.Builder(activity)
-            .setTitle("STORE WORKER MODEL KEY")
-            .setMessage("The key is encrypted with Android Keystore. No provider is selected yet, so live model calls remain disabled.")
-            .setView(input)
-            .setPositiveButton("SAVE ENCRYPTED", null)
-            .setNegativeButton("CANCEL", null)
-            .create()
-        prompt.setOnShowListener {
-            prompt.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val editable = input.text
-                val value = CharArray(editable.length)
-                android.text.TextUtils.getChars(editable, 0, editable.length, value, 0)
-                try {
-                    VyomFactoryAndroidWorkerApiKeyStore(activity.applicationContext).saveKey(value)
-                    status.text = "Worker provider key stored encrypted on this device. Live calls remain disabled pending provider selection."
-                    input.text?.clear()
-                    prompt.dismiss()
-                } catch (error: Exception) {
-                    input.error = "Could not securely store the key"
-                } finally {
-                    value.fill('\u0000')
-                }
-            }
-        }
-        prompt.show()
     }
 
 

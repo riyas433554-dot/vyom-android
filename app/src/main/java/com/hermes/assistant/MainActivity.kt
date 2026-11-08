@@ -545,6 +545,116 @@ class MainActivity : Activity() {
             textSize = 11f; setTextColor(Color.LTGRAY)
         }
         settingsContent.addView(liveModelNotice, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(TextView(this).apply {
+            text = "FACTORY WORKER MODEL PROVIDERS · LIVE CALLS DISABLED"
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, dp(12), 0, dp(4))
+        })
+        val workerModelPrefs = getSharedPreferences(
+            VyomFactoryWorkerModelRuntime.SETTINGS_PREFS, MODE_PRIVATE
+        )
+        var selectedWorkerProviderId = workerModelPrefs.getString(
+            VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER,
+            NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+        ) ?: NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+        fun workerProviderLabel(providerId: String) = when (providerId) {
+            GoogleGemmaWorkerModelProvider.PROVIDER_ID -> "GOOGLE GEMMA"
+            else -> "NVIDIA NEMOTRON"
+        }
+        fun defaultWorkerModel(providerId: String) = when (providerId) {
+            GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
+            else -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
+        }
+        val workerProviderButton = Button(this).apply {
+            text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+            setOnClickListener {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Select Factory worker provider")
+                    .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma")) { _, which ->
+                        selectedWorkerProviderId = if (which == 0) {
+                            NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+                        } else {
+                            GoogleGemmaWorkerModelProvider.PROVIDER_ID
+                        }
+                        workerProviderPrefsUpdate@ run {
+                            workerModelPrefs.edit()
+                                .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
+                                .apply()
+                        }
+                        workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+                        workerModelIdInput.setText(
+                            workerModelPrefs.getString(
+                                selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
+                                defaultWorkerModel(selectedWorkerProviderId)
+                            )
+                        )
+                    }
+                    .setNegativeButton("CANCEL", null)
+                    .show()
+            }
+        }
+        settingsContent.addView(workerProviderButton, LinearLayout.LayoutParams(-1, dp(42)))
+        val workerModelIdInput = EditText(this).apply {
+            hint = "Worker model ID"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(workerModelPrefs.getString(
+                selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
+                defaultWorkerModel(selectedWorkerProviderId)
+            ))
+        }
+        settingsContent.addView(workerModelIdInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val workerNvidiaKeyInput = EditText(this).apply {
+            hint = "NVIDIA Nemotron worker key (blank = keep saved)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+        }
+        settingsContent.addView(workerNvidiaKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val workerGoogleKeyInput = EditText(this).apply {
+            hint = "Google Gemma worker key (blank = keep saved)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+        }
+        settingsContent.addView(workerGoogleKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "SAVE WORKER PROVIDER SETTINGS"
+            setOnClickListener {
+                fun storeWorkerKey(providerId: String, input: EditText) {
+                    val editable = input.text
+                    if (editable.isNullOrEmpty()) return
+                    val value = CharArray(editable.length)
+                    android.text.TextUtils.getChars(editable, 0, editable.length, value, 0)
+                    try {
+                        VyomFactoryAndroidWorkerApiKeyStore(applicationContext, providerId).saveKey(value)
+                    } finally {
+                        value.fill('\\u0000')
+                        input.text?.clear()
+                    }
+                }
+                try {
+                    val modelId = workerModelIdInput.text.toString().trim()
+                    require(modelId.isNotBlank()) { "Worker model ID is required" }
+                    workerModelPrefs.edit()
+                        .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
+                        .putString(selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX, modelId)
+                        .apply()
+                    storeWorkerKey(NvidiaNemotronWorkerModelProvider.PROVIDER_ID, workerNvidiaKeyInput)
+                    storeWorkerKey(GoogleGemmaWorkerModelProvider.PROVIDER_ID, workerGoogleKeyInput)
+                    status.text = "Worker provider settings saved. Live calls remain disabled."
+                } catch (_: Exception) {
+                    status.text = "Worker settings could not be saved. Check model ID and retry."
+                }
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         sttLanguageInput = EditText(this).apply {
             hint = "STT language code (blank = Auto, e.g. en)"
             setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
