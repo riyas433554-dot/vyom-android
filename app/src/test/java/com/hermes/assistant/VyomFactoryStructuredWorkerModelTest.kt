@@ -48,7 +48,7 @@ class VyomFactoryStructuredWorkerModelTest {
         {
           "repository": "$repository",
           "base_sha": "$baseSha",
-          "base_branch": "feature/factory-item5-task-intelligence",
+          "base_branch": "feature/memory-intelligence",
           "title": "Improve the worker README guide",
           "summary": "Adds a concise usage note.",
           "files": [{"path": "$path", "content": "# Worker guide\n\nUpdated by owner-reviewed plan.\n"}]

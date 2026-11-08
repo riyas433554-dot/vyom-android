@@ -153,7 +153,7 @@ internal data class VyomFactoryWorkerModelLimits(
         require(maxTokensPerTask in 256..32_768)
         require(maxOutputTokens in 128..maxTokensPerTask)
         require(maxFiles in 1..VyomFactoryRepositoryChangePolicy.MAX_FILES)
-        require(timeoutMillis in 1..180_000)
+        require(timeoutMillis >= 1L && timeoutMillis <= 180_000L)
         require(dailyCallCap in 1..500)
         require(maxRetries in 0..2)
     }
@@ -235,12 +235,29 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 val future = executor.submit<VyomFactoryWorkerModelProvider.Response> {
                     provider.generate(request, apiKey, limits.maxOutputTokens)
                 }
+                val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(limits.timeoutMillis)
                 val response = try {
-                    future.get(limits.timeoutMillis, TimeUnit.MILLISECONDS)
-                } catch (timeout: TimeoutException) {
-                    future.cancel(true)
-                    record(task.number, 0, 0, "TIMEOUT")
-                    throw IllegalStateException("Worker model request timed out")
+                    while (true) {
+                        if (control.shouldStop()) {
+                            future.cancel(true)
+                            record(task.number, 0, 0, "STOPPED")
+                            throw VyomFactoryExecutionStoppedException()
+                        }
+                        val remaining = deadline - System.nanoTime()
+                        if (remaining <= 0L) {
+                            future.cancel(true)
+                            record(task.number, 0, 0, "TIMEOUT")
+                            throw IllegalStateException("Worker model request timed out")
+                        }
+                        try {
+                            break future.get(
+                                minOf(remaining, TimeUnit.MILLISECONDS.toNanos(200)),
+                                TimeUnit.NANOSECONDS
+                            )
+                        } catch (_: TimeoutException) {
+                            // Poll STOP while respecting the overall bounded timeout.
+                        }
+                    }
                 } catch (failure: ExecutionException) {
                     val cause = failure.cause
                     throw IllegalStateException("Worker model provider failed (${cause?.javaClass?.simpleName ?: "unknown"})")
@@ -251,7 +268,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 val total = inputTokens.toLong() + outputTokens.toLong()
                 if (journal.tokensForTask(task.number) + total > limits.maxTokensPerTask) {
                     record(task.number, inputTokens, outputTokens, "FAILED")
-                    throw IllegalStateException("Worker task token budget exceeded")
+                    throw IllegalArgumentException("Worker task token budget exceeded")
                 }
                 if (control.shouldStop()) {
                     record(task.number, inputTokens, outputTokens, "STOPPED")
