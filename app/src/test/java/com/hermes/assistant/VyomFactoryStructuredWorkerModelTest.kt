@@ -25,7 +25,10 @@ class VyomFactoryStructuredWorkerModelTest {
 
     private class MemoryJournal : VyomFactoryWorkerModelCallJournal {
         val entries = mutableListOf<VyomFactoryWorkerModelCallJournal.Entry>()
-        override fun record(entry: VyomFactoryWorkerModelCallJournal.Entry) { entries += entry }
+        override fun record(entry: VyomFactoryWorkerModelCallJournal.Entry) {
+            val existing = entries.indexOfFirst { it.callId == entry.callId }
+            if (existing >= 0) entries[existing] = entry else entries += entry
+        }
         override fun callsSince(epochMillis: Long): Int = entries.count { it.timestampMillis >= epochMillis && it.providerCallStarted }
         override fun callsForTask(taskNumber: Int): Int = entries.count { it.taskNumber == taskNumber && it.providerCallStarted }
         override fun hasSuccessfulCall(taskNumber: Int): Boolean = entries.any { it.taskNumber == taskNumber && it.providerCallStarted && it.result == "SUCCESS" }
@@ -98,10 +101,12 @@ class VyomFactoryStructuredWorkerModelTest {
     )
 
     @Test fun fakeProviderProducesOnlyAnUnapprovedRegistryBoundPlan() {
+        val journal = MemoryJournal()
         val provider = FakeProvider {
+            assertEquals("RUNNING", journal.entries.single().result)
+            assertTrue(journal.entries.single().providerCallStarted)
             VyomFactoryWorkerModelProvider.Response(validJson(), inputTokens = 120, outputTokens = 80)
         }
-        val journal = MemoryJournal()
 
         val candidate = adapter(provider, journal).propose(
             task(), registry(), object : VyomFactoryExecutionControl {
