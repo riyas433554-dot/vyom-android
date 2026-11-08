@@ -37,7 +37,10 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun exactShaFullAndDebugPassMovesToCiVerifiedAtFifty() {
-        val progress = calculate(task(), listOf(entry()))
+        val incompleteCriteria = task(
+            description = description().replace("[x] Verify the required CI checks", "[ ] Verify the required CI checks")
+        )
+        val progress = calculate(incompleteCriteria, listOf(entry()))
         assertEquals(50, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.CI_VERIFIED, progress.stage)
         assertTrue(progress.ciVerified)
@@ -187,7 +190,7 @@ class VyomFactoryVerifiedProgressTest {
         )
         return VyomFactoryGitHubClient.Task(
             number = 77, title = "[VYOM FACTORY][P2] Progress verification",
-            body = VyomFactoryStatus.withMetadata(description, metadata),
+            body = description,
             state = if (status == "completed") "closed" else "open",
             url = "https://github.com/riyas433554-dot/vyom-android/issues/77",
             updatedAt = "2026-11-08T00:00:00Z", metadata = metadata
