@@ -1,6 +1,5 @@
 package com.hermes.assistant
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
@@ -16,7 +15,7 @@ class SelfModificationApprovalGateTest {
         )
 
     @Test fun approvalIsBoundToExactDraftAndCanBeConsumedOnlyOnce() {
-        var now = 1_000L
+        val now = 1_000L
         val gate = SelfModificationApprovalGate(
             nowMillis = { now },
             newNonce = { "approval-nonce-00000001" }
