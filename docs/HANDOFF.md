@@ -1,69 +1,128 @@
-## Real worker model — one-worker scope — 2026-11-08
+## Real worker model — verified implementation — 2026-11-08
 
-- **Branch:** `feature/real-worker-model`
-- **Parent:** `feature/factory-item5-task-intelligence` at `sha:3aba5079451f`
-- **Verified implementation HEAD:** `sha:accaf27a44e4`
-- **Exact-HEAD CI:** Full `42486785759`; Debug `42486785757`. Both ran on branch `feature/real-worker-model`, HEAD `sha:accaf27a44e4`, and concluded SUCCESS.
-- **Full-history scan:** literal log output `no leaks found` and `FULL_HISTORY_GITLEAKS_FINDINGS=0`.
-- **Gradle:** Full log `> Task :app:testDebugUnitTest` followed by `BUILD SUCCESSFUL in 2m 38s`; Debug log `> Task :app:testDebugUnitTest` followed by `BUILD SUCCESSFUL in 2m 43s`. Total suite count was not emitted in the retrieved logs: **UNVERIFIED**. The new worker test file contains 14 test methods.
-- **APK artifact prefix:** `vyom-phase6-accaf27a44e4` (the actual artifact name is versioned with the full build SHA; debug APK and checksum were uploaded).
+- Branch: feature/real-worker-model
+- Branch base: sha:3aba5079451f
+- Verified code HEAD: sha:7d1561a98ac6
+- Exact-HEAD Full CI: run 42504489485 — SUCCESS; head_branch=feature/real-worker-model; head_sha=sha:7d1561a98ac6.
+- Exact-HEAD Debug CI: run 42504489482 — SUCCESS; head_branch=feature/real-worker-model; head_sha=sha:7d1561a98ac6.
+- Full-history Gitleaks log lines: "no leaks found" and "FULL_HISTORY_GITLEAKS_FINDINGS=0". The full-history scan and redacted report upload both passed. No new suppression was added in this batch.
+- Full Gradle log: "> Task :app:testDebugUnitTest" followed by "BUILD SUCCESSFUL in 3m 6s".
+- Debug Gradle log: "> Task :app:testDebugUnitTest" followed by "BUILD SUCCESSFUL in 2m 45s"; assembleDebug then "BUILD SUCCESSFUL in 1m 53s".
+- Total Gradle suite count: UNVERIFIED; the retrieved logs did not print a total count. Do not infer a count from test source annotations.
+- Focused worker tests: 15 fake-provider tests (the original 14 remain, plus one cumulative-token-budget regression), 6 fake-transport provider adapter tests, and 1 full-file-content review test.
+- Full CI debug APK artifact ID: 13627530323 (artifact SHA prefix sha:7d1561a98ac6); redacted Gitleaks report artifact ID: 13627260747. Debug workflow artifact-upload step was skipped; the Full artifact is the uploaded APK artifact.
+- No live model request was made. The live-call flag remains false.
 
-### Worker boundary and safety
+### Worker architecture and security boundary
 
-- Exactly one model worker system binding is used: `worker`. Repository URL, immutable base SHA and allowed path roots come only from that owner-approved registry binding. Issue text cannot select another repository or system ID.
-- Provider-neutral contract: `VyomFactoryWorkerModelProvider`. No provider was guessed or added. Fake provider is used by tests. `REAL_MODEL_CALLS_ENABLED=false`; runtime remains fail-closed until the owner selects one provider and its single implementation is wired. No extra model families or providers were added.
-- Model output is strict structured plan data only: `repository`, `base_sha`, and `files[{path, content}]`. Base branch is taken from the existing protected proposal policy, not model output. Title is derived from the trusted task title.
-- GitHub issue title/body are passed in a separate `taskDescriptionData` field marked untrusted. System instructions remain separate and authoritative. The model receives only the registry repository, base SHA, allowed path roots and issue task text—no repository source files, credentials or other-repository content.
-- Output JSON schema is strict; repository and base SHA must exactly match the registry; every path is validated by the existing repository-change policy; file count is capped at the existing 20-file limit.
-- The model adapter has no GitHub writer, branch writer, approval issuer or repository-file reader. It returns an unapproved candidate into the existing review dialog. Only owner approval creates the existing local one-time approval; the ephemeral executor-routing envelope is created only after that approval. Reject is local-only. Repository-review triage events and pre-approval failure reporting are also suppressed, so no issue/branch/repository write occurs before approval or on Reject.
-- Provider credential storage uses AES-GCM with an Android Keystore-held key; only IV and ciphertext are persisted in app-private preferences. The input buffer is wiped after save and the decrypted character buffer after each call. Credential value is not included in prompt, issue, journal or logs. UI can store/replace it, but live calls remain disabled until provider selection.
-- Limits: 8,192 total reported tokens per task; per-call input/output budgets are passed to the provider and reported usage is checked; output ceiling 4,096; max 20 files; 60-second request timeout; 20 actual provider calls per UTC day; one retry maximum. STOP is polled during the request and cancels the in-flight future. No unbounded retry loop.
-- Every actual provider call is journaled with task number, timestamp, provider ID, input/output token counts, result and call-started flag. The journal contains no credential, full prompt, issue body or model output. Missing provider/binding/credential, exhausted budget or call cap records BLOCKED; malformed/out-of-policy output or provider failure records FAILED; timeout and STOP have their own results.
-- The existing verified-progress gate now requires acceptance criteria to be verified before a probe can count as passed. Three inherited test calls were corrected to use the named `description` argument, and the CI-at-50 fixture now explicitly has an unchecked criterion. These are test/progress-gate corrections, not another worker feature.
+- Exactly one worker system binding is used: system_id=worker. The owner-approved registry alone supplies the repository URL, immutable base SHA and allowed path roots. The model cannot choose another repository, system ID, base SHA or path root.
+- Provider-neutral contract: VyomFactoryWorkerModelProvider. Two provider adapters implement that contract: NVIDIA Nemotron and Google Gemma. Runtime selects one from the Settings tab; it does not create multiple workers.
+- NVIDIA adapter: NVIDIA NIM chat-completions endpoint, default model nvidia/nemotron-3-super-120b-a12b. It sends system instructions in the first system message and task data as a separate user message. Authentication is an Authorization header, never URL or request body.
+- Google adapter: Gemini API generateContent endpoint, default model gemma-4-26b-a4b-it. It uses the separate systemInstruction field and a separate user contents field. Authentication is the x-goog-api-key header, never URL or request body.
+- Both providers are real HTTP adapters behind the provider-neutral interface. Their HTTP transport is injectable; CI tests use fake transport only. The feature flag REAL_MODEL_CALLS_ENABLED remains false, so production runtime returns the fail-closed disabled adapter until the owner explicitly authorizes enabling live calls.
+- Settings tab now contains provider selection, model ID, and separate masked NVIDIA and Google credential inputs. The inputs are not saved in Android view state or autofill, are cleared after save, and each provider credential is encrypted with AES-GCM using a provider-specific Android Keystore key alias. The app stores only IV and ciphertext in app-private preferences. Input, encoded, decrypted and call buffers are wiped where mutable. Saved credentials are not displayed again.
+- The credential is passed out-of-band to the provider call. It is not part of the model Request, prompt, issue text, GitHub payload, journal or logs. Provider error messages expose only provider/status class information, not response bodies or credentials. No credential value is checked into source.
+- The previous issue-envelope/prewritten-plan worker adapter and its test were removed. The issue body is never parsed as a ready-made plan. Issue title/body are JSON-escaped into a labelled UNTRUSTED TASK DESCRIPTION DATA field; trusted system instructions remain separate as a system message/systemInstruction. The model receives registry metadata and task description only—no repository source files, credentials or other-repository content.
+- The only accepted model output schema is exactly repository, base_sha, and files[{path, content}]. Extra fields, malformed JSON, trailing text, wrong repository, wrong base SHA, duplicate paths, out-of-registry paths, protected paths, oversized content and more than 20 files are rejected. The base branch and plan title are derived from trusted policy/task metadata, not model output.
+- The worker has no GitHub writer, branch writer, repository file reader, approval issuer or PR client. It returns an unapproved candidate only. The review dialog shows repository, immutable base SHA, every proposed path and the complete proposed file content. Only the owner’s local APPROVE PLAN action issues the existing one-time local approval token; the existing executor can create a draft PR only after that token is verified and consumed. REJECT is local-only. No worker-originated GitHub write occurs before approval.
+- Limits: 8,192 reported tokens per task; per-call input/output budgets; output ceiling 4,096; maximum 20 files; 60-second timeout; 20 actual provider calls per UTC day; one retry maximum. Prompt size is preflight-estimated and provider-reported usage is checked after response. STOP is polled while waiting and disconnects the active HTTP connection as well as cancelling the future. Limits fail closed; there is no unbounded retry loop.
+- Every provider attempt is journaled before network work with a call ID and RUNNING result; the final result updates that same call record. The record contains task number, provider ID, token counts, timestamp and result only. It never contains a credential, prompt, issue body or model output. A crash leaves a durable RUNNING attempt that still counts against the retry/day cap.
+- The 15 fake-provider tests cover registry-bound plans, issue injection, credential non-disclosure, timeout, daily cap, STOP before and during a call, malformed output, no approval/write before review, bounded retry, cumulative token budget, output token ceiling, missing provider/binding and credential failure.
+- The 6 provider adapter tests cover Nemotron request roles and usage, Gemma systemInstruction/header and usage, input-budget preflight, sanitized HTTP errors, malformed/missing-usage responses, and transport cancellation.
+- The review test verifies that every proposed path and the full untruncated file content are included in the review text.
+- Not verified: live NVIDIA or Google API invocation, owner phone acceptance, real draft-PR end-to-end run, or device-side key persistence. Those remain pending because live calls are disabled.
 
-### New worker tests — exact 14
+### Phone acceptance checklist — maximum six steps; owner executes
 
-1. `fakeProviderProducesOnlyAnUnapprovedRegistryBoundPlan`
-2. `issueInjectionRemainsDataAndOutOfRegistryModelPathsAreRejected`
-3. `apiKeyNeverAppearsInPromptOrCallJournal`
-4. `timeoutFailsWithoutRetryLoop`
-5. `dailyCallCapBlocksFurtherProviderCalls`
-6. `stopPreventsProviderCall`
-7. `malformedModelOutputIsRejectedAndJournaled`
-8. `workerPlanDoesNotCreateApprovalOrWriteBeforeOwnerReview`
-9. `stopCancelsAnInFlightProviderCall`
-10. `providerFailureUsesOnlyTheConfiguredSingleRetry`
-11. `providerCannotExceedConfiguredOutputTokenLimit`
-12. `unselectedProviderBlocksTaskLocallyWithoutStartingCall`
-13. `missingWorkerBindingBlocksWithoutCallingProvider`
-14. `credentialDecryptionFailureBlocksWithoutCallingProvider`
+1. In the Vyom Settings tab, choose NVIDIA Nemotron or Google Gemma, enter that provider’s credential once, save, and confirm the input clears. The live-call flag is still false in this build; owner authorization is required before enabling a real call.
+2. After the owner explicitly authorizes the live-call flag, register one worker binding to the test repository, exact base SHA, and README.md as its only allowed path root.
+3. Create a small issue asking for exactly one README line. Run the worker and confirm the review dialog shows the registered repository, immutable base SHA, README.md path and complete proposed file content.
+4. Reject a separate proposal first. Confirm no issue comment/event, branch, commit or PR was written.
+5. Use a fresh task, approve the plan locally, and confirm the one-time approval token is consumed and only a draft PR is created.
+6. Wait for Full and Debug CI on the exact proposed commit. Confirm progress stays below 100 until CI passes and all acceptance criteria are verified; if a device probe is required, it must also pass.
 
-### Previously approved historical scan entries
+### Branch mismatch and PR #104 integration plan — no merge performed
 
-Only the four already-approved exact commit-qualified fingerprints were restored; no fifth entry, wildcard or broad suppression was added. Short SHA forms are used here as required.
+- PR #104 remains OPEN + DRAFT + UNMERGED. PR head branch fix/item7-progress-gates is sha:09cf9880eb47; its base branch feature/factory-item5-task-intelligence is sha:3aba5079451f. The target branch is still at sha:3aba5079451f. The worker branch was independently created from that same base and is currently sha:7d1561a98ac6 (48 commits ahead).
+- The worker branch does not contain the rest of PR #104’s Item 5/6/7 changes: SelfModificationApprovalGate, SelfModificationClient hardening, live-planning hooks, and worker claim/lease/session changes remain PR #104-only until that PR is merged and the target branch is merged into this worker branch.
+- The progress-guard source file is byte-identical on both branches (same blob SHA); its test file is also byte-identical. Do not duplicate either implementation or test when integrating.
+- The four exact Gitleaks fingerprint lines already exist on the worker branch. PR #104 contains those same four entries plus four explanatory comments. Keep each fingerprint exactly once and retain the PR’s explanatory comments. Do not add any new fingerprint or broaden suppression.
+- HANDOFF.md differs substantially between branches and needs a manual union: preserve PR #104’s latest Item 5/6/7 audit and this worker/backlog section, remove stale contradictory claims, and keep all new SHAs in 12-character form.
+- MainActivity.kt and VyomFactoryDialog.kt are modified on both branches in different workflows; review their overlapping hunks carefully. The two workflow files should retain the union of their intended branch triggers. Do not assume an automatic merge will be conflict-free.
+- Correct owner-controlled order:
+  1. First review PR #104, ensure its checks are green on its exact head, and mark the draft PR ready.
+  2. Owner squash-merges PR #104 into feature/factory-item5-task-intelligence.
+  3. Fetch and record the new target-branch HEAD.
+  4. Only then, on feature/real-worker-model, perform a normal merge of the updated target branch (no rebase, cherry-pick or force-push).
+  5. Resolve the duplicate progress files by keeping the identical content once; resolve .gitleaksignore by keeping the four exact entries once with comments; manually combine HANDOFF.md, MainActivity.kt and VyomFactoryDialog.kt; retain PR #104-only files.
+  6. Run exact-HEAD Full + Debug and a fresh full-history Gitleaks scan on the resulting merge commit.
+- These are instructions only. No PR #104 merge, branch merge, rebase, force-push or PR metadata change was performed.
 
-1. `sha:4f6878bffd98 | app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt | line 72` — fixed synthetic unit-test fixture literal; not loaded from configuration or storage.
-2. `sha:4f6878bffd98 | docs/HANDOFF_HISTORY.md | line 2529` — ordinary English wording in device-local lease documentation; not a credential.
-3. `sha:4f6878bffd98 | docs/HANDOFF.md | line 988` — documented 40-character Git commit identifier.
-4. `sha:dfc0bc5285e9 | .gitleaksignore | line 17` — historical ignore-file self-comment; no credential value.
+### Previously approved exact Gitleaks entries — four only
 
-### Owner phone acceptance — pending provider selection
+1. sha:4f6878bffd98 | app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt | line 72 — fixed synthetic unit-test fixture; not loaded from configuration or storage.
+2. sha:4f6878bffd98 | docs/HANDOFF_HISTORY.md | line 2529 — ordinary English wording in device-local lease documentation; not a credential.
+3. sha:4f6878bffd98 | docs/HANDOFF.md | line 988 — documented 40-character Git commit identifier.
+4. sha:dfc0bc5285e9 | .gitleaksignore | line 17 — historical ignore-file self-comment; no credential value.
 
-1. Owner names exactly one provider. Implement only that provider, then enable the live-call flag after review; until then no live model request is made.
-2. On phone, store the provider credential using **STORE / REPLACE WORKER MODEL KEY**. Confirm the UI never displays it again.
-3. Register the single `worker` binding to the target repository, exact current base SHA, protected base branch `feature/memory-intelligence`, and allowed root `README.md`.
-4. Create a small repository task asking for one README line. Run the worker and confirm the plan shows the registry repository, immutable base SHA, `README.md` path and proposed content.
-5. Reject a separate test task first; confirm no issue event/comment, branch or repository change. Then use a fresh task for the approval path.
-6. Approve the second plan. Confirm the existing local approval flow produces a draft PR, then wait for CI on the exact proposed commit.
-7. Confirm progress reaches 100% only after CI and all acceptance criteria are checked. If the task declares a device verification probe, that probe must also be passed; otherwise it must not be declared required for this README-only task.
+### Factory backlog — NOT STARTED; no implementation in this batch
 
-- **Not yet completed:** provider selection, live provider transport, owner phone test and end-to-end draft-PR test. No claim of live model invocation is made.
-- No PR was created or merged for this work. PR #104 remains OPEN + DRAFT + UNMERGED. No force-push or history rewrite.
-- Android `main`, Render, backend, production Supabase and PR #102 remain locked and untouched. No follow-on item was started.
+Rules: every item below is NOT STARTED. Acceptance criteria must be obtained from the owner before implementation. An item cannot be called DONE until its owner-approved acceptance criteria are verified and the required phone proof is recorded. This backlog is not authorization to begin Item 8 or any other work.
 
-### Implementation commit SHAs (all short forms)
+#### Core systems
 
-`sha:8ac2f6bab69b`, `sha:2b7c8bd64a31`, `sha:d9de0f21fb82`, `sha:48a9548c9c1a`, `sha:8e5db4928ecc`, `sha:493549fdd7a7`, `sha:3bafc2b0575f`, `sha:819332ba1826`, `sha:fec27177f0bb`, `sha:b93e52fbe57a`, `sha:beaee2004c5b`, `sha:e4619250cb8c`, `sha:f72d84365e55`, `sha:bbc57d925ef4`, `sha:82701c7f753c`, `sha:767c360f51e6`, `sha:398a44618ef7`, `sha:0774b65545c0`, `sha:7d4056cd8ada`, `sha:e2eb4c49e283`, `sha:006b4be6ab23`, `sha:17b376c25020`, `sha:accaf27a44e4`.
+- Android Control — system: Android Control. Permission scopes, app allowlists, visible user confirmation, global STOP, cancellation, action audit and recovery. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Memory Intelligence — system: Memory Intelligence. Long-term memory, retrieval/relevance, provenance, privacy, user consent, correction and forgetting behavior. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Automation Engine — system: Automation Engine. Background schedules, event triggers, reminders, queue/lease execution, bounded retries, STOP, crash recovery and reporting. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- UI/Design System — system: UI/Design System. Design tokens, typography, colors, reusable components, navigation, responsive layouts, accessibility and visual consistency across Vyom. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Logic & Reasoning — system: Logic & Reasoning. Planning, dependency graphs, blocker detection, task classification, prioritization, replanning, verification and evidence-backed progress. Automatic detector invocation at planning, every runner checkpoint and test/verification result remains a separately scoped requirement. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Science & Research — system: Science & Research. Source-grounded research, citations, evidence comparison, reproducible experiments, evaluation and research-to-implementation handoff. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Repository Systems — system: Repository Systems. Canonical repository intake, immutable-SHA registry, path scopes, read-only browser/inspection, issue/task mapping, isolated branches, draft PRs and exact-SHA CI evidence across approved repositories. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Factory Self-Upgrade — system: Factory Self-Upgrade. Self-audit, missing-capability detection, owner-approved plans, isolated implementation, tests, exact-HEAD CI, safe rollout and rollback. Status: NOT STARTED; acceptance criteria: owner se maangne hain. Backlog only; no Item 8 implementation started.
+
+#### Cross-system owner demands
+
+- Voice — systems: Android Control + Automation Engine. Speech input/output, live voice interaction, interruption/STOP, permission boundaries, privacy, voice-command confirmation and reliable fallback. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- End-to-end design workflow — system: UI/Design System. Brief → research → wireframe → design tokens/components → implementation → visual review and accessibility check. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- System-wide evidence-backed completion — systems: Logic & Reasoning + Factory Self-Upgrade. No task reaches 100% before exact-SHA CI, all owner-approved criteria and required phone/device proof. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Vyom upgrades without repeated APK installation — systems: Factory Self-Upgrade + UI/Design System. Assess signed content/module updates, compatibility, sandboxing, rollback and audit. Platform constraint: content/config/assets may be updated without an APK only inside capabilities already shipped in the app; native Kotlin code, manifest changes, new permissions or new Android services still require an APK unless a separately reviewed dynamic-module architecture exists. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+
+#### Owner-named repository/model adoption candidates
+
+- T3-Video — systems: Repository Systems + Science & Research. Resolve the canonical source, license, immutable commit, runtime requirements and safe integration path. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Make-An-Audio-3 — systems: Repository Systems + Science & Research. Resolve the canonical source, license, model/runtime requirements, input/output contracts and safe integration path. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Stable Audio 3 Small SFX — systems: Repository Systems + Science & Research. Resolve the canonical source, license, model/runtime requirements and audio-generation integration boundary. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- TempoTokens — systems: Repository Systems + Science & Research. Resolve the canonical source, license, intended capability, dependencies and safe integration boundary. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+
+#### The 17 catalogued candidates — adoption not started
+
+- AnaaySampat/jarvis — systems: Android Control + Voice. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android — systems: Android Control + Voice. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Ayush0Chaudhary/blurr — systems: Android Control + UI/Design System. Personal-use-only license restriction requires owner/legal review before any code reuse. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Aryan-0001/Jarvis-AI — systems: Voice + UI/Design System. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- mem0ai/mem0 — system: Memory Intelligence. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- open-jarvis/OpenJarvis — systems: Logic & Reasoning + Automation Engine. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- Letta / Letta Code — system: Memory Intelligence. The catalogue’s older Letta URL needs canonical-source re-resolution before inspection. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- isair/jarvis — systems: Voice + Android Control. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- The-Art-of-Hacking/h4cker — system: Science & Research; reference-only security material. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- paulveillard/cybersecurity-ethical-hacking — system: Science & Research; reference-only security material. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- swisskyrepo/PayloadsAllTheThings — system: Science & Research; reference-only security material. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- danielmiessler/SecLists — system: Science & Research; reference-only test-data catalogue. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- usestrix/strix — system: Science & Research; read-only security research, no automatic execution. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- KeygraphHQ/shannon — system: Science & Research; AGPL-3.0 and exploit-execution model require explicit legal/security review; no automatic execution. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- GreyDGL/PentestGPT — system: Science & Research; reference-only security research. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- arthi-rajendran24/building-jarvis-4.0 — system: Voice. No code reuse before license review. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+- ethanplusai/jarvis — systems: Voice + UI/Design System. Status: NOT STARTED; acceptance criteria: owner se maangne hain.
+
+- Candidate discovery is not adoption. Every candidate still needs canonical URL resolution, immutable commit pin, license/dependency/security review, owner approval, isolated adapter design, tests and phone proof. Security-oriented repositories remain reference-only unless separately approved. deepseek-harness remains excluded; no DeepSeek integration is authorized.
+- No candidate was cloned, installed, imported, built or executed in this batch. No backlog item was implemented.
+
+### Worker branch commit SHAs — all 12-character forms
+
+sha:8ac2f6bab69b, sha:2b7c8bd64a31, sha:d9de0f21fb82, sha:48a9548c9c1a, sha:8e5db4928ecc, sha:493549fdd7a7, sha:3bafc2b0575f, sha:819332ba1826, sha:fec27177f0bb, sha:b93e52fbe57a, sha:beaee2004c5b, sha:e4619250cb8c, sha:f72d84365e55, sha:bbc57d925ef4, sha:82701c7f753c, sha:767c360f51e6, sha:398a44618ef7, sha:0774b65545c0, sha:7d4056cd8ada, sha:e2eb4c49e283, sha:006b4be6ab23, sha:17b376c25020, sha:accaf27a44e4, sha:3bae95745d91, sha:576548afda9e, sha:16659053e144, sha:dbb2a99160f7, sha:0d62fdc1eacb, sha:56b37255b09c, sha:e36995abd9f5, sha:0806bab7ba3d, sha:5bff2d0d5222, sha:f763bab07bdf, sha:6dc9da0bea81, sha:f8f64b555dd6, sha:395a1d2c162c, sha:67764e535126, sha:61661f9a999f, sha:c01e99188fff, sha:8f9a21cc299f, sha:822673e81c96, sha:d9a6e446be1f, sha:b77001f2440e, sha:64da82d9477c, sha:259d4e4e4316, sha:6247cecda827, sha:a52598610e5a, sha:7d1561a98ac6.
+
+- No PR was created or merged for this worker batch. PR #104 remains OPEN + DRAFT + UNMERGED. No force-push, rebase or merge was performed.
+- Android main, Render, backend, production Supabase and PR #102 remain locked and untouched. Item 8 remains NOT STARTED. Await owner GO for any branch integration or future backlog work.
 
 ---
 
@@ -114,16 +173,16 @@ Only the four already-approved exact commit-qualified fingerprints were restored
   - Per-file size and empty set — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesOversizedOrEmptyChangeSets`.
   - Maximum file count — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesMoreThanMaximumFileCount` verifies 21 files are rejected against the 20-file cap.
   - Aggregate content limit — **PASS**: `VyomFactoryRepositoryChangePolicyTest.refusesAggregateContentAboveMaximumAcrossIndividuallyValidFiles` verifies 500,001 aggregate characters while each file remains below the 200,000 per-file cap.
-  - Worker-model adapter interface — **PRESENT**: `VyomFactoryRepositoryWorkerModelAdapter` is a separate `fun interface`; STOP-before-parse test `VyomFactoryRepositoryWorkerModelAdapterTest.stopPreventsModelProposalParsing` is present. No provider integration was requested or added.
+  - Worker-model adapter interface — **PRESENT**: `VyomFactoryRepositoryWorkerModelAdapter` remains a separate `fun interface`. The former issue-envelope/prewritten-plan adapter and its test were removed; the provider-backed implementation is documented in the current worker section above.
   - Issue-controlled approval bypass / source grep — **PASS for the new repository-change path**: `VyomFactoryExecutionEnvelope.kt` contains no `ownerApproved`; `parseCandidate` in `VyomFactoryRepositoryChangeReviewDialog.kt` explicitly sets `ownerApproved=false` and does not read the issue field; the only `ownerApproved=true` assignment is in `VyomFactoryRepositoryChangeAdapter.kt`, after local token removal, issue identity check and `verifyAndConsume`. Test with issue JSON `ownerApproved=true` confirms it is ignored. **Scope note:** legacy `MainActivity.openFactoryCodeProposal` / `onProposeFix` self-modification UI remains present and untouched as explicitly required; it is a separate manually invoked legacy route, not evidence that the issue field can approve the new repository-change adapter.
-  - Review dialog fields — **PASS by source**: `VyomFactoryRepositoryChangeReviewDialog.kt` lines 46–53 show repository URL, immutable base branch + short SHA, all file paths and at most three summary lines. Only the local APPROVE button issues the approval token.
+  - Review dialog fields — **PASS by source**: repository URL, immutable base branch + short SHA, all file paths, complete proposed file content and summary are shown. Only the local APPROVE button issues the approval token.
 - **Missing coverage:** none in the Item 6 matrix above. All required matrix rows are covered by source checks/tests, and exact-HEAD Full + Debug CI both pass.
 - **Status:** Item 6 is **CODE-VERIFIED / PHONE-PENDING** on code/test SHA `0e9d2b40c4766a46f4f647df207befabd8dd9ffd`. This HANDOFF-only commit is documentation synchronization; CI verification applies to the code/test SHA above, not this docs-only commit.
 - **Phone-pending checklist — Item 6 (do not execute until owner asks):**
   1. On the paired phone, open a structured repository-change task and confirm the dialog displays the registered repository, immutable base SHA, every proposed path and no more than three summary lines.
   2. Reject one proposal and confirm no repository PR/write occurs; on a fresh proposal, approve locally and confirm the approval is bound to that exact issue/plan.
   3. Confirm the result is only a draft PR on the registered feature branch with exact-SHA CI evidence; do not merge or install.
-- Worker-model adapter consumes an already-structured proposal; no new model provider or unstructured code generation. Executor remains draft-PR-only and trusted-repository/feature-branch constrained.
+- This earlier Item 6 description predates the real worker batch. The provider-backed structured model path and its still-disabled live-call flag are documented in the current worker section above. The executor remains draft-PR-only and trusted-repository/feature-branch constrained.
 - PR #102 remains open/draft/unmerged, with existing base `feature/memory-intelligence`; no merge, retarget or PR metadata change. Its head branch is this implementation branch, so branch commits are reflected in its diff. Android `main`, Render, backend and production Supabase were not touched. Item 7 is recorded above as CODE-VERIFIED / PHONE-PENDING; Item 8 remains NOT STARTED.
 
 ---### Item 5 — exact-HEAD CI verification — 2026-11-07
