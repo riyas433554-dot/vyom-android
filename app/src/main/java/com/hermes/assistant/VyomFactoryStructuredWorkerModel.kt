@@ -286,7 +286,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             try {
                 record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
             } catch (error: Exception) {
-                apiKey.fill('\\u0000')
+                apiKey.fill('\u0000')
                 throw error
             }
             val executor = Executors.newSingleThreadExecutor { runnable ->
