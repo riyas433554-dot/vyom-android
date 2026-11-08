@@ -283,7 +283,12 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 throw IllegalStateException("Worker provider credential is not configured")
             }
             val callId = UUID.randomUUID().toString()
-            record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
+            try {
+                record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
+            } catch (error: Exception) {
+                apiKey.fill('\\u0000')
+                throw error
+            }
             val executor = Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, "vyom-worker-model").apply { isDaemon = true }
             }
@@ -298,7 +303,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     var completed: VyomFactoryWorkerModelProvider.Response? = null
                     while (completed == null) {
                         if (control.shouldStop()) {
-                            provider.cancelCurrentCall()
+                            runCatching { provider.cancelCurrentCall() }
                             future.cancel(true)
                             record(task.number, 0, 0, "STOPPED", providerCallStarted = true, callId = callId)
                             throw VyomFactoryExecutionStoppedException()
@@ -349,9 +354,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
                     throw error
                 }
-                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
+                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
             } catch (error: Exception) {
-                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
+                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
                 throw error
             } finally {
                 apiKey.fill('\u0000')
