@@ -16,3 +16,5 @@ c77ed5a423082212157e480f92c3497a65d45384:docs/HANDOFF.md:generic-api-key:897
 4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF_HISTORY.md:generic-api-key:2529
 # FALSE_POSITIVE: Git commit identifier in a documented commit list, not a credential. Finding commit sha: 4f6878bffd98.
 4f6878bffd983a77cec1cc12060f6ec5be76c007:docs/HANDOFF.md:generic-api-key:988
+# FALSE_POSITIVE: reviewed, ignore-file self-comment; historical commit sha: dfc0bc5285e9.
+dfc0bc5285e9cafa34e54db324528f52676f9a84:.gitleaksignore:generic-api-key:17
