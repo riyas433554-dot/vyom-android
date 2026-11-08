@@ -152,7 +152,7 @@ internal data class VyomFactoryWorkerModelLimits(
         require(maxTokensPerTask in 256..32_768)
         require(maxOutputTokens in 128..maxTokensPerTask)
         require(maxFiles in 1..VyomFactoryRepositoryChangePolicy.MAX_FILES)
-        require(timeoutMillis in 1_000..180_000)
+        require(timeoutMillis in 1..180_000)
         require(dailyCallCap in 1..500)
         require(maxRetries in 0..2)
     }
@@ -256,7 +256,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     record(task.number, inputTokens, outputTokens, "STOPPED")
                     throw VyomFactoryExecutionStoppedException()
                 }
-                val candidate = parseCandidate(task.number, response.structuredOutput, binding)
+                val candidate = parseCandidate(task.number, response.structuredOutput, binding, registry)
                 record(task.number, inputTokens, outputTokens, "SUCCESS")
                 return candidate
             } catch (error: VyomFactoryExecutionStoppedException) {
@@ -283,7 +283,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     private fun parseCandidate(
         issueNumber: Int,
         raw: String,
-        binding: VyomFactorySystemRegistry.Binding
+        binding: VyomFactorySystemRegistry.Binding,
+        registry: VyomFactorySystemRegistry
     ): VyomFactoryRepositoryChangeReviewDialog.Candidate {
         require(raw.length in 2..MAX_MODEL_OUTPUT_CHARS) { "Worker model output is empty or too large" }
         val tokener = JSONTokener(raw)
@@ -325,17 +326,11 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             changes = changes,
             ownerApproved = false
         )
-        val validatedBinding = VyomFactoryRepositoryChangePolicy.validateCandidate(plan, registryFor(binding))
+        val validatedBinding = VyomFactoryRepositoryChangePolicy.validateCandidate(plan, registry)
         require(validatedBinding == binding)
         val summary = root.getString("summary")
         require(summary.length <= 1_000) { "Worker model summary exceeds the safe display limit" }
         return VyomFactoryRepositoryChangeReviewDialog.Candidate(plan, binding, summary)
-    }
-
-    private fun registryFor(binding: VyomFactorySystemRegistry.Binding): VyomFactorySystemRegistry {
-        // The caller's registry is passed to propose; this helper is replaced by the
-        // registry-aware validation overload below.
-        throw UnsupportedOperationException("Registry validation context is required")
     }
 
     private fun record(taskNumber: Int, input: Int, output: Int, result: String) {
