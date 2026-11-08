@@ -49,6 +49,10 @@ internal class VyomFactoryWorkerSession(
     fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
         coordinator.isCurrent(claim, now())
 
+    /** Active local leases are not re-planned as unclaimed tasks in this worker session. */
+    fun activeClaimedIssueNumbers(): Set<Int> =
+        coordinator.activeClaimedIssueNumbers(now())
+
     /**
      * Renews the exact live lease at runner checkpoints. Adapters must call
      * shouldStop() regularly; a blocked adapter cannot be heartbeated here.
