@@ -91,7 +91,7 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     @Test fun noProbeRequiredAllowsCompletionAfterCriteriaVerification() {
-        val noProbe = task(description().replace("- **Verification probe:** $probe\\n\\n", ""))
+        val noProbe = task(description().replace("- **Verification probe:** $probe\n\n", ""))
         val progress = calculate(noProbe, listOf(entry()))
         assertEquals(100, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.PROBE_VERIFIED, progress.stage)
@@ -194,10 +194,10 @@ class VyomFactoryVerifiedProgressTest {
     }
 
     private fun description() =
-        "- **Verification probe:** $probe\\n\\n" +
-            "Acceptance criteria:\\n" +
-            "- [x] Add the reviewed implementation\\n" +
-            "- [x] Verify the required CI checks\\n\\n" +
+        "- **Verification probe:** $probe\n\n" +
+            "Acceptance criteria:\n" +
+            "- [x] Add the reviewed implementation\n" +
+            "- [x] Verify the required CI checks\n\n" +
             """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"repository_change","operation":"propose_change","request":"Apply reviewed code change","arguments":{}} -->"""
 
     private fun passEvent() =
