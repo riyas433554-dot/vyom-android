@@ -38,6 +38,9 @@ internal interface VyomFactoryWorkerModelProvider {
         maxInputTokens: Int,
         maxOutputTokens: Int
     ): Response
+
+    /** Abort the active HTTP exchange when STOP or the worker deadline fires. */
+    fun cancelCurrentCall() = Unit
 }
 
 internal interface VyomFactoryWorkerApiKeyStore {
@@ -275,12 +278,14 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     var completed: VyomFactoryWorkerModelProvider.Response? = null
                     while (completed == null) {
                         if (control.shouldStop()) {
+                            provider.cancelCurrentCall()
                             future.cancel(true)
                             record(task.number, 0, 0, "STOPPED", providerCallStarted = true)
                             throw VyomFactoryExecutionStoppedException()
                         }
                         val remaining = deadline - System.nanoTime()
                         if (remaining <= 0L) {
+                            provider.cancelCurrentCall()
                             future.cancel(true)
                             record(task.number, 0, 0, "TIMEOUT", providerCallStarted = true)
                             throw IllegalStateException("Worker model request timed out")
