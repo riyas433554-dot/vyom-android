@@ -57,7 +57,8 @@ internal interface VyomFactoryWorkerModelCallJournal {
         val outputTokens: Int,
         val result: String,
         val providerId: String,
-        val providerCallStarted: Boolean = false
+        val providerCallStarted: Boolean = false,
+        val callId: String = UUID.randomUUID().toString()
     )
 
     fun record(entry: Entry)
@@ -80,9 +81,21 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
         require(entry.inputTokens >= 0 && entry.outputTokens >= 0)
         require(entry.result in RESULTS)
         require(entry.providerId.matches(Regex("^[a-zA-Z0-9_.-]{1,40}$")))
+        require(entry.callId.matches(Regex("^[A-Za-z0-9_-]{8,80}$")))
         val rows = read().toMutableList()
-        check(rows.size < MAX_ENTRIES) { "Worker model journal is full; refusing to discard audit history" }
-        rows += entry
+        val existingIndex = rows.indexOfFirst { it.callId == entry.callId }
+        if (existingIndex >= 0) {
+            val previous = rows[existingIndex]
+            require(previous.taskNumber == entry.taskNumber &&
+                previous.providerId == entry.providerId &&
+                previous.providerCallStarted == entry.providerCallStarted) {
+                "Worker journal call identity cannot be rebound"
+            }
+            rows[existingIndex] = entry
+        } else {
+            check(rows.size < MAX_ENTRIES) { "Worker model journal is full; refusing to discard audit history" }
+            rows += entry
+        }
         val array = JSONArray()
         rows.forEach { row ->
             array.put(JSONObject()
@@ -92,7 +105,8 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
                 .put("output_tokens", row.outputTokens)
                 .put("result", row.result)
                 .put("provider_id", row.providerId)
-                .put("provider_call_started", row.providerCallStarted))
+                .put("provider_call_started", row.providerCallStarted)
+                .put("call_id", row.callId))
         }
         check(prefs.edit().putString(KEY_ENTRIES, array.toString()).commit()) {
             "Worker model journal could not be persisted"
@@ -130,12 +144,16 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
                     outputTokens = item.getInt("output_tokens"),
                     result = item.getString("result"),
                     providerId = item.getString("provider_id"),
-                    providerCallStarted = item.optBoolean("provider_call_started", false)
+                    providerCallStarted = item.optBoolean("provider_call_started", false),
+                    callId = item.optString("call_id").takeIf {
+                        it.matches(Regex("^[A-Za-z0-9_-]{8,80}$"))
+                    } ?: "legacy-call-$index"
                 ).also { row ->
                     require(row.taskNumber > 0 && row.timestampMillis >= 0 &&
                         row.inputTokens >= 0 && row.outputTokens >= 0 &&
                         row.result in RESULTS &&
-                        row.providerId.matches(Regex("^[a-zA-Z0-9_.-]{1,40}$")))
+                        row.providerId.matches(Regex("^[a-zA-Z0-9_.-]{1,40}$")) &&
+                        row.callId.matches(Regex("^[A-Za-z0-9_-]{8,80}$")))
                 }
             }
         } catch (error: Exception) {
@@ -148,7 +166,7 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
         private const val KEY_ENTRIES = "calls_v1"
         private const val MAX_ENTRIES = 5_000
         private val LOCK = Any()
-        private val RESULTS = setOf("SUCCESS", "FAILED", "BLOCKED", "TIMEOUT", "STOPPED")
+        private val RESULTS = setOf("RUNNING", "SUCCESS", "FAILED", "BLOCKED", "TIMEOUT", "STOPPED")
     }
 }
 
@@ -264,6 +282,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 record(task.number, 0, 0, "BLOCKED")
                 throw IllegalStateException("Worker provider credential is not configured")
             }
+            val callId = UUID.randomUUID().toString()
+            record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
             val executor = Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, "vyom-worker-model").apply { isDaemon = true }
             }
@@ -280,14 +300,14 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                         if (control.shouldStop()) {
                             provider.cancelCurrentCall()
                             future.cancel(true)
-                            record(task.number, 0, 0, "STOPPED", providerCallStarted = true)
+                            record(task.number, 0, 0, "STOPPED", providerCallStarted = true, callId = callId)
                             throw VyomFactoryExecutionStoppedException()
                         }
                         val remaining = deadline - System.nanoTime()
                         if (remaining <= 0L) {
                             provider.cancelCurrentCall()
                             future.cancel(true)
-                            record(task.number, 0, 0, "TIMEOUT", providerCallStarted = true)
+                            record(task.number, 0, 0, "TIMEOUT", providerCallStarted = true, callId = callId)
                             throw IllegalStateException("Worker model request timed out")
                         }
                         try {
@@ -314,11 +334,11 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     throw IllegalArgumentException("Worker task token budget exceeded")
                 }
                 if (control.shouldStop()) {
-                    record(task.number, inputTokens, outputTokens, "STOPPED", providerCallStarted = true)
+                    record(task.number, inputTokens, outputTokens, "STOPPED", providerCallStarted = true, callId = callId)
                     throw VyomFactoryExecutionStoppedException()
                 }
                 val candidate = parseCandidate(task.number, task.title, response.structuredOutput, binding, registry)
-                record(task.number, inputTokens, outputTokens, "SUCCESS", providerCallStarted = true)
+                record(task.number, inputTokens, outputTokens, "SUCCESS", providerCallStarted = true, callId = callId)
                 return candidate
             } catch (error: VyomFactoryExecutionStoppedException) {
                 throw error
@@ -326,7 +346,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 if (error.message == "Worker model request timed out") throw error
                 lastFailure = error
                 if (attempt >= limits.maxRetries || error.message?.contains("provider failed") != true) {
-                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
+                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
                     throw error
                 }
                 record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true)
@@ -404,7 +424,14 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         return clean.takeIf { it.length in 8..120 } ?: "Implement approved task #$issueNumber"
     }
 
-    private fun record(taskNumber: Int, input: Int, output: Int, result: String, providerCallStarted: Boolean = false) {
+    private fun record(
+        taskNumber: Int,
+        input: Int,
+        output: Int,
+        result: String,
+        providerCallStarted: Boolean = false,
+        callId: String = UUID.randomUUID().toString()
+    ) {
         journal.record(
             VyomFactoryWorkerModelCallJournal.Entry(
                 taskNumber = taskNumber,
@@ -413,7 +440,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 outputTokens = output,
                 result = result,
                 providerId = provider.providerId,
-                providerCallStarted = providerCallStarted
+                providerCallStarted = providerCallStarted,
+                callId = callId
             )
         )
     }
