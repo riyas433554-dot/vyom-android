@@ -1,3 +1,72 @@
+## Real worker model — one-worker scope — 2026-11-08
+
+- **Branch:** `feature/real-worker-model`
+- **Parent:** `feature/factory-item5-task-intelligence` at `sha:3aba5079451f`
+- **Verified implementation HEAD:** `sha:accaf27a44e4`
+- **Exact-HEAD CI:** Full `42486785759`; Debug `42486785757`. Both ran on branch `feature/real-worker-model`, HEAD `sha:accaf27a44e4`, and concluded SUCCESS.
+- **Full-history scan:** literal log output `no leaks found` and `FULL_HISTORY_GITLEAKS_FINDINGS=0`.
+- **Gradle:** Full log `> Task :app:testDebugUnitTest` followed by `BUILD SUCCESSFUL in 2m 38s`; Debug log `> Task :app:testDebugUnitTest` followed by `BUILD SUCCESSFUL in 2m 43s`. Total suite count was not emitted in the retrieved logs: **UNVERIFIED**. The new worker test file contains 14 test methods.
+- **APK artifact:** Full run produced `vyom-phase6-accaf27a44e4` (versioned debug APK and checksum).
+
+### Worker boundary and safety
+
+- Exactly one model worker system binding is used: `worker`. Repository URL, immutable base SHA and allowed path roots come only from that owner-approved registry binding. Issue text cannot select another repository or system ID.
+- Provider-neutral contract: `VyomFactoryWorkerModelProvider`. No provider was guessed or added. Fake provider is used by tests. `REAL_MODEL_CALLS_ENABLED=false`; runtime remains fail-closed until the owner selects one provider and its single implementation is wired. No extra model families or providers were added.
+- Model output is strict structured plan data only: `repository`, `base_sha`, and `files[{path, content}]`. Base branch is taken from the existing protected proposal policy, not model output. Title is derived from the trusted task title.
+- GitHub issue title/body are passed in a separate `taskDescriptionData` field marked untrusted. System instructions remain separate and authoritative. The model receives only the registry repository, base SHA, allowed path roots and issue task text—no repository source files, credentials or other-repository content.
+- Output JSON schema is strict; repository and base SHA must exactly match the registry; every path is validated by the existing repository-change policy; file count is capped at the existing 20-file limit.
+- The model adapter has no GitHub writer, branch writer, approval issuer or repository-file reader. It returns an unapproved candidate into the existing review dialog. Only owner approval creates the existing local one-time approval; the ephemeral executor-routing envelope is created only after that approval. Reject is local-only. Repository-review triage events and pre-approval failure reporting are also suppressed, so no issue/branch/repository write occurs before approval or on Reject.
+- Provider credential storage uses AES-GCM with an Android Keystore-held key; only IV and ciphertext are persisted in app-private preferences. The input buffer is wiped after save and the decrypted character buffer after each call. Credential value is not included in prompt, issue, journal or logs. UI can store/replace it, but live calls remain disabled until provider selection.
+- Limits: 8,192 total reported tokens per task; per-call input/output budgets are passed to the provider and reported usage is checked; output ceiling 4,096; max 20 files; 60-second request timeout; 20 actual provider calls per UTC day; one retry maximum. STOP is polled during the request and cancels the in-flight future. No unbounded retry loop.
+- Every actual provider call is journaled with task number, timestamp, provider ID, input/output token counts, result and call-started flag. The journal contains no credential, full prompt, issue body or model output. Missing provider/binding/credential, exhausted budget or call cap records BLOCKED; malformed/out-of-policy output or provider failure records FAILED; timeout and STOP have their own results.
+- The existing verified-progress gate now requires acceptance criteria to be verified before a probe can count as passed. Three inherited test calls were corrected to use the named `description` argument, and the CI-at-50 fixture now explicitly has an unchecked criterion. These are test/progress-gate corrections, not another worker feature.
+
+### New worker tests — exact 14
+
+1. `fakeProviderProducesOnlyAnUnapprovedRegistryBoundPlan`
+2. `issueInjectionRemainsDataAndOutOfRegistryModelPathsAreRejected`
+3. `apiKeyNeverAppearsInPromptOrCallJournal`
+4. `timeoutFailsWithoutRetryLoop`
+5. `dailyCallCapBlocksFurtherProviderCalls`
+6. `stopPreventsProviderCall`
+7. `malformedModelOutputIsRejectedAndJournaled`
+8. `workerPlanDoesNotCreateApprovalOrWriteBeforeOwnerReview`
+9. `stopCancelsAnInFlightProviderCall`
+10. `providerFailureUsesOnlyTheConfiguredSingleRetry`
+11. `providerCannotExceedConfiguredOutputTokenLimit`
+12. `unselectedProviderBlocksTaskLocallyWithoutStartingCall`
+13. `missingWorkerBindingBlocksWithoutCallingProvider`
+14. `credentialDecryptionFailureBlocksWithoutCallingProvider`
+
+### Previously approved historical scan entries
+
+Only the four already-approved exact commit-qualified fingerprints were restored; no fifth entry, wildcard or broad suppression was added. Short SHA forms are used here as required.
+
+1. `sha:4f6878bffd98 | app/src/test/java/com/hermes/assistant/SelfModificationPolicyTest.kt | line 72` — fixed synthetic unit-test fixture literal; not loaded from configuration or storage.
+2. `sha:4f6878bffd98 | docs/HANDOFF_HISTORY.md | line 2529` — ordinary English wording in device-local lease documentation; not a credential.
+3. `sha:4f6878bffd98 | docs/HANDOFF.md | line 988` — documented 40-character Git commit identifier.
+4. `sha:dfc0bc5285e9 | .gitleaksignore | line 17` — historical ignore-file self-comment; no credential value.
+
+### Owner phone acceptance — pending provider selection
+
+1. Owner names exactly one provider. Implement only that provider, then enable the live-call flag after review; until then no live model request is made.
+2. On phone, store the provider credential using **STORE / REPLACE WORKER MODEL KEY**. Confirm the UI never displays it again.
+3. Register the single `worker` binding to the target repository, exact current base SHA, protected base branch `feature/memory-intelligence`, and allowed root `README.md`.
+4. Create a small repository task asking for one README line. Run the worker and confirm the plan shows the registry repository, immutable base SHA, `README.md` path and proposed content.
+5. Reject a separate test task first; confirm no issue event/comment, branch or repository change. Then use a fresh task for the approval path.
+6. Approve the second plan. Confirm the existing local approval flow produces a draft PR, then wait for CI on the exact proposed commit.
+7. Confirm progress reaches 100% only after CI and all acceptance criteria are checked. If the task declares a device verification probe, that probe must also be passed; otherwise it must not be declared required for this README-only task.
+
+- **Not yet completed:** provider selection, live provider transport, owner phone test and end-to-end draft-PR test. No claim of live model invocation is made.
+- No PR was created or merged for this work. PR #104 remains OPEN + DRAFT + UNMERGED. No force-push or history rewrite.
+- Android `main`, Render, backend, production Supabase and PR #102 remain locked and untouched. No follow-on item was started.
+
+### Implementation commit SHAs (all short forms)
+
+`sha:8ac2f6bab69b`, `sha:2b7c8bd64a31`, `sha:d9de0f21fb82`, `sha:48a9548c9c1a`, `sha:8e5db4928ecc`, `sha:493549fdd7a7`, `sha:3bafc2b0575f`, `sha:819332ba1826`, `sha:fec27177f0bb`, `sha:b93e52fbe57a`, `sha:beaee2004c5b`, `sha:e4619250cb8c`, `sha:f72d84365e55`, `sha:bbc57d925ef4`, `sha:82701c7f753c`, `sha:767c360f51e6`, `sha:398a44618ef7`, `sha:0774b65545c0`, `sha:7d4056cd8ada`, `sha:e2eb4c49e283`, `sha:006b4be6ab23`, `sha:17b376c25020`, `sha:accaf27a44e4`.
+
+---
+
 ### Item 7 — verifier + evidence-backed progress — 2026-11-07
 
 <badge color="success">CODE-VERIFIED / PHONE-PENDING</badge>
