@@ -507,7 +507,6 @@ internal class VyomFactoryDialog(
                                     stopButton.isEnabled = false
                                     claimButton.isEnabled = true
                                     status.text = "Worker plan unavailable: ${error.javaClass.simpleName}"
-                                    onRunnerFailure(error.javaClass.simpleName)
                                 }
                             }
                         }
