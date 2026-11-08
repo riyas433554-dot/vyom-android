@@ -358,4 +358,21 @@ class VyomFactoryStructuredWorkerModelTest {
     }
 
 
+
+    @Test fun unselectedProviderBlocksTaskLocallyWithoutStartingCall() {
+        val journal = MemoryJournal()
+        val adapter = VyomFactoryDisabledWorkerModelAdapter(journal) { 1_800_000_000_000L }
+
+        assertThrows(IllegalStateException::class.java) {
+            adapter.propose(task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            })
+        }
+
+        assertEquals("BLOCKED", journal.entries.single().result)
+        assertFalse(journal.entries.single().providerCallStarted)
+        assertEquals("unconfigured", journal.entries.single().providerId)
+    }
+
+
 }

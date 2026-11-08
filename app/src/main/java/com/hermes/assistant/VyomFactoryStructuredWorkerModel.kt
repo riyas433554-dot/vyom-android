@@ -434,17 +434,32 @@ internal object VyomFactoryWorkerModelRuntime {
         if (VyomFactoryWorkerModelFeatureFlags.REAL_MODEL_CALLS_ENABLED) {
             throw IllegalStateException("Live model calls are enabled without a selected provider implementation")
         }
-        return VyomFactoryDisabledWorkerModelAdapter()
+        return VyomFactoryDisabledWorkerModelAdapter(VyomFactoryWorkerModelJournal(context))
     }
 }
 
-internal class VyomFactoryDisabledWorkerModelAdapter : VyomFactoryRepositoryWorkerModelAdapter {
+internal class VyomFactoryDisabledWorkerModelAdapter(
+    private val journal: VyomFactoryWorkerModelCallJournal? = null,
+    private val nowMillis: () -> Long = System::currentTimeMillis
+) : VyomFactoryRepositoryWorkerModelAdapter {
     override fun propose(
         task: VyomFactoryGitHubClient.Task,
         registry: VyomFactorySystemRegistry,
         control: VyomFactoryExecutionControl
     ): VyomFactoryRepositoryChangeReviewDialog.Candidate {
-        if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
+        val result = if (control.shouldStop()) "STOPPED" else "BLOCKED"
+        journal?.record(
+            VyomFactoryWorkerModelCallJournal.Entry(
+                taskNumber = task.number,
+                timestampMillis = nowMillis().coerceAtLeast(0L),
+                inputTokens = 0,
+                outputTokens = 0,
+                result = result,
+                providerId = "unconfigured",
+                providerCallStarted = false
+            )
+        )
+        if (result == "STOPPED") throw VyomFactoryExecutionStoppedException()
         throw IllegalStateException("No model provider is selected; real worker calls are disabled")
     }
 }
