@@ -67,7 +67,7 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
             ciphertext.fill(0)
         }
         var decoded: CharBuffer? = null
-        try {
+        return try {
             decoded = Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(plaintext))
             CharArray(decoded.remaining()).also { decoded.get(it) }
         } catch (_: Exception) {
