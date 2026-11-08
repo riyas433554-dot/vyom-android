@@ -375,4 +375,53 @@ class VyomFactoryStructuredWorkerModelTest {
     }
 
 
+
+    @Test fun missingWorkerBindingBlocksWithoutCallingProvider() {
+        val root = File.createTempFile("worker-model-empty-registry", ".tmp").apply { delete(); mkdirs() }
+        val emptyRegistry = VyomFactorySystemRegistry(root)
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(validJson(), 1, 1)
+        }
+        val journal = MemoryJournal()
+
+        assertThrows(SecurityException::class.java) {
+            adapter(provider, journal).propose(
+                task(), emptyRegistry, object : VyomFactoryExecutionControl {
+                    override fun shouldStop() = false
+                }
+            )
+        }
+
+        assertEquals(0, provider.calls)
+        assertEquals("BLOCKED", journal.entries.single().result)
+        assertFalse(journal.entries.single().providerCallStarted)
+    }
+
+    @Test fun credentialDecryptionFailureBlocksWithoutCallingProvider() {
+        val brokenKeyStore = object : VyomFactoryWorkerApiKeyStore {
+            override fun readKey(): CharArray? = throw IllegalStateException("must not be surfaced")
+            override fun saveKey(value: CharArray) = Unit
+            override fun clear() = Unit
+        }
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(validJson(), 1, 1)
+        }
+        val journal = MemoryJournal()
+        val worker = VyomFactoryStructuredWorkerModelAdapter(
+            provider, brokenKeyStore, journal,
+            nowMillis = { 1_800_000_000_000L }
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            worker.propose(task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            })
+        }
+
+        assertEquals(0, provider.calls)
+        assertEquals("BLOCKED", journal.entries.single().result)
+        assertFalse(journal.entries.single().providerCallStarted)
+    }
+
+
 }

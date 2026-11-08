@@ -183,8 +183,14 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         control: VyomFactoryExecutionControl
     ): VyomFactoryRepositoryChangeReviewDialog.Candidate {
         require(task.number > 0)
-        val binding = registry.get(WORKER_SYSTEM_ID)
-            ?: throw SecurityException("Worker has no owner-approved repository binding")
+        val binding = registry.get(WORKER_SYSTEM_ID) ?: run {
+            record(task.number, 0, 0, "BLOCKED")
+            throw SecurityException("Worker has no owner-approved repository binding")
+        }
+        if (binding.allowedPaths.isEmpty()) {
+            record(task.number, 0, 0, "BLOCKED")
+            throw SecurityException("Worker repository binding has no allowed paths")
+        }
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
         val taskData = "TITLE (UNTRUSTED DATA):\n${task.title.take(200)}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description.take(MAX_TASK_DESCRIPTION_CHARS)}"
         if (MemoryCapturePolicy.isSensitive(task.title) || MemoryCapturePolicy.isSensitive(description)) {
@@ -235,12 +241,15 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 record(task.number, 0, 0, "BLOCKED")
                 throw IllegalStateException("Worker task retry limit reached")
             }
-            val apiKey = keyStore.readKey()
-                ?.takeIf { it.isNotEmpty() }
-                ?: run {
-                    record(task.number, 0, 0, "BLOCKED")
-                    throw IllegalStateException("Worker provider key is not configured")
-                }
+            val apiKey = try {
+                keyStore.readKey()?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) {
+                record(task.number, 0, 0, "BLOCKED")
+                throw IllegalStateException("Worker provider credential is unavailable")
+            } ?: run {
+                record(task.number, 0, 0, "BLOCKED")
+                throw IllegalStateException("Worker provider credential is not configured")
+            }
             val executor = Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, "vyom-worker-model").apply { isDaemon = true }
             }
