@@ -1,0 +1,155 @@
+name: Vyom Android CI
+
+on:
+  push:
+    branches:
+      - feature/u1-live-orbit-tasks
+      - feature/memory-intelligence
+      - vyom-proposal-*
+      - fix/item7-progress-gates
+  pull_request:
+    branches:
+      - feature/u1-live-orbit-tasks
+      - feature/memory-intelligence
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vyom-android-ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate Termux Factory adapter syntax
+        run: |
+          bash -n scripts/vyom-factory.sh
+          bash -n scripts/vyom-complain
+      - name: Test Termux Factory status, priority and complaint intake
+        run: |
+          bash scripts/test-vyom-factory-list.sh
+          bash scripts/test-vyom-complain.sh
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Go for full reachable history scan
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+      - name: Install pinned Gitleaks
+        run: go install github.com/zricethezav/gitleaks/v8@v8.24.3
+      - name: Full reachable Git history secret scan (redacted)
+        shell: bash
+        run: |
+          set +e
+          "$(go env GOPATH)/bin/gitleaks" git --redact --no-banner --log-opts="--all" --report-format=json --report-path=history-gitleaks.json .
+          scan_status=$?
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("history-gitleaks.json")
+          findings = json.loads(p.read_text()) if p.exists() and p.stat().st_size else []
+          print(f"FULL_HISTORY_GITLEAKS_FINDINGS={len(findings)}")
+          for item in findings:
+              print(
+                  "REDACTED_FINDING"
+                  f" | rule={item.get('RuleID', 'unknown')}"
+                  f" | file={item.get('File', 'unknown')}"
+                  f" | line={item.get('StartLine', 'unknown')}"
+                  f" | commit={item.get('Commit', 'unknown')}"
+              )
+          PY
+          exit "$scan_status"
+      - name: Upload redacted full-history secret report
+        if: always() && hashFiles('history-gitleaks.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: redacted-full-history-gitleaks
+          path: history-gitleaks.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Block policy-critical files in self-change proposals
+        if: (github.event_name == 'pull_request' && startsWith(github.head_ref, 'vyom-proposal-')) || (github.event_name == 'push' && startsWith(github.ref_name, 'vyom-proposal-'))
+        shell: bash
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            base="$EVENT_BEFORE"
+            if [[ "$base" =~ ^0+$ ]]; then
+              git fetch origin "+refs/heads/feature/memory-intelligence:refs/remotes/origin/feature/memory-intelligence"
+              base="origin/feature/memory-intelligence"
+            fi
+          else
+            git fetch origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
+            base="origin/${GITHUB_BASE_REF}"
+          fi
+          if [[ "$base" =~ ^0+$ ]]; then
+            echo "Cannot validate proposal diff against an empty base"
+            exit 1
+          fi
+          changed="$(git diff --name-only "$base...HEAD")"
+          printf '%s\n' "$changed"
+          forbidden='^(MainActivity\.kt|ActionEngine\.kt|DeviceActionExecutor\.kt|VoiceForegroundService\.kt|VyomAccessibilityService\.kt|SelfModificationPolicy\.kt|SelfModificationClient\.kt)$'
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            case "$path" in
+              app/src/main/java/com/hermes/assistant/*.kt) ;;
+              *)
+                echo "Blocked non-Kotlin-source path in self-proposal: $path"
+                exit 1
+                ;;
+            esac
+            name="${path##*/}"
+            lower_name="${name,,}"
+            if [[ "$name" =~ $forbidden ]] ||
+               [[ "$lower_name" == *policy* ]] ||
+               [[ "$lower_name" == *audit* ]] ||
+               [[ "$lower_name" == *kill* ]] ||
+               [[ "$lower_name" == *control* ]] ||
+               [[ "$lower_name" == *accessibilityservice* ]] ||
+               [[ "$lower_name" == *deviceactionexecutor* ]] ||
+               [[ "$lower_name" == *voiceforegroundservice* ]] ||
+               [[ "$lower_name" == *selfmodification* ]] ||
+               [[ "$lower_name" == *update* ]] ||
+               [[ "$lower_name" == *signing* ]] ||
+               [[ "$lower_name" == *keystore* ]] ||
+               [[ "$lower_name" == *uibundle* ]] ||
+               [[ "$lower_name" == *shizuku* ]]; then
+              echo "Blocked policy-critical change in self-proposal: $path"
+              exit 1
+            fi
+          done <<< "$changed"
+      - name: Unit tests and debug APK
+        run: gradle testDebugUnitTest assembleDebug --no-daemon
+      - name: Package versioned APK and checksum
+        shell: bash
+        run: |
+          mkdir -p output
+          cp app/build/outputs/apk/debug/app-debug.apk "output/vyom-phase6-${GITHUB_SHA}.apk"
+          (cd output && sha256sum "vyom-phase6-${GITHUB_SHA}.apk") > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyom-phase6-${{ github.sha }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 30

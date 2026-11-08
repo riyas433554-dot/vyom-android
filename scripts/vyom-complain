@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AREAS="control android_control memory design personality repo skill skills schedule voice update whatsapp play_store floating_orb other"
+PRIORITIES="P0 P1 P2 P3"
+SEVERITIES="critical high medium low"
+
+usage() {
+  cat <<'USAGE'
+vyom-complain — register a structured complaint in the shared GitHub Issues register.
+
+Required:
+  --title TEXT
+  --area control|android_control|memory|design|personality|repo|skill|skills|schedule|voice|update|whatsapp|play_store|floating_orb|other
+  --severity critical|high|medium|low
+  --priority P0|P1|P2|P3 (optional; defaults by area)
+  --evidence TEXT
+  --repro TEXT
+  --expected TEXT
+  --probe TEXT
+  --fix-type "content update with no APK"|"native change needing an APK"
+  --source-id STABLE_ID
+
+Example:
+  vyom-complain --title "Tap action fails" --area control --severity high --priority P0 \
+    --evidence "Diagnostics: tap post-condition mismatch" --repro "Open Settings; tap Display" \
+    --expected "Display page becomes foreground" --probe "read_screen confirms Display page" \
+    --fix-type "native change needing an APK" --source-id "termux:tap-settings-001"
+USAGE
+}
+
+contains_word() { [[ " $1 " == *" $2 "* ]]; }
+valid_area() { contains_word "$AREAS" "$1"; }
+valid_priority() { contains_word "$PRIORITIES" "$1"; }
+valid_severity() { contains_word "$SEVERITIES" "$1"; }
+default_priority() {
+  case "$1" in
+    control|android_control|update) printf 'P0' ;;
+    memory|design) printf 'P1' ;;
+    voice|personality|repo|skill|skills|schedule|whatsapp|play_store|floating_orb) printf 'P2' ;;
+    *) printf 'P3' ;;
+  esac
+}
+
+build_description() {
+  local area="$1" severity="$2" priority="$3" evidence="$4" repro="$5"
+  local expected="$6" probe="$7" fix_type="$8" original="$9"
+  cat <<BODY
+## Complaint register record
+- **Source:** termux
+- **Area:** $area
+- **Severity:** $severity
+- **Priority:** $priority
+- **Evidence:** $evidence
+- **Repro steps:** $repro
+- **Expected result:** $expected
+- **Verification probe:** $probe
+- **Fix type:** $fix_type
+
+### Original complaint
+$original
+
+### Closure rule
+Close only after the named probe passes on the device. Otherwise keep/reopen the issue and append the observed result.
+BODY
+}
+
+main() {
+  local title="" area="" severity="" priority="" evidence="" repro="" expected="" probe="" fix_type="" source_id=""
+  local priority_explicit=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --title|--area|--severity|--priority|--evidence|--repro|--expected|--probe|--fix-type|--source-id)
+        [[ $# -ge 2 ]] || { echo "Missing value for $1" >&2; exit 2; }
+        case "$1" in
+          --title) title="$2" ;;
+          --area) area="$2" ;;
+          --severity) severity="$2" ;;
+          --priority) priority="$2"; priority_explicit=true ;;
+          --evidence) evidence="$2" ;;
+          --repro) repro="$2" ;;
+          --expected) expected="$2" ;;
+          --probe) probe="$2" ;;
+          --fix-type) fix_type="$2" ;;
+          --source-id) source_id="$2" ;;
+        esac
+        shift 2
+        ;;
+      --help|-h) usage; return 0 ;;
+      *) echo "Unknown option: $1" >&2; usage >&2; return 2 ;;
+    esac
+  done
+  [[ ${#title} -ge 4 && ${#title} -le 120 ]] || { echo "Title must be 4–120 characters" >&2; return 2; }
+  valid_area "$area" || { echo "Invalid area: $area" >&2; return 2; }
+  valid_severity "$severity" || { echo "Invalid severity: $severity" >&2; return 2; }
+  if [[ "$priority_explicit" == false ]]; then priority="$(default_priority "$area")"; fi
+  valid_priority "$priority" || { echo "Invalid priority: $priority" >&2; return 2; }
+  [[ -n "$evidence" && -n "$repro" && -n "$expected" && -n "$probe" ]] || { echo "Evidence, repro, expected result and probe are required" >&2; return 2; }
+  [[ "$fix_type" == "content update with no APK" || "$fix_type" == "native change needing an APK" ]] || { echo "Invalid fix type" >&2; return 2; }
+  [[ -n "$source_id" && ${#source_id} -le 120 ]] || { echo "A stable --source-id (max 120 chars) is required for retry-safe registration" >&2; return 2; }
+
+  local description
+  description="$(build_description "$area" "$severity" "$priority" "$evidence" "$repro" "$expected" "$probe" "$fix_type" "$title")"
+  exec "$SCRIPT_DIR/vyom-factory.sh" create "$title" "$description" "$priority" "$source_id"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
