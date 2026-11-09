@@ -46,7 +46,7 @@ class VyomFactoryRepositoryChangeReviewDialogTest {
         registry.register(
             VyomFactorySystemRegistry.Binding(
                 "worker", "https://github.com/riyas433554-dot/vyom-android", base,
-                listOf("app/src/main/java/com/hermes/assistant"), 1L
+                listOf("README.md"), 1L
             ),
             ownerConfirmed = true
         )

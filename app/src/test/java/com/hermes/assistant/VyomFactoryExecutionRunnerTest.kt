@@ -37,7 +37,7 @@ class VyomFactoryExecutionRunnerTest {
             "worker", 71, "repo-attempt-12345678", "Improve safe reply output",
             "feature/memory-intelligence", baseSha,
             listOf(VyomFactoryRepositoryChangePolicy.Change(
-                "app/src/main/java/com/hermes/assistant/SafeReply.kt", "class SafeReply"
+                "README.md", "class SafeReply"
             )), false
         )
         val workerClock = java.util.concurrent.atomic.AtomicLong(2_000L)
