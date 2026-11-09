@@ -2061,3 +2061,15 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
   - No generic worker repository write adapter exists. Do not claim repository code execution or worker write isolation as implemented.
 - No source change was made in this checkpoint; this entry records verified CI and audit evidence. The public-repository screenshot exposure caveat remains unresolved and requires owner authorization before deletion/history remediation.
 - Item 4 remains **IN PROGRESS** pending a complete system registry inventory/owner-binding operational review and explicit closure audit. Item 5 has not started. No Android `main`, Render, backend, or production Supabase changes. No physical-device verification or final APK publication claimed.
+
+
+### Step 2 — owner-only worker test-repository binding screen — implementation checkpoint
+
+- Added Factory action **BIND TEST WORKER REPOSITORY**, opening a local owner-confirmation dialog for the worker system ID `worker`.
+- The dialog accepts one canonical HTTPS GitHub repository URL and one exact 40-character lowercase hexadecimal base commit SHA. Allowed paths are locked to `README.md` only.
+- Validation reuses `VyomFactoryRepositoryIntake.parseUrl` and `VyomFactorySystemRegistry` validation. A focused policy rejects non-canonical URLs, malformed SHA values, traversal paths, case variants and every path other than exact `README.md`.
+- A second explicit owner confirmation displays repository, SHA and allowed path. An identical existing binding is reused; a different existing binding is rejected without overwrite or implicit migration.
+- This is a local app-private registry write only. Provider/model live-call is OFF; no remote inspection, GitHub write, task execution, secret/key operation, workflow change, backend/Render/Supabase change, Android `main` change or signing work is included.
+- Added policy tests for URL/SHA validation, README-only path enforcement, owner approval, persistence/idempotent reuse and refusal to replace a different binding.
+- Exact-HEAD Full + Debug CI is required before calling this CI-verified. Phone/device interaction remains pending owner verification.
+- Step 3 signing workflow remains NOT STARTED and requires a separate owner GO.

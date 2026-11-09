@@ -171,6 +171,19 @@ internal class VyomFactoryDialog(
             leftMargin = dp(8)
         })
         workerPanel.addView(workerActions)
+
+        workerPanel.addView(Button(activity).apply {
+            text = "BIND TEST WORKER REPOSITORY"
+            textSize = 9f
+            setOnClickListener {
+                VyomFactoryWorkerBindingDialog(
+                    activity,
+                    onStatus = { message ->
+                        if (::dialog.isInitialized && dialog.isShowing) status.text = message
+                    }
+                ).show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
         runButton = Button(activity).apply {
             text = "RUN NEXT VERIFIED ACTION"; textSize = 9f
             setOnClickListener { runNextTask() }
