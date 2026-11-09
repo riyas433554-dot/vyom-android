@@ -6,13 +6,14 @@ on:
       - fresh-history/android-app-copy
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
-      - feature/real-worker-model
       - vyom-proposal-*
+      - fix/item7-progress-gates
+      - feature/real-worker-model
+      - feature/factory-item5-task-intelligence
   pull_request:
     branches:
       - fresh-history/android-app-copy
       - feature/memory-intelligence
-      - feature/factory-item5-task-intelligence
   workflow_dispatch:
     inputs:
       publish_ci_update_release:

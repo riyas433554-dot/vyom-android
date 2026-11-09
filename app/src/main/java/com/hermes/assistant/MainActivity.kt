@@ -66,6 +66,7 @@ import java.util.concurrent.Executors
 class MainActivity : Activity() {
     internal val factoryForegroundGate = VyomFactoryForegroundGate()
     internal val factoryOneTimeApprovals = VyomFactoryOneTimeApprovalStore()
+    private val selfModificationApprovalGate = SelfModificationApprovalGate()
     internal var factoryPendingConfirmationCancel: (() -> Unit)? = null
     private lateinit var orb: OrbSurfaceView
     private lateinit var status: TextView
@@ -935,13 +936,28 @@ class MainActivity : Activity() {
                                         .setView(previewScroll)
                                         .setNegativeButton("CANCEL", null)
                                         .setPositiveButton("OPEN PR") { _, _ ->
+                                            val approvalGeneration = factoryForegroundGate.generation()
+                                            val approval = try {
+                                                if (!factoryForegroundGate.isForeground()) {
+                                                    throw SecurityException("Open PR approval requires the active Vyom screen")
+                                                }
+                                                selfModificationApprovalGate.issueFromOwnerReview(draft)
+                                            } catch (error: Exception) {
+                                                selfChangeNotice.text = "Proposal blocked: ${error.message ?: "local approval unavailable"}"
+                                                return@setPositiveButton
+                                            }
                                             selfChangeNotice.text = "Creating PR from the reviewed minimal patch…"
                                             io.execute {
                                                 try {
+                                                    if (!factoryForegroundGate.isForegroundSession(approvalGeneration)) {
+                                                        throw SecurityException("Local approval expired when Vyom left the foreground")
+                                                    }
                                                     val proposalClient = SelfModificationClient(
                                     registry = VyomFactorySystemRegistry(File(filesDir, "factory-system-registry"))
                                 )
-                                                    val proposal = proposalClient.createProposal(token, draft, ownerReviewedDiff = true)
+                                                    val proposal = proposalClient.createProposal(
+                                                        token, draft, approval, selfModificationApprovalGate
+                                                    )
                                                     val ownerReviewRouteSaved = linkedFactoryIssueNumber?.let {
                                                         recordFactoryProposalRouteEventNow(
                                                             it,
@@ -5907,6 +5923,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         factoryForegroundGate.onPaused()
         factoryOneTimeApprovals.clear()
+        selfModificationApprovalGate.clear()
         factoryPendingConfirmationCancel?.invoke()
         factoryPendingConfirmationCancel = null
         tasksTabVisible = false
@@ -5929,6 +5946,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        selfModificationApprovalGate.clear()
         if (voiceStopReceiverRegistered) {
             try { unregisterReceiver(voiceStopReceiver) } catch (_: Exception) {}
             voiceStopReceiverRegistered = false
