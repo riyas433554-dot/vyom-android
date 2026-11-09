@@ -2073,3 +2073,5 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Added policy tests for URL/SHA validation, README-only path enforcement, owner approval, persistence/idempotent reuse and refusal to replace a different binding.
 - Exact-HEAD Full + Debug CI is required before calling this CI-verified. Phone/device interaction remains pending owner verification.
 - Step 3 signing workflow remains NOT STARTED and requires a separate owner GO.
+
+- Follow-up security review wired exact-path enforcement into `VyomFactoryRepositoryChangePolicy.validateCandidate`: worker system proposals reject `README.md/child`, traversal and every non-`README.md` path. A new integration test exercises the real change-policy boundary; generic registry prefix behavior for other systems is unchanged.

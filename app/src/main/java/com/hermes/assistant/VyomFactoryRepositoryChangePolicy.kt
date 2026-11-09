@@ -127,6 +127,9 @@ internal object VyomFactoryRepositoryChangePolicy {
 
         var totalChars = 0L
         plan.changes.forEach { change ->
+            if (plan.systemId == VyomFactoryWorkerBindingPolicy.SYSTEM_ID) {
+                VyomFactoryWorkerBindingPolicy.requireAllowedPath(change.path)
+            }
             val authorized = registry.requireAuthorizedBinding(
                 systemId = plan.systemId,
                 relativePath = change.path,
