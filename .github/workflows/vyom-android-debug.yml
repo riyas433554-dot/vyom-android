@@ -7,6 +7,7 @@ on:
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
       - vyom-proposal-*
+      - fix/item7-progress-gates
   pull_request:
     branches:
       - fresh-history/android-app-copy

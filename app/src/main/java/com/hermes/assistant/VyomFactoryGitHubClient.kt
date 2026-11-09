@@ -88,6 +88,11 @@ internal class VyomFactoryGitHubClient(
         val events = (current.metadata.events + "updated:$newStatus:$newPriority" +
             listOfNotNull(additionalEvent)).takeLast(500)
         val metadata = current.metadata.copy(priority = newPriority, status = newStatus, events = events)
+        if (newStatus == "completed" && !VyomFactoryTaskIntelligence.acceptanceCriteriaSatisfied(
+                current.copy(body = description)
+            )) {
+            throw IllegalStateException("Cannot complete this task until every explicit acceptance criterion is checked")
+        }
         if (VyomFactoryVerificationPolicy.blocksCompletion(current.metadata.status, newStatus, description, metadata.events)) {
             throw IllegalStateException("Cannot close this complaint until its assigned device probe has a recorded PASS result")
         }
@@ -119,6 +124,28 @@ internal class VyomFactoryGitHubClient(
         val event = VyomFactoryVerificationPolicy.resultEvent(probe, cleanEvidence, passed)
         val updatedDescription = VyomFactoryVerificationPolicy.appendEvidence(description, probe, cleanEvidence, passed)
         return updateTask(current, newDescription = updatedDescription, additionalEvent = event)
+    }
+
+    /** Converts explicit planner/implementation/test markers into independent, idempotent issues. */
+    fun createDetectedTasks(parentIssueNumber: Int, stage: VyomFactoryTaskIntelligence.Stage, stageOutput: String): List<Task> {
+        require(parentIssueNumber > 0)
+        return createDetectedTasks(parentIssueNumber, VyomFactoryTaskIntelligence.detect(stage, stageOutput))
+    }
+
+    fun createDetectedTasks(parentIssueNumber: Int, findings: List<VyomFactoryTaskIntelligence.Finding>): List<Task> {
+        require(parentIssueNumber > 0)
+        val existing = listTasks().toMutableList()
+        return findings.mapNotNull { finding ->
+            val proposal = VyomFactoryTaskIntelligence.toSeparateTaskProposal(parentIssueNumber, finding, existing)
+                ?: return@mapNotNull null
+            createTask(
+                title = proposal.title,
+                description = proposal.description + "\\n\\nMax iterations: ${VyomFactoryTaskIntelligence.DEFAULT_MAX_ITERATIONS}",
+                priority = "P2",
+                source = "task_failure",
+                sourceId = proposal.sourceId
+            ).also(existing::add)
+        }
     }
 
     fun listEvents(issueNumber: Int): List<String> {

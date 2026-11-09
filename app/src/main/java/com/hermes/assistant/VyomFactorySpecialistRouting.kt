@@ -11,13 +11,14 @@ internal object VyomFactorySpecialistRouting {
 
     fun nextOwnerReview(
         decisions: List<VyomFactoryTaskTriage.Decision>,
-        isRunnerEligible: (VyomFactoryGitHubClient.Task) -> Boolean = { false }
+        isRunnerEligible: (VyomFactoryGitHubClient.Task) -> Boolean = { false },
+        isLocallyApproved: (Int) -> Boolean = { false }
     ): VyomFactoryTaskTriage.Decision? {
         val byIssue = decisions.associateBy { it.task.number }
         for (task in VyomFactoryTaskOrdering.sort(decisions.map { it.task })) {
             val decision = byIssue[task.number] ?: continue
             if (task.state != "open" || task.metadata.status !in setOf("open", "in_progress")) continue
-            if (decision.executionReady) continue
+            if (decision.executionReady || isLocallyApproved(task.number)) continue
             when (val plan = decision.plan) {
                 is VyomFactoryTaskPlanner.Plan.NeedsOwnerReview -> {
                     if (plan.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&

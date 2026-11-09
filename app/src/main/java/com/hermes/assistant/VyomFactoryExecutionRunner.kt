@@ -19,7 +19,9 @@ internal class VyomFactoryExecutionRunner(
     private val newAttemptId: () -> String,
     private val prepareExecution: (VyomFactoryExecutionEnvelope) -> VyomFactoryExecutionEnvelope? = { it },
     private val externalStopRequested: () -> Boolean = { false },
-    private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit.PROCESS
+    private val executionPermit: VyomFactoryExecutionPermit = VyomFactoryExecutionPermit.PROCESS,
+    private val onCheckpoint: (VyomFactoryGitHubClient.Task, String, String) -> Unit = { _, _, _ -> },
+    private val onVerificationResult: (VyomFactoryGitHubClient.Task, Boolean, String) -> Unit = { _, _, _ -> }
 ) {
     sealed class Outcome {
         data class Succeeded(val issueNumber: Int, val attemptId: String, val result: String, val retryScheduleCleared: Boolean) : Outcome()
@@ -56,19 +58,24 @@ internal class VyomFactoryExecutionRunner(
             remote.metadata.status !in setOf("open", "in_progress") ||
             remote.metadata.sourceId != claim.task.sourceId
         ) return skip("task_no_longer_open_or_identity_changed")
+        safeCheckpoint(remote, "fresh_task_validated", remote.body)
 
-        val envelope = VyomFactoryExecutionEnvelope.parse(remote.body)
+        val envelope = VyomFactoryExecutionEnvelope.parse(remote.body, remote.number)
         if (!envelope.isExecutable || envelope.target == VyomFactoryExecutionEnvelope.Target.MANUAL_REVIEW) {
             return skip("manual_review_required")
         }
         if (!adapters.supports(envelope)) return skip("capability_unsupported")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
+        safeCheckpoint(remote, "claim_current_before_consent", "lease renewed and claim validated")
         if (externalStopRequested()) return skip("stopped_before_execution")
 
         // Expired leases never authorize replay. Only a persisted due retry for
         // this exact issue/operation and an adapter still declaring idempotency can retry.
         val operationKey = envelope.operationKey()
         val history = journal.all().filter { it.issueNumber == issue }
+        if (history.size >= VyomFactoryTaskIntelligence.maximumIterations(remote)) {
+            return skip("max_iterations_reached")
+        }
         if (history.any { it.operationKey == "legacy:unknown" }) {
             return skip("legacy_attempt_requires_review")
         }
@@ -108,6 +115,7 @@ internal class VyomFactoryExecutionRunner(
         // journaling so a stop after approval still creates no execution attempt.
         if (externalStopRequested()) return skip("stopped_before_execution")
         if (!isClaimCurrent(claim)) return Outcome.Fenced(issue)
+        safeCheckpoint(remote, "claim_current_after_consent", "lease renewed and claim validated")
 
         val attemptId = newAttemptId()
         journal.begin(claim.lease, attemptId, now(), operationKey)
@@ -123,6 +131,7 @@ internal class VyomFactoryExecutionRunner(
 
         return try {
             if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
+            safeCheckpoint(remote, "before_adapter_dispatch", envelope.originalRequest)
             val result = when (val dispatched = adapters.dispatch(prepared, control)) {
                 is VyomFactoryExecutionAdapterRegistry.Outcome.Executed -> dispatched.result
                 VyomFactoryExecutionAdapterRegistry.Outcome.ManualReview ->
@@ -130,9 +139,13 @@ internal class VyomFactoryExecutionRunner(
                 is VyomFactoryExecutionAdapterRegistry.Outcome.Unsupported ->
                     throw IllegalStateException("No adapter for ${dispatched.target}")
             }
+            safeCheckpoint(remote, "after_adapter_dispatch", result)
             if (!adapters.isVerifiedResult(envelope.target, result)) {
+                safeVerificationResult(remote, false, "Adapter did not verify the requested postcondition: " + result.take(500))
                 throw IllegalStateException("Adapter returned without verifying the requested postcondition")
             }
+            safeVerificationResult(remote, true, result)
+            safeCheckpoint(remote, "postcondition_verified", result)
             // The adapter has completed and verified its side effect. A STOP
             // arriving now cannot undo it and must not rewrite verified success.
             if (!journal.succeed(claim.lease, attemptId, now(), result)) {
@@ -179,6 +192,16 @@ internal class VyomFactoryExecutionRunner(
             releaseTerminalClaim(claim)
             Outcome.Failed(issue, attemptId, category)
         }
+    }
+
+    private fun safeCheckpoint(task: VyomFactoryGitHubClient.Task, checkpoint: String, output: String) {
+        // Detector/journal errors are advisory and must never fail the underlying task.
+        runCatching { onCheckpoint(task, checkpoint, output) }
+    }
+
+    private fun safeVerificationResult(task: VyomFactoryGitHubClient.Task, passed: Boolean, evidence: String) {
+        // Verification discovery is also advisory; it cannot rewrite the action's verified outcome.
+        runCatching { onVerificationResult(task, passed, evidence) }
     }
 
     private fun isValidPreparedEnvelope(

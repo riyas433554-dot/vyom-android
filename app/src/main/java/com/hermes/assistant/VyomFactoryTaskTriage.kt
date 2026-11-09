@@ -13,19 +13,26 @@ internal class VyomFactoryTaskTriage(
         val task: VyomFactoryGitHubClient.Task,
         val plan: VyomFactoryTaskPlanner.Plan,
         val eventKey: String,
-        val executionReady: Boolean = false
+        val executionReady: Boolean = false,
+        val blockingReason: String? = null,
+        val acceptanceCriteriaSatisfied: Boolean = VyomFactoryTaskIntelligence.acceptanceCriteriaSatisfied(task)
     )
 
     fun evaluate(
         tasks: List<VyomFactoryGitHubClient.Task>,
         capabilities: VyomFactoryCapabilityRegistry
-    ): List<Decision> = VyomFactoryTaskOrdering.sort(
-        tasks.filter {
-            it.state == "open" && it.metadata.status in setOf("open", "in_progress")
+    ): List<Decision> {
+        val active = tasks.filter { it.state == "open" && it.metadata.status in setOf("open", "in_progress") }
+        val cycles = VyomFactoryTaskIntelligence.circularDependencyIssues(active)
+        return VyomFactoryTaskOrdering.sort(active).map { task ->
+            val plan = planner.plan(task, capabilities)
+            val reason = when {
+                task.number in cycles -> "circular_dependency"
+                VyomFactoryTaskIntelligence.isIterationLimitReached(task) -> "max_iterations_reached"
+                else -> null
+            }
+            Decision(task, plan, eventKey(plan), executionReady = false, blockingReason = reason)
         }
-    ).map { task ->
-        val plan = planner.plan(task, capabilities)
-        Decision(task, plan, eventKey(plan))
     }
 
     private fun eventKey(plan: VyomFactoryTaskPlanner.Plan): String = when (plan) {

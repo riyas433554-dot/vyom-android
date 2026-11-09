@@ -63,6 +63,10 @@ internal class VyomFactoryWorkerClaimCoordinator(
             active.ownerId == claim.lease.ownerId
     }
 
+    /** Active device-local claims used to exclude already-owned work from planning detection. */
+    fun activeClaimedIssueNumbers(now: Long): Set<Int> =
+        leaseStore.activeIssueNumbers(now)
+
     /** Extends this exact still-live claim without changing its fencing token. */
     fun renew(claim: Claim, now: Long, durationMs: Long): Boolean =
         taskStore.contains(claim.task.issueNumber) &&
