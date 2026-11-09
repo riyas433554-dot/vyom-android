@@ -5,12 +5,13 @@
 - **Original merge-SHA CI attempt:** Full run `42574954240` and Debug run `42574954273` both FAILED at unit-test compilation because the restored legacy test referenced the removed `VyomFactoryIssueEnvelopeWorkerModelAdapter`. The failure was not hidden or treated as PASS.
 - **Fix-up commit:** `601e41515212` ports that test to the current `VyomFactoryStructuredWorkerModelAdapter` STOP boundary and restores the target-branch pull-request filters in both workflows. No production/backend/Android-main change.
 - **Exact code/test SHA verification:** Full CI run `42575444312` — SUCCESS; Debug CI run `42575444275` — SUCCESS. Both have `head_sha=601e41515212` and `head_branch=feature/real-worker-model`.
+- **STOP test diff review:** the ported `stopPreventsModelProposalParsing` test asserts `providerCalls == 0`, one `STOPPED` journal entry, and `providerCallStarted == false`; the fake provider throws if `generate` is invoked. The implementation checks STOP before entering the provider-call path. **This test does not assert a write counter or execute a write path, so it does not by itself prove “no write on STOP.”** The adapter only returns an unapproved candidate and has no GitHub writer; do not conflate that architecture boundary with a write assertion in this test.
 - **Build evidence:** Full CI `testDebugUnitTest assembleDebug` — `BUILD SUCCESSFUL`. Debug CI `testDebugUnitTest assembleDebug` — `BUILD SUCCESSFUL`; `assembleRelease` — `BUILD SUCCESSFUL`. No signed release was published; release upload/publish steps were skipped because this was a push, not an explicitly approved workflow dispatch.
 - **Gitleaks, exact fix-up SHA:** `no leaks found`; `FULL_HISTORY_GITLEAKS_FINDINGS=0`; SARIF `results=0`. Redacted report artifact: `13654359970`; SARIF artifact: `13654748831`.
 - **Full CI APK artifact:** artifact ID `13655392042` (corresponds to code/test SHA `601e41515212`). Debug workflow's artifact upload was skipped by its workflow-dispatch-only condition.
 - Total Gradle test count was not emitted in the retrieved logs; it remains **UNVERIFIED**. No total has been inferred.
 - Worker provider UI/model path is code-integrated, but live model calls remain disabled and owner phone acceptance is still pending. No live provider call or device acceptance is claimed.
-- The target's four-lane classification and 33-entry backlog remain authoritative. Four-lane routing/scheduling, four lanes × five independent workers, Factory self-upgrade, cross-platform complaint-to-fix and signed Android update remain **NOT STARTED**.
+- The owner-defined seven-gate Factory-ready checklist is recorded below. Four-lane routing/scheduling and the four-lane × five-worker pool remain **NOT STARTED**; the checklist is the readiness gate, not a completion claim.
 - Android `main`, Render, backend, production Supabase and PR #102 remain untouched. Worker binding screen and signing workflow audit remain NOT STARTED; stop here pending the owner's next GO.
 
 ---
@@ -68,8 +69,53 @@
 |---|---|---|---|---|---|
 | **INSTANT** | Owner's direct Vyom command, or a complaint explicitly requesting immediate action. Complaint intake routes here only when urgency is explicit; it must not infer urgency from wording alone. | **Highest of all lanes.** | Owner's explicit request may start planning. Any repository/device side effect still requires the existing local one-time approval token and the applicable review dialog. | One bounded task/run at a time under existing queue, worker, timeout, retry, path and STOP limits. No unbounded follow-up loop. | 0–100% only from verified implementation, exact-SHA tests/CI, owner-approved criteria and any required named device probe. |
 | **SCHEDULED** | An owner-approved schedule, due time, calendar/event trigger, or recurring reminder/task. | Below INSTANT; ordered by due time and approved task priority. | Owner must approve the schedule and its scope. Each side effect still uses the existing approval-token policy unless a separately approved, bounded authorization policy explicitly permits it. | Must have an explicit cadence, scope, per-run cap, retry cap, expiry/disable path and STOP handling. No schedule may create an unlimited queue. | 0–100% only from verified work for the current scheduled run. A missed/failed run cannot inherit an earlier run's success. |
-| **PERMANENT** | An owner-approved ongoing responsibility: continuous upkeep, monitoring, policy checks, memory maintenance or recurring health/quality work. | Below INSTANT; owner-defined maintenance priority. It must yield to INSTANT work and respect due SCHEDULED work. | Owner approves the standing responsibility, allowed scope and permitted observations/actions. Writes or consequential side effects remain approval-token gated unless separately authorized by an explicit bounded policy. | Every invocation is a separate bounded run with its own journal receipt, budget, retry cap and STOP boundary. No perpetual single execution or unbounded retry. | **Per-run verified result only. The PERMANENT lane itself must never show 100% complete** because the responsibility continues. Each run reports its own verified outcome/progress independently. |
+| **PERMANENT** | Owner-defined always-on duties: secret scanning, CI health monitoring, HANDOFF synchronization, and STOP/recovery checks. These are recurring maintenance duties, not a bucket for “bounded CUSTOM projects.” | Below INSTANT; owner-defined maintenance priority. It must yield to INSTANT work and respect due SCHEDULED work. | Owner approves the standing duty, allowed scope and permitted observations/actions. Writes or consequential side effects remain approval-token gated unless separately authorized by an explicit bounded policy. | Each invocation is a separate bounded run with its own journal receipt, budget, retry cap and STOP boundary. No perpetual single execution or unbounded retry. | **Per-run verified result only. PERMANENT lane completion is never 100%** because the duties continue. Each run reports its own verified outcome/progress independently. |
 | **CUSTOM** | An owner-defined one-off project, investigation, feature, migration, research task or explicitly scoped workflow. | Owner-assigned priority; below INSTANT unless the owner explicitly reclassifies the task as INSTANT. | Owner reviews the plan/scope and approves the run; the existing one-time token gates consequential side effects. Scope changes require renewed review. | Explicit deliverables, file/path/repository scope, budget, timeout, retry cap and stop condition. No scope expansion by the model. | 0–100% only when the current task's owner-approved criteria and required implementation/test/postcondition/CI/device evidence are verified. |
+
+### REAL WORKER — required acceptance criteria
+
+A worker is not “real” merely because a provider adapter or model setting exists. Each criterion below must be demonstrated by an end-to-end test with evidence:
+
+1. **Task assignment:** the scheduler assigns a specific eligible task to an available worker; the task-to-worker assignment is persisted and traceable.
+2. **Worker identity:** every execution has a stable, unique worker ID; concurrent executions cannot share an identity accidentally.
+3. **Lease + heartbeat:** the worker acquires a task-scoped lease with a fencing token, renews it while active, stops when renewal/ownership fails, and releases or expires it on terminal exit. Current cooperative checkpoint renewal is not to be described as continuous heartbeat.
+4. **Logs:** append-only, task- and worker-correlated lifecycle logs record assignment, claim, heartbeat/renewal, checkpoints, retry, STOP, recovery and terminal result. Secrets, credentials, prompts and private model output must not be logged.
+5. **Retry/recovery:** retries are bounded and idempotency-gated; stale/expired leases cannot write; crashed or interrupted work is recovered without blind replay or duplicate side effects; STOP is respected at every safe checkpoint.
+6. **Verified output:** the worker returns a concrete output; independent verification checks the task's owner-approved acceptance criteria and required tests/postconditions. “Model returned text” is not success and cannot advance progress to 100%.
+
+#### Parallelism acceptance test (required)
+
+- **Single source of truth:** worker-pool configuration must define `minimum_workers_per_lane = 5` (owner requirement) and define **`N = 5` once** in the parallelism test configuration. Every test assertion and fixture reads that one `N`; do not duplicate a second N value in test helpers or per-lane fixtures.
+- Launch **N tasks concurrently** behind a barrier so the runs overlap in wall-clock time.
+- Assert **N distinct worker IDs** and **N distinct active lease IDs/fencing identities**, with lease ownership mapped one-to-one to the N tasks.
+- Assert overlapping start/end timestamps demonstrate actual concurrency, not sequential processing presented as parallel.
+- Force exactly one worker to fail after assignment; assert the other N−1 workers continue and reach their independently verified terminal outcomes.
+- Assert the failed worker follows bounded retry/recovery policy and cannot reuse another worker's lease or identity.
+- Capture the task/worker/lease event logs and verifier receipts as test evidence. A test that only checks a configured pool size is insufficient.
+
+### Factory-ready definition — owner acceptance checklist
+
+“Factory ready” means all seven gates below pass with implementation evidence, exact-SHA Full + Debug CI, relevant security checks, and required owner/device acceptance. A green build alone is not readiness.
+
+| # | Owner capability required | Current status |
+|---|---|---|
+| 1 | Handle multiple tasks reliably: durable task intake/queue, assignment, journal, lease, STOP, bounded retry and crash/recovery, with no duplicate side effects. | **PARTIAL** — local queue/journal/lease/STOP/recovery foundations exist; cross-device/shared atomic authority and full end-to-end multi-task proof remain incomplete. |
+| 2 | Upgrade and operate UI/design, voice, Android controls and settings through verified user-facing workflows. | **NOT VERIFIED** — existing screens/settings are not proof of the complete upgrade/control workflow; end-to-end acceptance is pending. |
+| 3 | Work across repositories and skills, and maintain/use memory with explicit scope and verified results. | **PARTIAL** — repository-bound worker proposal path exists; broader repository/skill execution and memory-intelligence workflow are not complete. |
+| 4 | Use real independently executing workers across all four lanes, with at least five workers configured per lane and the REAL WORKER + parallelism tests above passing. | **NOT READY** — provider adapters exist but live calls are disabled; no four-lane worker pool or N-way independent execution proof. |
+| 5 | Upgrade the Factory itself through a controlled, owner-approved, testable and recoverable self-upgrade pipeline. | **PARTIAL / NOT READY** — legacy PR-only approval gate exists; complete self-upgrade orchestration, verification, rollback and acceptance are not complete. |
+| 6 | Accept complaints from GPT, Claude, Termux and Vyom, route them to the right work, and return a verified fix/result. | **PARTIAL** — existing complaint intake and issue path exist; cross-platform source intake-to-verified-resolution flow is not complete. |
+| 7 | Deliver Vyom Android updates through a safe signed update/release path with versioning, integrity checks and rollback/recovery comparable to a managed app update flow. | **NOT READY** — debug/release builds exist; signed release publication, update delivery and rollback acceptance are not complete. |
+
+A gate may move to PASS only when its own acceptance evidence is recorded in HANDOFF with source paths, exact commit SHA, exact-SHA CI run IDs, test evidence, and device/owner result where required. Do not infer PASS from adjacent gates. The Factory overall remains **NOT READY** until all seven gates pass.
+
+### Worker binding screen — Step 2 scope (owner-approved boundary)
+
+- Owner-only dialog binds exactly one worker to one owner-selected test repository.
+- Inputs: repository URL and exact 40-hex immutable base SHA. Allowed paths are fixed/locked to `README.md`; no free-form path editor.
+- Reuse the existing system-registry validation. Reject malformed or wrong SHA, repository mismatch, path traversal, absolute paths, and every non-`README.md` path.
+- No live provider call, secret/key change, GitHub write, backend/Render/Supabase operation or Android `main` change is part of this screen.
+- Owner phone acceptance is required. This entry records the boundary only; implementation is not authorized in this docs-only batch.
 
 ### Complaint intake routing
 
