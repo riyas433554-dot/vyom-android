@@ -1,11 +1,17 @@
-### Worker branch integration — merge verification in progress
+### Worker branch integration — merged; exact code/test SHA verified
 
-- Target branch HEAD before integration: `2a4383a7d953f32184dbaa1d07feb133b1a699d6`; worker branch HEAD before integration: `1945570b16be94df4be92eb684cfbf9001ed7812`.
-- PR #104 is already squash-merged into the target branch as `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`. This is a separate normal two-parent merge from the target branch into the worker branch.
-- Worker provider integration and owner-review protections are retained. Live model calls remain disabled; phone acceptance is still owner-pending.
-- The target's four-lane classification and 33-entry backlog below remain authoritative. The lane router/scheduler, four lanes with five real workers each, self-upgrade, cross-platform complaint-to-fix and signed Android update remain NOT STARTED.
-- Exact merge commit and Full/Debug/Gitleaks run IDs will be recorded here only after the merge tree, parent diffs and exact-SHA CI are independently verified.
-- Android `main`, Render, backend, production Supabase and PR #102 remain untouched. No worker binding screen or signing work is authorized in this step.
+- **Normal two-parent merge commit:** `ac0eb4bcccec6b8880232154a99e7522408f4142`. Parent order is `1945570b16be94df4be92eb684cfbf9001ed7812` (worker first) then `2a4383a7d953f32184dbaa1d07feb133b1a699d6` (target second). No rebase, cherry-pick, force-push or history rewrite.
+- **Tree/parent-diff audit:** merge tree contains 281 files, the union of both parent trees. No file is deleted relative to either parent. Merge vs worker: 17 changed paths (10 target changes, 6 combined files, plus the restored worker-model adapter test). Merge vs target: 13 changed paths (9 worker changes excluding the restored test, plus 5 combined paths; `.gitleaksignore` matches target). The two `VyomFactoryVerifiedProgress` files were byte-identical and kept once.
+- **Original merge-SHA CI attempt:** Full run `42574954240` and Debug run `42574954273` both FAILED at unit-test compilation because the restored legacy test referenced the removed `VyomFactoryIssueEnvelopeWorkerModelAdapter`. The failure was not hidden or treated as PASS.
+- **Fix-up commit:** `601e415152128d0309d862ce4e59418ed2e543fc` ports that test to the current `VyomFactoryStructuredWorkerModelAdapter` STOP boundary and restores the target-branch pull-request filters in both workflows. No production/backend/Android-main change.
+- **Exact code/test SHA verification:** Full CI run `42575444312` — SUCCESS; Debug CI run `42575444275` — SUCCESS. Both have `head_sha=601e415152128d0309d862ce4e59418ed2e543fc` and `head_branch=feature/real-worker-model`.
+- **Build evidence:** Full CI `testDebugUnitTest assembleDebug` — `BUILD SUCCESSFUL`. Debug CI `testDebugUnitTest assembleDebug` — `BUILD SUCCESSFUL`; `assembleRelease` — `BUILD SUCCESSFUL`. No signed release was published; release upload/publish steps were skipped because this was a push, not an explicitly approved workflow dispatch.
+- **Gitleaks, exact fix-up SHA:** `no leaks found`; `FULL_HISTORY_GITLEAKS_FINDINGS=0`; SARIF `results=0`. Redacted report artifact: `13654359970`; SARIF artifact: `13654748831`.
+- **Full CI APK artifact:** `vyom-phase6-601e415152128d0309d862ce4e59418ed2e543fc` (artifact ID `13655392042`). Debug workflow's artifact upload was skipped by its workflow-dispatch-only condition.
+- Total Gradle test count was not emitted in the retrieved logs; it remains **UNVERIFIED**. No total has been inferred.
+- Worker provider UI/model path is code-integrated, but live model calls remain disabled and owner phone acceptance is still pending. No live provider call or device acceptance is claimed.
+- The target's four-lane classification and 33-entry backlog remain authoritative. Four-lane routing/scheduling, four lanes × five independent workers, Factory self-upgrade, cross-platform complaint-to-fix and signed Android update remain **NOT STARTED**.
+- Android `main`, Render, backend, production Supabase and PR #102 remain untouched. Worker binding screen and signing workflow audit remain NOT STARTED; stop here pending the owner's next GO.
 
 ---
 
@@ -85,7 +91,7 @@
 
 | Open work | Lane | Current status / boundary |
 |---|---|---|
-| PR #104 integration into `feature/real-worker-model` (normal merge only) | CUSTOM | Pending. PR #104 itself is merged into the target branch; worker-branch merge remains a separate uncompleted step. |
+| PR #104 integration into `feature/real-worker-model` (normal merge only) | CUSTOM | COMPLETED: two-parent merge `ac0eb4bcccec` plus code/test fix-up `601e41515212`; exact fix-up Full + Debug PASS and full-history Gitleaks findings 0. Phone acceptance remains pending. |
 | Worker binding screen: owner-only repository URL + exact base SHA + locked `README.md` path | CUSTOM | NOT STARTED. Documentation does not authorize implementation yet. |
 | Signing workflow audit and owner-controlled signing proposal | CUSTOM | NOT STARTED. No key creation or signing-secret changes authorized. |
 | Worker phone acceptance and live-provider end-to-end check | CUSTOM | Pending owner action. Live model calls remain disabled; no device acceptance is claimed. |
@@ -140,7 +146,7 @@ All 33 entries below remain **NOT STARTED**. Lane assignment is a planning class
 
 - PR #104 was squash-merged into `feature/factory-item5-task-intelligence` as `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`. PR state is CLOSED and merged=true; target branch HEAD was verified identical to that SHA.
 - This documentation-only commit records the lane architecture and corrects the current PR #104 integration status. Historical entries below are retained as historical records; their old OPEN/DRAFT state descriptions are not current state.
-- The next implementation sequence remains locked: normal merge of the updated target branch into `feature/real-worker-model`; then the owner-only worker binding screen; then the signing workflow audit/proposal. Stop after each step and report. Do not start the next step without the owner's GO where required.
+- The normal merge of the updated target branch into `feature/real-worker-model` is complete and its code/test fix-up has exact-SHA Full + Debug PASS plus zero full-history Gitleaks findings. The next locked step is the owner-only worker binding screen, followed by the signing workflow audit/proposal. Stop after each step and wait for the owner's explicit GO before starting it.
 - Locked untouched: Android `main`, Render, backend, production Supabase and PR #102.
 - No code, workflow, secrets, keys, backend, production data or Android app behavior was changed by this lane-architecture task.
 
