@@ -94,7 +94,7 @@ All 33 entries below remain **NOT STARTED**. Lane assignment is a planning class
 
 ### Item 5 — live planning + legacy approval closure — 2026-11-08
 
-- **Status: LIVE-WIRED.** Code/test HEAD: `sha:fbc2b7a19578` on `fix/item7-progress-gates`. PR #104 remains **OPEN + DRAFT + UNMERGED**; no merge performed.
+- **Status: LIVE-WIRED.** Code/test HEAD: `sha:fbc2b7a19578` on `fix/item7-progress-gates`. PR #104 was later squash-merged into `feature/factory-item5-task-intelligence` as `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`; this historical code/test SHA remains distinct from the merge commit.
 - **Owner-confirmed exact-HEAD CI:** Full run `42483553086`; Debug run `42483553144`. Owner confirmed both green on full HEAD `sha:fbc2b7a19578` (`fbc2b7a19578e4cb1594e64a6ff046fd849408c1`). Owner also confirmed Full-history Gitleaks findings = 0. The GitHub connector still reports these jobs as `in_progress` and job-log download returned `404 BlobNotFound`; therefore literal log lines `no leaks found`, `FULL_HISTORY_GITLEAKS_FINDINGS=0`, and `testDebugUnitTest BUILD SUCCESSFUL` are **NOT INDEPENDENTLY RETRIEVED** in this checkpoint. Do not infer a total test count: **UNVERIFIED**. Both exact run IDs and SHA are recorded from the owner-confirmed Actions page.
 - **Test additions — exact six newly added @Test methods:**
   1. `SelfModificationApprovalGateTest.approvalIsBoundToExactDraftAndCanBeConsumedOnlyOnce`
@@ -110,7 +110,7 @@ All 33 entries below remain **NOT STARTED**. Lane assignment is a planning class
   2. `sha:4f6878bffd98 | docs/HANDOFF_HISTORY.md | line 2529` — FALSE_POSITIVE: ordinary English wording in device-local lease documentation; no credential value.
   3. `sha:4f6878bffd98 | docs/HANDOFF.md | line 988` — FALSE_POSITIVE: documented Git commit identifier, not a credential.
   4. `sha:dfc0bc5285e9 | .gitleaksignore | line 17` — FALSE_POSITIVE: historical ignore-file self-comment; neutral replacement comment avoids the triggering wording. No wildcard or broad suppression was added.
-- **History note:** `sha:044b196a87ad` / `sha:4f6878bffd98` were temporary snapshot churn; net diff from the base is only the test file. Remove that churn through PR #104 **squash merge** after owner approval; no force-push or history rewrite. PR #104 is not merged.
+- **History note:** `sha:044b196a87ad` / `sha:4f6878bffd98` were temporary snapshot churn; the PR #104 squash merge removed that churn without force-push or history rewrite. Merge commit: `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`.
 - **Deferred assertRejected coverage (not claimed newly added or passed by this six-test list):**
   1. `rejectsProtectedPathBeforeMakingAnyGitHubRequest` — `IllegalArgumentException`
   2. `rejectsProposalWithoutExplicitOwnerDiffReviewBeforeAnyGitHubRequest` — `SecurityException`
@@ -118,12 +118,7 @@ All 33 entries below remain **NOT STARTED**. Lane assignment is a planning class
   4. `uncertainPrCreationFailurePreservesBranchForManualRecovery` — `IllegalStateException`
   5. `rejectsBaseBranchMovementAfterUploadBeforeOpeningPullRequest` — `IllegalArgumentException`
   6. `exactCommitCiFailureStopsProposalPipelineAndTimeoutDoesNotStartPolling` — `IllegalStateException`
-- **Squash merge procedure — instructions only; NOT EXECUTED:**
-  1. Open PR #104 and confirm base `feature/factory-item5-task-intelligence`, head `fix/item7-progress-gates`, and expected diff.
-  2. Confirm PR checks are green on the latest head and resolve any review conversations.
-  3. Select **Squash and merge** (do not use merge commit or rebase).
-  4. Review the squash commit message and final file summary; confirm no Android `main`, Render, backend, production Supabase, or PR #102 changes are included.
-  5. Click **Squash and merge** only after explicit owner GO; then verify PR #104 is merged and record the resulting base-branch SHA. Until then PR #104 stays open/draft/unmerged.
+- **Squash merge verification — completed:** PR #104 is CLOSED with `merged=true`; `merged_at=2026-11-08T19:21:18Z`; merge commit `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`. The target branch HEAD was verified identical to that SHA. No rebase, force-push or history rewrite was used.
 - Item 8 remains **NOT STARTED**. Wait for explicit owner GO. Android `main`, Render, backend, production Supabase, and PR #102 remain locked and untouched.
 
 ---
@@ -131,7 +126,7 @@ All 33 entries below remain **NOT STARTED**. Lane assignment is a planning class
 ### Item 5 live-planning integration + legacy self-modification approval gate — 2026-11-08
 
 - **Implementation branch:** `fix/item7-progress-gates`. Current code/test SHA at the time of this entry: `c39fddd3a9eccd33fbda129251c949e5f31b0e4f`. The later `c39fddd` commit is a whitespace-minimized refactor of the token-gated proposal writer; it does not change behavior.
-- **Stacked PR:** [#104](https://github.com/riyas433554-dot/vyom-android/pull/104), head `fix/item7-progress-gates`, base `feature/factory-item5-task-intelligence`, **open + draft + unmerged**. GitHub reports `mergeable=true`; compare is **24 ahead / 0 behind** with merge-base equal to Item 5 base SHA `3aba5079451f3b410016542722644a99979b7d95`. No merge conflict is indicated. Do not mark ready-for-review or merge.
+- **Stacked PR (historical integration record):** [#104](https://github.com/riyas433554-dot/vyom-android/pull/104), head `fix/item7-progress-gates`, base `feature/factory-item5-task-intelligence`. It was subsequently squash-merged as `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`; do not treat the earlier open/draft state as current.
 - **PR #102 untouched:** title remains `[DRAFT] Factory Item 5 — dependency-aware task intelligence`; base remains `feature/memory-intelligence`; head remains `feature/factory-item5-task-intelligence`; open/draft/unmerged.
 - **Live planning wiring implemented, but NOT YET LIVE-WIRED:** `VyomFactoryDialog.runNextTask()` now takes one fresh `planningSnapshot`, calls `VyomFactoryLivePlanningStage(stageDetector::onPlanning)` before `VyomFactoryTaskTriage.evaluate`, and passes the same snapshot to triage. Active device-local leases are read through `WorkerSession → WorkerClaimCoordinator → WorkerLeaseStore` and excluded; the existing hook still filters closed tasks. Unexpected detector exceptions are contained so planning continues. Existing `VyomFactoryPlanningStageHookTest` was not changed.
 - **New live-planning integration tests committed; CI is not complete yet:**
