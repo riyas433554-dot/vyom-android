@@ -59,7 +59,7 @@ class VyomFactoryStructuredWorkerModelTest {
         }
     }
 
-    private fun validJson(path: String = "docs/README.md") = """
+    private fun validJson(path: String = "README.md") = """
         {
           "repository": "$repository",
           "base_sha": "$baseSha",
@@ -78,9 +78,7 @@ class VyomFactoryStructuredWorkerModelTest {
         val root = File.createTempFile("worker-model-registry", ".tmp").apply { delete(); mkdirs() }
         return VyomFactorySystemRegistry(root).also {
             it.register(
-                VyomFactorySystemRegistry.Binding(
-                    "worker", repository, baseSha, listOf("docs"), 1L
-                ),
+                VyomFactoryWorkerBindingPolicy.createBinding(repository, baseSha, 1L),
                 ownerConfirmed = true
             )
         }
@@ -117,13 +115,13 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("worker", candidate.plan.systemId)
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(baseSha, candidate.plan.baseCommitSha)
-        assertEquals("docs/README.md", candidate.plan.changes.single().path)
+        assertEquals("README.md", candidate.plan.changes.single().path)
         assertEquals("feature/memory-intelligence", candidate.plan.baseBranch)
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(1, provider.calls)
         assertEquals(repository, provider.lastRequest!!.repository)
         assertEquals(baseSha, provider.lastRequest!!.baseSha)
-        assertEquals(listOf("docs"), provider.lastRequest!!.allowedPaths)
+        assertEquals(listOf("README.md"), provider.lastRequest!!.allowedPaths)
         assertEquals(4_096, provider.lastMaxInputTokens)
         assertEquals(4_096, provider.lastMaxOutputTokens)
         assertEquals("Document the worker flow", candidate.plan.title)
@@ -149,7 +147,7 @@ class VyomFactoryStructuredWorkerModelTest {
         val request = provider.lastRequest!!
         assertTrue(request.taskDescriptionData.contains(injection))
         assertFalse(request.systemInstructions.contains(injection))
-        assertEquals(listOf("docs"), request.allowedPaths)
+        assertEquals(listOf("README.md"), request.allowedPaths)
         assertFalse(request.systemInstructions.contains("app/secrets"))
         assertEquals("FAILED", journal.entries.single().result)
     }
