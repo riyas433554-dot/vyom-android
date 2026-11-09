@@ -2075,3 +2075,16 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Step 3 signing workflow remains NOT STARTED and requires a separate owner GO.
 
 - Follow-up security review wired exact-path enforcement into `VyomFactoryRepositoryChangePolicy.validateCandidate`: worker system proposals reject `README.md/child`, traversal and every non-`README.md` path. A new integration test exercises the real change-policy boundary; generic registry prefix behavior for other systems is unchanged.
+
+
+### Step 3 — protected fixed-key Android signing — 2026-11-09
+
+- Workflow/signing changes committed separately from the worker test-fixture correction.
+- Fixed signing identity is loaded only from GitHub Environment `vyom-release-signing` using exactly four Environment secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. No secret values are printed or written to tracked files.
+- Release job requires Environment `vyom-release-signing`; owner must configure a required reviewer, disable self-approval, and restrict deployment refs to `feature/real-worker-model` and `vyom-v*` tags. Workflow YAML cannot configure those Environment settings.
+- Debug workflow is unsigned-debug-only, has read-only repository permission, does not reference signing secrets, does not assemble a release APK, and does not publish a release. Full CI remains unsigned with read-only repository permission.
+- Release workflow validates the fixed keystore/alias, builds/tests `assembleRelease`, verifies APK signature, prints the public signing certificate SHA-256 fingerprint only, and derives `versionCode` exclusively from `GITHUB_RUN_NUMBER`.
+- A `vyom-v*` tag publishes the signed APK plus checksum/certificate/build metadata as GitHub Release assets. Manual dispatch from `feature/real-worker-model` uploads the signed APK as an Actions artifact. Both require Environment approval.
+- First installation of the fixed-key APK requires one uninstall of the currently installed APK because the existing install uses a different signing key. After that one-time uninstall, later same-key releases update in place.
+- Exact-HEAD Full + Debug CI and full-history Gitleaks proof remain required after this workflow commit. Owner must configure Environment protection/secrets and compare the printed public certificate fingerprint with the locally held certificate before treating signing as ready.
+- No Android `main`, Render, backend, production Supabase, or PR #102 changes. No force-push.

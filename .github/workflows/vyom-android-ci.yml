@@ -141,6 +141,14 @@ jobs:
               exit 1
             fi
           done <<< "$changed"
+      - name: Set CI version code
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_CODE="$GITHUB_RUN_NUMBER"
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] && (( VERSION_CODE <= 2100000000 )) || { echo "GITHUB_RUN_NUMBER is outside Android versionCode range"; exit 1; }
+          echo "ANDROID_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "ANDROID_VERSION_NAME=0.3.1-ci.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
       - name: Unit tests and debug APK
         run: gradle testDebugUnitTest assembleDebug --no-daemon
       - name: Package versioned APK and checksum

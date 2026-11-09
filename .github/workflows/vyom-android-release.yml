@@ -8,26 +8,31 @@ on:
         required: false
         default: "0.3.1"
         type: string
-      version_code:
-        description: "Android versionCode"
-        required: false
-        default: "2000000"
-        type: string
   push:
     tags:
       - "vyom-v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
+    if: >-
+      startsWith(github.ref, 'refs/tags/vyom-v') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/feature/real-worker-model')
+    environment:
+      name: vyom-release-signing
     permissions:
       contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       HERMES_BASE_URL: ${{ vars.HERMES_BASE_URL }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,38 +45,26 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Validate persistent signing identity
-        id: signing
         shell: bash
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "${ANDROID_KEYSTORE_BASE64:-}" || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
           test -n "${ANDROID_KEYSTORE_PASSWORD:-}" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
-          test -n "${ANDROID_KEY_ALIAS:-}" || { echo "Missing ANDROID_KEY_ALIAS / KEY_ALIAS"; exit 1; }
-          test -n "${ANDROID_KEY_PASSWORD:-}" || { echo "Missing ANDROID_KEY_PASSWORD / KEY_PASSWORD"; exit 1; }
+          test -n "${ANDROID_KEY_ALIAS:-}" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "${ANDROID_KEY_PASSWORD:-}" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
           ENCODED="$(printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | tr '_-' '/+')"
-          if [[ ! "$ENCODED" =~ ^[A-Za-z0-9+/]*={0,2}$ ]]; then
-            echo "Keystore secret is not valid base64; secret value was not logged."
-            exit 1
-          fi
-          ENCODED_LENGTH="$(printf '%s' "$ENCODED" | wc -c | tr -d ' ')"
-          case $((ENCODED_LENGTH % 4)) in
+          [[ "$ENCODED" =~ ^[A-Za-z0-9+/]*={0,2}$ ]] || { echo "Keystore base64 is malformed; secret value was not logged."; exit 1; }
+          LENGTH="$(printf '%s' "$ENCODED" | wc -c | tr -d ' ')"
+          case $((LENGTH % 4)) in
             0) ;;
             2) ENCODED="${ENCODED}==" ;;
             3) ENCODED="${ENCODED}=" ;;
-            1) echo "Keystore base64 length is invalid; secret value was not logged."; exit 1 ;;
+            *) echo "Keystore base64 length is invalid; secret value was not logged."; exit 1 ;;
           esac
           KEYSTORE="$RUNNER_TEMP/vyom-release.jks"
           printf '%s' "$ENCODED" | base64 --decode > "$KEYSTORE"
+          unset ENCODED
           test -s "$KEYSTORE" || { echo "Decoded keystore is empty"; exit 1; }
           keytool -list -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
           if keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" >/dev/null 2>&1; then
@@ -89,25 +82,17 @@ jobs:
             printf 'ANDROID_KEY_ALIAS=%s\n' "$ANDROID_KEY_ALIAS"
             printf 'ANDROID_KEY_PASSWORD=%s\n' "$VERIFIED_KEY_PASSWORD"
           } >> "$GITHUB_ENV"
-          echo "available=true" >> "$GITHUB_OUTPUT"
-          echo "Persistent keystore, alias and key password validated without exposing secret values."
       - name: Set release metadata
         id: meta
         shell: bash
         env:
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
-          INPUT_VERSION_CODE: ${{ inputs.version_code }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_REF" == refs/tags/vyom-v* ]]; then
-            VERSION="${GITHUB_REF_NAME#vyom-v}"
-            VERSION_CODE="$((GITHUB_RUN_ID % 2000000000))"
-          else
-            VERSION="${INPUT_VERSION_NAME:-0.3.1}"
-            VERSION_CODE="${INPUT_VERSION_CODE:-4}"
-          fi
-          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || { echo "Invalid version"; exit 1; }
-          [[ "$VERSION_CODE" =~ ^[0-9]+$ ]] || { echo "Invalid versionCode"; exit 1; }
+          if [[ "$GITHUB_REF" == refs/tags/vyom-v* ]]; then VERSION="${GITHUB_REF_NAME#vyom-v}"; else VERSION="${INPUT_VERSION_NAME:-0.3.1}"; fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || { echo "Invalid version name"; exit 1; }
+          VERSION_CODE="$GITHUB_RUN_NUMBER"
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] && (( VERSION_CODE <= 2100000000 )) || { echo "GITHUB_RUN_NUMBER is outside Android versionCode range"; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "apk=vyom-$VERSION-${GITHUB_SHA::7}.apk" >> "$GITHUB_OUTPUT"
@@ -126,18 +111,16 @@ jobs:
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
           test -n "$APKSIGNER" || { echo "apksigner not found"; exit 1; }
           "$APKSIGNER" verify --verbose --print-certs "$APK" > "$APK.certs.txt" 2>&1
-          EXPECTED_CERT_SHA256="7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a"
-          ACTUAL_CERT_SHA256="$(grep -i 'SHA-256' "$APK.certs.txt" | grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
-          [[ "$ACTUAL_CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Could not read signing certificate fingerprint"; exit 1; }
-          [[ "$ACTUAL_CERT_SHA256" == "$EXPECTED_CERT_SHA256" ]] || { echo "Signing certificate mismatch; APK will not be published."; exit 1; }
+          CERT_SHA256="$(grep -i 'SHA-256' "$APK.certs.txt" | grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          [[ "$CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Could not extract signing certificate SHA-256 fingerprint"; exit 1; }
+          echo "Signing certificate SHA-256: $CERT_SHA256"
           sha256sum "$APK" > "$APK.sha256"
           SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
-          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.meta.outputs.apk }}"
           VERSION="${{ steps.meta.outputs.version }}"
           VERSION_CODE="${{ steps.meta.outputs.version_code }}"
-          COMMIT="$GITHUB_SHA"
-          VERSION_SHA256="$SHA256" APK_URL="$APK_URL" VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" CERT_SHA256="$ACTUAL_CERT_SHA256" COMMIT="$COMMIT" python3 -c 'import json,os; d={"version":os.environ["VERSION"],"versionName":os.environ["VERSION"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["CERT_SHA256"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
-          printf 'versionName=%s\nversionCode=%s\ncommit=%s\nsha256=%s\ncertificateSha256=%s\n' "$VERSION" "$VERSION_CODE" "$GITHUB_SHA" "$SHA256" "$ACTUAL_CERT_SHA256" > output/build-info.txt
+          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.meta.outputs.apk }}"
+          VERSION_SHA256="$SHA256" APK_URL="$APK_URL" VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" CERT_SHA256="$CERT_SHA256" COMMIT="$GITHUB_SHA" python3 -c 'import json,os; d={"version":os.environ["VERSION"],"versionName":os.environ["VERSION"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["CERT_SHA256"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
+          printf 'versionName=%s\nversionCode=%s\ncommit=%s\nsha256=%s\ncertificateSha256=%s\n' "$VERSION" "$VERSION_CODE" "$GITHUB_SHA" "$SHA256" "$CERT_SHA256" > output/build-info.txt
       - name: Upload signed release artifact
         uses: actions/upload-artifact@v4
         with:
@@ -145,7 +128,7 @@ jobs:
           path: output/*
           if-no-files-found: error
           retention-days: 30
-      - name: Publish signed release and update manifest
+      - name: Publish signed GitHub Release asset
         if: startsWith(github.ref, 'refs/tags/vyom-v')
         uses: softprops/action-gh-release@v2
         with:
