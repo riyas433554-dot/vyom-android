@@ -30,7 +30,7 @@ class VyomFactoryRepositoryChangeReviewDialogTest {
         registry.register(
             VyomFactorySystemRegistry.Binding(
                 "worker", "https://github.com/riyas433554-dot/vyom-android", base,
-                listOf("app/src/main/java/com/hermes/assistant"), 1L
+                listOf("README.md"), 1L
             ), true
         )
         val body = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"repository_change","request":"Prepare a proposal","operation":"propose_change","arguments":{"system_id":"worker","title":"Improve safe reply rendering","base_branch":"feature/memory-intelligence","base_commit_sha":"$base","changes":[{"path":"../secrets.txt","content":"no"}]}} -->"""
@@ -50,7 +50,7 @@ class VyomFactoryRepositoryChangeReviewDialogTest {
             ),
             ownerConfirmed = true
         )
-        val body = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"repository_change","request":"Prepare a safe repository proposal","operation":"propose_change","arguments":{"system_id":"worker","title":"Improve safe reply rendering","base_branch":"feature/factory-item5-task-intelligence","base_commit_sha":"$base","summary":"Line one\nLine two\nLine three\nLine four","ownerApproved":true,"changes":[{"path":"app/src/main/java/com/hermes/assistant/SafeReply.kt","content":"class SafeReply"}]}} -->"""
+        val body = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"repository_change","request":"Prepare a safe repository proposal","operation":"propose_change","arguments":{"system_id":"worker","title":"Improve safe reply rendering","base_branch":"feature/factory-item5-task-intelligence","base_commit_sha":"$base","summary":"Line one\nLine two\nLine three\nLine four","ownerApproved":true,"changes":[{"path":"README.md","content":"class SafeReply"}]}} -->"""
 
         val candidate = VyomFactoryRepositoryChangeReviewDialog.parseCandidate(7, body, registry)
 
