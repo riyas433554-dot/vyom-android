@@ -1,3 +1,97 @@
+# FACTORY LANES — architecture record only
+
+- **Factory self-upgrade task #1 — status: NOT STARTED.** This section records the intended lane architecture only. No lane router, scheduler, background runner, or instant-call implementation is included in this documentation commit.
+- Existing complaint intake remains the entry point. Route every accepted complaint into exactly one of four lanes using the complaint's requested timing/behavior; when intent is ambiguous, keep it in CUSTOM pending owner clarification rather than guessing.
+- **Lane priority order:** INSTANT is highest. After that, due/overdue SCHEDULED work is ordered by its approved due time, PERMANENT work by its owner-approved maintenance priority, and CUSTOM work by the owner's explicit priority. The lane label never bypasses safety gates or the task engine's priority/lease rules.
+
+| Lane | Trigger | Priority | Approval rule | Limits | Progress rule |
+|---|---|---|---|---|---|
+| **INSTANT** | Owner's direct Vyom command, or a complaint explicitly requesting immediate action. Complaint intake routes here only when urgency is explicit; it must not infer urgency from wording alone. | **Highest of all lanes.** | Owner's explicit request may start planning. Any repository/device side effect still requires the existing local one-time approval token and the applicable review dialog. | One bounded task/run at a time under existing queue, worker, timeout, retry, path and STOP limits. No unbounded follow-up loop. | 0–100% only from verified implementation, exact-SHA tests/CI, owner-approved criteria and any required named device probe. |
+| **SCHEDULED** | An owner-approved schedule, due time, calendar/event trigger, or recurring reminder/task. | Below INSTANT; ordered by due time and approved task priority. | Owner must approve the schedule and its scope. Each side effect still uses the existing approval-token policy unless a separately approved, bounded authorization policy explicitly permits it. | Must have an explicit cadence, scope, per-run cap, retry cap, expiry/disable path and STOP handling. No schedule may create an unlimited queue. | 0–100% only from verified work for the current scheduled run. A missed/failed run cannot inherit an earlier run's success. |
+| **PERMANENT** | An owner-approved ongoing responsibility: continuous upkeep, monitoring, policy checks, memory maintenance or recurring health/quality work. | Below INSTANT; owner-defined maintenance priority. It must yield to INSTANT work and respect due SCHEDULED work. | Owner approves the standing responsibility, allowed scope and permitted observations/actions. Writes or consequential side effects remain approval-token gated unless separately authorized by an explicit bounded policy. | Every invocation is a separate bounded run with its own journal receipt, budget, retry cap and STOP boundary. No perpetual single execution or unbounded retry. | **Per-run verified result only. The PERMANENT lane itself must never show 100% complete** because the responsibility continues. Each run reports its own verified outcome/progress independently. |
+| **CUSTOM** | An owner-defined one-off project, investigation, feature, migration, research task or explicitly scoped workflow. | Owner-assigned priority; below INSTANT unless the owner explicitly reclassifies the task as INSTANT. | Owner reviews the plan/scope and approves the run; the existing one-time token gates consequential side effects. Scope changes require renewed review. | Explicit deliverables, file/path/repository scope, budget, timeout, retry cap and stop condition. No scope expansion by the model. | 0–100% only when the current task's owner-approved criteria and required implementation/test/postcondition/CI/device evidence are verified. |
+
+### Complaint intake routing
+
+1. Preserve the existing complaint intake and canonical issue record; do not create a second intake pipeline.
+2. Classify timing intent into INSTANT, SCHEDULED, PERMANENT or CUSTOM. A user-requested immediate action is INSTANT; a due-time/recurrence request is SCHEDULED; a standing responsibility is PERMANENT; a bounded project or investigation is CUSTOM.
+3. If a complaint mixes multiple intents, split it into linked child tasks only after owner review; each child receives one lane and its own acceptance criteria.
+4. If the lane, urgency, recurrence, scope or approval boundary is unclear, route to CUSTOM/manual owner review. Never silently promote priority.
+5. Persist the lane as task metadata so queue ordering, journal, lease, STOP, approval and verifier can enforce the same decision consistently.
+
+### Reuse existing engine; add only routing and scheduling
+
+- **Reuse:** existing complaint intake, queue, execution journal, lease/claim fencing, STOP/cancellation, one-time local approval token, worker/executor boundary, and verifier/evidence-backed progress. Do not build a parallel queue, journal, lease system, approval mechanism, worker or verifier for lanes.
+- **New routing work:** lane metadata/schema, complaint-to-lane classifier/router, lane-aware queue ordering and owner-visible lane status. This is **NOT STARTED**.
+- **New scheduler work:** schedule definitions, due-time/event dispatch, bounded recurrence, missed-run handling, disable/cancel and per-run journal linkage. This is **NOT STARTED**.
+- **Explicit missing capabilities:** an app-closed background runner/scheduler is not yet available; a direct instant-call path from Vyom into the INSTANT lane is also not yet available. Existing foreground complaint intake/runner does not prove either capability.
+- Until those missing pieces are implemented and verified, lane labels are planning metadata only. No claim of autonomous app-closed execution, continuous execution or direct instant execution is authorized.
+
+### Current open work — lane classification
+
+| Open work | Lane | Current status / boundary |
+|---|---|---|
+| PR #104 integration into `feature/real-worker-model` (normal merge only) | CUSTOM | Pending. PR #104 itself is merged into the target branch; worker-branch merge remains a separate uncompleted step. |
+| Worker binding screen: owner-only repository URL + exact base SHA + locked `README.md` path | CUSTOM | NOT STARTED. Documentation does not authorize implementation yet. |
+| Signing workflow audit and owner-controlled signing proposal | CUSTOM | NOT STARTED. No key creation or signing-secret changes authorized. |
+| Worker phone acceptance and live-provider end-to-end check | CUSTOM | Pending owner action. Live model calls remain disabled; no device acceptance is claimed. |
+| Factory lane routing + lane-aware queue ordering | CUSTOM | NOT STARTED; documentation only. |
+| App-closed background scheduler/runner | SCHEDULED | NOT STARTED; explicitly missing. |
+| Direct Vyom-to-INSTANT call path | INSTANT | NOT STARTED; explicitly missing. |
+
+### Backlog classification — 33 entries
+
+All 33 entries below remain **NOT STARTED**. Lane assignment is a planning classification, not implementation authorization or a completion claim. **Acceptance criteria: owner se maangne hain** for every entry before implementation. No row is marked DONE.
+
+| # | Existing backlog entry | Lane | Status / acceptance |
+|---:|---|---|---|
+| 1 | Android Control | INSTANT | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 2 | Memory Intelligence | PERMANENT | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 3 | Automation Engine | SCHEDULED | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 4 | UI/Design System | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 5 | Logic & Reasoning | PERMANENT | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 6 | Science & Research | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 7 | Repository Systems | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 8 | Factory Self-Upgrade | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 9 | Voice | INSTANT | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 10 | End-to-end design workflow | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 11 | System-wide evidence-backed completion | PERMANENT | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 12 | Vyom upgrades without repeated APK installation | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 13 | T3-Video adoption evaluation | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 14 | Make-An-Audio-3 adoption evaluation | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 15 | Stable Audio 3 Small SFX adoption evaluation | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 16 | TempoTokens adoption evaluation | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 17 | AnaaySampat/jarvis | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 18 | VarsshanCoder/JARVIS-OS-Agentic-AI-Assistant-for-Android | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 19 | Ayush0Chaudhary/blurr | CUSTOM | NOT STARTED; personal-use-only licence requires owner/legal review; acceptance criteria owner se maangne hain. |
+| 20 | Aryan-0001/Jarvis-AI | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 21 | mem0ai/mem0 | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 22 | open-jarvis/OpenJarvis | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 23 | Letta / Letta Code | CUSTOM | NOT STARTED; canonical source must be re-resolved; acceptance criteria owner se maangne hain. |
+| 24 | isair/jarvis | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+| 25 | The-Art-of-Hacking/h4cker | CUSTOM | NOT STARTED; reference-only security material; acceptance criteria owner se maangne hain. |
+| 26 | paulveillard/cybersecurity-ethical-hacking | CUSTOM | NOT STARTED; reference-only security material; acceptance criteria owner se maangne hain. |
+| 27 | swisskyrepo/PayloadsAllTheThings | CUSTOM | NOT STARTED; reference-only security material; acceptance criteria owner se maangne hain. |
+| 28 | danielmiessler/SecLists | CUSTOM | NOT STARTED; reference-only test-data catalogue; acceptance criteria owner se maangne hain. |
+| 29 | usestrix/strix | CUSTOM | NOT STARTED; read-only security research, no automatic execution; acceptance criteria owner se maangne hain. |
+| 30 | KeygraphHQ/shannon | CUSTOM | NOT STARTED; AGPL-3.0 and exploit-execution model require legal/security review; acceptance criteria owner se maangne hain. |
+| 31 | GreyDGL/PentestGPT | CUSTOM | NOT STARTED; reference-only security research; acceptance criteria owner se maangne hain. |
+| 32 | arthi-rajendran24/building-jarvis-4.0 | CUSTOM | NOT STARTED; no code reuse before licence review; acceptance criteria owner se maangne hain. |
+| 33 | ethanplusai/jarvis | CUSTOM | NOT STARTED; acceptance criteria owner se maangne hain. |
+
+- Repository/model candidates are evaluation-only. Discovery is not adoption: each still requires canonical source resolution, immutable commit pin, licence/dependency/security review, owner approval, isolated adapter design, tests and phone proof. Security-oriented candidates remain reference-only unless separately approved. deepseek-harness remains excluded; no DeepSeek integration is authorized.
+- This table does not change any existing issue status, priority, owner approval, or acceptance criteria. It does not mark any backlog entry complete.
+
+### Current integration checkpoint
+
+- PR #104 was squash-merged into `feature/factory-item5-task-intelligence` as `330f69977ad4bddd195e6ce05f4298d6dcda6ef8`. PR state is CLOSED and merged=true; target branch HEAD was verified identical to that SHA.
+- This documentation-only commit records the lane architecture and corrects the current PR #104 integration status. Historical entries below are retained as historical records; their old OPEN/DRAFT state descriptions are not current state.
+- The next implementation sequence remains locked: normal merge of the updated target branch into `feature/real-worker-model`; then the owner-only worker binding screen; then the signing workflow audit/proposal. Stop after each step and report. Do not start the next step without the owner's GO where required.
+- Locked untouched: Android `main`, Render, backend, production Supabase and PR #102.
+- No code, workflow, secrets, keys, backend, production data or Android app behavior was changed by this lane-architecture task.
+
+---
+
 ### Item 5 — live planning + legacy approval closure — 2026-11-08
 
 - **Status: LIVE-WIRED.** Code/test HEAD: `sha:fbc2b7a19578` on `fix/item7-progress-gates`. PR #104 remains **OPEN + DRAFT + UNMERGED**; no merge performed.
