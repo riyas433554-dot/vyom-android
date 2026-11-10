@@ -31,7 +31,6 @@ class VyomFactoryStructuredWorkerModelTest {
         }
         override fun callsSince(epochMillis: Long): Int = entries.count { it.timestampMillis >= epochMillis && it.providerCallStarted }
         override fun callsForTask(taskNumber: Int): Int = entries.count { it.taskNumber == taskNumber && it.providerCallStarted }
-        override fun hasSuccessfulCall(taskNumber: Int): Boolean = entries.any { it.taskNumber == taskNumber && it.providerCallStarted && it.result == "SUCCESS" }
         override fun tokensForTask(taskNumber: Int): Long = entries.filter { it.taskNumber == taskNumber && it.providerCallStarted }.sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
     }
 
