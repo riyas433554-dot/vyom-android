@@ -95,19 +95,15 @@ internal class NvidiaNemotronWorkerModelProvider(
     override fun generate(
         request: VyomFactoryWorkerModelProvider.Request,
         apiKey: CharArray,
-        maxInputTokens: Int,
-        maxOutputTokens: Int
     ): VyomFactoryWorkerModelProvider.Response {
         require(apiKey.isNotEmpty()) { "NVIDIA worker credential is missing" }
         val userPrompt = WorkerPrompt.build(request)
-        WorkerPrompt.requireInputBudget(request.systemInstructions, userPrompt, maxInputTokens)
         val payload = JSONObject()
             .put("model", modelId)
             .put("messages", JSONArray()
                 .put(JSONObject().put("role", "system").put("content", request.systemInstructions))
                 .put(JSONObject().put("role", "user").put("content", userPrompt)))
             .put("temperature", 0.1)
-            .put("max_tokens", maxOutputTokens)
             .put("stream", false)
         val result = transport.post(
             ENDPOINT,
@@ -159,12 +155,9 @@ internal class GoogleGemmaWorkerModelProvider(
     override fun generate(
         request: VyomFactoryWorkerModelProvider.Request,
         apiKey: CharArray,
-        maxInputTokens: Int,
-        maxOutputTokens: Int
     ): VyomFactoryWorkerModelProvider.Response {
         require(apiKey.isNotEmpty()) { "Google worker credential is missing" }
         val userPrompt = WorkerPrompt.build(request)
-        WorkerPrompt.requireInputBudget(request.systemInstructions, userPrompt, maxInputTokens)
         val payload = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray()
                 .put(JSONObject().put("text", request.systemInstructions))))
@@ -173,7 +166,6 @@ internal class GoogleGemmaWorkerModelProvider(
                 .put("parts", JSONArray().put(JSONObject().put("text", userPrompt)))))
             .put("generationConfig", JSONObject()
                 .put("temperature", 0.1)
-                .put("maxOutputTokens", maxOutputTokens)
                 .put("responseMimeType", "application/json"))
         val result = transport.post(
             "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent",
@@ -232,11 +224,4 @@ private object WorkerPrompt {
         }
     }
 
-    fun requireInputBudget(systemInstructions: String, userPrompt: String, maxInputTokens: Int) {
-        require(maxInputTokens > 0)
-        val estimatedTokens = (systemInstructions.length + userPrompt.length + 3) / 4
-        require(estimatedTokens <= maxInputTokens) {
-            "Worker prompt exceeds the configured input-token budget"
-        }
-    }
 }

@@ -34,9 +34,7 @@ internal interface VyomFactoryWorkerModelProvider {
     /** API credentials are passed out-of-band and must never be copied into Request. */
     fun generate(
         request: Request,
-        apiKey: CharArray,
-        maxInputTokens: Int,
-        maxOutputTokens: Int
+        apiKey: CharArray
     ): Response
 
     /** Abort the active HTTP exchange when STOP or the worker deadline fires. */
@@ -168,15 +166,11 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
 }
 
 internal data class VyomFactoryWorkerModelLimits(
-    val maxInputTokensPerCall: Int = 4_096,
-    val maxOutputTokens: Int = 4_096,
     val maxFiles: Int = VyomFactoryRepositoryChangePolicy.MAX_FILES,
     val timeoutMillis: Long = 60_000,
     val maxRetries: Int = 1
 ) {
     init {
-        require(maxInputTokensPerCall in 128..32_768)
-        require(maxOutputTokens in 128..32_768)
         require(maxFiles in 1..VyomFactoryRepositoryChangePolicy.MAX_FILES)
         require(timeoutMillis >= 1L && timeoutMillis <= 180_000L)
         require(maxRetries in 0..2)
@@ -210,7 +204,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             throw SecurityException("Worker repository binding has no allowed paths")
         }
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        val taskData = "TITLE (UNTRUSTED DATA):\n${task.title.take(200)}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description.take(MAX_TASK_DESCRIPTION_CHARS)}"
+        val taskData = "TITLE (UNTRUSTED DATA):\n${task.title.take(200)}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
         if (MemoryCapturePolicy.isSensitive(task.title) || MemoryCapturePolicy.isSensitive(description)) {
             record(task.number, 0, 0, "BLOCKED")
             throw SecurityException("Sensitive issue text cannot be sent to the worker model")
@@ -234,8 +228,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 record(task.number, 0, 0, "STOPPED")
                 throw VyomFactoryExecutionStoppedException()
             }
-            val maxInputTokensForCall = limits.maxInputTokensPerCall
-            val maxOutputTokensForCall = limits.maxOutputTokens
             val apiKey = try {
                 keyStore.readKey()?.takeIf { it.isNotEmpty() }
             } catch (_: Exception) {
@@ -263,7 +255,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     if (!preCallAuthorization()) throw SecurityException("Worker live-call authorization is OFF or stale")
                     record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
                     providerCallStarted = true
-                    provider.generate(request, apiKey, maxInputTokensForCall, maxOutputTokensForCall)
+                    provider.generate(request, apiKey)
                 }
                 val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(limits.timeoutMillis)
                 val response = try {
@@ -300,8 +292,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 inputTokens = response.inputTokens
                 outputTokens = response.outputTokens
                 require(inputTokens >= 0 && outputTokens >= 0) { "Worker provider returned invalid token usage" }
-                require(inputTokens <= maxInputTokensForCall) { "Worker provider exceeded the input token budget" }
-                require(outputTokens <= maxOutputTokensForCall) { "Worker provider exceeded the output token budget" }
                 if (control.shouldStop()) {
                     record(task.number, inputTokens, outputTokens, "STOPPED", providerCallStarted = true, callId = callId)
                     throw VyomFactoryExecutionStoppedException()
@@ -421,7 +411,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     companion object {
         const val WORKER_SYSTEM_ID = "worker"
         private const val MILLIS_PER_DAY = 86_400_000L
-        private const val MAX_TASK_DESCRIPTION_CHARS = 12_000
         private const val MAX_MODEL_OUTPUT_CHARS = 600_000
         private const val MIN_INPUT_TOKEN_BUDGET = 128L
         private const val SYSTEM_INSTRUCTIONS = """
