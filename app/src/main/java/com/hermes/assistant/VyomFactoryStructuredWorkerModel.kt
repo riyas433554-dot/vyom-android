@@ -173,19 +173,17 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
 }
 
 internal data class VyomFactoryWorkerModelLimits(
-    val maxTokensPerTask: Int = 8_192,
+    val maxInputTokensPerCall: Int = 4_096,
     val maxOutputTokens: Int = 4_096,
     val maxFiles: Int = VyomFactoryRepositoryChangePolicy.MAX_FILES,
     val timeoutMillis: Long = 60_000,
-    val dailyCallCap: Int = 20,
     val maxRetries: Int = 1
 ) {
     init {
-        require(maxTokensPerTask in 256..32_768)
-        require(maxOutputTokens in 128..maxTokensPerTask)
+        require(maxInputTokensPerCall in 128..32_768)
+        require(maxOutputTokens in 128..32_768)
         require(maxFiles in 1..VyomFactoryRepositoryChangePolicy.MAX_FILES)
         require(timeoutMillis >= 1L && timeoutMillis <= 180_000L)
-        require(dailyCallCap in 1..500)
         require(maxRetries in 0..2)
     }
 }
@@ -231,18 +229,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             systemInstructions = SYSTEM_INSTRUCTIONS,
             taskDescriptionData = taskData
         )
-        val dayStart = nowMillis().coerceAtLeast(0L) / MILLIS_PER_DAY * MILLIS_PER_DAY
-        if (journal.callsSince(dayStart) >= limits.dailyCallCap) {
-            record(task.number, 0, 0, "BLOCKED")
-            throw IllegalStateException("Worker daily model-call cap reached")
-        }
         if (journal.hasSuccessfulCall(task.number)) {
             record(task.number, 0, 0, "BLOCKED")
             throw IllegalStateException("Worker task already has a successful model plan")
-        }
-        if (journal.callsForTask(task.number) > limits.maxRetries) {
-            record(task.number, 0, 0, "BLOCKED")
-            throw IllegalStateException("Worker task retry limit reached")
         }
         if (control.shouldStop()) {
             record(task.number, 0, 0, "STOPPED")
@@ -250,10 +239,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         }
         var lastFailure: Exception? = null
         repeat(limits.maxRetries + 1) { attempt ->
-            if (journal.callsSince(dayStart) >= limits.dailyCallCap) {
-                record(task.number, 0, 0, "BLOCKED")
-                throw IllegalStateException("Worker daily model-call cap reached")
-            }
             if (control.shouldStop()) {
                 record(task.number, 0, 0, "STOPPED")
                 throw VyomFactoryExecutionStoppedException()
@@ -262,20 +247,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 record(task.number, 0, 0, "BLOCKED")
                 throw IllegalStateException("Worker task already has a successful model plan")
             }
-            if (journal.callsForTask(task.number) > limits.maxRetries) {
-                record(task.number, 0, 0, "BLOCKED")
-                throw IllegalStateException("Worker task retry limit reached")
-            }
-            val remainingTokenBudget = limits.maxTokensPerTask.toLong() - journal.tokensForTask(task.number)
-            if (remainingTokenBudget < MIN_INPUT_TOKEN_BUDGET + 1L) {
-                record(task.number, 0, 0, "BLOCKED")
-                throw IllegalStateException("Worker task token budget exhausted")
-            }
-            val maxOutputTokensForCall = minOf(
-                limits.maxOutputTokens.toLong(),
-                remainingTokenBudget - MIN_INPUT_TOKEN_BUDGET
-            ).toInt()
-            val maxInputTokensForCall = (remainingTokenBudget - maxOutputTokensForCall).toInt()
+            val maxInputTokensForCall = limits.maxInputTokensPerCall
+            val maxOutputTokensForCall = limits.maxOutputTokens
             val apiKey = try {
                 keyStore.readKey()?.takeIf { it.isNotEmpty() }
             } catch (_: Exception) {
@@ -342,10 +315,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 require(inputTokens >= 0 && outputTokens >= 0) { "Worker provider returned invalid token usage" }
                 require(inputTokens <= maxInputTokensForCall) { "Worker provider exceeded the input token budget" }
                 require(outputTokens <= maxOutputTokensForCall) { "Worker provider exceeded the output token budget" }
-                val total = inputTokens.toLong() + outputTokens.toLong()
-                if (journal.tokensForTask(task.number) + total > limits.maxTokensPerTask) {
-                    throw IllegalArgumentException("Worker task token budget exceeded")
-                }
                 if (control.shouldStop()) {
                     record(task.number, inputTokens, outputTokens, "STOPPED", providerCallStarted = true, callId = callId)
                     throw VyomFactoryExecutionStoppedException()
