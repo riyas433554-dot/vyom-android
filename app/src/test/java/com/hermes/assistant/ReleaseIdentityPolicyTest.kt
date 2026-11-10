@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReleaseIdentityPolicyTest {
-    private val required = "f09e7db38a8eb4d95f036d495018912a62834bfbe9a3842ba2dfb58b8da2d762"
+    private val required = BuildConfig.REQUIRED_RELEASE_CERT_SHA256
 
     @Test fun acceptsOnlyTheNewFixedReleaseFingerprint() {
         assertTrue(ReleaseIdentityPolicy.matchesAny(setOf(required), required))
