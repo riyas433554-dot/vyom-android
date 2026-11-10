@@ -152,7 +152,8 @@ class VyomFactoryWorkerSessionTest {
 
         assertEquals(worker.workerId, claim.lease.workerId)
         assertEquals(worker.workerId, entry.workerId)
-        assertEquals(worker.lane, worker.lane)
+        assertEquals(worker.lane, claim.lease.lane)
+        assertEquals(worker.slotIndex, claim.lease.workerSlot)
     }
 
     private fun remote(

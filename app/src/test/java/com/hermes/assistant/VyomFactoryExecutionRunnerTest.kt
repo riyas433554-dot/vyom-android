@@ -490,7 +490,7 @@ class VyomFactoryExecutionRunnerTest {
         var claimRequests = 0
         private val prefs = MemoryPrefs()
         private val leaseStore = VyomFactoryWorkerLeaseStore(prefs)
-        private var lease = leaseStore.claim(71, "runner-test", 1_000, 100_000)!!
+        private var lease = leaseStore.claim(71, VyomFactoryWorkerIdentity("runner-test-worker", VyomFactoryLaneRouter.Lane.INSTANT, 0), 1_000, 100_000)!!
         private var preserveReleasedLeaseForNextClaim = false
         private val task = VyomFactoryTaskStore.QueuedTask(71, "Test execution", "P2", "src-71", 900)
         private val metadata = VyomFactoryStatus.Metadata(
@@ -556,7 +556,7 @@ class VyomFactoryExecutionRunnerTest {
                 claimNext = {
                     claimRequests++
                     val current = if (preserveReleasedLeaseForNextClaim) lease else
-                        leaseStore.claim(71, "runner-test", clock, 100_000)!!
+                        leaseStore.claim(71, VyomFactoryWorkerIdentity("runner-test-worker", VyomFactoryLaneRouter.Lane.INSTANT, 0), clock, 100_000)!!
                     lease = current
                     VyomFactoryWorkerClaimCoordinator.Claim(task, remote, current)
                 },

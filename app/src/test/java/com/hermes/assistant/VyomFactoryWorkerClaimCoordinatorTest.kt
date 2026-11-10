@@ -77,8 +77,8 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         val leases = VyomFactoryWorkerLeaseStore(MemoryPrefs())
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
 
-        val first = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), "worker-a", 1_000, 10_000)
-        val second = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), "worker-b", 1_001, 10_000)
+        val first = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), identity("worker-a"), 1_000, 10_000)
+        val second = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), identity("worker-b"), 1_001, 10_000)
 
         assertNotNull(first)
         assertNull(second)
@@ -91,8 +91,8 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs()))
         val remote = listOf(remote(13, "P2", "source-13"))
 
-        val first = coordinator.claimNext(remote, "worker-a", 1_000, 5_000)!!
-        val repeated = coordinator.claimNext(remote, "worker-a", 2_000, 5_000)!!
+        val first = coordinator.claimNext(remote, identity("worker-a"), 1_000, 5_000)!!
+        val repeated = coordinator.claimNext(remote, identity("worker-a"), 2_000, 5_000)!!
 
         assertEquals(first.lease, repeated.lease)
         assertFalse(coordinator.isCurrent(first, 6_000))
@@ -103,15 +103,19 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         queue.enqueue(task(14, "P1", "source-14"))
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs()))
         val remote = listOf(remote(14, "P1", "source-14"))
-        val first = coordinator.claimNext(remote, "worker-a", 1_000, 5_000)!!
+        val first = coordinator.claimNext(remote, identity("worker-a"), 1_000, 5_000)!!
 
         assertFalse(coordinator.release(first.copy(lease = first.lease.copy(workerId = "worker-b"))))
         assertTrue(coordinator.release(first))
         assertFalse(coordinator.isCurrent(first, 1_001))
-        val next = coordinator.claimNext(remote, "worker-b", 1_002, 5_000)
+        val next = coordinator.claimNext(remote, identity("worker-b"), 1_002, 5_000)
         assertNotNull(next)
         assertEquals(14, next!!.task.issueNumber)
     }
+
+    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
+        workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
+    )
 
     private fun task(issue: Int, priority: String, sourceId: String) =
         VyomFactoryTaskStore.QueuedTask(issue, "Task $issue", priority, sourceId, 100)

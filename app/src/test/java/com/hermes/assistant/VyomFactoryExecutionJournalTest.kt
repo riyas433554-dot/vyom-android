@@ -8,7 +8,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun beginRequiresTheCurrentUnexpiredLeaseAndPersistsAttemptIdentity() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(41, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(41, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
 
         val entry = journal.begin(lease, "attempt-1", 1_100, "factory.sync")
@@ -18,6 +18,8 @@ class VyomFactoryExecutionJournalTest {
         assertEquals("factory.sync", entry.operationKey)
         assertEquals(lease.leaseId, entry.leaseId)
         assertEquals(lease.workerId, entry.workerId)
+        assertEquals(lease.lane, entry.lane)
+        assertEquals(lease.workerSlot, entry.workerSlot)
         assertEquals(VyomFactoryExecutionJournal.State.CLAIMED, entry.state)
         assertEquals(entry, VyomFactoryExecutionJournal(prefs, leases).get("attempt-1"))
     }
@@ -34,12 +36,14 @@ class VyomFactoryExecutionJournalTest {
 
         assertNotNull(entry)
         assertEquals("worker-legacy", entry!!.workerId)
+        assertNull(entry.lane)
+        assertNull(entry.workerSlot)
     }
 
     @Test fun beginRejectsSecondNonterminalAttemptForSameIssueAndLease() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(48, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(48, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-active-1", 1_100)
 
@@ -52,7 +56,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun newAttemptIsAllowedAfterPreviousAttemptIsTerminal() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(49, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(49, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-terminal-1", 1_100)
         journal.markRunning(lease, "attempt-terminal-1", 1_150)
@@ -67,7 +71,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun onlyCurrentLeaseCanWriteRunningAndTerminalResults() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(42, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(42, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-2", 1_100)
 
@@ -81,11 +85,11 @@ class VyomFactoryExecutionJournalTest {
     @Test fun expiredLeaseCannotWriteAResultAfterSuccessorClaimsTheIssue() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val oldLease = leases.claim(43, "worker-a", 1_000, 5_000)!!
+        val oldLease = leases.claim(43, identity("worker-a"), 1_000, 5_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(oldLease, "attempt-old", 1_100)
         journal.markRunning(oldLease, "attempt-old", 1_200)
-        val successor = leases.claim(43, "worker-b", 6_000, 5_000)!!
+        val successor = leases.claim(43, identity("worker-b"), 6_000, 5_000)!!
         journal.begin(successor, "attempt-new", 6_100)
 
         assertFalse(journal.succeed(oldLease, "attempt-old", 6_200, "stale result"))
@@ -96,7 +100,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun terminalAttemptRejectsDuplicateOrConflictingWrites() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(44, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(44, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-3", 1_100)
         assertTrue(journal.markRunning(lease, "attempt-3", 1_150))
@@ -110,7 +114,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun stopRequestIsDurableAndDoesNotPretendTheWorkHasStopped() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(45, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(45, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-4", 1_100)
         journal.markRunning(lease, "attempt-4", 1_200)
@@ -124,13 +128,13 @@ class VyomFactoryExecutionJournalTest {
     @Test fun stopRequestRequiresExactCurrentLeaseAndRunningAttempt() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val oldLease = leases.claim(50, "worker-a", 1_000, 5_000)!!
+        val oldLease = leases.claim(50, identity("worker-a"), 1_000, 5_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(oldLease, "attempt-stop-fenced", 1_100)
 
         assertFalse(journal.requestStop(oldLease, "attempt-stop-fenced", 1_200))
         assertTrue(journal.markRunning(oldLease, "attempt-stop-fenced", 1_300))
-        val successor = leases.claim(50, "worker-b", 6_000, 5_000)!!
+        val successor = leases.claim(50, identity("worker-b"), 6_000, 5_000)!!
 
         assertFalse(journal.requestStop(oldLease, "attempt-stop-fenced", 6_100))
         assertEquals(VyomFactoryExecutionJournal.State.RUNNING, journal.get("attempt-stop-fenced")!!.state)
@@ -141,7 +145,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun expiredNonterminalAttemptsBecomeInterruptedButAreNeverAutoReplayed() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(46, "worker-a", 1_000, 5_000)!!
+        val lease = leases.claim(46, identity("worker-a"), 1_000, 5_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-5", 1_100)
         journal.markRunning(lease, "attempt-5", 1_200)
@@ -158,7 +162,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun reopenedJournalRecoversExpiredStopRequestedAttemptWithoutReplay() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(52, "worker-a", 1_000, 5_000)!!
+        val lease = leases.claim(52, identity("worker-a"), 1_000, 5_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-after-process-restart", 1_100, "factory.sync")
         assertTrue(journal.markRunning(lease, "attempt-after-process-restart", 1_200))
@@ -177,8 +181,8 @@ class VyomFactoryExecutionJournalTest {
     @Test fun recoveryInterruptsOnlyExpiredAttemptsAndPreservesLiveAndTerminalHistory() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val expired = leases.claim(54, "worker-a", 1_000, 5_000)!!
-        val live = leases.claim(55, "worker-b", 1_000, 20_000)!!
+        val expired = leases.claim(54, identity("worker-a"), 1_000, 5_000)!!
+        val live = leases.claim(55, identity("worker-b"), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(expired, "expired-running", 1_100, "factory.expired")
         assertTrue(journal.markRunning(expired, "expired-running", 1_200))
@@ -194,7 +198,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun failedRecoveryCommitLeavesExpiredAttemptUntouchedAndReadable() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(56, "worker-a", 1_000, 5_000)!!
+        val lease = leases.claim(56, identity("worker-a"), 1_000, 5_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "attempt-recovery-commit", 1_100)
         assertTrue(journal.markRunning(lease, "attempt-recovery-commit", 1_200))
@@ -216,7 +220,7 @@ class VyomFactoryExecutionJournalTest {
     @Test fun corruptPersistenceAndFailedCommitFailClosed() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(47, "worker-a", 1_000, 10_000)!!
+        val lease = leases.claim(47, identity("worker-a"), 1_000, 10_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         prefs.failCommit = true
         assertThrows(IllegalStateException::class.java) { journal.begin(lease, "attempt-6", 1_100) }
@@ -229,8 +233,8 @@ class VyomFactoryExecutionJournalTest {
     @Test fun startupRecoveryInterruptsExpiredAttemptsWithoutReplayingOrTouchingLiveLeases() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val expired = leases.claim(57, "worker-expired", 1_000, 5_000)!!
-        val live = leases.claim(58, "worker-live", 1_000, 20_000)!!
+        val expired = leases.claim(57, identity("worker-expired"), 1_000, 5_000)!!
+        val live = leases.claim(58, identity("worker-live"), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(expired, "startup-expired", 1_100, "factory.startup")
         assertTrue(journal.markRunning(expired, "startup-expired", 1_200))
@@ -247,6 +251,10 @@ class VyomFactoryExecutionJournalTest {
             reopenedAfterProcessRestart.get("startup-live")!!.state)
         assertTrue(reopenedAfterProcessRestart.replayable().isEmpty())
     }
+
+    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
+        workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
+    )
 
     private class MemoryPrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()

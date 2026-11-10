@@ -7,16 +7,16 @@ import org.junit.Test
 class VyomFactoryWorkerLeaseStoreTest {
     @Test fun onlyOneOwnerCanHoldAnUnexpiredIssueLease() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
-        val first = store.claim(12, "worker-a", 1_000, 10_000)!!
-        assertNull(store.claim(12, "worker-b", 2_000, 10_000))
-        assertEquals(first, store.claim(12, "worker-a", 2_000, 10_000))
+        val first = store.claim(12, identity("worker-a"), 1_000, 10_000)!!
+        assertNull(store.claim(12, identity("worker-b"), 2_000, 10_000))
+        assertEquals(first, store.claim(12, identity("worker-a"), 2_000, 10_000))
         assertEquals(first, store.active(12, 2_000))
     }
 
     @Test fun expiredLeaseCanBeClaimedByANewOwnerAndOldTokenCannotReleaseIt() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
-        val first = store.claim(12, "worker-a", 1_000, 5_000)!!
-        val second = store.claim(12, "worker-b", 6_000, 5_000)!!
+        val first = store.claim(12, identity("worker-a"), 1_000, 5_000)!!
+        val second = store.claim(12, identity("worker-b"), 6_000, 5_000)!!
         assertNotEquals(first.leaseId, second.leaseId)
         assertFalse(store.release(first))
         assertEquals(second, store.active(12, 6_000))
@@ -25,7 +25,7 @@ class VyomFactoryWorkerLeaseStoreTest {
     @Test fun renewRequiresExactUnexpiredLeaseAndPersistsAcrossRecreation() {
         val prefs = MemoryPrefs()
         val store = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = store.claim(9, "worker-a", 10_000, 5_000)!!
+        val lease = store.claim(9, identity("worker-a"), 10_000, 5_000)!!
         val renewed = store.renew(lease, 12_000, 20_000)!!
         assertEquals(32_000L, renewed.expiresAt)
         assertNull(store.renew(lease.copy(leaseId = "stale"), 13_000, 5_000))
@@ -36,7 +36,7 @@ class VyomFactoryWorkerLeaseStoreTest {
     @Test fun releaseIsTokenFencedAndDurable() {
         val prefs = MemoryPrefs()
         val store = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = store.claim(7, "worker-a", 100, 5_000)!!
+        val lease = store.claim(7, identity("worker-a"), 100, 5_000)!!
         assertFalse(store.release(lease.copy(workerId = "worker-b")))
         assertTrue(store.release(lease))
         assertNull(VyomFactoryWorkerLeaseStore(prefs).active(7, 101))
@@ -44,16 +44,16 @@ class VyomFactoryWorkerLeaseStoreTest {
 
     @Test fun oneWorkerIdentityCannotHoldTwoConcurrentTaskLeases() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
-        val first = store.claim(101, "worker-a", 1_000, 10_000)!!
+        val first = store.claim(101, identity("worker-a"), 1_000, 10_000)!!
 
-        assertNull(store.claim(102, "worker-a", 1_001, 10_000))
-        assertEquals(first, store.claim(101, "worker-a", 1_002, 10_000))
+        assertNull(store.claim(102, identity("worker-a"), 1_001, 10_000))
+        assertEquals(first, store.claim(101, identity("worker-a"), 1_002, 10_000))
     }
 
     @Test fun distinctWorkerIdentitiesCanHoldDistinctTaskLeasesConcurrently() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
-        val first = store.claim(103, "worker-a", 1_000, 10_000)!!
-        val second = store.claim(104, "worker-b", 1_000, 10_000)!!
+        val first = store.claim(103, identity("worker-a"), 1_000, 10_000)!!
+        val second = store.claim(104, identity("worker-b"), 1_000, 10_000)!!
 
         assertNotEquals(first.workerId, second.workerId)
         assertNotEquals(first.leaseId, second.leaseId)
@@ -75,17 +75,21 @@ class VyomFactoryWorkerLeaseStoreTest {
     @Test fun invalidLeaseBoundsAndCorruptPersistenceFailClosed() {
         val prefs = MemoryPrefs()
         val store = VyomFactoryWorkerLeaseStore(prefs)
-        assertThrows(IllegalArgumentException::class.java) { store.claim(1, "w", 0, 1) }
+        assertThrows(IllegalArgumentException::class.java) { store.claim(1, identity("worker-invalid"), 0, 1) }
         prefs.edit().putString("leases_v1", "{broken").commit()
-        assertThrows(IllegalStateException::class.java) { store.claim(2, "w", 1, 5_000) }
+        assertThrows(IllegalStateException::class.java) { store.claim(2, identity("worker-invalid"), 1, 5_000) }
         assertEquals("{broken", prefs.getString("leases_v1", null))
     }
 
     @Test fun failedCommitDoesNotReportLeaseClaimAsSuccessful() {
         val prefs = MemoryPrefs().apply { failCommit = true }
         val store = VyomFactoryWorkerLeaseStore(prefs)
-        assertThrows(IllegalStateException::class.java) { store.claim(3, "w", 1, 5_000) }
+        assertThrows(IllegalStateException::class.java) { store.claim(3, identity("worker-failed-commit"), 1, 5_000) }
     }
+
+    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
+        workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
+    )
 
     private class MemoryPrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()
