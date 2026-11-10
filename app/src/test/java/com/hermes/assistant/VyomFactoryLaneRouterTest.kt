@@ -26,7 +26,7 @@ class VyomFactoryLaneRouterTest {
         val result = route(VyomFactoryLaneRouter.Origin.COMPLAINT, "The settings page is broken")
 
         assertEquals(VyomFactoryLaneRouter.Lane.CUSTOM, result.lane)
-        assertEquals("default_one_off_request", result.reason)
+        assertEquals("custom_scope_requires_owner_approval", result.reason)
     }
 
     @Test fun approvedScheduledRequestRoutesToScheduled() {
@@ -110,17 +110,40 @@ class VyomFactoryLaneRouterTest {
         assertEquals(VyomFactoryLaneRouter.Lane.PERMANENT, permanent.lane)
     }
 
+    @Test fun approvedCustomScopeMayStartPlanningButStillCannotBypassSideEffectApproval() {
+        val result = route(
+            VyomFactoryLaneRouter.Origin.COMPLAINT,
+            "Investigate this one-off issue",
+            customScopeApproved = true
+        )
+
+        assertEquals(VyomFactoryLaneRouter.Lane.CUSTOM, result.lane)
+        assertTrue(result.mayStartPlanning)
+        assertTrue(result.sideEffectsRequireExistingApproval)
+    }
+
+    @Test fun negatedUrgencyDoesNotCreateInstantLane() {
+        val result = route(
+            VyomFactoryLaneRouter.Origin.COMPLAINT,
+            "This is not urgent; fix it in the normal queue"
+        )
+
+        assertEquals(VyomFactoryLaneRouter.Lane.CUSTOM, result.lane)
+    }
+
     private fun route(
         origin: VyomFactoryLaneRouter.Origin,
         text: String,
         scheduleApproved: Boolean = false,
-        permanentDutyApproved: Boolean = false
+        permanentDutyApproved: Boolean = false,
+        customScopeApproved: Boolean = false
     ) = VyomFactoryLaneRouter.route(
         VyomFactoryLaneRouter.Request(
             origin = origin,
             text = text,
             scheduleApproved = scheduleApproved,
-            permanentDutyApproved = permanentDutyApproved
+            permanentDutyApproved = permanentDutyApproved,
+            customScopeApproved = customScopeApproved
         )
     )
 }
