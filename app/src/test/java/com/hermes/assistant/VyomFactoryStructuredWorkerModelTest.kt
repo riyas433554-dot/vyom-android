@@ -239,6 +239,24 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals(25, journal.entries.count { it.result == "SUCCESS" })
     }
 
+    @Test fun theSameTaskCanReceiveMultipleSuccessfulProviderProposals() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(validJson(), 10, 10)
+        }
+        val journal = MemoryJournal()
+        val worker = adapter(provider, journal)
+        val control = object : VyomFactoryExecutionControl {
+            override fun shouldStop() = false
+        }
+
+        repeat(2) {
+            worker.propose(task(), registry(), control)
+        }
+
+        assertEquals(2, provider.calls)
+        assertEquals(2, journal.entries.count { it.result == "SUCCESS" })
+    }
+
     @Test fun stopPreventsProviderCall() {
         val provider = FakeProvider {
             VyomFactoryWorkerModelProvider.Response(validJson(), 1, 1)
