@@ -35,7 +35,9 @@ internal class VyomFactoryExecutionJournal internal constructor(
         val issueNumber: Int,
         val attemptId: String,
         val leaseId: String,
-        val ownerId: String,
+        val workerId: String,
+        val lane: VyomFactoryLaneRouter.Lane?,
+        val workerSlot: Int?,
         val state: State,
         val startedAt: Long,
         val updatedAt: Long,
@@ -141,7 +143,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 it.issueNumber == lease.issueNumber && !it.isTerminal
             }
             check(activeForIssue.none {
-                it.leaseId == lease.leaseId && it.ownerId == lease.ownerId
+                it.leaseId == lease.leaseId && it.workerId == lease.workerId
             }) { "An execution attempt is already active for this issue and lease" }
             activeForIssue.forEach { previous ->
                 entries[previous.attemptId] = previous.copy(
@@ -156,7 +158,9 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 issueNumber = lease.issueNumber,
                 attemptId = attemptId,
                 leaseId = lease.leaseId,
-                ownerId = lease.ownerId,
+                workerId = lease.workerId,
+                lane = lease.lane,
+                workerSlot = lease.workerSlot,
                 state = State.CLAIMED,
                 startedAt = now,
                 updatedAt = now,
@@ -270,14 +274,16 @@ internal class VyomFactoryExecutionJournal internal constructor(
     ): Boolean = synchronized(VyomFactoryExecutionLock.LOCK) {
         require(now >= 0)
         val active = leases.active(lease.issueNumber, now)
-        if (active == null || active.leaseId != lease.leaseId || active.ownerId != lease.ownerId) {
+        if (active == null || active.leaseId != lease.leaseId || active.workerId != lease.workerId || active.lane != lease.lane || active.workerSlot != lease.workerSlot) {
             return@synchronized false
         }
         val entries = readAll().toMutableMap()
         val current = entries[attemptId] ?: return@synchronized false
         if (current.issueNumber != lease.issueNumber ||
             current.leaseId != lease.leaseId ||
-            current.ownerId != lease.ownerId
+            current.workerId != lease.workerId ||
+            current.lane != lease.lane ||
+            current.workerSlot != lease.workerSlot
         ) return@synchronized false
         val updated = transform(current) ?: return@synchronized false
         if (updated == current) return@synchronized true
@@ -288,14 +294,14 @@ internal class VyomFactoryExecutionJournal internal constructor(
 
     private fun requireCurrentLease(lease: VyomFactoryWorkerLeaseStore.Lease, now: Long) {
         val active = leases.active(lease.issueNumber, now)
-        check(active != null && active.leaseId == lease.leaseId && active.ownerId == lease.ownerId) {
+        check(active != null && active.leaseId == lease.leaseId && active.workerId == lease.workerId) {
             "Execution lease is no longer current"
         }
     }
 
     private fun leaseExpired(entry: Entry, now: Long): Boolean {
         val active = leases.active(entry.issueNumber, now)
-        return active == null || active.leaseId != entry.leaseId || active.ownerId != entry.ownerId
+        return active == null || active.leaseId != entry.leaseId || active.workerId != entry.workerId || active.lane != entry.lane || active.workerSlot != entry.workerSlot
     }
 
     private fun validateAttemptId(attemptId: String) {
@@ -315,7 +321,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
                         issueNumber = item.getInt("issue_number"),
                         attemptId = item.getString("attempt_id"),
                         leaseId = item.getString("lease_id"),
-                        ownerId = item.getString("owner_id"),
+                        workerId = item.getString("owner_id"),
                         state = state,
                         startedAt = item.getLong("started_at"),
                         updatedAt = item.getLong("updated_at"),
@@ -326,7 +332,9 @@ internal class VyomFactoryExecutionJournal internal constructor(
                         operationKey = item.optString("operation_key", "legacy:unknown")
                     )
                     require(entry.issueNumber > 0 && ATTEMPT_ID.matches(entry.attemptId) &&
-                        entry.leaseId.isNotBlank() && entry.ownerId.isNotBlank() &&
+                        entry.leaseId.isNotBlank() && entry.workerId.isNotBlank() &&
+                        ((entry.lane == null) == (entry.workerSlot == null)) &&
+                        (entry.workerSlot == null || entry.workerSlot in 0 until VyomFactoryWorkerPoolConfig.MINIMUM_WORKERS_PER_LANE) &&
                         entry.startedAt >= 0 && entry.updatedAt >= entry.startedAt &&
                         OPERATION_KEY.matches(entry.operationKey))
                     require(put(entry.attemptId, entry) == null) { "Duplicate execution attempt ID" }
@@ -344,7 +352,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 .put("issue_number", entry.issueNumber)
                 .put("attempt_id", entry.attemptId)
                 .put("lease_id", entry.leaseId)
-                .put("owner_id", entry.ownerId)
+                .put("owner_id", entry.workerId)
                 .put("state", entry.state.name)
                 .put("started_at", entry.startedAt)
                 .put("updated_at", entry.updatedAt)

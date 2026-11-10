@@ -89,7 +89,7 @@ class VyomFactoryExecutionJournalTest {
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(oldLease, "attempt-old", 1_100)
         journal.markRunning(oldLease, "attempt-old", 1_200)
-        val successor = leases.claim(43, identity("worker-b"), 6_000, 5_000)!!
+        val successor = leases.claim(43, identity("worker-b", 1), 6_000, 5_000)!!
         journal.begin(successor, "attempt-new", 6_100)
 
         assertFalse(journal.succeed(oldLease, "attempt-old", 6_200, "stale result"))
@@ -134,7 +134,7 @@ class VyomFactoryExecutionJournalTest {
 
         assertFalse(journal.requestStop(oldLease, "attempt-stop-fenced", 1_200))
         assertTrue(journal.markRunning(oldLease, "attempt-stop-fenced", 1_300))
-        val successor = leases.claim(50, identity("worker-b"), 6_000, 5_000)!!
+        val successor = leases.claim(50, identity("worker-b", 1), 6_000, 5_000)!!
 
         assertFalse(journal.requestStop(oldLease, "attempt-stop-fenced", 6_100))
         assertEquals(VyomFactoryExecutionJournal.State.RUNNING, journal.get("attempt-stop-fenced")!!.state)
@@ -255,6 +255,9 @@ class VyomFactoryExecutionJournalTest {
     private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
         workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
     )
+
+    private fun identity(workerId: String, slot: Int = 0) =
+        VyomFactoryWorkerIdentity(workerId, VyomFactoryLaneRouter.Lane.INSTANT, slot)
 
     private class MemoryPrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()

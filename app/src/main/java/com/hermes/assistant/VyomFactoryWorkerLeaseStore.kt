@@ -7,18 +7,10 @@ import org.json.JSONObject
 import java.util.UUID
 
 internal object VyomFactoryExecutionLock {
-    /** Serializes lease and journal fencing within this single app process. */
     val LOCK = Any()
 }
 
-
-/**
- * Durable, device-local execution lease registry.
- *
- * This coordinates workers inside one Vyom app process/device only. SharedPreferences
- * plus a process lock is NOT a distributed compare-and-swap and must never be treated
- * as a cross-device GitHub lease.
- */
+/** Device-local fenced leases; this is not a distributed/cross-device lock. */
 internal class VyomFactoryWorkerLeaseStore private constructor(
     private val prefs: SharedPreferences,
     private val idFactory: () -> String
@@ -27,79 +19,92 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
         { UUID.randomUUID().toString() }
     )
-
     internal constructor(prefs: SharedPreferences) : this(prefs, { UUID.randomUUID().toString() })
 
     data class Lease(
         val issueNumber: Int,
-        val ownerId: String,
+        val workerId: String,
+        val lane: VyomFactoryLaneRouter.Lane?,
+        val workerSlot: Int?,
         val leaseId: String,
         val acquiredAt: Long,
         val expiresAt: Long
     )
 
-    /** Claims an unleased/expired task, or returns the caller's still-live lease. */
-    fun claim(issueNumber: Int, ownerId: String, now: Long, durationMs: Long): Lease? =
+    fun claim(issueNumber: Int, worker: VyomFactoryWorkerIdentity, now: Long, durationMs: Long): Lease? =
         synchronized(VyomFactoryExecutionLock.LOCK) {
-            validate(issueNumber, ownerId, now, durationMs)
+            validate(issueNumber, worker, now, durationMs)
             val leases = readAll().toMutableMap()
             val existing = leases[issueNumber]
             if (existing != null && existing.expiresAt > now) {
-                return@synchronized if (existing.ownerId == ownerId) existing else null
+                return@synchronized if (sameWorker(existing, worker)) existing else null
             }
-            val lease = Lease(issueNumber, ownerId, idFactory(), now, Math.addExact(now, durationMs))
+            if (leases.values.any {
+                    it.expiresAt > now && (it.workerId == worker.workerId ||
+                        (it.lane == worker.lane && it.workerSlot == worker.slotIndex))
+                }) return@synchronized null
+            val lease = Lease(
+                issueNumber, worker.workerId, worker.lane, worker.slotIndex,
+                idFactory(), now, Math.addExact(now, durationMs)
+            )
             require(lease.leaseId.isNotBlank() && lease.leaseId.length <= 160)
             leases[issueNumber] = lease
             persist(leases.values)
             lease
         }
 
-    /** Extends only the exact, still-live lease; stale owners cannot revive expired work. */
     fun renew(lease: Lease, now: Long, durationMs: Long): Lease? = synchronized(VyomFactoryExecutionLock.LOCK) {
-        validate(lease.issueNumber, lease.ownerId, now, durationMs)
+        validate(lease, now, durationMs)
         val leases = readAll().toMutableMap()
         val current = leases[lease.issueNumber]
-        if (current == null || current.leaseId != lease.leaseId || current.ownerId != lease.ownerId || current.expiresAt <= now) {
-            return@synchronized null
-        }
+        if (current == null || !sameLease(current, lease) || current.expiresAt <= now) return@synchronized null
         val renewed = current.copy(expiresAt = Math.addExact(now, durationMs))
         leases[lease.issueNumber] = renewed
         persist(leases.values)
         renewed
     }
 
-    /** Releases only the exact lease token, so an old worker cannot release a successor's claim. */
     fun release(lease: Lease): Boolean = synchronized(VyomFactoryExecutionLock.LOCK) {
         val leases = readAll().toMutableMap()
         val current = leases[lease.issueNumber]
-        if (current == null || current.leaseId != lease.leaseId || current.ownerId != lease.ownerId) return@synchronized false
+        if (current == null || !sameLease(current, lease)) return@synchronized false
         leases.remove(lease.issueNumber)
         persist(leases.values)
         true
     }
 
-    /** Returns only an unexpired lease at the supplied clock time. */
     fun active(issueNumber: Int, now: Long): Lease? = synchronized(VyomFactoryExecutionLock.LOCK) {
         require(issueNumber > 0 && now >= 0)
         readAll()[issueNumber]?.takeIf { it.expiresAt > now }
     }
 
-    /** Snapshot of currently claimed issue numbers on this device; expired leases are excluded. */
     fun activeIssueNumbers(now: Long): Set<Int> = synchronized(VyomFactoryExecutionLock.LOCK) {
         require(now >= 0)
-        readAll().values.asSequence()
-            .filter { it.expiresAt > now }
-            .map { it.issueNumber }
-            .toSet()
+        readAll().values.filter { it.expiresAt > now }.map { it.issueNumber }.toSet()
     }
 
-    private fun validate(issueNumber: Int, ownerId: String, now: Long, durationMs: Long) {
+    private fun validate(issueNumber: Int, worker: VyomFactoryWorkerIdentity, now: Long, durationMs: Long) {
         require(issueNumber > 0)
-        require(ownerId.isNotBlank() && ownerId.length <= 160 && ownerId.none { it.isISOControl() })
-        require(now >= 0)
-        require(durationMs in MIN_LEASE_MS..MAX_LEASE_MS)
+        require(VyomFactoryWorkerIdentityStore.isValidWorkerId(worker.workerId))
+        require(worker.slotIndex in 0 until VyomFactoryWorkerPoolConfig.MINIMUM_WORKERS_PER_LANE)
+        require(now >= 0 && durationMs in MIN_LEASE_MS..MAX_LEASE_MS)
         Math.addExact(now, durationMs)
     }
+
+    private fun validate(lease: Lease, now: Long, durationMs: Long) {
+        require(lease.issueNumber > 0 && VyomFactoryWorkerIdentityStore.isValidWorkerId(lease.workerId))
+        require((lease.lane == null) == (lease.workerSlot == null))
+        if (lease.workerSlot != null) require(lease.workerSlot in 0 until VyomFactoryWorkerPoolConfig.MINIMUM_WORKERS_PER_LANE)
+        require(now >= 0 && durationMs in MIN_LEASE_MS..MAX_LEASE_MS)
+        Math.addExact(now, durationMs)
+    }
+
+    private fun sameWorker(lease: Lease, worker: VyomFactoryWorkerIdentity) =
+        lease.workerId == worker.workerId && lease.lane == worker.lane && lease.workerSlot == worker.slotIndex
+
+    private fun sameLease(a: Lease, b: Lease) =
+        a.issueNumber == b.issueNumber && a.workerId == b.workerId && a.lane == b.lane &&
+            a.workerSlot == b.workerSlot && a.leaseId == b.leaseId
 
     private fun readAll(): Map<Int, Lease> {
         val raw = prefs.getString(KEY_LEASES, null) ?: return emptyMap()
@@ -108,13 +113,16 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
             buildMap {
                 for (i in 0 until array.length()) {
                     val item = array.optJSONObject(i) ?: error("Invalid worker lease at index $i")
-                    val lease = Lease(
-                        item.getInt("issue_number"), item.getString("owner_id"),
-                        item.getString("lease_id"), item.getLong("acquired_at"), item.getLong("expires_at")
-                    )
-                    require(lease.issueNumber > 0 && lease.ownerId.isNotBlank() &&
-                        lease.leaseId.isNotBlank() && lease.acquiredAt >= 0 && lease.expiresAt > lease.acquiredAt)
-                    require(put(lease.issueNumber, lease) == null) { "Duplicate worker lease issue" }
+                    val workerId = item.optString("worker_id").ifBlank { item.optString("owner_id") }
+                    val lane = item.optString("lane").takeIf { it.isNotBlank() }?.let(VyomFactoryLaneRouter.Lane::valueOf)
+                    val slot = if (item.has("worker_slot") && !item.isNull("worker_slot")) item.getInt("worker_slot") else null
+                    val value = Lease(item.getInt("issue_number"), workerId, lane, slot,
+                        item.getString("lease_id"), item.getLong("acquired_at"), item.getLong("expires_at"))
+                    require(value.issueNumber > 0 && VyomFactoryWorkerIdentityStore.isValidWorkerId(value.workerId) &&
+                        value.leaseId.isNotBlank() && value.acquiredAt >= 0 && value.expiresAt > value.acquiredAt &&
+                        ((value.lane == null) == (value.workerSlot == null)) &&
+                        (value.workerSlot == null || value.workerSlot in 0 until VyomFactoryWorkerPoolConfig.MINIMUM_WORKERS_PER_LANE))
+                    require(put(value.issueNumber, value) == null) { "Duplicate worker lease issue" }
                 }
             }
         } catch (error: Exception) {
@@ -124,17 +132,17 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
 
     private fun persist(leases: Collection<Lease>) {
         val array = JSONArray()
-        leases.sortedBy { it.issueNumber }.forEach { lease ->
+        leases.sortedBy { it.issueNumber }.forEach { value ->
             array.put(JSONObject()
-                .put("issue_number", lease.issueNumber)
-                .put("owner_id", lease.ownerId)
-                .put("lease_id", lease.leaseId)
-                .put("acquired_at", lease.acquiredAt)
-                .put("expires_at", lease.expiresAt))
+                .put("issue_number", value.issueNumber)
+                .put("worker_id", value.workerId)
+                .put("lane", value.lane?.name ?: JSONObject.NULL)
+                .put("worker_slot", value.workerSlot ?: JSONObject.NULL)
+                .put("lease_id", value.leaseId)
+                .put("acquired_at", value.acquiredAt)
+                .put("expires_at", value.expiresAt))
         }
-        check(prefs.edit().putString(KEY_LEASES, array.toString()).commit()) {
-            "Worker lease could not be persisted"
-        }
+        check(prefs.edit().putString(KEY_LEASES, array.toString()).commit()) { "Worker lease could not be persisted" }
     }
 
     companion object {

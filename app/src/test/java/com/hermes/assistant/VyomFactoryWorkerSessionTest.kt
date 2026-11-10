@@ -91,7 +91,7 @@ class VyomFactoryWorkerSessionTest {
         assertTrue(firstSession.release(claim))
         assertFalse(firstSession.isCurrent(claim))
         val secondSession = VyomFactoryWorkerSession(
-            queue, coordinator, identity("worker-b"), { remoteTasks }, { 1_002L }, 10_000L
+            queue, coordinator, identity("worker-b", 1), { remoteTasks }, { 1_002L }, 10_000L
         )
         val next = secondSession.claimNext()
         assertNotNull(next)
@@ -130,10 +130,10 @@ class VyomFactoryWorkerSessionTest {
             leaseDurationMs = 10_000L
         )
 
-    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
+    private fun identity(workerId: String, slot: Int = 0) = VyomFactoryWorkerIdentity(
         workerId = workerId,
         lane = VyomFactoryLaneRouter.Lane.INSTANT,
-        slotIndex = 0
+        slotIndex = slot
     )
 
     @Test fun claimLeaseAndExecutionJournalCarryTheSameStableWorkerIdentity() {

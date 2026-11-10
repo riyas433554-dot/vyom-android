@@ -113,8 +113,8 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         assertEquals(14, next!!.task.issueNumber)
     }
 
-    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
-        workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
+    private fun identity(workerId: String, slot: Int = 0) = VyomFactoryWorkerIdentity(
+        workerId, VyomFactoryLaneRouter.Lane.INSTANT, slot
     )
 
     private fun task(issue: Int, priority: String, sourceId: String) =

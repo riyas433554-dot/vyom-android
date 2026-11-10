@@ -1,13 +1,6 @@
 package com.hermes.assistant
 
-/**
- * Selects and leases one task from this device's durable Factory inbox.
- *
- * The caller must supply a fresh GitHub snapshot. This class never mutates GitHub
- * status because a device-local SharedPreferences lease is not a cross-device CAS.
- * It guarantees only that competing Vyom workers in this app process/device cannot
- * both receive the same unexpired local claim.
- */
+/** Device-local task selection; the supplied worker identity is lane/slot-bound. */
 internal class VyomFactoryWorkerClaimCoordinator(
     private val taskStore: VyomFactoryTaskStore,
     private val leaseStore: VyomFactoryWorkerLeaseStore
@@ -18,35 +11,25 @@ internal class VyomFactoryWorkerClaimCoordinator(
         val lease: VyomFactoryWorkerLeaseStore.Lease
     )
 
-    /**
-     * Claims the highest-priority queued task that still matches a fresh, open
-     * GitHub issue. Returns null when no eligible task is available.
-     */
     fun claimNext(
         remoteTasks: List<VyomFactoryGitHubClient.Task>,
-        ownerId: String,
+        worker: VyomFactoryWorkerIdentity,
         now: Long,
         durationMs: Long
     ): Claim? = synchronized(CLAIM_LOCK) {
-        require(ownerId.isNotBlank())
-        val remoteByIssue = remoteTasks
-            .asSequence()
+        val remoteByIssue = remoteTasks.asSequence()
             .filter { it.state == "open" && it.metadata.status in setOf("open", "in_progress") }
             .associateBy { it.number }
-
         val candidates = taskStore.pending().mapNotNull { queued ->
             val remote = remoteByIssue[queued.issueNumber] ?: return@mapNotNull null
             if (remote.metadata.sourceId != queued.sourceId) return@mapNotNull null
             queued to remote
         }
         val queuedByIssue = candidates.associateBy { it.second.number }
-        val orderedRemoteTasks = VyomFactoryTaskOrdering.sort(candidates.map { it.second })
-
-        for (remote in orderedRemoteTasks) {
+        for (remote in VyomFactoryTaskOrdering.sort(candidates.map { it.second })) {
             val queued = queuedByIssue[remote.number]?.first ?: continue
-            val lease = leaseStore.claim(queued.issueNumber, ownerId, now, durationMs) ?: continue
-            val persisted = leaseStore.active(queued.issueNumber, now)
-            if (persisted != lease || !taskStore.contains(queued.issueNumber)) {
+            val lease = leaseStore.claim(queued.issueNumber, worker, now, durationMs) ?: continue
+            if (leaseStore.active(queued.issueNumber, now) != lease || !taskStore.contains(queued.issueNumber)) {
                 leaseStore.release(lease)
                 continue
             }
@@ -55,27 +38,15 @@ internal class VyomFactoryWorkerClaimCoordinator(
         null
     }
 
-    /** Revalidates lease identity and expiry; renewal may change only expiresAt. */
-    fun isCurrent(claim: Claim, now: Long): Boolean {
-        val active = leaseStore.active(claim.task.issueNumber, now) ?: return false
-        return taskStore.contains(claim.task.issueNumber) &&
-            active.leaseId == claim.lease.leaseId &&
-            active.ownerId == claim.lease.ownerId
-    }
+    fun isCurrent(claim: Claim, now: Long): Boolean =
+        taskStore.contains(claim.task.issueNumber) && leaseStore.active(claim.task.issueNumber, now) == claim.lease
 
-    /** Active device-local claims used to exclude already-owned work from planning detection. */
-    fun activeClaimedIssueNumbers(now: Long): Set<Int> =
-        leaseStore.activeIssueNumbers(now)
+    fun activeClaimedIssueNumbers(now: Long): Set<Int> = leaseStore.activeIssueNumbers(now)
 
-    /** Extends this exact still-live claim without changing its fencing token. */
     fun renew(claim: Claim, now: Long, durationMs: Long): Boolean =
-        taskStore.contains(claim.task.issueNumber) &&
-            leaseStore.renew(claim.lease, now, durationMs) != null
+        taskStore.contains(claim.task.issueNumber) && leaseStore.renew(claim.lease, now, durationMs) != null
 
-    /** Releases only this claim's fenced lease; the task remains queued for retry. */
     fun release(claim: Claim): Boolean = leaseStore.release(claim.lease)
 
-    private companion object {
-        val CLAIM_LOCK = Any()
-    }
+    private companion object { val CLAIM_LOCK = Any() }
 }

@@ -1,36 +1,27 @@
 package com.hermes.assistant
 
-/**
- * Synchronous claim boundary for a foreground Factory consumer.
- *
- * Every claim starts with a fresh GitHub snapshot. Only currently-open remote
- * tasks are reconciled into the device inbox, then the coordinator acquires a
- * fenced device-local lease. This is not a task executor or a distributed lock.
- */
+/** Fresh-snapshot claim boundary for one persistent lane-bound worker identity. */
 internal class VyomFactoryWorkerSession(
     private val taskStore: VyomFactoryTaskStore,
     private val coordinator: VyomFactoryWorkerClaimCoordinator,
-    private val ownerId: String,
+    val workerIdentity: VyomFactoryWorkerIdentity,
     private val fetchRemoteTasks: () -> List<VyomFactoryGitHubClient.Task>,
     private val now: () -> Long = System::currentTimeMillis,
     private val leaseDurationMs: Long = DEFAULT_LEASE_DURATION_MS
 ) {
     init {
-        require(ownerId.isNotBlank())
+        require(VyomFactoryWorkerIdentityStore.isValidWorkerId(workerIdentity.workerId))
+        require(workerIdentity.slotIndex in 0 until VyomFactoryWorkerPoolConfig.MINIMUM_WORKERS_PER_LANE)
         require(leaseDurationMs in MIN_LEASE_DURATION_MS..MAX_LEASE_DURATION_MS)
     }
 
-    /**
-     * Refreshes the shared registry before every claim. Network/read failure is
-     * propagated; no claim is created from stale cached GitHub data.
-     */
     fun claimNext(eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }): VyomFactoryWorkerClaimCoordinator.Claim? {
         val snapshot = fetchRemoteTasks()
         val timestamp = now()
-        val claimableTasks = snapshot.filter {
+        val claimable = snapshot.filter {
             it.state == "open" && it.metadata.status in setOf("open", "in_progress")
         }
-        taskStore.reconcileOpen(claimableTasks.map { remote ->
+        taskStore.reconcileOpen(claimable.map { remote ->
             VyomFactoryTaskStore.QueuedTask(
                 issueNumber = remote.number,
                 title = remote.title,
@@ -39,30 +30,18 @@ internal class VyomFactoryWorkerSession(
                 enqueuedAt = timestamp
             )
         })
-        val cycleIssues = VyomFactoryTaskIntelligence.circularDependencyIssues(claimableTasks)
-        val eligibleTasks = VyomFactoryTaskOrdering.sort(claimableTasks).filter { task ->
-            task.number !in cycleIssues && !VyomFactoryTaskIntelligence.isIterationLimitReached(task) && eligible(task)
+        val cycles = VyomFactoryTaskIntelligence.circularDependencyIssues(claimable)
+        val eligibleTasks = VyomFactoryTaskOrdering.sort(claimable).filter { task ->
+            task.number !in cycles && !VyomFactoryTaskIntelligence.isIterationLimitReached(task) && eligible(task)
         }
-        return coordinator.claimNext(eligibleTasks, ownerId, timestamp, leaseDurationMs)
+        return coordinator.claimNext(eligibleTasks, workerIdentity, timestamp, leaseDurationMs)
     }
 
-    fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
-        coordinator.isCurrent(claim, now())
-
-    /** Active local leases are not re-planned as unclaimed tasks in this worker session. */
-    fun activeClaimedIssueNumbers(): Set<Int> =
-        coordinator.activeClaimedIssueNumbers(now())
-
-    /**
-     * Renews the exact live lease at runner checkpoints. Adapters must call
-     * shouldStop() regularly; a blocked adapter cannot be heartbeated here.
-     */
+    fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean = coordinator.isCurrent(claim, now())
+    fun activeClaimedIssueNumbers(): Set<Int> = coordinator.activeClaimedIssueNumbers(now())
     fun renewAndCheck(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
         coordinator.renew(claim, now(), leaseDurationMs)
-
-    /** Releases only this session's exact lease; the inbox entry stays queued. */
-    fun release(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
-        coordinator.release(claim)
+    fun release(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean = coordinator.release(claim)
 
     companion object {
         const val DEFAULT_LEASE_DURATION_MS = 60_000L

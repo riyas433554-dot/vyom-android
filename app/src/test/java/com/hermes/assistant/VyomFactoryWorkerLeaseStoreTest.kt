@@ -8,7 +8,7 @@ class VyomFactoryWorkerLeaseStoreTest {
     @Test fun onlyOneOwnerCanHoldAnUnexpiredIssueLease() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
         val first = store.claim(12, identity("worker-a"), 1_000, 10_000)!!
-        assertNull(store.claim(12, identity("worker-b"), 2_000, 10_000))
+        assertNull(store.claim(12, identity("worker-b", 1), 2_000, 10_000))
         assertEquals(first, store.claim(12, identity("worker-a"), 2_000, 10_000))
         assertEquals(first, store.active(12, 2_000))
     }
@@ -16,7 +16,7 @@ class VyomFactoryWorkerLeaseStoreTest {
     @Test fun expiredLeaseCanBeClaimedByANewOwnerAndOldTokenCannotReleaseIt() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
         val first = store.claim(12, identity("worker-a"), 1_000, 5_000)!!
-        val second = store.claim(12, identity("worker-b"), 6_000, 5_000)!!
+        val second = store.claim(12, identity("worker-b", 1), 6_000, 5_000)!!
         assertNotEquals(first.leaseId, second.leaseId)
         assertFalse(store.release(first))
         assertEquals(second, store.active(12, 6_000))
@@ -53,7 +53,7 @@ class VyomFactoryWorkerLeaseStoreTest {
     @Test fun distinctWorkerIdentitiesCanHoldDistinctTaskLeasesConcurrently() {
         val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
         val first = store.claim(103, identity("worker-a"), 1_000, 10_000)!!
-        val second = store.claim(104, identity("worker-b"), 1_000, 10_000)!!
+        val second = store.claim(104, identity("worker-b", 1), 1_000, 10_000)!!
 
         assertNotEquals(first.workerId, second.workerId)
         assertNotEquals(first.leaseId, second.leaseId)
@@ -90,6 +90,9 @@ class VyomFactoryWorkerLeaseStoreTest {
     private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
         workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
     )
+
+    private fun identity(workerId: String, slot: Int = 0) =
+        VyomFactoryWorkerIdentity(workerId, VyomFactoryLaneRouter.Lane.INSTANT, slot)
 
     private class MemoryPrefs : SharedPreferences {
         private val values = mutableMapOf<String, Any>()
