@@ -131,7 +131,7 @@ class VyomFactoryVerifiedProgressTest {
     @Test fun journalRestartPreservesTheSameProgressAndCommitReceipt() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(77, "worker", 1_000, 20_000)!!
+        val lease = leases.claim(77, identity("worker"), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "persisted-attempt", 1_100, "repository_change:propose_change")
         assertTrue(journal.markRunning(lease, "persisted-attempt", 1_200))
@@ -149,7 +149,7 @@ class VyomFactoryVerifiedProgressTest {
     @Test fun failedLatestAttemptAfterRestartCannotReuseOldSuccessfulReceipt() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(77, "worker", 1_000, 20_000)!!
+        val lease = leases.claim(77, identity("worker"), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "success", 1_100, "repository_change:propose_change")
         assertTrue(journal.markRunning(lease, "success", 1_200))
@@ -186,7 +186,9 @@ class VyomFactoryVerifiedProgressTest {
         val metadata = VyomFactoryStatus.Metadata(
             priority = "P2", status = status, source = "factory",
             sourceId = "progress-77", idempotencyKey = "factory:progress-77",
-            events = events
+            events = events,
+            lane = VyomFactoryLaneRouter.Lane.INSTANT,
+            lanePlanningAllowed = true
         )
         return VyomFactoryGitHubClient.Task(
             number = 77, title = "[VYOM FACTORY][P2] Progress verification",
@@ -207,12 +209,16 @@ class VyomFactoryVerifiedProgressTest {
     private fun passEvent() =
         VyomFactoryVerificationPolicy.resultEvent(probe, "The exact approved change is visible on the device", true)
 
+    private fun identity(workerId: String) =
+        VyomFactoryWorkerIdentity(workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0)
+
     private fun entry(
         attemptId: String = "attempt-1",
         result: String = verifiedResult
     ) = VyomFactoryExecutionJournal.Entry(
         issueNumber = 77, attemptId = attemptId, leaseId = "lease-progress",
-        ownerId = "owner-progress", state = VyomFactoryExecutionJournal.State.SUCCEEDED,
+        workerId = "worker-progress", lane = VyomFactoryLaneRouter.Lane.INSTANT, workerSlot = 0,
+        state = VyomFactoryExecutionJournal.State.SUCCEEDED,
         startedAt = 1_000L, updatedAt = 2_000L, result = result,
         operationKey = "repository_change:propose_change"
     )

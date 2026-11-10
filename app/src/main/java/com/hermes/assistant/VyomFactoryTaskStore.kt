@@ -20,7 +20,9 @@ internal class VyomFactoryTaskStore internal constructor(private val prefs: Shar
         val title: String,
         val priority: String,
         val sourceId: String,
-        val enqueuedAt: Long
+        val enqueuedAt: Long,
+        val lane: VyomFactoryLaneRouter.Lane = VyomFactoryLaneRouter.Lane.CUSTOM,
+        val lanePlanningAllowed: Boolean = false
     )
 
 
@@ -82,7 +84,10 @@ internal class VyomFactoryTaskStore internal constructor(private val prefs: Shar
                     val enqueuedAt = item.optLong("enqueued_at", -1)
                     require(issue > 0 && title.isNotBlank() && priority in setOf("P0", "P1", "P2", "P3") &&
                         sourceId.isNotBlank() && enqueuedAt >= 0) { "Factory queue entry $index failed validation" }
-                    add(QueuedTask(issue, title, priority, sourceId, enqueuedAt))
+                    val lane = if (item.has("lane")) VyomFactoryLaneRouter.Lane.valueOf(item.getString("lane"))
+                        else VyomFactoryLaneRouter.Lane.CUSTOM
+                    val lanePlanningAllowed = item.optBoolean("lane_planning_allowed", false)
+                    add(QueuedTask(issue, title, priority, sourceId, enqueuedAt, lane, lanePlanningAllowed))
                 }
             }
         } catch (error: Exception) {
@@ -98,7 +103,9 @@ internal class VyomFactoryTaskStore internal constructor(private val prefs: Shar
                 .put("title", task.title)
                 .put("priority", task.priority)
                 .put("source_id", task.sourceId)
-                .put("enqueued_at", task.enqueuedAt))
+                .put("enqueued_at", task.enqueuedAt)
+                .put("lane", task.lane.name)
+                .put("lane_planning_allowed", task.lanePlanningAllowed))
         }
         check(prefs.edit().putString(KEY_QUEUE, array.toString()).commit()) {
             "Factory queue could not be persisted"

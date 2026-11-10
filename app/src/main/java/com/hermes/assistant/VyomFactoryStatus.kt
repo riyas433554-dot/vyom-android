@@ -11,7 +11,9 @@ internal object VyomFactoryStatus {
         val source: String,
         val sourceId: String,
         val idempotencyKey: String,
-        val events: List<String>
+        val events: List<String>,
+        val lane: VyomFactoryLaneRouter.Lane = VyomFactoryLaneRouter.Lane.CUSTOM,
+        val lanePlanningAllowed: Boolean = false
     )
 
     private const val MARKER = "VYOM_FACTORY_META:"
@@ -53,7 +55,11 @@ internal object VyomFactoryStatus {
             val rawEvents = json.optJSONArray("events") ?: return null
             if (rawEvents.length() > 500) return null
             val events = (0 until rawEvents.length()).map { rawEvents.optString(it) }
-            Metadata(priority, status, source, sourceId, key, events)
+            val lane = if (json.has("lane")) VyomFactoryLaneRouter.Lane.valueOf(json.getString("lane"))
+                else VyomFactoryLaneRouter.Lane.CUSTOM
+            val lanePlanningAllowed = if (json.has("lane_planning_allowed")) json.getBoolean("lane_planning_allowed")
+                else false
+            Metadata(priority, status, source, sourceId, key, events, lane, lanePlanningAllowed)
         }.getOrNull()
     }
 
@@ -73,6 +79,8 @@ internal object VyomFactoryStatus {
             .put("source_id", metadata.sourceId)
             .put("idempotency_key", metadata.idempotencyKey)
             .put("events", JSONArray(metadata.events))
+            .put("lane", metadata.lane.name)
+            .put("lane_planning_allowed", metadata.lanePlanningAllowed)
         return (if (clean.isBlank()) "" else "$clean\\n\\n") + "<!-- $MARKER$json -->"
     }
 

@@ -39,6 +39,11 @@ internal class VyomFactoryWorkerSession(
 
     fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean = coordinator.isCurrent(claim, now())
     fun activeClaimedIssueNumbers(): Set<Int> = coordinator.activeClaimedIssueNumbers(now())
+
+    /**
+     * Checkpoint heartbeat: call before and after each bounded operation.
+     * This is not a continuous background heartbeat.
+     */
     fun renewAndCheck(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
         coordinator.renew(claim, now(), leaseDurationMs)
     fun release(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean = coordinator.release(claim)

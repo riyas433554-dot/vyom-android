@@ -18,11 +18,15 @@ internal class VyomFactoryWorkerClaimCoordinator(
         durationMs: Long
     ): Claim? = synchronized(CLAIM_LOCK) {
         val remoteByIssue = remoteTasks.asSequence()
-            .filter { it.state == "open" && it.metadata.status in setOf("open", "in_progress") }
+            .filter {
+                it.state == "open" && it.metadata.status in setOf("open", "in_progress") &&
+                    it.metadata.lane == worker.lane && it.metadata.lanePlanningAllowed
+            }
             .associateBy { it.number }
         val candidates = taskStore.pending().mapNotNull { queued ->
             val remote = remoteByIssue[queued.issueNumber] ?: return@mapNotNull null
             if (remote.metadata.sourceId != queued.sourceId) return@mapNotNull null
+            if (queued.lane != worker.lane || !queued.lanePlanningAllowed) return@mapNotNull null
             queued to remote
         }
         val queuedByIssue = candidates.associateBy { it.second.number }

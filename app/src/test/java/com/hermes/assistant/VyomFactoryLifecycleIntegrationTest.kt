@@ -64,7 +64,9 @@ class VyomFactoryLifecycleIntegrationTest {
             val session = VyomFactoryWorkerSession(
                 taskStore,
                 VyomFactoryWorkerClaimCoordinator(taskStore, leaseStore),
-                ownerId = "factory-lifecycle-test",
+                workerIdentity = VyomFactoryWorkerIdentity(
+                    "factory-lifecycle-test", VyomFactoryLaneRouter.Lane.INSTANT, 0
+                ),
                 fetchRemoteTasks = { client.listTasks() },
                 now = { 10_000L },
                 leaseDurationMs = 60_000L
@@ -157,7 +159,9 @@ class VyomFactoryLifecycleIntegrationTest {
         source = "factory",
         sourceId = "lifecycle-42",
         idempotencyKey = "factory:lifecycle-42",
-        events = events
+        events = events,
+        lane = VyomFactoryLaneRouter.Lane.INSTANT,
+        lanePlanningAllowed = true
     )
 
     private fun task(

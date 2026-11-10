@@ -164,7 +164,10 @@ class VyomFactoryWorkerSessionTest {
         issueState: String = "open"
     ): VyomFactoryGitHubClient.Task {
         val key = VyomFactoryStatus.idempotencyKey("factory", sourceId)!!
-        val metadata = VyomFactoryStatus.Metadata(priority, metadataStatus, "factory", sourceId, key, emptyList())
+        val metadata = VyomFactoryStatus.Metadata(
+            priority, metadataStatus, "factory", sourceId, key, emptyList(),
+            VyomFactoryLaneRouter.Lane.INSTANT, true
+        )
         return VyomFactoryGitHubClient.Task(issue, "Task $issue", "Description", issueState,
             "https://github.com/riyas433554-dot/vyom-android/issues/$issue", "2026-11-04T00:00:00Z", metadata)
     }

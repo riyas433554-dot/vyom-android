@@ -48,8 +48,12 @@ internal class VyomFactoryGitHubClient(
         return result
     }
 
-    fun createTask(title: String, description: String, priority: String, source: String,
-                   sourceId: String = UUID.randomUUID().toString()): Task {
+    fun createTask(
+        title: String, description: String, priority: String, source: String,
+        sourceId: String = UUID.randomUUID().toString(),
+        lane: VyomFactoryLaneRouter.Lane = VyomFactoryLaneRouter.Lane.CUSTOM,
+        lanePlanningAllowed: Boolean = false
+    ): Task {
         val cleanTitle = title.trim()
         require(cleanTitle.length in 4..120) { "Title must contain 4–120 characters" }
         require(description.trim().isNotEmpty() && description.length <= 12000) { "Description must contain 1–12,000 characters" }
@@ -60,7 +64,9 @@ internal class VyomFactoryGitHubClient(
             // A retry with the same identity must be side-effect free. Edits use updateTask().
             return existing
         }
-        val metadata = VyomFactoryStatus.Metadata(priority, "open", source, sourceId, key, listOf("created"))
+        val metadata = VyomFactoryStatus.Metadata(
+            priority, "open", source, sourceId, key, listOf("created"), lane, lanePlanningAllowed
+        )
         val body = VyomFactoryStatus.withMetadata(description.trim(), metadata)
         val created = JSONObject(execute("POST", "/issues",
             JSONObject().put("title", "[VYOM FACTORY][$priority] $cleanTitle").put("body", body)))

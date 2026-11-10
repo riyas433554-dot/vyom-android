@@ -14,7 +14,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
 
         val claim = coordinator.claimNext(
             listOf(remote(10, "P2", "source-10"), remote(11, "P0", "source-11")),
-            "device-worker", 1_000, 10_000
+            identity("device-worker"), 1_000, 10_000
         )
 
         assertNotNull(claim)
@@ -25,8 +25,12 @@ class VyomFactoryWorkerClaimCoordinatorTest {
 
     @Test fun oldestCreatedIssueWinsWithinPriorityEvenWhenNewerIssueWasUpdatedMoreRecently() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
-        queue.enqueue(VyomFactoryTaskStore.QueuedTask(21, "Older P0", "P0", "source-21", 100))
-        queue.enqueue(VyomFactoryTaskStore.QueuedTask(22, "Newer P0", "P0", "source-22", 200))
+        queue.enqueue(VyomFactoryTaskStore.QueuedTask(
+            21, "Older P0", "P0", "source-21", 100, VyomFactoryLaneRouter.Lane.INSTANT, true
+        ))
+        queue.enqueue(VyomFactoryTaskStore.QueuedTask(
+            22, "Newer P0", "P0", "source-22", 200, VyomFactoryLaneRouter.Lane.INSTANT, true
+        ))
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs()))
 
         val claim = coordinator.claimNext(
@@ -34,7 +38,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
                 remote(21, "P0", "source-21", updatedAt = "2026-11-04T15:00:00Z", createdAt = "2026-11-01T00:00:00Z"),
                 remote(22, "P0", "source-22", updatedAt = "2026-11-04T16:00:00Z", createdAt = "2026-11-02T00:00:00Z")
             ),
-            "device-worker", 1_000, 10_000
+            identity("device-worker"), 1_000, 10_000
         )
 
         assertEquals(21, claim?.task?.issueNumber)
@@ -47,7 +51,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
 
         val claim = coordinator.claimNext(
             listOf(remote(16, "P0", "source-16", status = "in_progress")),
-            "device-worker", 1_000, 10_000
+            identity("device-worker"), 1_000, 10_000
         )
 
         assertNotNull(claim)
@@ -65,7 +69,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
                 remote(10, "P0", "local-source", status = "paused"),
                 remote(11, "P1", "different-source")
             ),
-            "device-worker", 1_000, 10_000
+            identity("device-worker"), 1_000, 10_000
         )
 
         assertNull(claim)
@@ -118,11 +122,16 @@ class VyomFactoryWorkerClaimCoordinatorTest {
     )
 
     private fun task(issue: Int, priority: String, sourceId: String) =
-        VyomFactoryTaskStore.QueuedTask(issue, "Task $issue", priority, sourceId, 100)
+        VyomFactoryTaskStore.QueuedTask(
+            issue, "Task $issue", priority, sourceId, 100, VyomFactoryLaneRouter.Lane.INSTANT, true
+        )
 
     private fun remote(issue: Int, priority: String, sourceId: String, status: String = "open", updatedAt: String = "2026-11-04T00:00:00Z", createdAt: String = updatedAt): VyomFactoryGitHubClient.Task {
         val key = VyomFactoryStatus.idempotencyKey("factory", sourceId)!!
-        val metadata = VyomFactoryStatus.Metadata(priority, status, "factory", sourceId, key, emptyList())
+        val metadata = VyomFactoryStatus.Metadata(
+            priority, status, "factory", sourceId, key, emptyList(),
+            VyomFactoryLaneRouter.Lane.INSTANT, true
+        )
         return VyomFactoryGitHubClient.Task(issue, "Task $issue", "Description", "open",
             "https://github.com/riyas433554-dot/vyom-android/issues/$issue", updatedAt, metadata, createdAt)
     }

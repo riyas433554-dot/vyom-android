@@ -190,6 +190,7 @@ class MainActivity : Activity() {
     private var mainPanel: LinearLayout? = null
     private var dockBar: LinearLayout? = null
     private var taskRefreshInFlight = false
+    private var factoryWorkerPool: VyomFactoryWorkerPool? = null
     private val tasksById = linkedMapOf<String, JSONObject>()
     private var orbitHomeView: OrbitHomeView? = null
     private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "", val createdAt: Long = System.currentTimeMillis())
@@ -220,6 +221,30 @@ class MainActivity : Activity() {
             android.util.Log.e(
                 "VyomFactoryRecovery",
                 "Startup recovery unavailable; execution history was not overwritten",
+                error
+            )
+        }
+        try {
+            val taskStore = VyomFactoryTaskStore(applicationContext)
+            val leaseStore = VyomFactoryWorkerLeaseStore(applicationContext)
+            factoryWorkerPool = VyomFactoryWorkerPool(
+                identityStore = VyomFactoryWorkerIdentityStore(applicationContext),
+                taskStore = taskStore,
+                coordinator = VyomFactoryWorkerClaimCoordinator(taskStore, leaseStore),
+                fetchRemoteTasks = {
+                    val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+                    if (token.isBlank()) emptyList() else factoryGitHubClient(token).listTasks()
+                }
+            )
+            android.util.Log.i(
+                "VyomFactoryWorkerPool",
+                "Provisioned ${factoryWorkerPool?.workerCount ?: 0} stable lane-bound worker sessions"
+            )
+        } catch (error: Exception) {
+            factoryWorkerPool = null
+            android.util.Log.e(
+                "VyomFactoryWorkerPool",
+                "Worker identity registry unavailable; worker claims remain disabled",
                 error
             )
         }
@@ -3534,15 +3559,27 @@ class MainActivity : Activity() {
                 val rawTitle = complaint.lineSequence().firstOrNull().orEmpty().trim().take(120)
                 val title = if (MemoryCapturePolicy.isSensitive(rawTitle)) "Sensitive complaint details redacted"
                     else rawTitle.ifBlank { "Vyom chat complaint" }.let { if (it.length < 4) "Complaint: $it" else it }
+                val description = record.toIssueDescription()
+                val laneDecision = VyomFactoryLaneRouter.route(
+                    VyomFactoryLaneRouter.Request(
+                        origin = VyomFactoryLaneRouter.Origin.COMPLAINT,
+                        text = "$title\n$description"
+                    )
+                )
                 val task = factoryGitHubClient(token).createTask(
                     title = title,
-                    description = record.toIssueDescription(),
+                    description = description,
                     priority = record.priority,
                     source = source,
-                    sourceId = item.id
+                    sourceId = item.id,
+                    lane = laneDecision.lane,
+                    lanePlanningAllowed = laneDecision.mayStartPlanning
                 )
                 VyomFactoryTaskStore(applicationContext).enqueue(
-                    VyomFactoryTaskStore.QueuedTask(task.number, task.title, task.metadata.priority, item.id, System.currentTimeMillis())
+                    VyomFactoryTaskStore.QueuedTask(
+                        task.number, task.title, task.metadata.priority, item.id, System.currentTimeMillis(),
+                        task.metadata.lane, task.metadata.lanePlanningAllowed
+                    )
                 )
                 runOnUiThread {
                     item.state = "done"

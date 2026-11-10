@@ -21,7 +21,17 @@ internal object VyomFactoryWorkerPoolConfig {
     const val MINIMUM_WORKERS_PER_LANE = 5
     val totalWorkerCount: Int
         get() = VyomFactoryLaneRouter.Lane.values().size * MINIMUM_WORKERS_PER_LANE
-    fun concurrencyLimit(workers: Collection<VyomFactoryWorkerIdentity>): Int = workers.size
+    fun concurrencyLimit(workers: Collection<VyomFactoryWorkerIdentity>): Int {
+        require(workers.map { it.workerId }.toSet().size == workers.size) {
+            "Worker pool contains duplicate identities"
+        }
+        VyomFactoryLaneRouter.Lane.values().forEach { lane ->
+            require(workers.count { it.lane == lane } >= MINIMUM_WORKERS_PER_LANE) {
+                "Worker pool is below the minimum for lane $lane"
+            }
+        }
+        return workers.size
+    }
 }
 
 internal class VyomFactoryWorkerIdentityStore internal constructor(
