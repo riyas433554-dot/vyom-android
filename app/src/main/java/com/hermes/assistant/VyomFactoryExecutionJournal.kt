@@ -323,7 +323,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
                         attemptId = item.getString("attempt_id"),
                         leaseId = item.getString("lease_id"),
                         workerId = item.optString("worker_id").ifBlank { item.optString("owner_id") },
-                        lane = item.optString("lane").takeIf { it.isNotBlank() }?.let { VyomFactoryLaneRouter.Lane.valueOf(it) },
+                        lane = if (item.has("lane") && !item.isNull("lane")) VyomFactoryLaneRouter.Lane.valueOf(item.getString("lane")) else null,
                         workerSlot = if (item.has("worker_slot") && !item.isNull("worker_slot")) item.getInt("worker_slot") else null,
                         state = state,
                         startedAt = item.getLong("started_at"),

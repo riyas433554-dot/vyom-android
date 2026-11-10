@@ -114,7 +114,7 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
                 for (i in 0 until array.length()) {
                     val item = array.optJSONObject(i) ?: error("Invalid worker lease at index $i")
                     val workerId = item.optString("worker_id").ifBlank { item.optString("owner_id") }
-                    val lane = item.optString("lane").takeIf { it.isNotBlank() }?.let { VyomFactoryLaneRouter.Lane.valueOf(it) }
+                    val lane = if (item.has("lane") && !item.isNull("lane")) VyomFactoryLaneRouter.Lane.valueOf(item.getString("lane")) else null
                     val slot = if (item.has("worker_slot") && !item.isNull("worker_slot")) item.getInt("worker_slot") else null
                     val value = Lease(item.getInt("issue_number"), workerId, lane, slot,
                         item.getString("lease_id"), item.getLong("acquired_at"), item.getLong("expires_at"))
