@@ -2180,3 +2180,20 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Debug workflow does not run a separate Gitleaks step; the Full workflow ran both required scans and reported zero findings.
 - Exact-SHA Full + Debug both passed and Gitleaks findings are zero. Step 2 is **CI-VERIFIED** on commit `8374ff21b4db34ab1f847f36234624bd338212ea`. This documentation-only follow-up records the verified result; no workflow, signing, trust-root, production, or approval-gate changes.
 - Step 3 L1 is now unblocked and is the next ordered implementation task. No live provider call was enabled; no APK installation or phone test is claimed.
+
+
+## Step 3 — L1 four-lane router — 2026-11-10
+
+- Test-first specification commit: `9b66e9cd855aa2f8152afd3f2649b3a9b2885c08`.
+- Router implementation commit: `8894a022cb5dcb44c10ce9d12811091a8de04750`.
+- Test-fixture correction commit: `5bf175f357903e473453176cea170d1737e9304f`.
+- Added `VyomFactoryLaneRouter.kt` and `VyomFactoryLaneRouterTest.kt` (12 focused tests). It routes direct owner commands to INSTANT; complaint requests to INSTANT only on explicit urgency; explicit schedules to SCHEDULED; explicit standing duties to PERMANENT; ordinary one-off and ambiguous/conflicting requests to CUSTOM. Negated urgency and hidden HTML metadata do not create a false lane signal.
+- Approval boundary: unapproved SCHEDULED/PERMANENT/CUSTOM requests cannot start planning. Even approved planning never authorizes a consequential side effect: `sideEffectsRequireExistingApproval` remains true for every lane. No approval gate was removed or weakened; no call/token cap was added.
+- Ordering metadata exposes INSTANT > SCHEDULED > PERMANENT > CUSTOM. Due-time ordering for SCHEDULED, owner-priority ordering for PERMANENT/CUSTOM and actual queue dispatch belong to the later L5 scheduler; no second queue was created.
+- Scope caveat: L1 is a tested pure routing foundation, not yet wired into complaint persistence or scheduler dispatch. Later integration must source approval flags from trusted owner-approved records, not infer approval from complaint text or caller-supplied free-form data.
+- Exact-head Debug run `42807578322`: `head_sha=5bf175f357903e473453176cea170d1737e9304f`, conclusion **SUCCESS**. Debug artifact `vyom-debug-5bf175f357903e473453176cea170d1737e9304f`, artifact ID `13761945344`.
+- Exact-head Full run `42807578064`: `head_sha=5bf175f357903e473453176cea170d1737e9304f`, conclusion **SUCCESS**. Full artifact `vyom-phase6-5bf175f357903e473453176cea170d1737e9304f`, artifact ID `13760996240`.
+- Full workflow standard Gitleaks: `2026-11-10T11:28:37.4408437Z ... INF no leaks found`.
+- Full-history Gitleaks: `2026-11-10T11:29:10.9860811Z ... INF no leaks found`; `2026-11-10T11:29:11.0121147Z FULL_HISTORY_GITLEAKS_FINDINGS=0`.
+- Both Full and Debug exact-SHA runs passed; full-history findings are zero. L1 implementation/test gate is **CI-VERIFIED** on `5bf175f357903e473453176cea170d1737e9304f`. No workflow, signing, trust-root, production, or approval-policy files changed. No phone test or live provider call is claimed.
+- Next ordered task: Step 4 — L2 worker identities. Do not start L4/L5 ahead of the owner's sequence.
