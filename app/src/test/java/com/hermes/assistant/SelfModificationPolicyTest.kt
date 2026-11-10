@@ -22,6 +22,11 @@ class SelfModificationPolicyTest {
         assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/VyomShizukuUserService.kt"))
     }
 
+    @Test fun releaseCertificateConfigIsExplicitlyProtectedFromSelfModification() {
+        assertFalse(SelfModificationPolicy.isAllowedPath("config/release-certificate.sha256"))
+        assertFalse(SelfModificationPolicy.isAllowedPath("config/../config/release-certificate.sha256"))
+    }
+
     @Test fun rejectsTraversalAndNonSourcePaths() {
         assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/../MainActivity.kt"))
         assertFalse(SelfModificationPolicy.isAllowedPath(".github/workflows/unsafe.yml"))

@@ -547,7 +547,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(liveModelNotice, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(TextView(this).apply {
-            text = "FACTORY WORKER MODEL PROVIDERS · LIVE CALLS DISABLED"
+            text = "FACTORY WORKER MODEL PROVIDERS · LIVE CALLS OFF UNTIL OWNER ENABLES"
             textSize = 11f
             setTextColor(Color.LTGRAY)
             setPadding(0, dp(12), 0, dp(4))
@@ -555,6 +555,10 @@ class MainActivity : Activity() {
         val workerModelPrefs = getSharedPreferences(
             VyomFactoryWorkerModelRuntime.SETTINGS_PREFS, MODE_PRIVATE
         )
+        workerModelPrefs.registerOnSharedPreferenceChangeListener { _, _ ->
+            VyomFactoryWorkerReadmeVerificationCache.invalidate()
+            runCatching { VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke() }
+        }
         var selectedWorkerProviderId = workerModelPrefs.getString(
             VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER,
             NvidiaNemotronWorkerModelProvider.PROVIDER_ID
@@ -592,6 +596,7 @@ class MainActivity : Activity() {
                     workerModelPrefs.edit()
                         .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
                         .apply()
+                    VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
                     workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
                     workerModelIdInput.setText(
                         workerModelPrefs.getString(
@@ -630,6 +635,7 @@ class MainActivity : Activity() {
         settingsContent.addView(Button(this).apply {
             text = "SAVE WORKER PROVIDER SETTINGS"
             setOnClickListener {
+                VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
                 fun storeWorkerKey(providerId: String, input: EditText) {
                     val editable = input.text
                     if (editable.isNullOrEmpty()) return
@@ -651,10 +657,34 @@ class MainActivity : Activity() {
                         .apply()
                     storeWorkerKey(NvidiaNemotronWorkerModelProvider.PROVIDER_ID, workerNvidiaKeyInput)
                     storeWorkerKey(GoogleGemmaWorkerModelProvider.PROVIDER_ID, workerGoogleKeyInput)
-                    status.text = "Worker provider settings saved. Live calls remain disabled."
+                    status.text = "Worker provider settings saved. Previous live-call authorization was revoked."
                 } catch (_: Exception) {
                     status.text = "Worker settings could not be saved. Check model ID and retry."
                 }
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "BIND TEST WORKER REPOSITORY"
+            setOnClickListener {
+                VyomFactoryWorkerBindingDialog(this@MainActivity) { message ->
+                    status.text = message
+                }.show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "ENABLE LIVE MODEL CALLS · 24H"
+            setOnClickListener {
+                VyomFactoryWorkerLiveCallAuthorizationDialog(
+                    this@MainActivity, factoryForegroundGate
+                ) { message -> status.text = message }.enable()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "DISABLE LIVE MODEL CALLS"
+            setOnClickListener {
+                VyomFactoryWorkerLiveCallAuthorizationDialog(
+                    this@MainActivity, factoryForegroundGate
+                ) { message -> status.text = message }.disable()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         sttLanguageInput = EditText(this).apply {
@@ -794,6 +824,30 @@ class MainActivity : Activity() {
             setText(secureVoicePrefs().getString("github_proposal_token", "").orEmpty())
         }
         settingsContent.addView(githubProposalTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val githubWorkerReadmeTokenInput = EditText(this).apply {
+            hint = "Fine-grained GitHub token · test repo only · Contents: read only"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+        }
+        settingsContent.addView(githubWorkerReadmeTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "SAVE WORKER README READ-ONLY TOKEN"
+            setOnClickListener {
+                val value = githubWorkerReadmeTokenInput.text.toString().trim()
+                if (value.isBlank()) {
+                    Toast.makeText(this@MainActivity, "Worker token was not changed.", Toast.LENGTH_SHORT).show()
+                } else {
+                    VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
+                    VyomFactoryWorkerReadmeVerificationCache.invalidate()
+                    secureVoicePrefs().edit().putString("github_worker_readme_token", value).apply()
+                    githubWorkerReadmeTokenInput.text?.clear()
+                    Toast.makeText(this@MainActivity, "Worker read-only token saved.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         val selfChangeNotice = TextView(this).apply {
             text = "AI-assisted self-update: inspect one allowed Kotlin file → generate a proposal → separate branch → PR. CI/review required; no auto-merge or auto-install. Factory also needs Issues read/write. Policy and STOP files stay protected."
             textSize = 10f
@@ -802,6 +856,8 @@ class MainActivity : Activity() {
         settingsContent.addView(Button(this).apply {
             text = "SAVE GITHUB TOKEN"
             setOnClickListener {
+                VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
+                VyomFactoryWorkerReadmeVerificationCache.invalidate()
                 secureVoicePrefs().edit().putString("github_proposal_token", githubProposalTokenInput.text.toString().trim()).apply()
                 selfChangeNotice.text = "GitHub token saved encrypted on this device. It is never written to the repository."
             }

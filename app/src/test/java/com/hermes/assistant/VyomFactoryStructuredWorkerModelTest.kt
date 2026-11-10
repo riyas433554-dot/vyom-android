@@ -95,7 +95,8 @@ class VyomFactoryStructuredWorkerModelTest {
         keyStore = MemoryKeyStore(key),
         journal = journal,
         limits = limits,
-        nowMillis = { now }
+        nowMillis = { now },
+        preCallAuthorization = { true }
     )
 
     @Test fun fakeProviderProducesOnlyAnUnapprovedRegistryBoundPlan() {
@@ -451,7 +452,8 @@ class VyomFactoryStructuredWorkerModelTest {
         val journal = MemoryJournal()
         val worker = VyomFactoryStructuredWorkerModelAdapter(
             provider, brokenKeyStore, journal,
-            nowMillis = { 1_800_000_000_000L }
+            nowMillis = { 1_800_000_000_000L },
+            preCallAuthorization = { true }
         )
 
         assertThrows(IllegalStateException::class.java) {
@@ -465,5 +467,28 @@ class VyomFactoryStructuredWorkerModelTest {
         assertFalse(journal.entries.single().providerCallStarted)
     }
 
+
+
+    @Test fun liveCallAuthorizationOffBlocksBeforeTheProviderIsInvoked() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(validJson(), 1, 1)
+        }
+        val journal = MemoryJournal()
+        val worker = VyomFactoryStructuredWorkerModelAdapter(
+            provider = provider,
+            keyStore = MemoryKeyStore("fake-provider-key"),
+            journal = journal,
+            nowMillis = { 1_800_000_000_000L },
+            preCallAuthorization = { false }
+        )
+        assertThrows(SecurityException::class.java) {
+            worker.propose(task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            })
+        }
+        assertEquals(0, provider.calls)
+        assertEquals("BLOCKED", journal.entries.last().result)
+        assertFalse(journal.entries.last().providerCallStarted)
+    }
 
 }

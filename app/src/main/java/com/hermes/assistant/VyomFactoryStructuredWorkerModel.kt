@@ -197,7 +197,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     private val keyStore: VyomFactoryWorkerApiKeyStore,
     private val journal: VyomFactoryWorkerModelCallJournal,
     private val limits: VyomFactoryWorkerModelLimits = VyomFactoryWorkerModelLimits(),
-    private val nowMillis: () -> Long = System::currentTimeMillis
+    private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val preCallAuthorization: () -> Boolean = { false }
 ) : VyomFactoryRepositoryWorkerModelAdapter {
     override fun propose(
         task: VyomFactoryGitHubClient.Task,
@@ -296,6 +297,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             var outputTokens = 0
             try {
                 val future = executor.submit<VyomFactoryWorkerModelProvider.Response> {
+                    if (!preCallAuthorization()) throw SecurityException("Worker live-call authorization is OFF or stale")
                     provider.generate(request, apiKey, maxInputTokensForCall, maxOutputTokensForCall)
                 }
                 val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(limits.timeoutMillis)
@@ -327,6 +329,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                     completed ?: throw IllegalStateException("Worker provider returned no result")
                 } catch (failure: ExecutionException) {
                     val cause = failure.cause
+                    if (cause is SecurityException) throw SecurityException("Worker live-call authorization is OFF or stale")
                     throw IllegalStateException("Worker model provider failed (${cause?.javaClass?.simpleName ?: "unknown"})")
                 }
                 inputTokens = response.inputTokens
@@ -346,6 +349,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 record(task.number, inputTokens, outputTokens, "SUCCESS", providerCallStarted = true, callId = callId)
                 return candidate
             } catch (error: VyomFactoryExecutionStoppedException) {
+                throw error
+            } catch (error: SecurityException) {
+                record(task.number, 0, 0, "BLOCKED", providerCallStarted = false, callId = callId)
                 throw error
             } catch (error: IllegalStateException) {
                 if (error.message == "Worker model request timed out") throw error
@@ -483,10 +489,6 @@ internal object VyomFactoryLocalApprovedPlanEnvelope {
     }
 }
 
-internal object VyomFactoryWorkerModelFeatureFlags {
-    const val REAL_MODEL_CALLS_ENABLED = false
-}
-
 internal object VyomFactoryWorkerModelRuntime {
     const val SETTINGS_PREFS = "vyom_factory_worker_model_settings"
     const val SELECTED_PROVIDER = "provider_id"
@@ -494,20 +496,16 @@ internal object VyomFactoryWorkerModelRuntime {
 
     fun adapter(context: Context): VyomFactoryRepositoryWorkerModelAdapter {
         val journal = VyomFactoryWorkerModelJournal(context)
-        if (!VyomFactoryWorkerModelFeatureFlags.REAL_MODEL_CALLS_ENABLED) {
+        if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) {
             return VyomFactoryDisabledWorkerModelAdapter(journal)
         }
         val prefs = context.applicationContext.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
-        val providerId = prefs.getString(SELECTED_PROVIDER, NvidiaNemotronWorkerModelProvider.PROVIDER_ID)
-            ?: NvidiaNemotronWorkerModelProvider.PROVIDER_ID
-        val modelId = prefs.getString(
-            providerId + MODEL_ID_SUFFIX,
-            when (providerId) {
-                NvidiaNemotronWorkerModelProvider.PROVIDER_ID -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
-                GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
-                else -> throw SecurityException("Unsupported worker model provider")
-            }
-        ) ?: throw SecurityException("Worker model ID is missing")
+        val providerId = prefs.getString(SELECTED_PROVIDER, null)
+            ?: return VyomFactoryDisabledWorkerModelAdapter(journal)
+        val modelId = prefs.getString(providerId + MODEL_ID_SUFFIX, null) ?: run {
+            VyomFactoryWorkerLiveCallAuthorizationStore(context).revoke()
+            return VyomFactoryDisabledWorkerModelAdapter(journal)
+        }
         val provider: VyomFactoryWorkerModelProvider = when (providerId) {
             NvidiaNemotronWorkerModelProvider.PROVIDER_ID -> NvidiaNemotronWorkerModelProvider(modelId)
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider(modelId)
@@ -516,7 +514,8 @@ internal object VyomFactoryWorkerModelRuntime {
         return VyomFactoryStructuredWorkerModelAdapter(
             provider = provider,
             keyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, providerId),
-            journal = journal
+            journal = journal,
+            preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) }
         )
     }
 }

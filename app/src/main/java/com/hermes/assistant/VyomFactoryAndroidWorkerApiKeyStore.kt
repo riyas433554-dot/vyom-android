@@ -16,7 +16,8 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
     context: Context,
     private val providerId: String = NvidiaNemotronWorkerModelProvider.PROVIDER_ID
 ) : VyomFactoryWorkerApiKeyStore {
-    private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val keyIv get() = "${KEY_IV_PREFIX}_$providerId"
     private val keyCiphertext get() = "${KEY_CIPHERTEXT_PREFIX}_$providerId"
     private val keyAlias get() = "${KEY_ALIAS_PREFIX}_$providerId"
@@ -49,6 +50,8 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
             bytes.fill(0)
             if (encoded.hasArray()) encoded.array().fill(0)
         }
+        VyomFactoryWorkerLiveCallAuthorizationStore(appContext).revoke()
+        VyomFactoryWorkerReadmeVerificationCache.invalidate()
     }
 
     @Synchronized
@@ -84,6 +87,7 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
         check(prefs.edit().remove(keyIv).remove(keyCiphertext).commit()) {
             "Worker provider key could not be cleared"
         }
+        VyomFactoryWorkerLiveCallAuthorizationStore(appContext).revoke()
         runCatching {
             KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }.deleteEntry(keyAlias)
         }

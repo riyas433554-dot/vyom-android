@@ -11,6 +11,8 @@ internal object SelfModificationPolicy {
     private const val MAX_TITLE_LENGTH = 120
     private const val MAX_CONTENT_LENGTH = 200_000
 
+    private val protectedRepositoryPaths = setOf("config/release-certificate.sha256")
+
     private val protectedFileNames = setOf(
         "MainActivity.kt",
         "ActionEngine.kt",
@@ -31,6 +33,7 @@ internal object SelfModificationPolicy {
     )
 
     fun isAllowedPath(path: String): Boolean {
+        if (path in protectedRepositoryPaths) return false
         if (path.length > 240 || path.contains("..") || path.contains("//")) return false
         if (!Regex("^app/src/main/java/com/hermes/assistant/[A-Za-z0-9_/-]+\\.kt$").matches(path)) return false
         val fileName = path.substringAfterLast('/')
