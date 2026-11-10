@@ -18,9 +18,6 @@ class VyomFactoryRepositoryWorkerModelAdapterTest {
         override fun tokensForTask(taskNumber: Int): Long = entries
             .filter { it.taskNumber == taskNumber && it.providerCallStarted }
             .sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
-        override fun hasSuccessfulCall(taskNumber: Int): Boolean = entries.any {
-            it.taskNumber == taskNumber && it.providerCallStarted && it.result == "SUCCESS"
-        }
     }
 
     @Test fun stopPreventsModelProposalParsing() {
@@ -43,9 +40,7 @@ class VyomFactoryRepositoryWorkerModelAdapterTest {
             override val providerId = "stop-test"
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
-                apiKey: CharArray,
-                maxInputTokens: Int,
-                maxOutputTokens: Int
+                apiKey: CharArray
             ): VyomFactoryWorkerModelProvider.Response {
                 providerCalls++
                 error("STOP must prevent model invocation and proposal parsing")

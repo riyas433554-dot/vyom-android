@@ -2159,3 +2159,12 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Journal behavior: `VyomFactoryStructuredWorkerModel.kt:257-262` records `RUNNING` with `providerCallStarted=true` immediately before `provider.generate(...)`; terminal outcome is recorded on success/failure/timeout/stop at lines 270-320. `record()` delegates to `journal.record(...)` at lines 392-411. The journal no longer rejects at capacity; it evicts an old row at lines 95-99. However, persistence is still fail-closed: `record()` throws if SharedPreferences commit fails at lines 113-115, so a provider call will not proceed if its pre-call journal write fails. It is therefore correct to say each attempted provider invocation is journaled before invocation, but not that calls proceed when journal persistence itself fails.
 - Step 2 CI gate: **FAIL**. Gitleaks: **PASS, 0 full-history findings**. Step 2 is **NOT CI-VERIFIED**. Step 3 remains **NOT STARTED**.
 - No phone/device test or live provider call is claimed.
+
+
+## Step 2 — stale repository worker adapter test migration — 2026-11-10
+
+- Migrated `app/src/test/java/com/hermes/assistant/VyomFactoryRepositoryWorkerModelAdapterTest.kt` to the current `VyomFactoryWorkerModelCallJournal` and `VyomFactoryWorkerModelProvider` contracts.
+- Removed the obsolete `hasSuccessfulCall` override; retained the three current journal query methods (`callsSince`, `callsForTask`, `tokensForTask`).
+- Updated the fake provider's `generate` override to accept only `Request` and `apiKey`; removed obsolete `maxInputTokens` / `maxOutputTokens` parameters. No production behavior, approval gate, provider cap, workflow, signing, or trust-root file was changed.
+- This is a test-fixture migration, not a relaxation or disabling of tests. Focused/local Gradle execution is not available in this GitHub-only execution path; exact-HEAD Full + Debug CI is the required verification.
+- Code + HANDOFF commit is recorded below after the commit is created. Full and Debug runs must report this exact final commit SHA in `head_sha`; any mismatch is **UNVERIFIED**. Full Gitleaks standard and full-history scans must report zero findings. Do not start Step 3 until both workflows pass and Gitleaks reports zero.
