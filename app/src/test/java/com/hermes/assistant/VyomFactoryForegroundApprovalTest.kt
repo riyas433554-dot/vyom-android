@@ -55,4 +55,21 @@ class VyomFactoryForegroundApprovalTest {
         assertFalse(approvals.consume("wrong"))
         assertTrue(approvals.consume(id))
     }
+
+    @Test fun fullApprovalStoreRejectsNewIssueWithoutEvictingExistingApprovals() {
+        var nextId = 0
+        val approvals = VyomFactoryOneTimeApprovalStore(newId = { "approval-${++nextId}" })
+        val issued = (1..64).map { approvals.issue() }
+
+        val error = try {
+            approvals.issue()
+            null
+        } catch (expected: IllegalStateException) {
+            expected
+        }
+
+        assertNotNull("The 65th pending approval must be rejected", error)
+        assertTrue(error!!.message.orEmpty().contains("task must remain pending"))
+        issued.forEach { assertTrue("Existing approval was evicted: $it", approvals.consume(it)) }
+    }
 }

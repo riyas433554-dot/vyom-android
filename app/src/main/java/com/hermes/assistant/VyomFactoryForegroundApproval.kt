@@ -31,9 +31,8 @@ internal class VyomFactoryOneTimeApprovalStore(
     @Synchronized
     fun issue(): String {
         prune()
-        while (approvals.size >= MAX_PENDING) {
-            val oldest = approvals.keys.firstOrNull() ?: break
-            approvals.remove(oldest)
+        check(approvals.size < MAX_PENDING) {
+            "Approval store is full; task must remain pending"
         }
         return newId().also { id ->
             require(id.isNotBlank() && id.length <= 128)
