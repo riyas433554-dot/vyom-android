@@ -88,7 +88,9 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
             val previous = rows[existingIndex]
             require(previous.taskNumber == entry.taskNumber &&
                 previous.providerId == entry.providerId &&
-                previous.providerCallStarted == entry.providerCallStarted) {
+                (previous.providerCallStarted == entry.providerCallStarted ||
+                    (!previous.providerCallStarted && entry.providerCallStarted &&
+                        previous.result == "RUNNING" && entry.result == "RUNNING"))) {
                 "Worker journal call identity cannot be rebound"
             }
             rows[existingIndex] = entry
@@ -285,7 +287,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             }
             val callId = UUID.randomUUID().toString()
             try {
-                record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
+                record(task.number, 0, 0, "RUNNING", providerCallStarted = false, callId = callId)
             } catch (error: Exception) {
                 apiKey.fill('\u0000')
                 throw error
@@ -295,9 +297,12 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             }
             var inputTokens = 0
             var outputTokens = 0
+            var providerCallStarted = false
             try {
                 val future = executor.submit<VyomFactoryWorkerModelProvider.Response> {
                     if (!preCallAuthorization()) throw SecurityException("Worker live-call authorization is OFF or stale")
+                    record(task.number, 0, 0, "RUNNING", providerCallStarted = true, callId = callId)
+                    providerCallStarted = true
                     provider.generate(request, apiKey, maxInputTokensForCall, maxOutputTokensForCall)
                 }
                 val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(limits.timeoutMillis)
@@ -351,18 +356,18 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             } catch (error: VyomFactoryExecutionStoppedException) {
                 throw error
             } catch (error: SecurityException) {
-                record(task.number, 0, 0, "BLOCKED", providerCallStarted = false, callId = callId)
+                record(task.number, 0, 0, "BLOCKED", providerCallStarted = providerCallStarted, callId = callId)
                 throw error
             } catch (error: IllegalStateException) {
                 if (error.message == "Worker model request timed out") throw error
                 lastFailure = error
                 if (attempt >= limits.maxRetries || error.message?.contains("provider failed") != true) {
-                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
+                    record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId)
                     throw error
                 }
-                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
+                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId)
             } catch (error: Exception) {
-                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = true, callId = callId)
+                record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId)
                 throw error
             } finally {
                 apiKey.fill('\u0000')

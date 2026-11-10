@@ -150,7 +150,8 @@ class VyomFactoryStructuredWorkerModelTest {
         assertFalse(request.systemInstructions.contains(injection))
         assertEquals(listOf("README.md"), request.allowedPaths)
         assertFalse(request.systemInstructions.contains("app/secrets"))
-        assertEquals("FAILED", journal.entries.single().result)
+        assertEquals("BLOCKED", journal.entries.single().result)
+        assertTrue(journal.entries.single().providerCallStarted)
     }
 
     @Test fun apiKeyNeverAppearsInPromptOrCallJournal() {
