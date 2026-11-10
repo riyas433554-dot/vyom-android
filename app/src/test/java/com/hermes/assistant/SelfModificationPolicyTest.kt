@@ -23,6 +23,7 @@ class SelfModificationPolicyTest {
     }
 
     @Test fun releaseCertificateConfigIsExplicitlyProtectedFromSelfModification() {
+        assertTrue(SelfModificationPolicy.isExplicitlyProtectedRepositoryPath("config/release-certificate.sha256"))
         assertFalse(SelfModificationPolicy.isAllowedPath("config/release-certificate.sha256"))
         assertFalse(SelfModificationPolicy.isAllowedPath("config/../config/release-certificate.sha256"))
     }

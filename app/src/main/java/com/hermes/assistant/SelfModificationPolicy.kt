@@ -32,8 +32,11 @@ internal object SelfModificationPolicy {
         "VyomShizukuUserService.kt"
     )
 
+    fun isExplicitlyProtectedRepositoryPath(path: String): Boolean =
+        path in protectedRepositoryPaths
+
     fun isAllowedPath(path: String): Boolean {
-        if (path in protectedRepositoryPaths) return false
+        if (isExplicitlyProtectedRepositoryPath(path)) return false
         if (path.length > 240 || path.contains("..") || path.contains("//")) return false
         if (!Regex("^app/src/main/java/com/hermes/assistant/[A-Za-z0-9_/-]+\\.kt$").matches(path)) return false
         val fileName = path.substringAfterLast('/')
