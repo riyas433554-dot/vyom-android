@@ -67,11 +67,11 @@ class VyomFactoryStructuredWorkerModelTest {
         }
     """.trimIndent()
 
-    private fun task(body: String = "Please add one short README note.") =
+    private fun task(body: String = "Please add one short README note.", number: Int = 42) =
         VyomFactoryGitHubClient.Task(
-            42, "Document the worker flow", body, "open",
-            "https://github.com/riyas433554-dot/vyom-android/issues/42", "2026-11-08",
-            VyomFactoryStatus.Metadata("P2", "open", "test", "worker-task-42", "worker-task-42", emptyList())
+            number, "Document the worker flow", body, "open",
+            "https://github.com/riyas433554-dot/vyom-android/issues/$number", "2026-11-08",
+            VyomFactoryStatus.Metadata("P2", "open", "test", "worker-task-$number", "worker-task-$number", emptyList())
         )
 
     private fun registry(): VyomFactorySystemRegistry {
@@ -221,26 +221,22 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("TIMEOUT", journal.entries.single().result)
     }
 
-    @Test fun dailyCallCapBlocksFurtherProviderCalls() {
+    @Test fun moreThanTwentyProviderCallsAreAllowedWithoutADailyCallCap() {
         val provider = FakeProvider {
             VyomFactoryWorkerModelProvider.Response(validJson(), 10, 10)
         }
         val journal = MemoryJournal()
-        val worker = adapter(
-            provider, journal,
-            limits = VyomFactoryWorkerModelLimits(dailyCallCap = 1)
-        )
+        val worker = adapter(provider, journal)
         val control = object : VyomFactoryExecutionControl {
             override fun shouldStop() = false
         }
 
-        worker.propose(task(), registry(), control)
-        assertThrows(IllegalStateException::class.java) {
-            worker.propose(task(), registry(), control)
+        (1..25).forEach { number ->
+            worker.propose(task(number = number), registry(), control)
         }
 
-        assertEquals(1, provider.calls)
-        assertEquals("BLOCKED", journal.entries.last().result)
+        assertEquals(25, provider.calls)
+        assertEquals(25, journal.entries.count { it.result == "SUCCESS" })
     }
 
     @Test fun stopPreventsProviderCall() {
@@ -372,33 +368,28 @@ class VyomFactoryStructuredWorkerModelTest {
 
 
 
-    @Test fun cumulativeTaskTokenBudgetBlocksFurtherProviderCalls() {
+    @Test fun cumulativeTaskTokensDoNotBlockSubsequentAttempts() {
         val provider = FakeProvider {
-            VyomFactoryWorkerModelProvider.Response("not-json", inputTokens = 120, outputTokens = 80)
+            VyomFactoryWorkerModelProvider.Response("not-json", inputTokens = 3_000, outputTokens = 3_000)
         }
         val journal = MemoryJournal()
         val worker = adapter(
             provider,
             journal,
-            limits = VyomFactoryWorkerModelLimits(
-                maxTokensPerTask = 256,
-                maxOutputTokens = 128,
-                maxRetries = 1
-            )
+            limits = VyomFactoryWorkerModelLimits(maxRetries = 0)
         )
         val control = object : VyomFactoryExecutionControl {
             override fun shouldStop() = false
         }
 
-        assertThrows(IllegalArgumentException::class.java) {
-            worker.propose(task(), registry(), control)
-        }
-        assertThrows(IllegalStateException::class.java) {
-            worker.propose(task(), registry(), control)
+        repeat(3) {
+            assertThrows(IllegalArgumentException::class.java) {
+                worker.propose(task(), registry(), control)
+            }
         }
 
-        assertEquals(1, provider.calls)
-        assertEquals("BLOCKED", journal.entries.last().result)
+        assertEquals(3, provider.calls)
+        assertTrue(journal.tokensForTask(42) > 8_192L)
     }
 
     @Test fun providerCannotExceedConfiguredOutputTokenLimit() {
