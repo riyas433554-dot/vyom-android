@@ -87,10 +87,6 @@ class VyomFactoryWorkerLeaseStoreTest {
         assertThrows(IllegalStateException::class.java) { store.claim(3, identity("worker-failed-commit"), 1, 5_000) }
     }
 
-    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
-        workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
-    )
-
     private fun identity(workerId: String, slot: Int = 0) =
         VyomFactoryWorkerIdentity(workerId, VyomFactoryLaneRouter.Lane.INSTANT, slot)
 

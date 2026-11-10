@@ -143,7 +143,7 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 it.issueNumber == lease.issueNumber && !it.isTerminal
             }
             check(activeForIssue.none {
-                it.leaseId == lease.leaseId && it.workerId == lease.workerId
+                it.leaseId == lease.leaseId && it.workerId == lease.workerId && it.lane == lease.lane && it.workerSlot == lease.workerSlot
             }) { "An execution attempt is already active for this issue and lease" }
             activeForIssue.forEach { previous ->
                 entries[previous.attemptId] = previous.copy(
@@ -294,7 +294,8 @@ internal class VyomFactoryExecutionJournal internal constructor(
 
     private fun requireCurrentLease(lease: VyomFactoryWorkerLeaseStore.Lease, now: Long) {
         val active = leases.active(lease.issueNumber, now)
-        check(active != null && active.leaseId == lease.leaseId && active.workerId == lease.workerId) {
+        check(active != null && active.leaseId == lease.leaseId && active.workerId == lease.workerId &&
+            active.lane == lease.lane && active.workerSlot == lease.workerSlot) {
             "Execution lease is no longer current"
         }
     }
@@ -321,7 +322,9 @@ internal class VyomFactoryExecutionJournal internal constructor(
                         issueNumber = item.getInt("issue_number"),
                         attemptId = item.getString("attempt_id"),
                         leaseId = item.getString("lease_id"),
-                        workerId = item.getString("owner_id"),
+                        workerId = item.optString("worker_id").ifBlank { item.optString("owner_id") },
+                        lane = item.optString("lane").takeIf { it.isNotBlank() }?.let { VyomFactoryLaneRouter.Lane.valueOf(it) },
+                        workerSlot = if (item.has("worker_slot") && !item.isNull("worker_slot")) item.getInt("worker_slot") else null,
                         state = state,
                         startedAt = item.getLong("started_at"),
                         updatedAt = item.getLong("updated_at"),
@@ -352,7 +355,9 @@ internal class VyomFactoryExecutionJournal internal constructor(
                 .put("issue_number", entry.issueNumber)
                 .put("attempt_id", entry.attemptId)
                 .put("lease_id", entry.leaseId)
-                .put("owner_id", entry.workerId)
+                .put("worker_id", entry.workerId)
+                .put("lane", entry.lane?.name ?: JSONObject.NULL)
+                .put("worker_slot", entry.workerSlot ?: JSONObject.NULL)
                 .put("state", entry.state.name)
                 .put("started_at", entry.startedAt)
                 .put("updated_at", entry.updatedAt)

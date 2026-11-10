@@ -182,7 +182,7 @@ class VyomFactoryExecutionJournalTest {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
         val expired = leases.claim(54, identity("worker-a"), 1_000, 5_000)!!
-        val live = leases.claim(55, identity("worker-b"), 1_000, 20_000)!!
+        val live = leases.claim(55, identity("worker-b", 1), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(expired, "expired-running", 1_100, "factory.expired")
         assertTrue(journal.markRunning(expired, "expired-running", 1_200))
@@ -234,7 +234,7 @@ class VyomFactoryExecutionJournalTest {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
         val expired = leases.claim(57, identity("worker-expired"), 1_000, 5_000)!!
-        val live = leases.claim(58, identity("worker-live"), 1_000, 20_000)!!
+        val live = leases.claim(58, identity("worker-live", 1), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(expired, "startup-expired", 1_100, "factory.startup")
         assertTrue(journal.markRunning(expired, "startup-expired", 1_200))
@@ -251,10 +251,6 @@ class VyomFactoryExecutionJournalTest {
             reopenedAfterProcessRestart.get("startup-live")!!.state)
         assertTrue(reopenedAfterProcessRestart.replayable().isEmpty())
     }
-
-    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
-        workerId, VyomFactoryLaneRouter.Lane.INSTANT, 0
-    )
 
     private fun identity(workerId: String, slot: Int = 0) =
         VyomFactoryWorkerIdentity(workerId, VyomFactoryLaneRouter.Lane.INSTANT, slot)

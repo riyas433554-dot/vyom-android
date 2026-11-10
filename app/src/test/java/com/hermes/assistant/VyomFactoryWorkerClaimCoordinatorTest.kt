@@ -78,7 +78,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
 
         val first = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), identity("worker-a"), 1_000, 10_000)
-        val second = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), identity("worker-b"), 1_001, 10_000)
+        val second = coordinator.claimNext(listOf(remote(12, "P1", "source-12")), identity("worker-b", 1), 1_001, 10_000)
 
         assertNotNull(first)
         assertNull(second)
@@ -108,7 +108,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         assertFalse(coordinator.release(first.copy(lease = first.lease.copy(workerId = "worker-b"))))
         assertTrue(coordinator.release(first))
         assertFalse(coordinator.isCurrent(first, 1_001))
-        val next = coordinator.claimNext(remote, identity("worker-b"), 1_002, 5_000)
+        val next = coordinator.claimNext(remote, identity("worker-b", 1), 1_002, 5_000)
         assertNotNull(next)
         assertEquals(14, next!!.task.issueNumber)
     }
