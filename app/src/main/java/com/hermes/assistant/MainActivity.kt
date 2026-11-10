@@ -4578,7 +4578,7 @@ class MainActivity : Activity() {
                     rows += "FAIL · Installed signing certificate · PackageManager returned no signer"
                 } else {
                     rows += "PASS · Installed signing certificate · SHA-256 ${installedCertificates.joinToString()}"
-                    rows += if (expectedCertificate in installedCertificates) {
+                    rows += if (ReleaseIdentityPolicy.matchesAny(installedCertificates, expectedCertificate)) {
                         "PASS · Stable release identity · Installed certificate matches the configured release identity"
                     } else {
                         "FAIL · Stable release identity · Installed certificate differs from the required release identity; updates will be rejected"

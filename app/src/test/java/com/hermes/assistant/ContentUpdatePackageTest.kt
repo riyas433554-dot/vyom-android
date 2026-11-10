@@ -70,6 +70,20 @@ class ContentUpdatePackageTest {
         assertTrue(verifier.verify(altered, signature, mapOf(file.path to bytes), "0.3.1").any { it.contains("signature verification failed") })
     }
 
+    @Test fun rejectsContentPackageSignedByADifferentKey() {
+        val bytes = "visible content".toByteArray()
+        val file = ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))
+        val valid = manifest().copy(files = listOf(file))
+        val trusted = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
+        val attacker = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
+        val signature = Signature.getInstance("SHA256withECDSA").run {
+            initSign(attacker.private); update(valid.canonicalPayload()); sign()
+        }
+        val verifier = ContentUpdatePackageVerifier(Base64.getEncoder().encodeToString(trusted.public.encoded))
+        assertTrue(verifier.verify(valid, signature, mapOf(file.path to bytes), "0.3.1")
+            .any { it.contains("signature verification failed") })
+    }
+
     @Test fun refusesUnknownSigningKeyAndMissingTrustConfiguration() {
         val bytes = "visible content".toByteArray()
         val file = ContentUpdateFile("skills/demo/SKILL.md", UiBundleIntegrity.sha256(bytes))

@@ -1,35 +1,29 @@
 package com.hermes.assistant
 
 import org.json.JSONArray
-import java.time.Instant
 
-/** Resolves the signed content-package asset from the authenticated private-repository release feed. */
+/** Resolves the signed content package from the single newest release returned by per_page=1. */
 internal object ContentUpdateReleaseLocator {
     private const val EXPECTED_PREFIX = "/riyas433554-dot/vyom-android/releases/download/"
     private const val ASSET_NAME = "vyom-content-update-demo.zip"
 
     fun latestPackageAssetId(releasesJson: String): Long? {
-        val releases = JSONArray(releasesJson)
-        val candidates = mutableListOf<Pair<Instant, Long>>()
-        for (index in 0 until releases.length()) {
-            val release = releases.optJSONObject(index) ?: continue
-            if (release.optBoolean("draft", true) || !release.optBoolean("prerelease", false)) continue
-            val publishedAt = runCatching { Instant.parse(release.optString("published_at")) }.getOrNull() ?: continue
-            val assets = release.optJSONArray("assets") ?: continue
-            for (assetIndex in 0 until assets.length()) {
-                val asset = assets.optJSONObject(assetIndex) ?: continue
-                if (asset.optString("name") != ASSET_NAME) continue
-                val assetId = asset.optLong("id", 0L)
-                val url = asset.optString("browser_download_url")
-                if (assetId > 0L && isTrustedPackageUrl(url)) candidates += publishedAt to assetId
-            }
+        val release = JSONArray(releasesJson).optJSONObject(0) ?: return null
+        if (release.optBoolean("draft", true)) return null
+        val assets = release.optJSONArray("assets") ?: return null
+        for (index in 0 until assets.length()) {
+            val asset = assets.optJSONObject(index) ?: continue
+            if (asset.optString("name") != ASSET_NAME) continue
+            val id = asset.optLong("id", 0L)
+            if (id > 0L && isTrustedPackageUrl(asset.optString("browser_download_url"))) return id
         }
-        return candidates.maxByOrNull { it.first }?.second
+        return null
     }
 
     fun isTrustedPackageUrl(value: String): Boolean = runCatching {
         val uri = java.net.URI(value)
         uri.scheme == "https" && uri.host == "github.com" &&
-            uri.path.startsWith(EXPECTED_PREFIX) && uri.path.endsWith("/$ASSET_NAME")
+            uri.path.startsWith(EXPECTED_PREFIX) && uri.path.endsWith("/$ASSET_NAME") &&
+            uri.userInfo == null && uri.rawQuery == null && uri.rawFragment == null
     }.getOrDefault(false)
 }

@@ -10,10 +10,11 @@ import java.net.URI
 /** Authenticated access to private GitHub release metadata and assets. Redirects never receive the PAT. */
 internal class GitHubReleaseAssetClient(
     private val tokenProvider: () -> String,
-    private val connectionFactory: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection }
+    private val connectionFactory: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection },
+    private val releasesUrl: String = RELEASES_API
 ) {
     fun readReleases(maxBytes: Int): String {
-        val connection = connectionFactory(URL(RELEASES_API)).apply {
+        val connection = connectionFactory(URL(releasesUrl)).apply {
             connectTimeout = 15_000
             readTimeout = 60_000
             instanceFollowRedirects = false
@@ -158,7 +159,7 @@ internal class GitHubReleaseAssetClient(
 
     companion object {
         private const val RELEASES_API =
-            "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=30"
+            "https://api.github.com/repos/riyas433554-dot/vyom-android/releases?per_page=1"
         private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
         private const val MAX_ERROR_BODY_BYTES = 8 * 1024
     }

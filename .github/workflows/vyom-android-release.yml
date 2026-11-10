@@ -124,6 +124,18 @@ jobs:
           APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.meta.outputs.apk }}"
           VERSION_SHA256="$SHA256" APK_URL="$APK_URL" VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" CERT_SHA256="$CERT_SHA256" COMMIT="$GITHUB_SHA" python3 -c 'import json,os; d={"version":os.environ["VERSION"],"versionName":os.environ["VERSION"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["CERT_SHA256"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
           printf 'versionName=%s\nversionCode=%s\ncommit=%s\nsha256=%s\ncertificateSha256=%s\n' "$VERSION" "$VERSION_CODE" "$GITHUB_SHA" "$SHA256" "$CERT_SHA256" > output/build-info.txt
+      - name: Build and sign content-only package with the protected release key
+        shell: bash
+        env:
+          CONTENT_VERSION: 1.0.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          python3 tools/build_content_package.py --prepare --output output/content-package --version "$CONTENT_VERSION"
+          javac -d output tools/ContentUpdateSigner.java
+          java -cp output ContentUpdateSigner output/content-package/manifest.canonical output/content-package/manifest.sig
+          python3 tools/build_content_package.py --archive --output output/content-package
+          test -s output/vyom-content-update-demo.zip
       - name: Upload signed release artifact
         uses: actions/upload-artifact@v4
         with:
@@ -136,9 +148,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
           files: |
             output/${{ steps.meta.outputs.apk }}
             output/${{ steps.meta.outputs.apk }}.sha256
             output/${{ steps.meta.outputs.apk }}.certs.txt
             output/vyom-update.json
             output/build-info.txt
+            output/vyom-content-update-demo.zip
