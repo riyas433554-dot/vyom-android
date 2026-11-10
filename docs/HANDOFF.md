@@ -2197,3 +2197,18 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Full-history Gitleaks: `2026-11-10T11:29:10.9860811Z ... INF no leaks found`; `2026-11-10T11:29:11.0121147Z FULL_HISTORY_GITLEAKS_FINDINGS=0`.
 - Both Full and Debug exact-SHA runs passed; full-history findings are zero. L1 implementation/test gate is **CI-VERIFIED** on `5bf175f357903e473453176cea170d1737e9304f`. No workflow, signing, trust-root, production, or approval-policy files changed. No phone test or live provider call is claimed.
 - Next ordered task: Step 4 — L2 worker identities. Do not start L4/L5 ahead of the owner's sequence.
+
+
+## L2 — worker identity and claim regression repair — 2026-11-10
+
+- L2 status remains **UNVERIFIED**. L4 and L5 remain **NOT STARTED / HOLD**.
+- Repair commit: `935550d906c6045da3eb7a02823961535fd58544` (`fix(factory): preserve lane metadata when reconciling worker tasks`).
+- `VyomFactoryWorkerSession.claimNext()` now copies remote `lane` and `lanePlanningAllowed` into each local `QueuedTask`.
+- `VyomFactoryTaskStore.reconcileOpen()` refreshes those two authoritative metadata fields for an existing queue row only when both issue number and source ID match; it preserves the original enqueue timestamp. This prevents legacy/stale local rows from permanently retaining the default `CUSTOM/false` metadata and also reflects owner revocation of planning permission.
+- Regression tests now assert metadata for approved and unapproved tasks across INSTANT and CUSTOM lanes, plus refresh of an existing legacy queue row. No approval checks were removed or relaxed.
+- The two `VyomFactoryVerifiedProgressTest` IllegalArgumentExceptions were caused by the test helper passing `worker` (6 characters) to the existing worker-ID validator, which requires at least 8 characters. Test fixture changed to a valid ID; production validation was not weakened.
+- Baseline Debug run `42821483669`, exact `head_sha=38f22fecc752b2c2154b128db2802a170611ba47`: 737 tests completed, 11 failed — 2 `VyomFactoryVerifiedProgressTest`, 2 `VyomFactoryWorkerPoolTest`, 6 `VyomFactoryWorkerSessionTest`, and 1 `VyomFactoryLifecycleIntegrationTest`. The worker/pool/session failures were consistent with lane metadata being lost during local reconciliation; the progress failures were invalid test IDs.
+- Repair-commit Full run `42857579433`, exact `head_sha=935550d906c6045da3eb7a02823961535fd58544`: **FAILURE** at full-history Gitleaks. It reported exactly the same three previously identified findings, all attributed to `b4dd926a070d4d642ff2be2c944f3accbe3ba6a8`; **no new finding**. The Full workflow skipped its Gradle unit-test/APK step because the security gate failed.
+- Repair-commit Debug run `42857579937`, exact `head_sha=935550d906c6045da3eb7a02823961535fd58544`: was still **IN_PROGRESS** when this note was written. Its final conclusion must be checked; do not infer success.
+- No `.gitleaksignore`, baseline, allowlist, suppression, workflow, signing, trust-root, Android `main`, Render, backend, or production Supabase change. No rebase, force-push, or history rewrite.
+- L2 cannot be marked verified until the same exact HEAD has Debug **SUCCESS** and Full-history Gitleaks **0 findings**. Current three historical findings keep that gate blocked. Do not start L4/L5.
