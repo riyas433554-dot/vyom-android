@@ -2108,3 +2108,35 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
   5. Create a fresh README-only issue, run the worker again, inspect the complete proposal, then select **APPROVE** only if every detail is correct. Verify the normal one-time local approval flow creates only the expected draft PR and changes no other path.
   6. Tap **DISABLE LIVE MODEL CALLS** after the test, or allow the 24-hour expiry. Any settings/token/binding change must revoke authorization; owner must repeat local foreground confirmation to re-enable.
 - No Android `main`, Render, backend, production Supabase or PR #102 changes. No force-push. Phone acceptance remains owner work and must not be claimed complete by CI.
+
+
+---
+
+## FACTORY readiness sequence — 2026-11-10
+
+### Step 1 — L3 historical baseline verification
+
+- Requested short SHA `2e105e8d051e` resolves to full commit `2e105e8d051e15fb66d375c7ce4da94897847648` (parent `3c49c1b980cb4ab704b0004888e1b99ef72688cd`).
+- At that exact SHA, Full CI run `42795033156` and Debug run `42795033047` both have `head_sha=2e105e8d051e15fb66d375c7ce4da94897847648`, but both concluded **FAILURE**. Full CI reached Gradle unit-test compilation and failed at `VyomFactoryRepositoryWorkerModelAdapterTest.kt:21`: `hasSuccessfulCall overrides nothing`. Debug's `Build and test debug APK` step also failed. No APK artifact was uploaded by those failed runs.
+- Full CI's standard Gitleaks step passed with `no leaks found`; full reachable-history scan passed with `FULL_HISTORY_GITLEAKS_FINDINGS=0`. This is zero findings at this SHA, not a claim that the failing Full workflow passed.
+- Runs `42793210064` (Vyom Android CI) and `42793210100` (Vyom Android Debug) both completed SUCCESS but both have `head_sha=44fca564bdef0e4af54aa4683bf29a1f7a749315`; they are not evidence for the requested L3 SHA.
+- L3 gate status: **FAIL** (Full + Debug); Gitleaks: **PASS / 0 findings**. Do not relabel L3 as fully verified.
+
+### Step 2 — direct provider adapter uncapping (Option B)
+
+- Implementation commits on `feature/real-worker-model`:
+  - Test specification: `1b975d9dffeda8158ec4008fdffe8223c7ae8818` — remove old provider budget expectations and assert usage above 4,096 is accepted.
+  - Provider implementation: `aaea30bb0ed10041a1b255900057b928e89d139c` — provider contract no longer takes per-call input/output token budgets; remove 4,096 defaults and post-response budget rejection; remove NVIDIA `max_tokens`, Google `maxOutputTokens`, input-budget preflight, and 12,000-character task-description truncation.
+  - Journal and payload retention: `06ad8795ab0162b155bad971309e5365e107aeda` — task title no longer truncated; journal rolls over its oldest completed entries (or oldest entry if all are RUNNING) at 5,000 retained records instead of blocking provider calls.
+- Direct adapters: NVIDIA Nemotron uses the NVIDIA chat-completions endpoint and separate system/user messages. Google adapter uses a Gemma model via Google's Generative Language (Gemini API) endpoint, with `systemInstruction` separate from user `contents`. Do not describe this as a Gemini model.
+- Credentials are passed out-of-band from the Android Keystore-backed key store; adapter authentication is in headers. Error handling does not echo response bodies or key values. No provider key was added to logs or source.
+- Existing owner live-call authorization, output-schema validation, protected-path validation, review UI, and one-time owner approval remain in place. The worker still returns an unapproved candidate and does not gain a GitHub writer.
+- No daily/calls-per-minute/per-task token quotas remain in this provider path. Operational constraints still exist: request timeout, bounded retry count, provider/model context limits, output-size/transport safety limits, and rolling 5,000-entry journal retention. These are not usage quotas.
+- Changed paths in the three commits are limited to:
+  - `app/src/main/java/com/hermes/assistant/VyomFactoryStructuredWorkerModel.kt`
+  - `app/src/main/java/com/hermes/assistant/VyomFactoryWorkerProviderAdapters.kt`
+  - `app/src/test/java/com/hermes/assistant/VyomFactoryStructuredWorkerModelTest.kt`
+  - `app/src/test/java/com/hermes/assistant/VyomFactoryWorkerProviderAdapterTest.kt`
+- Diff audit from L3 SHA to implementation HEAD: **no changes** to `.github/workflows/**`, `config/release-certificate.sha256`, signing configuration, or trust-root files. No approval source file changed.
+- Exact implementation HEAD `06ad8795ab0162b155bad971309e5365e107aeda`: Full run `42802705598` and Debug run `42802705685` were still in progress at this documentation checkpoint. Their eventual conclusions must be checked against this exact SHA; until then Step 2 CI is **UNVERIFIED**.
+- No phone test or live provider call is claimed. Owner phone acceptance remains pending.
