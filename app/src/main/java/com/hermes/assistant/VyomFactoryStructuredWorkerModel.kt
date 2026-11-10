@@ -65,7 +65,6 @@ internal interface VyomFactoryWorkerModelCallJournal {
     fun callsSince(epochMillis: Long): Int
     fun callsForTask(taskNumber: Int): Int
     fun tokensForTask(taskNumber: Int): Long
-    fun hasSuccessfulCall(taskNumber: Int): Boolean
 }
 
 /** Persisted audit metadata only: no credential, prompt, model output or issue body. */
@@ -126,10 +125,6 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
     override fun tokensForTask(taskNumber: Int): Long = synchronized(LOCK) {
         read().filter { it.taskNumber == taskNumber && it.providerCallStarted }
             .sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
-    }
-
-    override fun hasSuccessfulCall(taskNumber: Int): Boolean = synchronized(LOCK) {
-        read().any { it.taskNumber == taskNumber && it.result == "SUCCESS" && it.providerCallStarted }
     }
 
     private fun read(): List<VyomFactoryWorkerModelCallJournal.Entry> {
@@ -229,10 +224,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             systemInstructions = SYSTEM_INSTRUCTIONS,
             taskDescriptionData = taskData
         )
-        if (journal.hasSuccessfulCall(task.number)) {
-            record(task.number, 0, 0, "BLOCKED")
-            throw IllegalStateException("Worker task already has a successful model plan")
-        }
         if (control.shouldStop()) {
             record(task.number, 0, 0, "STOPPED")
             throw VyomFactoryExecutionStoppedException()
@@ -242,10 +233,6 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             if (control.shouldStop()) {
                 record(task.number, 0, 0, "STOPPED")
                 throw VyomFactoryExecutionStoppedException()
-            }
-            if (journal.hasSuccessfulCall(task.number)) {
-                record(task.number, 0, 0, "BLOCKED")
-                throw IllegalStateException("Worker task already has a successful model plan")
             }
             val maxInputTokensForCall = limits.maxInputTokensPerCall
             val maxOutputTokensForCall = limits.maxOutputTokens
