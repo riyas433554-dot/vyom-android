@@ -2168,3 +2168,15 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Updated the fake provider's `generate` override to accept only `Request` and `apiKey`; removed obsolete `maxInputTokens` / `maxOutputTokens` parameters. No production behavior, approval gate, provider cap, workflow, signing, or trust-root file was changed.
 - This is a test-fixture migration, not a relaxation or disabling of tests. Focused/local Gradle execution is not available in this GitHub-only execution path; exact-HEAD Full + Debug CI is the required verification.
 - Code + HANDOFF commit is recorded below after the commit is created. Full and Debug runs must report this exact final commit SHA in `head_sha`; any mismatch is **UNVERIFIED**. Full Gitleaks standard and full-history scans must report zero findings. Do not start Step 3 until both workflows pass and Gitleaks reports zero.
+
+
+## Step 2 — provider adapter CI verification PASS — 2026-11-10
+
+- Test-fixture migration commit: `8374ff21b4db34ab1f847f36234624bd338212ea`.
+- Exact-head Debug run `42806435287`: `head_sha=8374ff21b4db34ab1f847f36234624bd338212ea`, conclusion **SUCCESS**. APK artifact `vyom-debug-8374ff21b4db34ab1f847f36234624bd338212ea`, artifact ID `13757704264`.
+- Exact-head Full run `42806435402`: `head_sha=8374ff21b4db34ab1f847f36234624bd338212ea`, conclusion **SUCCESS**. APK artifact `vyom-phase6-8374ff21b4db34ab1f847f36234624bd338212ea`, artifact ID `13760075071`.
+- Full workflow standard Gitleaks log: `2026-11-10T11:19:07.0529037Z ... INF no leaks found`.
+- Full-history Gitleaks log: `2026-11-10T11:19:34.7150150Z ... INF no leaks found`; `2026-11-10T11:19:34.7390705Z FULL_HISTORY_GITLEAKS_FINDINGS=0`.
+- Debug workflow does not run a separate Gitleaks step; the Full workflow ran both required scans and reported zero findings.
+- Exact-SHA Full + Debug both passed and Gitleaks findings are zero. Step 2 is **CI-VERIFIED** on commit `8374ff21b4db34ab1f847f36234624bd338212ea`. This documentation-only follow-up records the verified result; no workflow, signing, trust-root, production, or approval-gate changes.
+- Step 3 L1 is now unblocked and is the next ordered implementation task. No live provider call was enabled; no APK installation or phone test is claimed.
