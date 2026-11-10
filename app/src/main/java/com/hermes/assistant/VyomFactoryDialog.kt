@@ -84,21 +84,40 @@ internal class VyomFactoryDialog(
     private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
-    private val workerOwnerId: String by lazy {
-        val prefs = activity.getSharedPreferences("vyom_factory_worker_identity", Activity.MODE_PRIVATE)
-        prefs.getString("owner_id", null)?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().also {
-            check(prefs.edit().putString("owner_id", it).commit()) { "Could not persist Factory worker identity" }
+    private val workerSessions: Map<VyomFactoryLaneRouter.Lane, VyomFactoryWorkerSession> by lazy {
+        val store = VyomFactoryTaskStore(activity.applicationContext)
+        val coordinator = VyomFactoryWorkerClaimCoordinator(store, VyomFactoryWorkerLeaseStore(activity.applicationContext))
+        val identities = VyomFactoryWorkerIdentityStore(activity.applicationContext).ensurePool()
+        VyomFactoryLaneRouter.Lane.values().associateWith { lane ->
+            val identity = identities.single { it.lane == lane && it.slotIndex == 0 }
+            VyomFactoryWorkerSession(store, coordinator, identity, fetchRemoteTasks = { client.listTasks() })
         }
     }
-    private val workerSession by lazy {
-        val store = VyomFactoryTaskStore(activity.applicationContext)
-        val leases = VyomFactoryWorkerLeaseStore(activity.applicationContext)
-        VyomFactoryWorkerSession(
-            store,
-            VyomFactoryWorkerClaimCoordinator(store, leases),
-            workerOwnerId,
-            fetchRemoteTasks = { client.listTasks() }
-        )
+
+    private fun sessionFor(claim: VyomFactoryWorkerClaimCoordinator.Claim): VyomFactoryWorkerSession =
+        workerSessions.values.firstOrNull { it.workerIdentity.workerId == claim.lease.workerId }
+            ?: throw IllegalStateException("Claim worker identity is not in the persisted pool")
+
+    private fun claimNextFromAnyLane(
+        eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }
+    ): VyomFactoryWorkerClaimCoordinator.Claim? {
+        for (lane in VyomFactoryLaneRouter.Lane.values().sortedBy { it.priorityRank }) {
+            val session = workerSessions.getValue(lane)
+            val claim = session.claimNext { remote ->
+                val origin = if (remote.metadata.source in setOf("vyom_chat", "vyom_voice")) {
+                    VyomFactoryLaneRouter.Origin.DIRECT_OWNER_COMMAND
+                } else VyomFactoryLaneRouter.Origin.COMPLAINT
+                val decision = VyomFactoryLaneRouter.route(
+                    VyomFactoryLaneRouter.Request(origin, remote.title + "\\n" + remote.body)
+                )
+                decision.lane == lane &&
+                    (lane == VyomFactoryLaneRouter.Lane.INSTANT ||
+                        lane == VyomFactoryLaneRouter.Lane.CUSTOM || decision.mayStartPlanning) &&
+                    eligible(remote)
+            }
+            if (claim != null) return claim
+        }
+        return null
     }
 
     fun show() {
@@ -408,7 +427,7 @@ internal class VyomFactoryDialog(
         claimStatus.text = "RUNNER ACTIVE · FETCHING FRESH ISSUE AND VALIDATING ACTION…"
         worker.execute {
             val outcomes = try {
-                val session = workerSession
+                val sessions = workerSessions
                 val journal = VyomFactoryExecutionJournal(activity.applicationContext)
                 val retrySchedules = VyomFactoryRetryScheduleStore(activity.applicationContext)
                 val adapter = VyomFactoryAndroidActionAdapter.forActivity(hostActivity, foregroundGeneration)
@@ -423,7 +442,7 @@ internal class VyomFactoryDialog(
                 val planningSnapshot = client.listTasks()
                 VyomFactoryLivePlanningStage(stageDetector::onPlanning).inspect(
                     planningSnapshot,
-                    session.activeClaimedIssueNumbers()
+                    sessions.values.first().activeClaimedIssueNumbers()
                 )
 
                 // Run a read-only planner pass over that same canonical issue snapshot.
@@ -533,13 +552,13 @@ internal class VyomFactoryDialog(
                 val visitedIssues = mutableSetOf<Int>()
                 val runner = VyomFactoryExecutionRunner(
                     claimNext = {
-                        session.claimNext { remote ->
+                        claimNextFromAnyLane { remote ->
                             remote.number !in visitedIssues &&
                                 isEligibleForRunner(remote, journal, retrySchedules, adapter)
                         }
                     },
-                    isClaimCurrent = { session.renewAndCheck(it) },
-                    releaseClaim = { session.release(it) },
+                    isClaimCurrent = { sessionFor(it).renewAndCheck(it) },
+                    releaseClaim = { sessionFor(it).release(it) },
                     fetchFreshTask = { number ->
                         val remote = client.listTasks().firstOrNull { it.number == number }
                         val approved = pendingRepositoryApprovals[number]
@@ -1051,7 +1070,7 @@ internal class VyomFactoryDialog(
         claimStatus.text = "REFRESHING REGISTRY · CLAIMING NEXT OPEN TASK…"
         worker.execute {
             try {
-                val claim = workerSession.claimNext()
+                val claim = claimNextFromAnyLane()
                 main.post {
                     if (!dialog.isShowing) return@post
                     activeClaim = claim
@@ -1090,7 +1109,7 @@ internal class VyomFactoryDialog(
         runButton.isEnabled = false
         worker.execute {
             try {
-                val released = workerSession.release(claim)
+                val released = sessionFor(claim).release(claim)
                 main.post {
                     if (!dialog.isShowing) return@post
                     if (released) {
