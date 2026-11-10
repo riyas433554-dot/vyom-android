@@ -102,6 +102,23 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
         assertEquals("e".repeat(64), VyomFactoryWorkerReadmeVerificationCache.getOrFetch(changedKey, now + 2L) { calls++; "e".repeat(64) })
         assertEquals(3, calls)
     }
+    @Test fun invalidatedSuccessCannotMaskANewGithubNetworkFailure() {
+        VyomFactoryWorkerReadmeVerificationCache.invalidate()
+        val key = "provider|model|repo|commit|README.md"
+        assertEquals("a".repeat(64), VyomFactoryWorkerReadmeVerificationCache.getOrFetch(key, now) { "a".repeat(64) })
+        VyomFactoryWorkerReadmeVerificationCache.invalidate()
+        assertThrows(IllegalStateException::class.java) {
+            VyomFactoryWorkerReadmeVerificationCache.getOrFetch(key, now + 1L) {
+                throw IllegalStateException("GitHub rate limit")
+            }
+        }
+        assertThrows(IllegalStateException::class.java) {
+            VyomFactoryWorkerReadmeVerificationCache.getOrFetch(key, now + 2L) {
+                throw IllegalStateException("GitHub remains unavailable")
+            }
+        }
+    }
+
     @Test fun authorizationRecordMustMatchItsStoredConfigurationHash() {
         val record = VyomFactoryWorkerLiveCallAuthorizationPolicy.enable(config, true, true, now)
         assertFalse(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(
