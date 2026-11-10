@@ -154,6 +154,24 @@ class VyomFactoryStructuredWorkerModelTest {
         assertTrue(journal.entries.single().providerCallStarted)
     }
 
+    @Test fun workerCannotProposeTheReleaseCertificateIdentityFile() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(
+                validJson("config/release-certificate.sha256"), 10, 5
+            )
+        }
+        val journal = MemoryJournal()
+        assertThrows(SecurityException::class.java) {
+            adapter(provider, journal).propose(task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            })
+        }
+        assertEquals(1, provider.calls)
+        assertEquals("BLOCKED", journal.entries.single().result)
+        assertTrue(journal.entries.single().providerCallStarted)
+        assertEquals(listOf("README.md"), provider.lastRequest!!.allowedPaths)
+    }
+
     @Test fun apiKeyNeverAppearsInPromptOrCallJournal() {
         val secret = "fake-provider-key-never-log"
         val provider = FakeProvider {
