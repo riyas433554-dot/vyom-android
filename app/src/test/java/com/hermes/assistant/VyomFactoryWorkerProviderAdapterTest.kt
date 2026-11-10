@@ -76,12 +76,12 @@ class VyomFactoryWorkerProviderAdapterTest {
         val transport = FakeTransport()
         val provider = NvidiaNemotronWorkerModelProvider(transport = transport)
 
-        val result = provider.generate(request(), "nvidia-test-key".toCharArray(), 4096, 2048)
+        val result = provider.generate(request(), "nvidia-test-key".toCharArray())
 
         assertEquals("nvidia-nemotron", provider.providerId)
         val payload = JSONObject(transport.body!!)
         assertEquals(NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID, payload.getString("model"))
-        assertEquals(2048, payload.getInt("max_tokens"))
+        assertFalse(payload.has("max_tokens"))
         assertFalse(payload.has("response_format"))
         assertFalse(payload.getBoolean("stream"))
         val messages = payload.getJSONArray("messages")
@@ -103,7 +103,7 @@ class VyomFactoryWorkerProviderAdapterTest {
         )
         val provider = GoogleGemmaWorkerModelProvider(transport = transport)
 
-        val result = provider.generate(request(), "google-test-key".toCharArray(), 4096, 2048)
+        val result = provider.generate(request(), "google-test-key".toCharArray())
 
         assertEquals("google-gemma", provider.providerId)
         assertTrue(transport.url!!.contains("/models/${GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID}:generateContent"))
@@ -114,19 +114,18 @@ class VyomFactoryWorkerProviderAdapterTest {
         assertTrue(payload.getJSONObject("systemInstruction").toString().contains("SYSTEM:"))
         assertTrue(payload.getJSONArray("contents").getJSONObject(0).toString()
             .contains("UNTRUSTED TASK DESCRIPTION DATA"))
+        assertFalse(payload.getJSONObject("generationConfig").has("maxOutputTokens"))
         assertEquals(52, result.inputTokens)
         assertEquals(23, result.outputTokens)
     }
 
-    @Test fun providerRejectsPromptThatExceedsInputTokenBudgetBeforeNetworkCall() {
+    @Test fun providerDoesNotApplyAHardcodedInputTokenBudget() {
         val transport = FakeTransport()
         val provider = NvidiaNemotronWorkerModelProvider(transport = transport)
 
-        assertThrows(IllegalArgumentException::class.java) {
-            provider.generate(request("x".repeat(20_000)), "key".toCharArray(), 128, 512)
-        }
+        provider.generate(request("x".repeat(20_000)), "key".toCharArray())
 
-        assertEquals(null, transport.url)
+        assertTrue(transport.url != null)
     }
 
     @Test fun providerRejectsHttpFailureWithoutEchoingResponseBody() {
@@ -136,7 +135,7 @@ class VyomFactoryWorkerProviderAdapterTest {
         val provider = GoogleGemmaWorkerModelProvider(transport = transport)
 
         val error = assertThrows(IllegalStateException::class.java) {
-            provider.generate(request(), "google-test-key".toCharArray(), 4096, 2048)
+            provider.generate(request(), "google-test-key".toCharArray())
         }
 
         assertTrue(error.message!!.contains("HTTP 401"))
@@ -151,7 +150,7 @@ class VyomFactoryWorkerProviderAdapterTest {
         val provider = GoogleGemmaWorkerModelProvider(transport = transport)
 
         assertThrows(IllegalArgumentException::class.java) {
-            provider.generate(request(), "google-test-key".toCharArray(), 4096, 2048)
+            provider.generate(request(), "google-test-key".toCharArray())
         }
     }
 

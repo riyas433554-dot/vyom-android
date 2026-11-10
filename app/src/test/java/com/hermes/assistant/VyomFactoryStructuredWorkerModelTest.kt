@@ -41,19 +41,13 @@ class VyomFactoryStructuredWorkerModelTest {
         var calls = 0
         var lastRequest: VyomFactoryWorkerModelProvider.Request? = null
         var lastKey: String? = null
-        var lastMaxInputTokens: Int = 0
-        var lastMaxOutputTokens: Int = 0
         override fun generate(
             request: VyomFactoryWorkerModelProvider.Request,
             apiKey: CharArray,
-            maxInputTokens: Int,
-            maxOutputTokens: Int
         ): VyomFactoryWorkerModelProvider.Response {
             calls++
             lastRequest = request
             lastKey = String(apiKey)
-            lastMaxInputTokens = maxInputTokens
-            lastMaxOutputTokens = maxOutputTokens
             return response()
         }
     }
@@ -122,8 +116,6 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals(repository, provider.lastRequest!!.repository)
         assertEquals(baseSha, provider.lastRequest!!.baseSha)
         assertEquals(listOf("README.md"), provider.lastRequest!!.allowedPaths)
-        assertEquals(4_096, provider.lastMaxInputTokens)
-        assertEquals(4_096, provider.lastMaxOutputTokens)
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(120, journal.entries.single().inputTokens)
         assertEquals(80, journal.entries.single().outputTokens)
@@ -196,8 +188,6 @@ class VyomFactoryStructuredWorkerModelTest {
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
                 apiKey: CharArray,
-                maxInputTokens: Int,
-                maxOutputTokens: Int
             ): VyomFactoryWorkerModelProvider.Response {
                 calls.incrementAndGet()
                 Thread.sleep(2_000)
@@ -321,8 +311,6 @@ class VyomFactoryStructuredWorkerModelTest {
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
                 apiKey: CharArray,
-                maxInputTokens: Int,
-                maxOutputTokens: Int
             ): VyomFactoryWorkerModelProvider.Response {
                 started.countDown()
                 try {
@@ -361,8 +349,6 @@ class VyomFactoryStructuredWorkerModelTest {
             override fun generate(
                 request: VyomFactoryWorkerModelProvider.Request,
                 apiKey: CharArray,
-                maxInputTokens: Int,
-                maxOutputTokens: Int
             ): VyomFactoryWorkerModelProvider.Response {
                 calls.incrementAndGet()
                 throw IllegalStateException("transient provider failure")
@@ -409,22 +395,23 @@ class VyomFactoryStructuredWorkerModelTest {
         assertTrue(journal.tokensForTask(42) > 8_192L)
     }
 
-    @Test fun providerCannotExceedConfiguredOutputTokenLimit() {
+    @Test fun providerUsageAbove4096TokensIsNotRejectedByAnApplicationTokenCap() {
         val provider = FakeProvider {
-            VyomFactoryWorkerModelProvider.Response(validJson(), inputTokens = 10, outputTokens = 4_097)
+            VyomFactoryWorkerModelProvider.Response(validJson(), inputTokens = 5_000, outputTokens = 4_097)
         }
         val journal = MemoryJournal()
 
-        assertThrows(IllegalArgumentException::class.java) {
-            adapter(provider, journal).propose(
-                task(), registry(), object : VyomFactoryExecutionControl {
-                    override fun shouldStop() = false
-                }
-            )
-        }
+        val candidate = adapter(provider, journal).propose(
+            task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            }
+        )
 
-        assertEquals("FAILED", journal.entries.single().result)
+        assertEquals("README.md", candidate.plan.changes.single().path)
+        assertEquals("SUCCESS", journal.entries.single().result)
         assertTrue(journal.entries.single().providerCallStarted)
+        assertEquals(5_000, journal.entries.single().inputTokens)
+        assertEquals(4_097, journal.entries.single().outputTokens)
     }
 
 
