@@ -2212,3 +2212,14 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Repair-commit Debug run `42857579937`, exact `head_sha=935550d906c6045da3eb7a02823961535fd58544`: was still **IN_PROGRESS** when this note was written. Its final conclusion must be checked; do not infer success.
 - No `.gitleaksignore`, baseline, allowlist, suppression, workflow, signing, trust-root, Android `main`, Render, backend, or production Supabase change. No rebase, force-push, or history rewrite.
 - L2 cannot be marked verified until the same exact HEAD has Debug **SUCCESS** and Full-history Gitleaks **0 findings**. Current three historical findings keep that gate blocked. Do not start L4/L5.
+
+
+## L2 — renewed lease currentness correction — 2026-11-10
+
+- Additional repair commit: `0fa093dc9d61681793a38ca702871528c801d053` (`fix(factory): validate renewed claims by stable lease fence`).
+- The first repair Debug run `42857579937` on `935550d906c6045da3eb7a02823961535fd58544` completed with 738 tests and 1 failure: `VyomFactoryWorkerSessionTest.currentClaimRenewsItsLeaseAtExecutionCheckpoints`. All 10 other baseline failures were cleared.
+- Root cause: lease renewal updates the persisted `expiresAt`, but a claim retains its original lease snapshot. Coordinator `isCurrent()` compared the entire data class, so the changed expiry made a still-valid renewed lease look stale.
+- Added `VyomFactoryWorkerLeaseStore.isCurrent(lease, now)`, which checks the same stable lease fence (`issueNumber`, `workerId`, lane, slot and `leaseId`) and requires the persisted lease to remain unexpired. `VyomFactoryWorkerClaimCoordinator.isCurrent()` now uses that check. The lease ID and worker identity fencing are unchanged; expired/replaced leases still fail.
+- Exact repair-commit Full run `42858363394`, `head_sha=0fa093dc9d61681793a38ca702871528c801d053`: **FAILURE** because full-history Gitleaks still reports exactly the same three known findings at the same files/lines, all attributed to `b4dd926a070d4d642ff2be2c944f3accbe3ba6a8`. No new finding. Full workflow skipped Gradle tests/APK after the security gate.
+- Exact repair-commit Debug run `42858363420`, `head_sha=0fa093dc9d61681793a38ca702871528c801d053`: pending behind the earlier Debug run when this note was written. Its final result is not assumed.
+- L2 remains **UNVERIFIED**; L4/L5 remain on hold. Do not weaken tests or security checks. No Gitleaks suppression/baseline/allowlist, workflow, signing, trust-root, main, backend, Render, or production Supabase change; no history rewrite, rebase or force-push.
