@@ -17,8 +17,23 @@ class VyomFactoryExecutionJournalTest {
         assertEquals("attempt-1", entry.attemptId)
         assertEquals("factory.sync", entry.operationKey)
         assertEquals(lease.leaseId, entry.leaseId)
+        assertEquals(lease.workerId, entry.workerId)
         assertEquals(VyomFactoryExecutionJournal.State.CLAIMED, entry.state)
         assertEquals(entry, VyomFactoryExecutionJournal(prefs, leases).get("attempt-1"))
+    }
+
+    @Test fun legacyOwnerIdJournalRecordsRemainReadableAsWorkerIdentity() {
+        val prefs = MemoryPrefs()
+        prefs.edit().putString(
+            "attempts_v1",
+            """[{"issue_number":46,"attempt_id":"legacy-attempt-46","lease_id":"legacy-lease-46","owner_id":"worker-legacy","state":"INTERRUPTED","started_at":1000,"updated_at":1100,"operation_key":"legacy:unknown"}]"""
+        ).commit()
+
+        val entry = VyomFactoryExecutionJournal(prefs, VyomFactoryWorkerLeaseStore(MemoryPrefs()))
+            .get("legacy-attempt-46")
+
+        assertNotNull(entry)
+        assertEquals("worker-legacy", entry!!.workerId)
     }
 
     @Test fun beginRejectsSecondNonterminalAttemptForSameIssueAndLease() {

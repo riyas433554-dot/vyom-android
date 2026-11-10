@@ -105,7 +105,7 @@ class VyomFactoryWorkerClaimCoordinatorTest {
         val remote = listOf(remote(14, "P1", "source-14"))
         val first = coordinator.claimNext(remote, "worker-a", 1_000, 5_000)!!
 
-        assertFalse(coordinator.release(first.copy(lease = first.lease.copy(ownerId = "worker-b"))))
+        assertFalse(coordinator.release(first.copy(lease = first.lease.copy(workerId = "worker-b"))))
         assertTrue(coordinator.release(first))
         assertFalse(coordinator.isCurrent(first, 1_001))
         val next = coordinator.claimNext(remote, "worker-b", 1_002, 5_000)

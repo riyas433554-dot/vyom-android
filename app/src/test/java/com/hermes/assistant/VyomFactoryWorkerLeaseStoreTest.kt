@@ -37,9 +37,39 @@ class VyomFactoryWorkerLeaseStoreTest {
         val prefs = MemoryPrefs()
         val store = VyomFactoryWorkerLeaseStore(prefs)
         val lease = store.claim(7, "worker-a", 100, 5_000)!!
-        assertFalse(store.release(lease.copy(ownerId = "worker-b")))
+        assertFalse(store.release(lease.copy(workerId = "worker-b")))
         assertTrue(store.release(lease))
         assertNull(VyomFactoryWorkerLeaseStore(prefs).active(7, 101))
+    }
+
+    @Test fun oneWorkerIdentityCannotHoldTwoConcurrentTaskLeases() {
+        val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
+        val first = store.claim(101, "worker-a", 1_000, 10_000)!!
+
+        assertNull(store.claim(102, "worker-a", 1_001, 10_000))
+        assertEquals(first, store.claim(101, "worker-a", 1_002, 10_000))
+    }
+
+    @Test fun distinctWorkerIdentitiesCanHoldDistinctTaskLeasesConcurrently() {
+        val store = VyomFactoryWorkerLeaseStore(MemoryPrefs())
+        val first = store.claim(103, "worker-a", 1_000, 10_000)!!
+        val second = store.claim(104, "worker-b", 1_000, 10_000)!!
+
+        assertNotEquals(first.workerId, second.workerId)
+        assertNotEquals(first.leaseId, second.leaseId)
+    }
+
+    @Test fun legacyOwnerIdLeaseRecordsRemainReadableAsWorkerIdentity() {
+        val prefs = MemoryPrefs()
+        prefs.edit().putString(
+            "leases_v1",
+            """[{"issue_number":105,"owner_id":"worker-legacy","lease_id":"legacy-lease-123","acquired_at":1000,"expires_at":11000}]"""
+        ).commit()
+
+        val lease = VyomFactoryWorkerLeaseStore(prefs).active(105, 2_000)
+
+        assertNotNull(lease)
+        assertEquals("worker-legacy", lease!!.workerId)
     }
 
     @Test fun invalidLeaseBoundsAndCorruptPersistenceFailClosed() {

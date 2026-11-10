@@ -63,7 +63,7 @@ class VyomFactoryWorkerSessionTest {
         val session = VyomFactoryWorkerSession(
             queue,
             VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs())),
-            "worker-a",
+            identity("worker-a"),
             fetchRemoteTasks = { throw IllegalStateException("network unavailable") },
             now = { 1_000L },
             leaseDurationMs = 10_000L
@@ -84,14 +84,14 @@ class VyomFactoryWorkerSessionTest {
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
         val remoteTasks = listOf(remote(26, "P1", "source-26"))
         val firstSession = VyomFactoryWorkerSession(
-            queue, coordinator, "worker-a", { remoteTasks }, { 1_000L }, 10_000L
+            queue, coordinator, identity("worker-a"), { remoteTasks }, { 1_000L }, 10_000L
         )
         val claim = firstSession.claimNext()!!
 
         assertTrue(firstSession.release(claim))
         assertFalse(firstSession.isCurrent(claim))
         val secondSession = VyomFactoryWorkerSession(
-            queue, coordinator, "worker-b", { remoteTasks }, { 1_002L }, 10_000L
+            queue, coordinator, identity("worker-b"), { remoteTasks }, { 1_002L }, 10_000L
         )
         val next = secondSession.claimNext()
         assertNotNull(next)
@@ -105,7 +105,7 @@ class VyomFactoryWorkerSessionTest {
         val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
         val tasks = listOf(remote(31, "P1", "source-31"))
         val session = VyomFactoryWorkerSession(
-            queue, coordinator, "worker-heartbeat", { tasks }, { clock }, 10_000L
+            queue, coordinator, identity("worker-heartbeat"), { tasks }, { clock }, 10_000L
         )
 
         val claim = session.claimNext()!!
@@ -124,11 +124,36 @@ class VyomFactoryWorkerSessionTest {
         VyomFactoryWorkerSession(
             queue,
             VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs())),
-            owner,
+            identity(owner),
             fetchRemoteTasks = { tasks },
             now = { 1_000L },
             leaseDurationMs = 10_000L
         )
+
+    private fun identity(workerId: String) = VyomFactoryWorkerIdentity(
+        workerId = workerId,
+        lane = VyomFactoryLaneRouter.Lane.INSTANT,
+        slotIndex = 0
+    )
+
+    @Test fun claimLeaseAndExecutionJournalCarryTheSameStableWorkerIdentity() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        val prefs = MemoryPrefs()
+        val leases = VyomFactoryWorkerLeaseStore(prefs)
+        val coordinator = VyomFactoryWorkerClaimCoordinator(queue, leases)
+        val worker = identity("worker-journal-01")
+        val session = VyomFactoryWorkerSession(
+            queue, coordinator, worker, { listOf(remote(32, "P1", "source-32")) }, { 1_000L }, 10_000L
+        )
+        val claim = session.claimNext()!!
+        val journal = VyomFactoryExecutionJournal(prefs, leases)
+
+        val entry = journal.begin(claim.lease, "worker-identity-attempt", 1_100L)
+
+        assertEquals(worker.workerId, claim.lease.workerId)
+        assertEquals(worker.workerId, entry.workerId)
+        assertEquals(worker.lane, worker.lane)
+    }
 
     private fun remote(
         issue: Int,
