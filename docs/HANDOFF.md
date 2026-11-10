@@ -2140,3 +2140,22 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Diff audit from L3 SHA to implementation HEAD: **no changes** to `.github/workflows/**`, `config/release-certificate.sha256`, signing configuration, or trust-root files. No approval source file changed.
 - Exact implementation HEAD `06ad8795ab0162b155bad971309e5365e107aeda`: Full run `42802705598` and Debug run `42802705685` were still in progress at this documentation checkpoint. Their eventual conclusions must be checked against this exact SHA; until then Step 2 CI is **UNVERIFIED**.
 - No phone test or live provider call is claimed. Owner phone acceptance remains pending.
+
+
+---
+
+## Step 2 CI gate result — 2026-11-10
+
+- Exact expected SHA: `95c694df4d452d4034fb859e25f20b2d0c3f5fe1`.
+- Debug run `42803410069`: completed **FAILURE**, `head_sha=95c694df4d452d4034fb859e25f20b2d0c3f5fe1` (exact match).
+- Full run `42803410309`: completed **FAILURE**, `head_sha=95c694df4d452d4034fb859e25f20b2d0c3f5fe1` (exact match).
+- Full run standard Gitleaks exact log: `INF no leaks found` at `2026-11-10T10:57:34.6997499Z`.
+- Full run reachable full-history Gitleaks exact log: `INF no leaks found` at `2026-11-10T10:58:04.6427957Z`; `FULL_HISTORY_GITLEAKS_FINDINGS=0` at `2026-11-10T10:58:04.6688688Z`.
+- Both workflows failed at `:app:compileDebugUnitTestKotlin`, not at Gitleaks. Compiler diagnostics:
+  - `VyomFactoryRepositoryWorkerModelAdapterTest.kt:21:9 'hasSuccessfulCall' overrides nothing.`
+  - `VyomFactoryRepositoryWorkerModelAdapterTest.kt:42:24` anonymous class does not implement required abstract member.
+  - `VyomFactoryRepositoryWorkerModelAdapterTest.kt:44:13 'generate' overrides nothing.`
+- The stale test still exists at this HEAD. No commit among the three Option B commits updated `VyomFactoryRepositoryWorkerModelAdapterTest.kt`; the error is **not fixed**. The test still declares `hasSuccessfulCall` and the old `generate(..., maxInputTokens, maxOutputTokens)` override.
+- Journal behavior: `VyomFactoryStructuredWorkerModel.kt:257-262` records `RUNNING` with `providerCallStarted=true` immediately before `provider.generate(...)`; terminal outcome is recorded on success/failure/timeout/stop at lines 270-320. `record()` delegates to `journal.record(...)` at lines 392-411. The journal no longer rejects at capacity; it evicts an old row at lines 95-99. However, persistence is still fail-closed: `record()` throws if SharedPreferences commit fails at lines 113-115, so a provider call will not proceed if its pre-call journal write fails. It is therefore correct to say each attempted provider invocation is journaled before invocation, but not that calls proceed when journal persistence itself fails.
+- Step 2 CI gate: **FAIL**. Gitleaks: **PASS, 0 full-history findings**. Step 2 is **NOT CI-VERIFIED**. Step 3 remains **NOT STARTED**.
+- No phone/device test or live provider call is claimed.
