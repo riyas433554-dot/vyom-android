@@ -95,7 +95,9 @@ internal class VyomFactoryDialog(
     }
 
     private fun sessionFor(claim: VyomFactoryWorkerClaimCoordinator.Claim): VyomFactoryWorkerSession =
-        workerSessions.values.firstOrNull { it.workerIdentity.workerId == claim.lease.workerId }
+        workerSessions.values.firstOrNull { it.workerIdentity.workerId == claim.lease.workerId &&
+            it.workerIdentity.lane == claim.lease.lane &&
+            it.workerIdentity.slotIndex == claim.lease.workerSlot }
             ?: throw IllegalStateException("Claim worker identity is not in the persisted pool")
 
     private fun claimNextFromAnyLane(
