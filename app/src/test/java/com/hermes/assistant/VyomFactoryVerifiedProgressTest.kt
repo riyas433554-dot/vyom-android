@@ -131,7 +131,7 @@ class VyomFactoryVerifiedProgressTest {
     @Test fun journalRestartPreservesTheSameProgressAndCommitReceipt() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(77, identity("worker"), 1_000, 20_000)!!
+        val lease = leases.claim(77, identity("worker-progress-01"), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "persisted-attempt", 1_100, "repository_change:propose_change")
         assertTrue(journal.markRunning(lease, "persisted-attempt", 1_200))
@@ -149,7 +149,7 @@ class VyomFactoryVerifiedProgressTest {
     @Test fun failedLatestAttemptAfterRestartCannotReuseOldSuccessfulReceipt() {
         val prefs = MemoryPrefs()
         val leases = VyomFactoryWorkerLeaseStore(prefs)
-        val lease = leases.claim(77, identity("worker"), 1_000, 20_000)!!
+        val lease = leases.claim(77, identity("worker-progress-01"), 1_000, 20_000)!!
         val journal = VyomFactoryExecutionJournal(prefs, leases)
         journal.begin(lease, "success", 1_100, "repository_change:propose_change")
         assertTrue(journal.markRunning(lease, "success", 1_200))

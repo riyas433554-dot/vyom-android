@@ -44,14 +44,31 @@ internal class VyomFactoryTaskStore internal constructor(private val prefs: Shar
     fun reconcileOpen(tasks: List<QueuedTask>): Int = synchronized(PROCESS_LOCK) {
         val current = readAll().toMutableList()
         val additions = mutableListOf<QueuedTask>()
+        var metadataChanged = false
         tasks.forEach { task ->
             require(task.issueNumber > 0)
             require(task.title.isNotBlank() && task.title.length <= 200)
             require(task.priority in setOf("P0", "P1", "P2", "P3"))
             require(task.sourceId.isNotBlank() && task.sourceId.length <= 160)
-            if (VyomFactoryTaskQueuePolicy.isUnique(current + additions, task)) additions += task
+            val existingIndex = current.indexOfFirst {
+                it.issueNumber == task.issueNumber && it.sourceId == task.sourceId
+            }
+            if (existingIndex >= 0) {
+                val existing = current[existingIndex]
+                if (existing.lane != task.lane ||
+                    existing.lanePlanningAllowed != task.lanePlanningAllowed
+                ) {
+                    current[existingIndex] = existing.copy(
+                        lane = task.lane,
+                        lanePlanningAllowed = task.lanePlanningAllowed
+                    )
+                    metadataChanged = true
+                }
+            } else if (VyomFactoryTaskQueuePolicy.isUnique(current + additions, task)) {
+                additions += task
+            }
         }
-        if (additions.isNotEmpty()) persist(current + additions)
+        if (metadataChanged || additions.isNotEmpty()) persist(current + additions)
         additions.size
     }
 

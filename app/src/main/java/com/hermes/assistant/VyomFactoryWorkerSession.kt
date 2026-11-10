@@ -27,7 +27,9 @@ internal class VyomFactoryWorkerSession(
                 title = remote.title,
                 priority = remote.metadata.priority,
                 sourceId = remote.metadata.sourceId,
-                enqueuedAt = timestamp
+                enqueuedAt = timestamp,
+                lane = remote.metadata.lane,
+                lanePlanningAllowed = remote.metadata.lanePlanningAllowed
             )
         })
         val cycles = VyomFactoryTaskIntelligence.circularDependencyIssues(claimable)

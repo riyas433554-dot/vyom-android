@@ -18,6 +18,20 @@ class VyomFactoryWorkerSessionTest {
         assertTrue(session.isCurrent(claim))
     }
 
+    @Test fun reconciliationRefreshesLaneAndPlanningPermissionOnExistingQueueEntries() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        queue.enqueue(VyomFactoryTaskStore.QueuedTask(30, "Task 30", "P1", "source-30", 500L))
+        val session = session(queue, listOf(remote(30, "P1", "source-30")))
+
+        val claim = session.claimNext()
+
+        assertNotNull(claim)
+        val queued = queue.pending().single()
+        assertEquals(VyomFactoryLaneRouter.Lane.INSTANT, queued.lane)
+        assertTrue(queued.lanePlanningAllowed)
+        assertEquals(500L, queued.enqueuedAt)
+    }
+
     @Test fun startedInProgressComplaintsRemainClaimableByFactoryWorker() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         val session = session(queue, listOf(

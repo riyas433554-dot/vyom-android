@@ -47,6 +47,13 @@ class VyomFactoryWorkerPoolTest {
         assertTrue(queue.contains(1))
         assertTrue(queue.contains(2))
         assertTrue(queue.contains(3))
+        val queuedByIssue = queue.pending().associateBy { it.issueNumber }
+        assertEquals(VyomFactoryLaneRouter.Lane.CUSTOM, queuedByIssue.getValue(1).lane)
+        assertTrue(queuedByIssue.getValue(1).lanePlanningAllowed)
+        assertEquals(VyomFactoryLaneRouter.Lane.INSTANT, queuedByIssue.getValue(2).lane)
+        assertFalse(queuedByIssue.getValue(2).lanePlanningAllowed)
+        assertEquals(VyomFactoryLaneRouter.Lane.INSTANT, queuedByIssue.getValue(3).lane)
+        assertTrue(queuedByIssue.getValue(3).lanePlanningAllowed)
     }
 
     @Test fun customWorkerClaimsOnlyOwnerApprovedCustomTasks() {
@@ -68,6 +75,13 @@ class VyomFactoryWorkerPoolTest {
         val claim = session.claimNext()
 
         assertEquals(6, claim?.task?.issueNumber)
+        val queuedByIssue = queue.pending().associateBy { it.issueNumber }
+        assertEquals(VyomFactoryLaneRouter.Lane.INSTANT, queuedByIssue.getValue(4).lane)
+        assertTrue(queuedByIssue.getValue(4).lanePlanningAllowed)
+        assertEquals(VyomFactoryLaneRouter.Lane.CUSTOM, queuedByIssue.getValue(5).lane)
+        assertFalse(queuedByIssue.getValue(5).lanePlanningAllowed)
+        assertEquals(VyomFactoryLaneRouter.Lane.CUSTOM, queuedByIssue.getValue(6).lane)
+        assertTrue(queuedByIssue.getValue(6).lanePlanningAllowed)
     }
 
     private fun createPool(prefs: SharedPreferences): VyomFactoryWorkerPool {
