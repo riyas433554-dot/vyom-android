@@ -1,0 +1,159 @@
+name: Vyom Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Release version name"
+        required: false
+        default: "0.3.1"
+        type: string
+  push:
+    tags:
+      - "vyom-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: >-
+      startsWith(github.ref, 'refs/tags/vyom-v') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/feature/real-worker-model')
+    environment:
+      name: vyom-release-signing
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HERMES_BASE_URL: ${{ vars.HERMES_BASE_URL }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Validate persistent signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_KEYSTORE_BASE64:-}" || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "${ANDROID_KEYSTORE_PASSWORD:-}" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "${ANDROID_KEY_ALIAS:-}" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "${ANDROID_KEY_PASSWORD:-}" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+          ENCODED="$(printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | tr '_-' '/+')"
+          [[ "$ENCODED" =~ ^[A-Za-z0-9+/]*={0,2}$ ]] || { echo "Keystore base64 is malformed; secret value was not logged."; exit 1; }
+          LENGTH="$(printf '%s' "$ENCODED" | wc -c | tr -d ' ')"
+          case $((LENGTH % 4)) in
+            0) ;;
+            2) ENCODED="${ENCODED}==" ;;
+            3) ENCODED="${ENCODED}=" ;;
+            *) echo "Keystore base64 length is invalid; secret value was not logged."; exit 1 ;;
+          esac
+          KEYSTORE="$RUNNER_TEMP/vyom-release.jks"
+          printf '%s' "$ENCODED" | base64 --decode > "$KEYSTORE"
+          unset ENCODED
+          test -s "$KEYSTORE" || { echo "Decoded keystore is empty"; exit 1; }
+          keytool -list -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          if keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" >/dev/null 2>&1; then
+            VERIFIED_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
+          elif keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            VERIFIED_KEY_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+          else
+            echo "Configured key password cannot unlock the alias; secret values were not logged."
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/vyom-key-check.csr"
+          {
+            printf 'ANDROID_KEYSTORE_PATH=%s\n' "$KEYSTORE"
+            printf 'ANDROID_KEYSTORE_PASSWORD=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'ANDROID_KEY_ALIAS=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'ANDROID_KEY_PASSWORD=%s\n' "$VERIFIED_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+      - name: Set release metadata
+        id: meta
+        shell: bash
+        env:
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/vyom-v* ]]; then VERSION="${GITHUB_REF_NAME#vyom-v}"; else VERSION="${INPUT_VERSION_NAME:-0.3.1}"; fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || { echo "Invalid version name"; exit 1; }
+          VERSION_CODE="$GITHUB_RUN_NUMBER"
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] && (( VERSION_CODE <= 2100000000 )) || { echo "GITHUB_RUN_NUMBER is outside Android versionCode range"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "apk=vyom-$VERSION-${GITHUB_SHA::7}.apk" >> "$GITHUB_OUTPUT"
+      - name: Build, test and sign release APK
+        env:
+          ANDROID_VERSION_NAME: ${{ steps.meta.outputs.version }}
+          ANDROID_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          test -s "$ANDROID_KEYSTORE_PATH"
+          gradle testDebugUnitTest assembleRelease --no-daemon
+          mkdir -p output
+          APK="output/${{ steps.meta.outputs.apk }}"
+          cp app/build/outputs/apk/release/app-release.apk "$APK"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+          test -n "$APKSIGNER" || { echo "apksigner not found"; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs "$APK" > "$APK.certs.txt" 2>&1
+          CERT_SHA256="$(grep -i 'SHA-256' "$APK.certs.txt" | grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          [[ "$CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Could not extract signing certificate SHA-256 fingerprint"; exit 1; }
+          EXPECTED_CERT_SHA256="$(tr -d '[:space:]' < config/release-certificate.sha256 | tr '[:upper:]' '[:lower:]')"
+          [[ "$EXPECTED_CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Fixed release identity file is invalid"; exit 1; }
+          [[ "$CERT_SHA256" == "$EXPECTED_CERT_SHA256" ]] || { echo "Fixed release identity mismatch; publishing blocked."; exit 1; }
+          echo "Signing certificate SHA-256: $CERT_SHA256"
+          echo "Signing certificate SHA-256 matches the fixed release identity."
+          sha256sum "$APK" > "$APK.sha256"
+          SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
+          VERSION="${{ steps.meta.outputs.version }}"
+          VERSION_CODE="${{ steps.meta.outputs.version_code }}"
+          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.meta.outputs.apk }}"
+          VERSION_SHA256="$SHA256" APK_URL="$APK_URL" VERSION="$VERSION" VERSION_CODE="$VERSION_CODE" CERT_SHA256="$CERT_SHA256" COMMIT="$GITHUB_SHA" python3 -c 'import json,os; d={"version":os.environ["VERSION"],"versionName":os.environ["VERSION"],"versionCode":int(os.environ["VERSION_CODE"]),"sha256":os.environ["VERSION_SHA256"],"certificateSha256":os.environ["CERT_SHA256"],"commit":os.environ["COMMIT"],"url":os.environ["APK_URL"],"apk":os.environ["APK_URL"]}; open("output/vyom-update.json","w").write(json.dumps(d,indent=2))'
+          printf 'versionName=%s\nversionCode=%s\ncommit=%s\nsha256=%s\ncertificateSha256=%s\n' "$VERSION" "$VERSION_CODE" "$GITHUB_SHA" "$SHA256" "$CERT_SHA256" > output/build-info.txt
+      - name: Build and sign content-only package with the protected release key
+        shell: bash
+        env:
+          CONTENT_VERSION: 1.0.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          python3 tools/build_content_package.py --prepare --output output/content-package --version "$CONTENT_VERSION"
+          javac -d output tools/ContentUpdateSigner.java
+          java -cp output ContentUpdateSigner output/content-package/manifest.canonical output/content-package/manifest.sig
+          python3 tools/build_content_package.py --archive --output output/content-package
+          test -s output/vyom-content-update-demo.zip
+      - name: Upload signed release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyom-signed-release-${{ github.sha }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish signed GitHub Release asset
+        if: startsWith(github.ref, 'refs/tags/vyom-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          files: |
+            output/${{ steps.meta.outputs.apk }}
+            output/${{ steps.meta.outputs.apk }}.sha256
+            output/${{ steps.meta.outputs.apk }}.certs.txt
+            output/vyom-update.json
+            output/build-info.txt
+            output/vyom-content-update-demo.zip
