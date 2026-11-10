@@ -4573,7 +4573,7 @@ class MainActivity : Activity() {
             try {
                 val installedInfo = packageManager.getPackageInfo(packageName, packageInfoFlags())
                 val installedCertificates = signerFingerprintSet(installedInfo)
-                val expectedCertificate = "7a7564fca9c2a32b23dd520352a4e3aafe445621d2b99afa15407d2386699f0a"
+                val expectedCertificate = BuildConfig.REQUIRED_RELEASE_CERT_SHA256
                 if (installedCertificates.isEmpty()) {
                     rows += "FAIL · Installed signing certificate · PackageManager returned no signer"
                 } else {

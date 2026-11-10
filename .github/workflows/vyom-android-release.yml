@@ -113,7 +113,10 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK" > "$APK.certs.txt" 2>&1
           CERT_SHA256="$(grep -i 'SHA-256' "$APK.certs.txt" | grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
           [[ "$CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Could not extract signing certificate SHA-256 fingerprint"; exit 1; }
-          echo "Signing certificate SHA-256: $CERT_SHA256"
+          EXPECTED_CERT_SHA256="$(tr -d '[:space:]' < config/release-certificate.sha256 | tr '[:upper:]' '[:lower:]')"
+          [[ "$EXPECTED_CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Fixed release identity file is invalid"; exit 1; }
+          [[ "$CERT_SHA256" == "$EXPECTED_CERT_SHA256" ]] || { echo "Fixed release identity mismatch; publishing blocked."; exit 1; }
+          echo "Signing certificate SHA-256 matches the fixed release identity."
           sha256sum "$APK" > "$APK.sha256"
           SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
           VERSION="${{ steps.meta.outputs.version }}"

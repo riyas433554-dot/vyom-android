@@ -8,6 +8,8 @@ val gitCommitShort = System.getenv("GITHUB_SHA")?.take(7) ?: "local"
 val androidVersionCode = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 4
 val androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.3.1"
 val hermesBaseUrl = (System.getenv("HERMES_BASE_URL")?.takeIf { it.isNotBlank() } ?: "https://hermes-oregon.onrender.com").trimEnd('/')
+val requiredReleaseCertificateSha256 = rootProject.file("config/release-certificate.sha256").readText().trim().lowercase()
+require(requiredReleaseCertificateSha256.matches(Regex("^[a-f0-9]{64}$"))) { "Invalid fixed release certificate identity" }
 
 android {
     namespace = "com.hermes.assistant"
@@ -21,6 +23,7 @@ android {
         versionCode = androidVersionCode
         versionName = androidVersionName
         buildConfigField("String", "HERMES_BASE_URL", "\"$hermesBaseUrl\"")
+        buildConfigField("String", "REQUIRED_RELEASE_CERT_SHA256", "\"$requiredReleaseCertificateSha256\"")
     }
 
     signingConfigs {
