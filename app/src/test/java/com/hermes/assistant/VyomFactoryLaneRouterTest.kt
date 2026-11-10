@@ -38,7 +38,7 @@ class VyomFactoryLaneRouterTest {
 
         assertEquals(VyomFactoryLaneRouter.Lane.SCHEDULED, result.lane)
         assertTrue(result.mayStartPlanning)
-        assertFalse(result.sideEffectsRequireExistingApproval.not())
+        assertTrue(result.sideEffectsRequireExistingApproval)
     }
 
     @Test fun unapprovedScheduleIsRoutedButCannotStartPlanning() {
