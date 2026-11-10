@@ -110,7 +110,7 @@ internal class VyomFactoryDialog(
                     VyomFactoryLaneRouter.Origin.DIRECT_OWNER_COMMAND
                 } else VyomFactoryLaneRouter.Origin.COMPLAINT
                 val decision = VyomFactoryLaneRouter.route(
-                    VyomFactoryLaneRouter.Request(origin, remote.title + "\\n" + remote.body)
+                    VyomFactoryLaneRouter.Request(origin, remote.title + " " + remote.body)
                 )
                 decision.lane == lane &&
                     (lane == VyomFactoryLaneRouter.Lane.INSTANT ||
