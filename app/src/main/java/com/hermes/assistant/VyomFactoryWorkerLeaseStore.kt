@@ -78,6 +78,13 @@ internal class VyomFactoryWorkerLeaseStore private constructor(
         readAll()[issueNumber]?.takeIf { it.expiresAt > now }
     }
 
+    /** Checks the stable lease fence, not the caller's potentially older expiry snapshot. */
+    fun isCurrent(lease: Lease, now: Long): Boolean = synchronized(VyomFactoryExecutionLock.LOCK) {
+        require(lease.issueNumber > 0 && now >= 0)
+        val current = readAll()[lease.issueNumber] ?: return@synchronized false
+        current.expiresAt > now && sameLease(current, lease)
+    }
+
     fun activeIssueNumbers(now: Long): Set<Int> = synchronized(VyomFactoryExecutionLock.LOCK) {
         require(now >= 0)
         readAll().values.filter { it.expiresAt > now }.map { it.issueNumber }.toSet()

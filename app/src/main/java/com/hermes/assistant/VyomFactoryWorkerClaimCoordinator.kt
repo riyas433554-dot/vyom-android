@@ -43,7 +43,7 @@ internal class VyomFactoryWorkerClaimCoordinator(
     }
 
     fun isCurrent(claim: Claim, now: Long): Boolean =
-        taskStore.contains(claim.task.issueNumber) && leaseStore.active(claim.task.issueNumber, now) == claim.lease
+        taskStore.contains(claim.task.issueNumber) && leaseStore.isCurrent(claim.lease, now)
 
     fun activeClaimedIssueNumbers(now: Long): Set<Int> = leaseStore.activeIssueNumbers(now)
 
