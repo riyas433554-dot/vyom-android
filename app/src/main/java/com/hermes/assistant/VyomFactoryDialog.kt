@@ -40,7 +40,8 @@ internal class VyomFactoryDialog(
     private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {},
     private val onRunnerFailure: (String) -> Unit = {},
     private val pendingScreenshot: File? = null,
-    private val onWorkerFailure: (String, String, String) -> Unit = { _, _, _ -> }
+    private val onWorkerFailure: (String, String, String) -> Unit = { _, _, _ -> },
+    private val onUpdateApk: () -> Unit = {}
 ) {
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int) = (value * density).toInt()
@@ -179,6 +180,11 @@ internal class VyomFactoryDialog(
             setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(8), 0, dp(10))
         }
         root.addView(status)
+        root.addView(Button(activity).apply {
+            text = "CHECK SIGNED APK UPDATE"
+            textSize = 10f
+            setOnClickListener { onUpdateApk() }
+        }, LinearLayout.LayoutParams(-1, dp(40)).apply { bottomMargin = dp(8) })
 
         val workerPanel = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
