@@ -93,6 +93,40 @@ class VyomFactoryWorkerPoolDispatchTest {
         assertEquals(0, result.failedCount)
     }
 
+    @Test fun oneProviderFailureDoesNotCancelTheOtherNineteenWorkers() {
+        val tasks = (1..20).map { remote(it, VyomFactoryLaneRouter.Lane.values()[(it - 1) / 5], true) }
+        val pool = createPool(tasks)
+        val registry = createRegistry()
+        val proposed = Collections.synchronizedList(mutableListOf<Int>())
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool, registry, { tasks },
+            modelAdapterFactory = {
+                VyomFactoryRepositoryWorkerModelAdapter { task, _, _ ->
+                    if (task.number == 1) throw IllegalStateException("provider failed")
+                    candidate(task, registry)
+                }
+            },
+            onProposal = { task, _, _, _ -> proposed += task.number },
+            isStopped = { false },
+            heartbeatIntervalMillis = 25L
+        )
+
+        val result = dispatcher.dispatchAvailable()
+
+        assertEquals(19, result.proposedCount)
+        assertEquals(1, result.failedCount)
+        assertEquals((2..20).toSet(), proposed.toSet())
+    }
+
+    @Test fun globalStopLatchPersistsAcrossStoreInstances() {
+        val prefs = MemoryPrefs()
+        val first = VyomFactoryWorkerStopStore(prefs)
+        first.stopAll()
+        assertTrue(VyomFactoryWorkerStopStore(prefs).isStopped())
+        VyomFactoryWorkerStopStore(prefs).resumeAll()
+        assertFalse(first.isStopped())
+    }
+
     @Test fun globalStopPreventsClaimsAndProviderCalls() {
         val tasks = (1..4).map { remote(it, VyomFactoryLaneRouter.Lane.INSTANT, true) }
         val pool = createPool(tasks)

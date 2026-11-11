@@ -15,8 +15,14 @@ internal class VyomFactoryWorkerSession(
         require(leaseDurationMs in MIN_LEASE_DURATION_MS..MAX_LEASE_DURATION_MS)
     }
 
-    fun claimNext(eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }): VyomFactoryWorkerClaimCoordinator.Claim? {
-        val snapshot = fetchRemoteTasks()
+    fun claimNext(eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }): VyomFactoryWorkerClaimCoordinator.Claim? =
+        claimNext(fetchRemoteTasks(), eligible)
+
+    /** Reuses one fresh canonical snapshot across parallel worker sessions. */
+    fun claimNext(
+        snapshot: List<VyomFactoryGitHubClient.Task>,
+        eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }
+    ): VyomFactoryWorkerClaimCoordinator.Claim? {
         val timestamp = now()
         val claimable = snapshot.filter {
             it.state == "open" && it.metadata.status in setOf("open", "in_progress")
@@ -42,10 +48,7 @@ internal class VyomFactoryWorkerSession(
     fun isCurrent(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean = coordinator.isCurrent(claim, now())
     fun activeClaimedIssueNumbers(): Set<Int> = coordinator.activeClaimedIssueNumbers(now())
 
-    /**
-     * Checkpoint heartbeat: call before and after each bounded operation.
-     * This is not a continuous background heartbeat.
-     */
+    /** Renews the current lease; active dispatchers schedule this continuously while work is running. */
     fun renewAndCheck(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean =
         coordinator.renew(claim, now(), leaseDurationMs)
     fun release(claim: VyomFactoryWorkerClaimCoordinator.Claim): Boolean = coordinator.release(claim)

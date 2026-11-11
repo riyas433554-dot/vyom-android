@@ -16,11 +16,11 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
- * Best-effort background inbox refresh only.
+ * Best-effort background inbox refresh.
  *
- * This worker performs a GitHub Issues GET and persists eligible open tasks locally.
- * It intentionally does not construct worker sessions, claim leases, call providers,
- * create approvals, or mutate GitHub Issues/repositories.
+ * This worker performs a GitHub Issues GET and persists eligible open tasks locally,
+ * then enqueues the separate, authorization-gated worker dispatcher. It does not
+ * itself claim leases, call providers, create approvals, or mutate remote records.
  */
 internal class VyomFactoryQueueRefreshWorker(
     appContext: Context,
@@ -45,6 +45,7 @@ internal class VyomFactoryQueueRefreshWorker(
                 taskStore = VyomFactoryTaskStore(applicationContext),
                 fetchRemoteTasks = client::listTasks
             ).refresh()
+            VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
             Result.success()
         } catch (error: VyomFactoryGitHubClient.FactoryApiException) {
             if (error.code == 429 || error.code >= 500) Result.retry() else Result.failure()

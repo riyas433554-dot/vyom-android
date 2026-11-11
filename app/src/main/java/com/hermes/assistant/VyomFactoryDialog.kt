@@ -84,18 +84,27 @@ internal class VyomFactoryDialog(
     private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
-    private val workerSessions: Map<VyomFactoryLaneRouter.Lane, VyomFactoryWorkerSession> by lazy {
+    private val workerPool: VyomFactoryWorkerPool by lazy {
         val store = VyomFactoryTaskStore(activity.applicationContext)
-        val coordinator = VyomFactoryWorkerClaimCoordinator(store, VyomFactoryWorkerLeaseStore(activity.applicationContext))
-        val identities = VyomFactoryWorkerIdentityStore(activity.applicationContext).ensurePool()
-        VyomFactoryLaneRouter.Lane.values().associateWith { lane ->
-            val identity = identities.single { it.lane == lane && it.slotIndex == 0 }
-            VyomFactoryWorkerSession(store, coordinator, identity, fetchRemoteTasks = { client.listTasks() })
-        }
+        val leases = VyomFactoryWorkerLeaseStore(activity.applicationContext)
+        VyomFactoryWorkerPool(
+            identityStore = VyomFactoryWorkerIdentityStore(activity.applicationContext),
+            taskStore = store,
+            coordinator = VyomFactoryWorkerClaimCoordinator(store, leases),
+            fetchRemoteTasks = { client.listTasks() }
+        )
     }
+    private val workerSessions: List<VyomFactoryWorkerSession>
+        get() = workerPool.sessions
+    private val workerProposalStore: VyomFactoryWorkerProposalStore by lazy {
+        VyomFactoryWorkerProposalStore(
+            File(activity.filesDir, VyomFactoryWorkerDispatchWorker.PROPOSAL_DIRECTORY)
+        )
+    }
+    private val workerStopStore by lazy { VyomFactoryWorkerStopStore(activity.applicationContext) }
 
     private fun sessionFor(claim: VyomFactoryWorkerClaimCoordinator.Claim): VyomFactoryWorkerSession =
-        workerSessions.values.firstOrNull { it.workerIdentity.workerId == claim.lease.workerId &&
+        workerSessions.firstOrNull { it.workerIdentity.workerId == claim.lease.workerId &&
             it.workerIdentity.lane == claim.lease.lane &&
             it.workerIdentity.slotIndex == claim.lease.workerSlot }
             ?: throw IllegalStateException("Claim worker identity is not in the persisted pool")
@@ -103,12 +112,18 @@ internal class VyomFactoryDialog(
     private fun claimNextFromAnyLane(
         eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }
     ): VyomFactoryWorkerClaimCoordinator.Claim? {
-        for (lane in VyomFactoryLaneRouter.Lane.values().sortedBy { it.priorityRank }) {
-            val session = workerSessions.getValue(lane)
+        val orderedSessions = workerSessions.sortedWith(
+            compareBy<VyomFactoryWorkerSession> { it.workerIdentity.lane.priorityRank }
+                .thenBy { it.workerIdentity.slotIndex }
+        )
+        for (session in orderedSessions) {
+            val lane = session.workerIdentity.lane
             val claim = session.claimNext { remote ->
                 val origin = if (remote.metadata.source in setOf("vyom_chat", "vyom_voice")) {
                     VyomFactoryLaneRouter.Origin.DIRECT_OWNER_COMMAND
-                } else VyomFactoryLaneRouter.Origin.COMPLAINT
+                } else {
+                    VyomFactoryLaneRouter.Origin.COMPLAINT
+                }
                 val decision = VyomFactoryLaneRouter.route(
                     VyomFactoryLaneRouter.Request(origin, remote.title + " " + remote.body)
                 )
@@ -211,15 +226,25 @@ internal class VyomFactoryDialog(
         }
         workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
         stopButton = Button(activity).apply {
-            text = "STOP CURRENT RUN"; textSize = 9f; isEnabled = false
+            text = "STOP ALL WORKERS"; textSize = 9f; isEnabled = true
             setOnClickListener {
+                workerStopStore.stopAll()
                 stopRunRequested.set(true)
                 cancelPendingConfirmation?.invoke()
-                status.text = "STOP requested. Any action not yet started will be blocked; a completed volume change cannot be undone."
+                status.text = "GLOBAL STOP is active. Foreground and background workers will not claim or start another task."
                 isEnabled = false
             }
         }
         workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+        workerPanel.addView(Button(activity).apply {
+            text = "RESUME WORKERS"; textSize = 9f
+            setOnClickListener {
+                workerStopStore.resumeAll()
+                stopRunRequested.set(false)
+                stopButton.isEnabled = true
+                status.text = "Global STOP cleared. Worker dispatch may resume under the existing owner approvals."
+            }
+        }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
         retryStatus = TextView(activity).apply {
             text = "RETRIES · LOADING"
             textSize = 9f; typeface = Typeface.MONOSPACE
@@ -402,6 +427,10 @@ internal class VyomFactoryDialog(
     }
 
     private fun runNextTask() {
+        if (workerStopStore.isStopped()) {
+            status.text = "GLOBAL STOP is active. Tap RESUME WORKERS before starting a run."
+            return
+        }
         if (busy || token.isBlank()) return
         if (activeClaim != null) {
             status.text = "Release the manually-held claim before starting RUN NEXT."
@@ -444,7 +473,7 @@ internal class VyomFactoryDialog(
                 val planningSnapshot = client.listTasks()
                 VyomFactoryLivePlanningStage(stageDetector::onPlanning).inspect(
                     planningSnapshot,
-                    sessions.values.first().activeClaimedIssueNumbers()
+                    sessions.first().activeClaimedIssueNumbers()
                 )
 
                 // Run a read-only planner pass over that same canonical issue snapshot.
@@ -494,7 +523,7 @@ internal class VyomFactoryDialog(
                         val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
                         val modelControl = object : VyomFactoryExecutionControl {
                             override fun shouldStop(): Boolean =
-                                stopRunRequested.get() ||
+                                stopRunRequested.get() || workerStopStore.isStopped() ||
                                     !hostActivity.factoryForegroundGate.isForeground() ||
                                     hostActivity.factoryForegroundGate.generation() != foregroundGeneration
                         }
@@ -587,7 +616,7 @@ internal class VyomFactoryDialog(
                     // Activity pause/resume invalidates this run permanently, even if
                     // the user returns before the worker reaches its next STOP check.
                     externalStopRequested = {
-                        stopRunRequested.get() ||
+                        stopRunRequested.get() || workerStopStore.isStopped() ||
                             !hostActivity.factoryForegroundGate.isForeground() ||
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
                     },
@@ -617,7 +646,7 @@ internal class VyomFactoryDialog(
                 VyomFactoryDrainCoordinator.drain(
                     runNext = { runner.runNext() },
                     shouldStop = {
-                        stopRunRequested.get() ||
+                        stopRunRequested.get() || workerStopStore.isStopped() ||
                             !hostActivity.factoryForegroundGate.isForeground() ||
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
                     },
@@ -1072,6 +1101,7 @@ internal class VyomFactoryDialog(
         claimStatus.text = "REFRESHING REGISTRY · CLAIMING NEXT OPEN TASK…"
         worker.execute {
             try {
+                if (workerStopStore.isStopped()) throw IllegalStateException("GLOBAL STOP is active")
                 val claim = claimNextFromAnyLane()
                 main.post {
                     if (!dialog.isShowing) return@post
@@ -1292,6 +1322,12 @@ internal class VyomFactoryDialog(
             val verifiedProgress = executionEntries?.let {
                 VyomFactoryVerifiedProgress.calculate(task, it)
             }
+            val workerProposal = runCatching { workerProposalStore.get(task.number) }.getOrNull()
+                ?.takeIf {
+                    it.status == "awaiting_review" &&
+                        it.sourceId == task.metadata.sourceId &&
+                        it.updatedAt == task.updatedAt
+                }
             val progressLabel = TextView(activity).apply {
                 text = verifiedProgress?.let(::progressText)
                     ?: "PROGRESS UNAVAILABLE · EXECUTION JOURNAL UNREADABLE"
@@ -1353,6 +1389,13 @@ internal class VyomFactoryDialog(
                 setOnClickListener { editTask(task) }
             }, LinearLayout.LayoutParams(dp(64), dp(36)).apply { leftMargin = dp(3) })
             card.addView(controls)
+            if (workerProposal != null) {
+                card.addView(Button(activity).apply {
+                    text = "REVIEW WORKER PROPOSAL · READ ONLY"
+                    textSize = 9f
+                    setOnClickListener { showWorkerProposalPreview(task, workerProposal) }
+                }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+            }
             if (task.state == "open" && task.metadata.status in setOf("open", "in_progress")) {
                 card.addView(Button(activity).apply {
                     text = "PROPOSE REVIEWED CODE FIX"
@@ -1366,6 +1409,59 @@ internal class VyomFactoryDialog(
             card.setOnClickListener { showTaskHistory(task) }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
+    }
+
+    private fun showWorkerProposalPreview(
+        task: VyomFactoryGitHubClient.Task,
+        stored: VyomFactoryWorkerProposalStore.StoredProposal
+    ) {
+        val fresh = try {
+            client.listTasks().firstOrNull {
+                it.number == task.number && it.state == "open" &&
+                    it.metadata.sourceId == stored.sourceId && it.updatedAt == stored.updatedAt
+            }
+        } catch (error: Exception) {
+            status.text = "Worker proposal could not be revalidated against GitHub; no approval or write occurred."
+            return
+        }
+        if (fresh == null) {
+            workerProposalStore.remove(task.number)
+            status.text = "Worker proposal is stale because the canonical issue changed; it was removed from review."
+            refresh()
+            return
+        }
+        val binding = runCatching {
+            VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
+                .get(stored.candidate.binding.systemId)
+        }.getOrNull()
+        if (binding != stored.candidate.binding) {
+            status.text = "Worker proposal binding changed; review is blocked until the owner rebinds and requests a fresh proposal."
+            return
+        }
+        val plan = stored.candidate.plan
+        val preview = TextView(activity).apply {
+            text = "READ-ONLY WORKER PROPOSAL\n" +
+                "Issue: #${fresh.number}\nWorker: ${stored.workerId}\n" +
+                "Repository: ${binding.repositoryUrl}\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\n" +
+                "Paths: ${plan.changes.joinToString { it.path }}\n\n" +
+                plan.changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" } +
+                "\n\nNo approval token was issued. No GitHub write, PR, merge or install occurred."
+            textSize = 11f
+            setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+            setTextIsSelectable(true)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        val scroll = ScrollView(activity).apply { addView(preview) }
+        AlertDialog.Builder(activity)
+            .setTitle("Worker proposal · #${fresh.number}")
+            .setView(scroll)
+            .setNegativeButton("REJECT PROPOSAL") { _, _ ->
+                workerProposalStore.markRejected(fresh.number)
+                status.text = "Proposal rejected locally. No repository change was approved or written."
+                refresh()
+            }
+            .setPositiveButton("CLOSE", null)
+            .show()
     }
 
     private fun showVerificationDialog(task: VyomFactoryGitHubClient.Task) {
@@ -1539,7 +1635,20 @@ internal class VyomFactoryDialog(
         status.text = "Saving task #${task.number}…"
         worker.execute {
             try {
-                client.updateTask(task, newPriority = priority, newStatus = nextStatus)
+                val planningAllowed = when (nextStatus) {
+                    "in_progress" -> true
+                    "open", "paused", "blocked", "completed", "cancelled" -> false
+                    else -> task.metadata.lanePlanningAllowed
+                }
+                client.updateTask(
+                    task,
+                    newPriority = priority,
+                    newStatus = nextStatus,
+                    newLanePlanningAllowed = planningAllowed
+                )
+                if (nextStatus == "in_progress") {
+                    VyomFactoryWorkerDispatchScheduler.enqueue(activity.applicationContext)
+                }
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = "Task #${task.number} updated and saved."

@@ -79,7 +79,8 @@ internal class VyomFactoryGitHubClient(
                    newPriority: String = current.metadata.priority,
                    newStatus: String = current.metadata.status,
                    newDescription: String? = null,
-                   additionalEvent: String? = null): Task {
+                   additionalEvent: String? = null,
+                   newLanePlanningAllowed: Boolean? = null): Task {
         require(newPriority in PRIORITIES) { "Unknown task priority" }
         require(VyomFactoryStatus.canTransition(current.metadata.status, newStatus) ||
             current.metadata.status == newStatus) { "Invalid task state transition" }
@@ -91,9 +92,21 @@ internal class VyomFactoryGitHubClient(
         require(additionalEvent == null || additionalEvent.isNotBlank() && additionalEvent.length <= 1_000) {
             "Verification event is empty or too long"
         }
+        if (newLanePlanningAllowed == true && newStatus != "in_progress") {
+            throw IllegalArgumentException("Owner planning approval is only valid when a task is started")
+        }
+        val planningAllowed = newLanePlanningAllowed ?: current.metadata.lanePlanningAllowed
+        val planningEvent = if (planningAllowed && !current.metadata.lanePlanningAllowed) {
+            listOf("planning:owner_approved")
+        } else emptyList()
         val events = (current.metadata.events + "updated:$newStatus:$newPriority" +
-            listOfNotNull(additionalEvent)).takeLast(500)
-        val metadata = current.metadata.copy(priority = newPriority, status = newStatus, events = events)
+            planningEvent + listOfNotNull(additionalEvent)).takeLast(500)
+        val metadata = current.metadata.copy(
+            priority = newPriority,
+            status = newStatus,
+            events = events,
+            lanePlanningAllowed = planningAllowed
+        )
         if (newStatus == "completed" && !VyomFactoryTaskIntelligence.acceptanceCriteriaSatisfied(
                 current.copy(body = description)
             )) {
