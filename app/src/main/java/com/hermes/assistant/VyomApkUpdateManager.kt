@@ -64,7 +64,11 @@ internal class VyomApkUpdateManager(
         require(versionName.isNotBlank() && versionName.length <= 80) { "APK version name is invalid" }
 
         val installed = installedPackageInfo()
-        val installedVersionCode = packageVersionCode(installed)
+        val installedVersionCode = VyomApkUpdatePolicy.installedVersionCode(
+            Build.VERSION.SDK_INT,
+            installed.longVersionCode,
+            installed.versionCode
+        )
         require(candidate.versionCode.toLong() > installedVersionCode) {
             "Latest release is not newer than the installed Vyom version"
         }

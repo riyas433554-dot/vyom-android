@@ -30,4 +30,7 @@ internal object VyomApkUpdatePolicy {
         require(archive.signerSha256.equals(expectedCertificateSha256, ignoreCase = true))
         true
     }.getOrDefault(false)
+
+    fun installedVersionCode(sdkInt: Int, longVersionCode: Long, legacyVersionCode: Int): Long =
+        if (sdkInt >= 28) longVersionCode else legacyVersionCode.toLong()
 }
