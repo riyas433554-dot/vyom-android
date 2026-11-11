@@ -167,6 +167,46 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
         claims.drop(1).forEach { (session, claim) -> session.release(claim) }
     }
 
+    @Test fun noProgressOutputFingerprintPersistsAndResetsWhenOutputChanges() {
+        val prefs = MemoryPrefs()
+        val journal = VyomFactoryWorkerModelJournal(prefs)
+        val repeatedHash = "a".repeat(64)
+        repeat(5) { index ->
+            journal.record(
+                VyomFactoryWorkerModelCallJournal.Entry(
+                    taskNumber = 88,
+                    timestampMillis = 1_000L + index,
+                    inputTokens = 1,
+                    outputTokens = 1,
+                    result = "FAILED",
+                    providerId = "fake-pool",
+                    providerCallStarted = true,
+                    callId = "call-id-${index.toString().padStart(4, '0')}",
+                    outputHash = repeatedHash
+                )
+            )
+        }
+
+        assertEquals(5, journal.consecutiveOutputCount(88, repeatedHash))
+        val reopened = VyomFactoryWorkerModelJournal(prefs)
+        assertEquals(5, reopened.consecutiveOutputCount(88, repeatedHash))
+
+        reopened.record(
+            VyomFactoryWorkerModelCallJournal.Entry(
+                taskNumber = 88,
+                timestampMillis = 2_000L,
+                inputTokens = 1,
+                outputTokens = 1,
+                result = "SUCCESS",
+                providerId = "fake-pool",
+                providerCallStarted = true,
+                callId = "call-id-0006",
+                outputHash = "b".repeat(64)
+            )
+        )
+        assertEquals(0, reopened.consecutiveOutputCount(88, repeatedHash))
+    }
+
     private class Fixture(taskCount: Int) {
         val taskStore = VyomFactoryTaskStore(MemoryPrefs())
         val leaseStore = VyomFactoryWorkerLeaseStore(MemoryPrefs())
