@@ -193,7 +193,7 @@ class MainActivity : Activity() {
     private var factoryWorkerPool: VyomFactoryWorkerPool? = null
     private val tasksById = linkedMapOf<String, JSONObject>()
     private var orbitHomeView: OrbitHomeView? = null
-    private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "", val createdAt: Long = System.currentTimeMillis())
+    private data class ChatMessage(val id: String, val text: String, var state: String, var reply: String = "", val createdAt: Long = System.currentTimeMillis(), val source: String = "vyom_chat", val sourceId: String? = null)
     private val chatMessages = mutableListOf<ChatMessage>()
     private val chatPrefs by lazy { getSharedPreferences("vyom_chat_history", MODE_PRIVATE) }
     private var chatReady = false
@@ -1564,9 +1564,45 @@ class MainActivity : Activity() {
         panel.requestLayout()
     }
 
+    private fun handleIncomingFactoryComplaint() {
+        val incoming = intent ?: return
+        if (incoming.action != Intent.ACTION_SEND || incoming.type?.startsWith("text/") != true) return
+        val sharedText = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+        setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
+        if (sharedText.isBlank()) {
+            Toast.makeText(this, "No complaint text was shared.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val intake = try {
+            val source = VyomFactoryComplaintIntake.resolveSource(null, referrer?.host)
+            VyomFactoryComplaintIntake.fromExternalShare(source, sharedText)
+        } catch (error: Exception) {
+            Toast.makeText(this, "Complaint not accepted: ${error.message?.take(120) ?: "invalid shared text"}", Toast.LENGTH_LONG).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Register ${intake.source} complaint?")
+            .setMessage(intake.record.toIssueDescription().take(3_000))
+            .setPositiveButton("REGISTER IN FACTORY") { _, _ ->
+                val item = ChatMessage(
+                    id = intake.source + ":" + intake.sourceId,
+                    text = intake.originalText,
+                    state = "queued",
+                    source = intake.source,
+                    sourceId = intake.sourceId
+                )
+                chatMessages.add(item)
+                persistChatMessages()
+                renderChatMessages()
+                submitFactoryComplaint(item, intake.originalText, intake.source, intake.sourceId)
+            }
+            .setNegativeButton("CANCEL", null)
+            .show()
+    }
+
     private fun handleIncomingFactoryScreenshot() {
         val incoming = intent ?: return
-        if (incoming.action != Intent.ACTION_SEND) return
+        if (incoming.action != Intent.ACTION_SEND || incoming.type?.startsWith("image/") != true) return
         val uri = if (Build.VERSION.SDK_INT >= 33) {
             incoming.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
@@ -3540,7 +3576,7 @@ class MainActivity : Activity() {
         submitFactoryComplaint(complaint, report.complaint, "task_failure")
     }
 
-    private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat") {
+    private fun submitFactoryComplaint(item: ChatMessage, complaint: String, source: String = "vyom_chat", sourceId: String? = null) {
         val record = try {
             VyomFactoryComplaintRecord.fromFreeText(source, complaint)
         } catch (_: IllegalArgumentException) {
@@ -3580,13 +3616,13 @@ class MainActivity : Activity() {
                     description = description,
                     priority = record.priority,
                     source = source,
-                    sourceId = item.id,
+                    sourceId = sourceId ?: item.id,
                     lane = laneDecision.lane,
                     lanePlanningAllowed = laneDecision.mayStartPlanning
                 )
                 VyomFactoryTaskStore(applicationContext).enqueue(
                     VyomFactoryTaskStore.QueuedTask(
-                        task.number, task.title, task.metadata.priority, item.id, System.currentTimeMillis(),
+                        task.number, task.title, task.metadata.priority, sourceId ?: item.id, System.currentTimeMillis(),
                         task.metadata.lane, task.metadata.lanePlanningAllowed
                     )
                 )
@@ -3661,7 +3697,9 @@ class MainActivity : Activity() {
                     value.optString("text"),
                     if (savedState == "running") "queued" else savedState,
                     value.optString("reply"),
-                    value.optLong("createdAt", System.currentTimeMillis())
+                    value.optLong("createdAt", System.currentTimeMillis()),
+                    value.optString("source", "vyom_chat"),
+                    value.optString("sourceId").takeIf { it.isNotBlank() }
                 ))
             }
             renderChatMessages()
@@ -3697,6 +3735,7 @@ class MainActivity : Activity() {
             when {
                 item.id.startsWith("task-failure:factory-runner:") || item.id.startsWith("task-failure:factory-worker:") -> submitFactoryComplaint(item, item.text, "task_failure")
                 item.id.startsWith("diagnostics:") -> submitFactoryComplaint(item, item.text, "diagnostics")
+                item.sourceId != null -> submitFactoryComplaint(item, item.text, item.source, item.sourceId)
                 complaint != null -> submitFactoryComplaint(item, complaint)
                 else -> scheduleChatMessage(item)
             }
@@ -3711,7 +3750,9 @@ class MainActivity : Activity() {
                 .put("text", item.text)
                 .put("state", item.state)
                 .put("reply", item.reply)
-                .put("createdAt", item.createdAt))
+                .put("createdAt", item.createdAt)
+                .put("source", item.source)
+                .put("sourceId", item.sourceId ?: ""))
         }
         chatPrefs.edit().putString("messages", saved.toString()).apply()
     }
@@ -6044,6 +6085,7 @@ class MainActivity : Activity() {
             mainHandler.removeCallbacks(refreshTasksRunnable)
             mainHandler.post(refreshTasksRunnable)
         }
+        handleIncomingFactoryComplaint()
         handleIncomingFactoryScreenshot()
     }
 
