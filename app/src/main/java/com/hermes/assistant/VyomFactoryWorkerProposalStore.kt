@@ -77,6 +77,26 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
             .sortedBy { it.issueNumber }
     }
 
+    /** Owner-approved proposals are no longer pending review, but remain visible for reauthorization after process death. */
+    @Synchronized
+    fun approved(): List<StoredProposal> {
+        if (!root.exists()) return emptyList()
+        check(root.canonicalFile.isDirectory) { "Worker proposal store is not a directory" }
+        return root.canonicalFile.listFiles().orEmpty()
+            .filter {
+                it.isFile && it.canonicalFile.parentFile == root.canonicalFile &&
+                    it.name.matches(Regex("^issue-[1-9][0-9]*\\.json$"))
+            }
+            .map { file ->
+                if (file.length() !in 2L..MAX_STORED_CHARS.toLong()) {
+                    throw IllegalStateException("Worker proposal file is not a bounded regular file")
+                }
+                decode(file.readText(Charsets.UTF_8))
+            }
+            .filter { it.status == "approved" }
+            .sortedBy { it.issueNumber }
+    }
+
     @Synchronized
     fun isHandled(task: VyomFactoryGitHubClient.Task): Boolean {
         val current = get(task.number) ?: return false
@@ -84,10 +104,31 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
             current.updatedAt == task.updatedAt && current.status in HANDLED_STATES
     }
 
+    /** Persist the explicit local owner approval; repeated calls are idempotent. */
+    @Synchronized
+    fun markApproved(issueNumber: Int): Boolean {
+        val current = get(issueNumber) ?: return false
+        if (current.status == "approved") return true
+        if (current.status != "awaiting_review") return false
+        write(current.copy(status = "approved"))
+        return true
+    }
+
+    /** Mark the proposal handled only after the repository adapter reports its exact-SHA CI success. */
+    @Synchronized
+    fun markSubmitted(issueNumber: Int): Boolean {
+        val current = get(issueNumber) ?: return false
+        if (current.status == "submitted") return true
+        if (current.status != "approved") return false
+        write(current.copy(status = "submitted"))
+        return true
+    }
+
     @Synchronized
     fun markRejected(issueNumber: Int): Boolean {
         val current = get(issueNumber) ?: return false
         if (current.status == "rejected") return true
+        if (current.status != "awaiting_review") return false
         write(current.copy(status = "rejected"))
         return true
     }
@@ -220,7 +261,7 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
 
     companion object {
         private const val MAX_STORED_CHARS = 2_200_000
-        private val ALL_STATES = setOf("awaiting_review", "rejected")
-        private val HANDLED_STATES = setOf("awaiting_review", "rejected")
+        private val ALL_STATES = setOf("awaiting_review", "approved", "submitted", "rejected")
+        private val HANDLED_STATES = setOf("awaiting_review", "approved", "submitted", "rejected")
     }
 }

@@ -632,6 +632,14 @@ internal class VyomFactoryDialog(
                         }
                     },
                     onVerificationResult = { task, passed, evidence ->
+                        if (passed) {
+                            val envelope = runCatching {
+                                VyomFactoryExecutionEnvelope.parse(task.body, task.number)
+                            }.getOrNull()
+                            if (envelope?.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) {
+                                workerProposalStore.markSubmitted(task.number)
+                            }
+                        }
                         stageDetector.onVerificationResult(task, passed, evidence)
                         main.post {
                             if (::dialog.isInitialized && dialog.isShowing) {
@@ -1178,7 +1186,8 @@ internal class VyomFactoryDialog(
         worker.execute {
             try {
                 val tasks = client.listTasks()
-                val proposals = workerProposalStore.pending().associateBy { it.issueNumber }
+                val proposals = (workerProposalStore.pending() + workerProposalStore.approved())
+                    .associateBy { it.issueNumber }
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = "GitHub Issues · ${tasks.size} Factory tasks loaded"
@@ -1330,7 +1339,7 @@ internal class VyomFactoryDialog(
             }
             val workerProposal = workerProposals[task.number]
                 ?.takeIf {
-                    it.status == "awaiting_review" &&
+                    it.status in setOf("awaiting_review", "approved") &&
                         it.sourceId == task.metadata.sourceId &&
                         it.updatedAt == task.updatedAt
                 }
@@ -1404,7 +1413,11 @@ internal class VyomFactoryDialog(
             card.addView(controls)
             if (workerProposal != null) {
                 card.addView(Button(activity).apply {
-                    text = "REVIEW WORKER PROPOSAL · READ ONLY"
+                    text = if (workerProposal.status == "approved") {
+                        "REAUTHORIZE APPROVED WORKER PROPOSAL"
+                    } else {
+                        "REVIEW WORKER PROPOSAL"
+                    }
                     textSize = 9f
                     setOnClickListener { showWorkerProposalPreview(task, workerProposal) }
                 }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
@@ -1435,6 +1448,7 @@ internal class VyomFactoryDialog(
             try {
                 val fresh = client.listTasks().firstOrNull {
                     it.number == task.number && it.state == "open" &&
+                        it.metadata.status in setOf("open", "in_progress") &&
                         it.metadata.sourceId == stored.sourceId && it.updatedAt == stored.updatedAt
                 }
                 val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
@@ -1457,32 +1471,87 @@ internal class VyomFactoryDialog(
                     }
                     val plan = stored.candidate.plan
                     val preview = TextView(activity).apply {
-                        text = "READ-ONLY WORKER PROPOSAL\n" +
-                            "Issue: #${fresh.number}\nWorker: ${stored.workerId}\n" +
-                            "Repository: ${binding.repositoryUrl}\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\n" +
-                            "Paths: ${plan.changes.joinToString { it.path }}\n\n" +
-                            plan.changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" } +
-                            "\n\nNo approval token was issued. No GitHub write, PR, merge or install occurred."
+                        text = "WORKER PROPOSAL · OWNER REVIEW REQUIRED\\n" +
+                            "Issue: #${fresh.number}\\nWorker: ${stored.workerId}\\n" +
+                            "Repository: ${binding.repositoryUrl}\\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\\n" +
+                            "Paths: ${plan.changes.joinToString { it.path }}\\n\\n" +
+                            plan.changes.joinToString("\\n\\n") { "PATH: ${it.path}\\n\\n${it.content}" } +
+                            "\\n\\nNo repository write occurs until you approve. Approval uses the existing one-time plan-bound token, immutable base, draft PR and exact-SHA CI gate."
                         textSize = 11f
                         setTextColor(VyomDesignSpec.TEXT_PRIMARY)
                         setTextIsSelectable(true)
                         setPadding(dp(14), dp(12), dp(14), dp(12))
                     }
                     val scroll = ScrollView(activity).apply { addView(preview) }
-                    AlertDialog.Builder(activity)
+                    val positiveLabel = if (stored.status == "approved") "REAUTHORIZE & QUEUE" else "APPROVE & QUEUE"
+                    val negativeLabel = if (stored.status == "awaiting_review") "REJECT PROPOSAL" else "CLOSE"
+                    val reviewDialog = AlertDialog.Builder(activity)
                         .setTitle("Worker proposal · #${fresh.number}")
                         .setView(scroll)
-                        .setNegativeButton("REJECT PROPOSAL") { _, _ ->
-                            worker.execute {
-                                workerProposalStore.markRejected(fresh.number)
-                                main.post {
-                                    status.text = "Proposal rejected locally. No repository change was approved or written."
-                                    refresh()
+                        .setNegativeButton(negativeLabel) { _, _ ->
+                            if (stored.status == "awaiting_review") {
+                                worker.execute {
+                                    workerProposalStore.markRejected(fresh.number)
+                                    main.post {
+                                        status.text = "Proposal rejected locally. No repository change was approved or written."
+                                        refresh()
+                                    }
                                 }
                             }
                         }
-                        .setPositiveButton("CLOSE", null)
-                        .show()
+                        .setPositiveButton(positiveLabel, null)
+                        .create()
+                    reviewDialog.setOnShowListener {
+                        val approveButton = reviewDialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                        approveButton.setOnClickListener {
+                            if (busy) return@setOnClickListener
+                            busy = true
+                            approveButton.isEnabled = false
+                            status.text = "Rechecking issue and immutable repository binding before owner approval…"
+                            worker.execute {
+                                try {
+                                    val current = client.listTasks().firstOrNull {
+                                        it.number == fresh.number && it.state == "open" &&
+                                            it.metadata.status in setOf("open", "in_progress") &&
+                                            it.metadata.sourceId == stored.sourceId &&
+                                            it.updatedAt == stored.updatedAt
+                                    } ?: throw SecurityException("Factory issue changed after preview; approval refused")
+                                    val currentBinding = registry.get(plan.systemId)
+                                        ?: throw SecurityException("Registered repository binding is missing")
+                                    val validated = VyomFactoryRepositoryChangePolicy.validateCandidate(plan, registry)
+                                    if (current.number != plan.issueNumber || currentBinding != binding || validated != binding) {
+                                        throw SecurityException("Worker proposal no longer matches the registered repository or exact base")
+                                    }
+                                    if (pendingRepositoryApprovals.containsKey(fresh.number)) {
+                                        throw IllegalStateException("This proposal already has an active owner approval in this session")
+                                    }
+                                    val approval = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
+                                        .issueFromOwnerReview(plan, binding)
+                                    check(workerProposalStore.markApproved(fresh.number)) {
+                                        "Proposal is missing, rejected, or no longer eligible for owner approval"
+                                    }
+                                    val previous = pendingRepositoryApprovals.putIfAbsent(
+                                        fresh.number,
+                                        VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
+                                    )
+                                    check(previous == null) { "A proposal approval is already queued in this session" }
+                                    main.post {
+                                        busy = false
+                                        reviewDialog.dismiss()
+                                        status.text = "Owner approval persisted. Starting the existing token-bound draft-PR and CI path…"
+                                        runNextTask()
+                                    }
+                                } catch (error: Exception) {
+                                    main.post {
+                                        busy = false
+                                        approveButton.isEnabled = true
+                                        status.text = "Approval failed closed: ${error.message?.take(180) ?: error.javaClass.simpleName}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    reviewDialog.show()
                 }
             } catch (_: Exception) {
                 main.post {
