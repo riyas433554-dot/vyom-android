@@ -2313,3 +2313,19 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - **L5 status:** **CI-VERIFIED; OWNER-ACCEPTED; PHONE-UNTESTED.** This is a verification/status record only; it is not a “ready” or “done” declaration.
 - Release and phone testing have not been started. Wait for a separate explicit owner instruction before either.
 - Exact documentation commit SHA and its exact-SHA Full + Debug + Gitleaks verification are recorded after the commit completes.
+
+## Historical Android release — before L1–L5
+
+- Release run: `42619331187` (owner-started workflow `Vyom Android Release`).
+- Classification: **OLD RELEASE — before L1–L5**. This run is historical release evidence only and is not proof for L1, L2, L3, L4 or L5.
+- Release source HEAD: `16917319d930642a8595db594055319863ca558e`.
+- Release version: `0.3.1`; `versionCode=1`.
+- The run's signing fingerprint was reported as matching the then-current fixed identity, but this historical run must not be substituted for exact-SHA L1–L5 CI evidence.
+- Device installation, phone acceptance and live-model authorization are separate owner gates; none is established by this historical run.
+
+## Owner acceptance — WorkManager merged permissions — 2026-11-11
+
+- Owner explicitly accepts the two permissions introduced by WorkManager dependency manifest merging: `android.permission.WAKE_LOCK` and `android.permission.RECEIVE_BOOT_COMPLETED`.
+- Both are normal Android manifest permissions and do not trigger runtime permission prompts. Keep them; do not strip them.
+- `android.permission.ACCESS_NETWORK_STATE` was already present in the L4 baseline and is not a newly introduced permission.
+- No other new permission is accepted. Any additional newly merged permission must be reported and held for owner decision.
