@@ -2236,3 +2236,37 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Full-history finding count is **0** after the owner-authorized allowlist of exactly three reviewed historical fingerprints. Both exact-HEAD CI workflows pass. **L2 is CI-VERIFIED** on the tested code/security HEAD above. The subsequent HANDOFF-only commit records this evidence; it does not change the tested code SHA or retroactively change the CI target.
 - The Gradle test count was not emitted in the retrieved logs; total count remains **UNVERIFIED**. No test count is inferred.
 - L4 and L5 remain **NOT STARTED / HOLD** pending explicit owner authorization. No L4/L5 work is included in this update. No Android `main`, workflow, signing, trust-root, Render, backend or production Supabase change.
+
+
+## L4 — 20-task fake-provider worker-pool verification — 2026-11-11
+
+- **L4 code/test status: CI-VERIFIED** on exact code/test HEAD `ea72fe6dca8f3bfe26c89da15442c63878977192`, branch `feature/real-worker-model`.
+- Exact-HEAD Full run `42962318029`: `head_sha=ea72fe6dca8f3bfe26c89da15442c63878977192`, conclusion **SUCCESS**.
+- Exact-HEAD Debug run `42962317829`: `head_sha=ea72fe6dca8f3bfe26c89da15442c63878977192`, conclusion **SUCCESS**.
+- Full standard Gitleaks exact log: `2026-11-11T04:59:00.6977093Z ... INF no leaks found`.
+- Full reachable-history Gitleaks exact log: `2026-11-11T04:59:31.3916267Z ... INF no leaks found`; exact count line: `2026-11-11T04:59:31.4192107Z FULL_HISTORY_GITLEAKS_FINDINGS=0`.
+- Full Gradle log: `2026-11-11T04:59:32.4322478Z gradle testDebugUnitTest assembleDebug --no-daemon`; `:app:testDebugUnitTest` executed; `BUILD SUCCESSFUL in 3m 31s`. Debug exact-HEAD log: `BUILD SUCCESSFUL in 3m 36s`. The successful logs did not print a test total; **no test count is claimed**.
+- Full APK artifact: `vyom-phase6-ea72fe6dca8f3bfe26c89da15442c63878977192`, artifact ID `13829124090`. Debug APK artifact: `vyom-debug-ea72fe6dca8f3bfe26c89da15442c63878977192`, artifact ID `13829559187`.
+- The fake-provider integration tests cover 20 active tasks across four lanes (5 per lane), 20 distinct worker IDs and leases, overlapping provider-call intervals reaching the pool concurrency limit, one provider failure isolated while the other 19 proposals succeed, pool-wide STOP stopping all 20, and a 21st queue witness remaining pending until a worker lease is released.
+- The repeated-bad-output guard stores only a SHA-256 fingerprint in the model-call journal (never raw provider output). Five identical no-progress failures are recorded; the next identical response is owner-visible as `BLOCKED`. A successful output resets the bad-output streak. Existing repeated-valid-proposal and >20-call / high-token-usage regressions remain intact; no daily call/token cap was added.
+- Approval gates were not relaxed: the fake-provider candidates remain `ownerApproved=false`; the adapter still has no GitHub writer or approval issuer. The test-only pre-call authorization injection does not enable live calls. Existing one-time approval store capacity/fail-closed behavior and retry/backoff policy were not changed.
+- Intermediate TDD failures and exact locations:
+  - Full `42961241238` and Debug `42961241256`, initial test SHA `cf9527f2dafb101ec2b548ff54cd3dc39ce6e46a`: `VyomFactoryWorkerPoolFakeProviderIntegrationTest.kt:159` failed because the queue fixture tried to reclaim a task it had not marked remotely completed. Corrected by `5d2480c906d85a5d50ea5fad6a86446405b2fc99`.
+  - Full `42961724204`, test-first SHA `88112746bfae582559e1eec5f34a14c5036bf664`: expected RED at `VyomFactoryStructuredWorkerModelTest.kt:363-364`; the repeated-bad-output guard was not yet implemented. Guard and persistence were added in subsequent commits and pass on the exact final HEAD above.
+- All L4 commits (full 40-character SHAs):
+  1. `cf9527f2dafb101ec2b548ff54cd3dc39ce6e46a` — add 20-task fake-provider integration tests.
+  2. `5d2480c906d85a5d50ea5fad6a86446405b2fc99` — correct queue handoff fixture.
+  3. `88112746bfae582559e1eec5f34a14c5036bf664` — add test-first no-progress guard regression.
+  4. `69b25dc55385bf8c7751d4645d72bb10cba93f93` — implement repeated no-progress output blocking.
+  5. `1d1ab90c5e1ee1ed425c988ce28317192b9c790a` — persist output fingerprints on failed responses.
+  6. `3ba0b579c4b662377b99d2f98a740f15c5ea8268` — test consecutive-output journal behavior.
+  7. `9f61cb12995f7392def0f47b2382d8888bb77d78` — test persisted output fingerprints.
+  8. `db6e0ba37d962401450f0ae62b28c99958066709` — fail closed on invalid fingerprints and preserve usage in BLOCKED journal entries.
+  9. `668691db9ec246a98d6eee150a54e4065e9d6896` — restrict loop guard to repeated bad outputs.
+  10. `ac4e25dbccaee97535b7fd9b2c5ee6065ae859aa` — test that valid repeated proposals are not blocked.
+  11. `1de164f19037ca683196eef0b613e03001aed6bb` — test bad-output streak reset on changed output.
+  12. `076d1a5eeb4cf46205912c35e1f109427347096e` — reset bad-output streak after a successful proposal.
+  13. `7e6983f783f98de4e92985677ddecf6969412e3c` — test successful-result reset.
+  14. `ea72fe6dca8f3bfe26c89da15442c63878977192` — test persisted success reset.
+- Net source/test diff from the L2-verified baseline contains exactly three files: `VyomFactoryStructuredWorkerModel.kt`, `VyomFactoryStructuredWorkerModelTest.kt`, and new `VyomFactoryWorkerPoolFakeProviderIntegrationTest.kt`. No workflow, signing, trust-root, `.gitleaksignore`, Android `main`, Render, backend, or production Supabase file changed. No force-push, rebase, or history rewrite.
+- L5 scheduler/app-closed runner has **NOT STARTED**. L4 is verified; inspect L5 design separately and stop for owner input if it requires a foreground service, WorkManager execution that could cross the approval boundary, Android permission, battery setting, Shizuku, or Power Mode.
