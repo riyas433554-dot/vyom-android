@@ -112,13 +112,15 @@ internal class VyomFactoryDialog(
     private fun claimNextFromAnyLane(
         eligible: (VyomFactoryGitHubClient.Task) -> Boolean = { true }
     ): VyomFactoryWorkerClaimCoordinator.Claim? {
+        if (workerStopStore.isStopped()) return null
+        val snapshot = client.listTasks()
         val orderedSessions = workerSessions.sortedWith(
             compareBy<VyomFactoryWorkerSession> { it.workerIdentity.lane.priorityRank }
                 .thenBy { it.workerIdentity.slotIndex }
         )
         for (session in orderedSessions) {
             val lane = session.workerIdentity.lane
-            val claim = session.claimNext { remote ->
+            val claim = session.claimNext(snapshot) { remote ->
                 val origin = if (remote.metadata.source in setOf("vyom_chat", "vyom_voice")) {
                     VyomFactoryLaneRouter.Origin.DIRECT_OWNER_COMMAND
                 } else {
@@ -1176,10 +1178,11 @@ internal class VyomFactoryDialog(
         worker.execute {
             try {
                 val tasks = client.listTasks()
+                val proposals = workerProposalStore.pending().associateBy { it.issueNumber }
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = "GitHub Issues · ${tasks.size} Factory tasks loaded"
-                    render(tasks)
+                    render(tasks, proposals)
                     refreshRetryOverview()
                     busy = false
                 }
@@ -1284,7 +1287,10 @@ internal class VyomFactoryDialog(
         views.second.progress = snapshot.percent
     }
 
-    private fun render(tasks: List<VyomFactoryGitHubClient.Task>) {
+    private fun render(
+        tasks: List<VyomFactoryGitHubClient.Task>,
+        workerProposals: Map<Int, VyomFactoryWorkerProposalStore.StoredProposal> = emptyMap()
+    ) {
         val orderedTasks = VyomFactoryTaskOrdering.sort(tasks)
         taskList.removeAllViews()
         if (orderedTasks.isEmpty()) {
@@ -1322,7 +1328,7 @@ internal class VyomFactoryDialog(
             val verifiedProgress = executionEntries?.let {
                 VyomFactoryVerifiedProgress.calculate(task, it)
             }
-            val workerProposal = runCatching { workerProposalStore.get(task.number) }.getOrNull()
+            val workerProposal = workerProposals[task.number]
                 ?.takeIf {
                     it.status == "awaiting_review" &&
                         it.sourceId == task.metadata.sourceId &&
@@ -1415,53 +1421,71 @@ internal class VyomFactoryDialog(
         task: VyomFactoryGitHubClient.Task,
         stored: VyomFactoryWorkerProposalStore.StoredProposal
     ) {
-        val fresh = try {
-            client.listTasks().firstOrNull {
-                it.number == task.number && it.state == "open" &&
-                    it.metadata.sourceId == stored.sourceId && it.updatedAt == stored.updatedAt
+        if (busy) return
+        busy = true
+        status.text = "Revalidating worker proposal against the canonical issue and immutable binding…"
+        worker.execute {
+            try {
+                val fresh = client.listTasks().firstOrNull {
+                    it.number == task.number && it.state == "open" &&
+                        it.metadata.sourceId == stored.sourceId && it.updatedAt == stored.updatedAt
+                }
+                val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
+                val binding = registry.get(stored.candidate.binding.systemId)
+                val validatedBinding = runCatching {
+                    VyomFactoryRepositoryChangePolicy.validateCandidate(stored.candidate.plan, registry)
+                }.getOrNull()
+                main.post {
+                    busy = false
+                    if (!dialog.isShowing) return@post
+                    if (fresh == null) {
+                        worker.execute { workerProposalStore.remove(task.number) }
+                        status.text = "Worker proposal is stale because the canonical issue changed; it was removed from review."
+                        refresh()
+                        return@post
+                    }
+                    if (binding != stored.candidate.binding || validatedBinding != binding) {
+                        status.text = "Worker proposal binding/path validation failed; review is blocked."
+                        return@post
+                    }
+                    val plan = stored.candidate.plan
+                    val preview = TextView(activity).apply {
+                        text = "READ-ONLY WORKER PROPOSAL\n" +
+                            "Issue: #${fresh.number}\nWorker: ${stored.workerId}\n" +
+                            "Repository: ${binding.repositoryUrl}\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\n" +
+                            "Paths: ${plan.changes.joinToString { it.path }}\n\n" +
+                            plan.changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" } +
+                            "\n\nNo approval token was issued. No GitHub write, PR, merge or install occurred."
+                        textSize = 11f
+                        setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+                        setTextIsSelectable(true)
+                        setPadding(dp(14), dp(12), dp(14), dp(12))
+                    }
+                    val scroll = ScrollView(activity).apply { addView(preview) }
+                    AlertDialog.Builder(activity)
+                        .setTitle("Worker proposal · #${fresh.number}")
+                        .setView(scroll)
+                        .setNegativeButton("REJECT PROPOSAL") { _, _ ->
+                            worker.execute {
+                                workerProposalStore.markRejected(fresh.number)
+                                main.post {
+                                    status.text = "Proposal rejected locally. No repository change was approved or written."
+                                    refresh()
+                                }
+                            }
+                        }
+                        .setPositiveButton("CLOSE", null)
+                        .show()
+                }
+            } catch (_: Exception) {
+                main.post {
+                    busy = false
+                    if (::dialog.isInitialized && dialog.isShowing) {
+                        status.text = "Worker proposal could not be revalidated; review failed closed."
+                    }
+                }
             }
-        } catch (error: Exception) {
-            status.text = "Worker proposal could not be revalidated against GitHub; no approval or write occurred."
-            return
         }
-        if (fresh == null) {
-            workerProposalStore.remove(task.number)
-            status.text = "Worker proposal is stale because the canonical issue changed; it was removed from review."
-            refresh()
-            return
-        }
-        val binding = runCatching {
-            VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
-                .get(stored.candidate.binding.systemId)
-        }.getOrNull()
-        if (binding != stored.candidate.binding) {
-            status.text = "Worker proposal binding changed; review is blocked until the owner rebinds and requests a fresh proposal."
-            return
-        }
-        val plan = stored.candidate.plan
-        val preview = TextView(activity).apply {
-            text = "READ-ONLY WORKER PROPOSAL\n" +
-                "Issue: #${fresh.number}\nWorker: ${stored.workerId}\n" +
-                "Repository: ${binding.repositoryUrl}\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\n" +
-                "Paths: ${plan.changes.joinToString { it.path }}\n\n" +
-                plan.changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" } +
-                "\n\nNo approval token was issued. No GitHub write, PR, merge or install occurred."
-            textSize = 11f
-            setTextColor(VyomDesignSpec.TEXT_PRIMARY)
-            setTextIsSelectable(true)
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-        }
-        val scroll = ScrollView(activity).apply { addView(preview) }
-        AlertDialog.Builder(activity)
-            .setTitle("Worker proposal · #${fresh.number}")
-            .setView(scroll)
-            .setNegativeButton("REJECT PROPOSAL") { _, _ ->
-                workerProposalStore.markRejected(fresh.number)
-                status.text = "Proposal rejected locally. No repository change was approved or written."
-                refresh()
-            }
-            .setPositiveButton("CLOSE", null)
-            .show()
     }
 
     private fun showVerificationDialog(task: VyomFactoryGitHubClient.Task) {

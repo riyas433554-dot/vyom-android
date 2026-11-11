@@ -12,7 +12,7 @@ internal class VyomFactoryWorkerPool(
     private val coordinator: VyomFactoryWorkerClaimCoordinator,
     private val fetchRemoteTasks: () -> List<VyomFactoryGitHubClient.Task>,
     private val now: () -> Long = System::currentTimeMillis,
-    private val leaseDurationMs: Long = VyomFactoryWorkerSession.DEFAULT_LEASE_DURATION_MS
+    val leaseDurationMs: Long = VyomFactoryWorkerSession.DEFAULT_LEASE_DURATION_MS
 ) {
     private val identities = identityStore.ensurePool()
 

@@ -44,14 +44,19 @@ internal class VyomFactoryWorkerPoolDispatcher(
     }
 
     init {
-        require(heartbeatIntervalMillis in 1L..VyomFactoryWorkerSession.MAX_LEASE_DURATION_MS)
+        require(heartbeatIntervalMillis in 1L until pool.leaseDurationMs) {
+            "Worker heartbeat must run before the configured lease expires"
+        }
     }
 
+    private fun stopRequested(): Boolean = runCatching(isStopped).getOrDefault(true)
+    private fun authorizationValid(): Boolean = runCatching(isAuthorized).getOrDefault(false)
+
     fun dispatchAvailable(): Result {
-        if (isStopped()) return Result(emptyList(), stopped = true)
-        if (!isAuthorized()) return Result(emptyList(), authorizationRequired = true)
+        if (stopRequested()) return Result(emptyList(), stopped = true)
+        if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true)
         val snapshot = fetchRemoteTasks()
-        if (isStopped()) return Result(emptyList(), stopped = true)
+        if (stopRequested()) return Result(emptyList(), stopped = true)
         val eligibleNumbers = snapshot.asSequence()
             .filter { task ->
                 task.state == "open" &&
@@ -80,7 +85,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
                     WorkerOutcome("pool", null, State.FAILED, error.javaClass.simpleName, isRetryable(error))
                 }
             }
-            return Result(outcomes, stopped = isStopped())
+            return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
         } finally {
             executor.shutdownNow()
             heartbeats.shutdownNow()
@@ -94,7 +99,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         heartbeats: java.util.concurrent.ScheduledExecutorService
     ): WorkerOutcome {
         val workerId = session.workerIdentity.workerId
-        if (isStopped()) return WorkerOutcome(workerId, null, State.STOPPED)
+        if (stopRequested()) return WorkerOutcome(workerId, null, State.STOPPED)
         val claim = try {
             session.claimNext(snapshot) { it.number in eligibleNumbers }
         } catch (error: Exception) {
@@ -104,7 +109,11 @@ internal class VyomFactoryWorkerPoolDispatcher(
         val leaseLost = AtomicBoolean(false)
         val heartbeat: ScheduledFuture<*> = heartbeats.scheduleAtFixedRate(
             {
-                if (!session.renewAndCheck(claim)) leaseLost.set(true)
+                try {
+                    if (!session.renewAndCheck(claim)) leaseLost.set(true)
+                } catch (_: Exception) {
+                    leaseLost.set(true)
+                }
             },
             heartbeatIntervalMillis,
             heartbeatIntervalMillis,
@@ -112,7 +121,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         )
         val control = object : VyomFactoryExecutionControl {
             override fun shouldStop(): Boolean =
-                isStopped() || leaseLost.get() || !session.isCurrent(claim)
+                stopRequested() || leaseLost.get() || runCatching { session.isCurrent(claim) }.getOrDefault(false).not()
         }
         try {
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)

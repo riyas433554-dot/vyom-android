@@ -88,7 +88,12 @@ class VyomFactoryWorkerPoolDispatchTest {
 
         val result = dispatcher.dispatchAvailable()
 
-        assertEquals(listOf(3), proposed)
+        assertEquals(
+            "classifier2=${VyomFactoryTaskClassifier.classify(tasks[1])}; " +
+                "classifier3=${VyomFactoryTaskClassifier.classify(tasks[2])}; result=${result.outcomes}; proposed=$proposed",
+            listOf(3),
+            proposed
+        )
         assertEquals(1, result.proposedCount)
         assertEquals(0, result.failedCount)
     }
@@ -113,7 +118,7 @@ class VyomFactoryWorkerPoolDispatchTest {
 
         val result = dispatcher.dispatchAvailable()
 
-        assertEquals(19, result.proposedCount)
+        assertEquals("result=${result.outcomes}; proposed=$proposed", 19, result.proposedCount)
         assertEquals(1, result.failedCount)
         assertEquals((2..20).toSet(), proposed.toSet())
     }

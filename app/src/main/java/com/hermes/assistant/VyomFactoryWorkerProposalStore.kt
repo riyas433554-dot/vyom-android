@@ -50,7 +50,9 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
         require(issueNumber > 0)
         val file = proposalFile(issueNumber)
         if (!file.exists()) return null
-        if (!file.isFile) throw IllegalStateException("Worker proposal path is not a regular file")
+        if (!file.isFile || file.length() !in 2L..MAX_STORED_CHARS.toLong()) {
+            throw IllegalStateException("Worker proposal file is not a bounded regular file")
+        }
         return decode(file.readText(Charsets.UTF_8)).also {
             require(it.issueNumber == issueNumber) { "Worker proposal issue identity does not match its file" }
         }
@@ -61,8 +63,16 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
         if (!root.exists()) return emptyList()
         check(root.canonicalFile.isDirectory) { "Worker proposal store is not a directory" }
         return root.canonicalFile.listFiles().orEmpty()
-            .filter { it.isFile && it.name.matches(Regex("^issue-[1-9][0-9]*\\.json$")) }
-            .map { file -> decode(file.readText(Charsets.UTF_8)) }
+            .filter {
+                it.isFile && it.canonicalFile.parentFile == root.canonicalFile &&
+                    it.name.matches(Regex("^issue-[1-9][0-9]*\\.json$"))
+            }
+            .map { file ->
+                if (file.length() !in 2L..MAX_STORED_CHARS.toLong()) {
+                    throw IllegalStateException("Worker proposal file is not a bounded regular file")
+                }
+                decode(file.readText(Charsets.UTF_8))
+            }
             .filter { it.status == "awaiting_review" }
             .sortedBy { it.issueNumber }
     }
@@ -209,7 +219,7 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
     }
 
     companion object {
-        private const val MAX_STORED_CHARS = 1_100_000
+        private const val MAX_STORED_CHARS = 2_200_000
         private val ALL_STATES = setOf("awaiting_review", "rejected")
         private val HANDLED_STATES = setOf("awaiting_review", "rejected")
     }
