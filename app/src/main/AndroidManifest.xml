@@ -64,6 +64,11 @@
         </service>
         <service android:name=".VoiceForegroundService" android:exported="false" android:foregroundServiceType="microphone" />
 
+        <receiver
+            android:name=".VyomApkInstallStatusReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
