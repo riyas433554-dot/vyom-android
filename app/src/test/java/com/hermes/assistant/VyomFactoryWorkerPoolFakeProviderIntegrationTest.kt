@@ -197,7 +197,7 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
                 timestampMillis = 2_000L,
                 inputTokens = 1,
                 outputTokens = 1,
-                result = "SUCCESS",
+                result = "FAILED",
                 providerId = "fake-pool",
                 providerCallStarted = true,
                 callId = "call-id-0006",
