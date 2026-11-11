@@ -164,7 +164,9 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
                     callId = item.optString("call_id").takeIf {
                         it.matches(Regex("^[A-Za-z0-9_-]{8,80}$"))
                     } ?: "legacy-call-$index",
-                    outputHash = item.optString("output_hash").takeIf { it.matches(SHA256) }
+                    outputHash = if (item.has("output_hash") && !item.isNull("output_hash")) {
+                        item.getString("output_hash")
+                    } else null
                 ).also { row ->
                     require(row.taskNumber > 0 && row.timestampMillis >= 0 &&
                         row.inputTokens >= 0 && row.outputTokens >= 0 &&
@@ -332,7 +334,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             } catch (error: VyomFactoryExecutionStoppedException) {
                 throw error
             } catch (error: SecurityException) {
-                record(task.number, 0, 0, "BLOCKED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
+                record(task.number, inputTokens, outputTokens, "BLOCKED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
                 throw error
             } catch (error: IllegalStateException) {
                 if (error.message == "Worker model request timed out") throw error
