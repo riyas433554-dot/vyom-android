@@ -342,6 +342,33 @@ class VyomFactoryStructuredWorkerModelTest {
         }
     }
 
+    @Test fun identicalNoProgressOutputIsBlockedAfterFiveRepeats() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response("not-json", inputTokens = 1, outputTokens = 1)
+        }
+        val journal = MemoryJournal()
+        val worker = adapter(
+            provider, journal,
+            limits = VyomFactoryWorkerModelLimits(maxRetries = 0)
+        )
+        val control = object : VyomFactoryExecutionControl {
+            override fun shouldStop() = false
+        }
+
+        repeat(5) {
+            assertThrows(IllegalArgumentException::class.java) {
+                worker.propose(task(), registry(), control)
+            }
+        }
+        assertThrows(SecurityException::class.java) {
+            worker.propose(task(), registry(), control)
+        }
+
+        assertEquals(6, provider.calls)
+        assertEquals(5, journal.entries.count { it.result == "FAILED" })
+        assertEquals("BLOCKED", journal.entries.last().result)
+    }
+
     @Test fun providerFailureUsesOnlyTheConfiguredSingleRetry() {
         val calls = AtomicInteger()
         val provider = object : VyomFactoryWorkerModelProvider {
