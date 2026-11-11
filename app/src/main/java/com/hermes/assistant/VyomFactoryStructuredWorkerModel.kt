@@ -140,7 +140,7 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
             it.taskNumber == taskNumber && it.result in OUTPUT_RESULTS
         }
         for (entry in completed.asReversed()) {
-            if (entry.outputHash != outputHash) break
+            if (entry.result == "SUCCESS" || entry.outputHash != outputHash) break
             count++
         }
         count
@@ -187,7 +187,7 @@ internal class VyomFactoryWorkerModelJournal internal constructor(
         private const val MAX_ENTRIES = 5_000
         private val LOCK = Any()
         private val RESULTS = setOf("RUNNING", "SUCCESS", "FAILED", "BLOCKED", "TIMEOUT", "STOPPED")
-        private val OUTPUT_RESULTS = setOf("FAILED", "BLOCKED")
+        private val OUTPUT_RESULTS = setOf("SUCCESS", "FAILED", "BLOCKED")
         private val SHA256 = Regex("^[a-f0-9]{64}$")
     }
 }
