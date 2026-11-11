@@ -2223,3 +2223,16 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Exact repair-commit Full run `42858363394`, `head_sha=0fa093dc9d61681793a38ca702871528c801d053`: **FAILURE** because full-history Gitleaks still reports exactly the same three known findings at the same files/lines, all attributed to `b4dd926a070d4d642ff2be2c944f3accbe3ba6a8`. No new finding. Full workflow skipped Gradle tests/APK after the security gate.
 - Exact repair-commit Debug run `42858363420`, `head_sha=0fa093dc9d61681793a38ca702871528c801d053`: pending behind the earlier Debug run when this note was written. Its final result is not assumed.
 - L2 remains **UNVERIFIED**; L4/L5 remain on hold. Do not weaken tests or security checks. No Gitleaks suppression/baseline/allowlist, workflow, signing, trust-root, main, backend, Render, or production Supabase change; no history rewrite, rebase or force-push.
+
+## L2 — exact-HEAD CI verification after owner-reviewed historical Gitleaks allowlist — 2026-11-11
+
+- Final tested code/security HEAD: `4850af696e9d05403bd8f3de5ca19d98362ac89b` on `feature/real-worker-model`.
+- Exact-HEAD Full run `42958198317` (run number 1874): `head_sha=4850af696e9d05403bd8f3de5ca19d98362ac89b`; conclusion **SUCCESS**.
+- Exact-HEAD Debug run `42958198384` (run number 1958): `head_sha=4850af696e9d05403bd8f3de5ca19d98362ac89b`; conclusion **SUCCESS**.
+- Full standard Gitleaks exact log: `2026-11-11T04:21:51.8099769Z` — `INF no leaks found`.
+- Full reachable-history Gitleaks exact log: `2026-11-11T04:22:16.1889810Z` — `INF no leaks found`; exact count line: `2026-11-11T04:22:16.2094258Z FULL_HISTORY_GITLEAKS_FINDINGS=0`.
+- Full Gradle step ran `gradle testDebugUnitTest assembleDebug --no-daemon`; log includes `> Task :app:testDebugUnitTest` at `2026-11-11T04:24:49.0480749Z` and `BUILD SUCCESSFUL in 2m 31s`. Unit tests were **run, not skipped**. Debug run also executed `testDebugUnitTest` and `assembleDebug`, with `BUILD SUCCESSFUL in 2m 35s`.
+- Full APK artifact: `vyom-phase6-4850af696e9d05403bd8f3de5ca19d98362ac89b`, artifact ID `13827444190`. Debug APK artifact: `vyom-debug-4850af696e9d05403bd8f3de5ca19d98362ac89b`, artifact ID `13828297128`.
+- Full-history finding count is **0** after the owner-authorized allowlist of exactly three reviewed historical fingerprints. Both exact-HEAD CI workflows pass. **L2 is CI-VERIFIED** on the tested code/security HEAD above. The subsequent HANDOFF-only commit records this evidence; it does not change the tested code SHA or retroactively change the CI target.
+- The Gradle test count was not emitted in the retrieved logs; total count remains **UNVERIFIED**. No test count is inferred.
+- L4 and L5 remain **NOT STARTED / HOLD** pending explicit owner authorization. No L4/L5 work is included in this update. No Android `main`, workflow, signing, trust-root, Render, backend or production Supabase change.
