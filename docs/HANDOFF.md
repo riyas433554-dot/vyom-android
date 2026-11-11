@@ -2329,3 +2329,24 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Both are normal Android manifest permissions and do not trigger runtime permission prompts. Keep them; do not strip them.
 - `android.permission.ACCESS_NETWORK_STATE` was already present in the L4 baseline and is not a newly introduced permission.
 - No other new permission is accepted. Any additional newly merged permission must be reported and held for owner decision.
+
+
+## WorkerPool dispatch — exact-HEAD verification — 2026-11-11
+
+- Release run #2 commit `9ebccac0478766631c323370f378b99b3a930dfe` was installed by the owner as Vyom v0.3.1. This is a device-install fact reported by the owner; it is not a CI result.
+- WorkerPool dispatch is **not** contained in release commit `9ebccac0478766631c323370f378b99b3a930dfe`. GitHub compare confirms exactly seven commits after that release commit, ending at `93ec2c136a9052b980ee0b4ee3bbf65cc67d3a7d`.
+- Dispatch TDD/implementation/fix commits:
+  1. `e23f2e0889b585281eaa5735dccd34207ba37cad` — test-first bounded WorkerPool dispatch.
+  2. `e31703508bb81a4fffd27308663182392faa8e1a` — WorkerPool dispatch implementation.
+  3. `57e00624577d3c4f142d2a6481db27ca9f9c4487` — isolate per-worker failures and lease heartbeat.
+  4. `1a9af21035a2f5fc16ff4520f07855e625886b4e` — fix best-effort issue-comment test assumption.
+  5. `93bb8035c50b3acc6ea039314fbf95fcdfb3295d` — prevent same-pass task reclaims after fast failures.
+  6. `47799154e14755a0b77f7dab50479f3cecbbfb69` — preserve owner planning approval on priority edits.
+  7. `93ec2c136a9052b980ee0b4ee3bbf65cc67d3a7d` — tie planning permission to explicit owner START/RESUME action and wire enqueue from `VyomFactoryDialog`.
+- Exact-HEAD Full run `43013965090`: **SUCCESS**, `head_sha=93ec2c136a9052b980ee0b4ee3bbf65cc67d3a7d`. Job `debug` completed successfully.
+- Exact Full log Gitleaks lines: `2026-11-11T11:44:03.6811895Z INF no leaks found`; `2026-11-11T11:44:35.4780858Z INF no leaks found`; `2026-11-11T11:44:35.5053447Z FULL_HISTORY_GITLEAKS_FINDINGS=0`.
+- Exact Full Gradle log: `:app:assembleDebug`; `:app:testDebugUnitTest`; `BUILD SUCCESSFUL in 3m 41s`. Unit tests ran, not skipped. The log did not emit a total test count; no count is claimed.
+- WorkerPool dispatcher, WorkManager dispatch worker, and Factory dialog enqueue wiring are implemented on this seven-commit series. The dispatch remains behind explicit owner START/RESUME planning authorization, STOP checks, bounded worker pool and proposal review. It does not itself approve or merge repository changes.
+- Factory-driven in-place APK update remains **NOT IMPLEMENTED** as of this HEAD. Existing release discovery/manual APK selection is not a complete Factory-driven download, fixed-signer validation and in-place install flow.
+- No workflow, signing, trust-root, Android `main`, Render, backend or production Supabase change in this dispatch series. No new Android permission was introduced by this dispatch series.
+- This HANDOFF entry is documentation-only. Its commit must receive its own exact-SHA Full + Debug + Gitleaks verification before it is treated as a verified documentation head.
