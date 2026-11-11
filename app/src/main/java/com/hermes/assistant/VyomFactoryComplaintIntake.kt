@@ -53,7 +53,7 @@ internal object VyomFactoryComplaintIntake {
             .joinToString("") { "%02x".format(it) }
         return Intake(
             source = resolvedSource,
-            sourceId = "external-$digest",
+            sourceId = "external:$digest",
             originalText = complaint,
             record = record
         )
