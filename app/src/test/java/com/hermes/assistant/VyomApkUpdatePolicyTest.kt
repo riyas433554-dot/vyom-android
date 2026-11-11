@@ -104,4 +104,12 @@ class VyomApkUpdatePolicyTest {
             )
         )
     }
+
+    @Test fun usesLongVersionCodeOnAndroidPAndLater() {
+        assertTrue(VyomApkUpdatePolicy.installedVersionCode(28, 4_294_967_300L, 7) == 4_294_967_300L)
+    }
+
+    @Test fun usesLegacyVersionCodeBeforeAndroidP() {
+        assertTrue(VyomApkUpdatePolicy.installedVersionCode(27, 4_294_967_300L, 7) == 7L)
+    }
 }
