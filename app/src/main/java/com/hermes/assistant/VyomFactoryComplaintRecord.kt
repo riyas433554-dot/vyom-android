@@ -48,7 +48,7 @@ internal data class VyomFactoryComplaintRecord(
     companion object {
         private val SOURCES = setOf(
             "factory", "vyom_chat", "vyom_voice", "diagnostics", "task_failure",
-            "termux", "chatgpt", "claude", "codex", "share_sheet"
+            "termux", "chatgpt", "claude", "codex", "vyom", "share_sheet"
         )
 
         private fun classifyFactoryArea(text: String): String? {
