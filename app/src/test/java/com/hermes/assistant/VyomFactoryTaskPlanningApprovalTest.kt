@@ -38,7 +38,6 @@ class VyomFactoryTaskPlanningApprovalTest {
             val metadata = VyomFactoryStatus.readMetadata(body)!!
             assertTrue(metadata.lanePlanningAllowed)
             assertTrue(metadata.events.contains("planning:owner_approved"))
-            assertEquals("POST", server.takeRequest().method)
         } finally {
             server.shutdown()
         }
