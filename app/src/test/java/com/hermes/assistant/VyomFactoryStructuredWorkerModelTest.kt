@@ -35,7 +35,7 @@ class VyomFactoryStructuredWorkerModelTest {
         override fun consecutiveOutputCount(taskNumber: Int, outputHash: String): Int = entries
             .filter { it.taskNumber == taskNumber && it.result in setOf("FAILED", "BLOCKED") }
             .asReversed()
-            .takeWhile { it.outputHash == outputHash }
+            .takeWhile { it.result != "SUCCESS" && it.outputHash == outputHash }
             .size
     }
 
