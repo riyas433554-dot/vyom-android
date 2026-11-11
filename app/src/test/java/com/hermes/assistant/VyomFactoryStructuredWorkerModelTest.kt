@@ -33,7 +33,7 @@ class VyomFactoryStructuredWorkerModelTest {
         override fun callsForTask(taskNumber: Int): Int = entries.count { it.taskNumber == taskNumber && it.providerCallStarted }
         override fun tokensForTask(taskNumber: Int): Long = entries.filter { it.taskNumber == taskNumber && it.providerCallStarted }.sumOf { it.inputTokens.toLong() + it.outputTokens.toLong() }
         override fun consecutiveOutputCount(taskNumber: Int, outputHash: String): Int = entries
-            .filter { it.taskNumber == taskNumber && it.result in setOf("SUCCESS", "FAILED", "BLOCKED") }
+            .filter { it.taskNumber == taskNumber && it.result in setOf("FAILED", "BLOCKED") }
             .asReversed()
             .takeWhile { it.outputHash == outputHash }
             .size
