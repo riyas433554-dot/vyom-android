@@ -632,14 +632,6 @@ internal class VyomFactoryDialog(
                         }
                     },
                     onVerificationResult = { task, passed, evidence ->
-                        if (passed) {
-                            val envelope = runCatching {
-                                VyomFactoryExecutionEnvelope.parse(task.body, task.number)
-                            }.getOrNull()
-                            if (envelope?.target == VyomFactoryExecutionEnvelope.Target.REPOSITORY_CHANGE) {
-                                workerProposalStore.markSubmitted(task.number)
-                            }
-                        }
                         stageDetector.onVerificationResult(task, passed, evidence)
                         main.post {
                             if (::dialog.isInitialized && dialog.isShowing) {
@@ -661,6 +653,12 @@ internal class VyomFactoryDialog(
                             hostActivity.factoryForegroundGate.generation() != foregroundGeneration
                     },
                     onOutcome = { next ->
+                        if (next is VyomFactoryExecutionRunner.Outcome.Succeeded &&
+                            next.result.startsWith("repository_proposal_verified:")
+                        ) {
+                            // Only a durably succeeded runner outcome closes the local proposal lifecycle.
+                            runCatching { workerProposalStore.markSubmitted(next.issueNumber) }
+                        }
                         val issueNumber = when (next) {
                             is VyomFactoryExecutionRunner.Outcome.Succeeded -> next.issueNumber
                             is VyomFactoryExecutionRunner.Outcome.Failed -> next.issueNumber
@@ -1471,12 +1469,12 @@ internal class VyomFactoryDialog(
                     }
                     val plan = stored.candidate.plan
                     val preview = TextView(activity).apply {
-                        text = "WORKER PROPOSAL · OWNER REVIEW REQUIRED\\n" +
-                            "Issue: #${fresh.number}\\nWorker: ${stored.workerId}\\n" +
-                            "Repository: ${binding.repositoryUrl}\\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\\n" +
-                            "Paths: ${plan.changes.joinToString { it.path }}\\n\\n" +
-                            plan.changes.joinToString("\\n\\n") { "PATH: ${it.path}\\n\\n${it.content}" } +
-                            "\\n\\nNo repository write occurs until you approve. Approval uses the existing one-time plan-bound token, immutable base, draft PR and exact-SHA CI gate."
+                        text = "WORKER PROPOSAL · OWNER REVIEW REQUIRED\n" +
+                            "Issue: #${fresh.number}\nWorker: ${stored.workerId}\n" +
+                            "Repository: ${binding.repositoryUrl}\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\n" +
+                            "Paths: ${plan.changes.joinToString { it.path }}\n\n" +
+                            plan.changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" } +
+                            "\n\nNo repository write occurs until you approve. Approval uses the existing one-time plan-bound token, immutable base, draft PR and exact-SHA CI gate."
                         textSize = 11f
                         setTextColor(VyomDesignSpec.TEXT_PRIMARY)
                         setTextIsSelectable(true)
