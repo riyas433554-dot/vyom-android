@@ -12,8 +12,8 @@ internal object VyomFactoryComplaintPrefixPolicy {
 }
 
 /**
- * Typed complaint envelope shared by Factory intake adapters.
- * The Factory register accepts defects from every Vyom product area; implementation remains backlog work after APK 1.
+ * Canonical typed complaint envelope shared by Vyom chat, voice, diagnostics,
+ * Termux and external agent share adapters before registration in the Factory issue registry.
  */
 internal data class VyomFactoryComplaintRecord(
     val source: String,
