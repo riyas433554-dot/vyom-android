@@ -63,10 +63,9 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
             assertTrue("All twenty fake-provider calls must overlap", provider.started.await(10, TimeUnit.SECONDS))
             assertEquals(20, provider.maxActive.get())
             assertEquals(20, fixture.leaseStore.activeIssueNumbers(1_000L).size)
-            assertTrue(provider.latestStartNanos() < provider.earliestEndNanos())
-
             provider.release.countDown()
             val results = futures.map { it.get(15, TimeUnit.SECONDS) }
+            assertTrue("Provider call intervals must overlap", provider.latestStartNanos() < provider.earliestEndNanos())
 
             assertEquals(20, results.size)
             assertEquals(20, results.map { it.issueNumber }.toSet().size)
@@ -153,6 +152,12 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
 
         val (releasedSession, releasedClaim) = claims.first()
         assertTrue(releasedSession.release(releasedClaim))
+        val completedIndex = fixture.remoteTasks.indexOfFirst { it.number == releasedClaim.task.issueNumber }
+        val completedTask = fixture.remoteTasks[completedIndex]
+        fixture.remoteTasks[completedIndex] = completedTask.copy(
+            state = "closed", metadata = completedTask.metadata.copy(status = "completed")
+        )
+        fixture.taskStore.remove(releasedClaim.task.issueNumber)
         val next = releasedSession.claimNext()
 
         assertNotNull(next)
@@ -181,7 +186,7 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
                 number, "Fake provider task $number", "Write a harmless README note for task $number",
                 "open", "https://github.com/example/repo/issues/$number", "2026-11-11T00:00:00Z", metadata
             )
-        }
+        }.toMutableList()
         private var idSequence = 0
         val pool = VyomFactoryWorkerPool(
             identityStore = VyomFactoryWorkerIdentityStore(MemoryPrefs()) { "worker-${++idSequence}-stable" },
