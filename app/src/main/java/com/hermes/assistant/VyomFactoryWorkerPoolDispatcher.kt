@@ -73,9 +73,15 @@ internal class VyomFactoryWorkerPoolDispatcher(
         val executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
         try {
+            // Claim and mark an issue as attempted atomically. A fast failure/release
+            // must not let the next session immediately reclaim the same issue.
+            val claimLock = Any()
+            val attemptedIssueNumbers = mutableSetOf<Int>()
             val futures = pool.sessions.map { session ->
                 executor.submit<WorkerOutcome> {
-                    dispatchForSession(session, snapshot, eligibleNumbers, heartbeats)
+                    dispatchForSession(
+                        session, snapshot, eligibleNumbers, attemptedIssueNumbers, claimLock, heartbeats
+                    )
                 }
             }
             val outcomes = futures.map { future ->
@@ -96,12 +102,18 @@ internal class VyomFactoryWorkerPoolDispatcher(
         session: VyomFactoryWorkerSession,
         snapshot: List<VyomFactoryGitHubClient.Task>,
         eligibleNumbers: Set<Int>,
+        attemptedIssueNumbers: MutableSet<Int>,
+        claimLock: Any,
         heartbeats: java.util.concurrent.ScheduledExecutorService
     ): WorkerOutcome {
         val workerId = session.workerIdentity.workerId
         if (stopRequested()) return WorkerOutcome(workerId, null, State.STOPPED)
         val claim = try {
-            session.claimNext(snapshot) { it.number in eligibleNumbers }
+            synchronized(claimLock) {
+                session.claimNext(snapshot) {
+                    it.number in eligibleNumbers && it.number !in attemptedIssueNumbers
+                }?.also { attemptedIssueNumbers += it.task.issueNumber }
+            }
         } catch (error: Exception) {
             return WorkerOutcome(workerId, null, State.FAILED, error.javaClass.simpleName, isRetryable(error))
         } ?: return WorkerOutcome(workerId, null, State.NO_WORK)

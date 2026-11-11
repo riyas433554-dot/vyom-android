@@ -76,6 +76,10 @@ class VyomFactoryWorkerPoolDispatchTest {
         val pool = createPool(tasks)
         val registry = createRegistry()
         val proposed = mutableListOf<Int>()
+        assertTrue(VyomFactoryTaskClassifier.classify(tasks[2]) ==
+            VyomFactoryTaskClassifier.Result.Classified(VyomFactoryCapabilityRegistry.Domain.REPOSITORY))
+        assertTrue(VyomFactoryTaskClassifier.classify(tasks[1]) is
+            VyomFactoryTaskClassifier.Result.NeedsOwnerClarification)
         val dispatcher = VyomFactoryWorkerPoolDispatcher(
             pool, registry, { tasks },
             modelAdapterFactory = {
@@ -102,6 +106,10 @@ class VyomFactoryWorkerPoolDispatchTest {
         val tasks = (1..20).map { remote(it, VyomFactoryLaneRouter.Lane.values()[(it - 1) / 5], true) }
         val pool = createPool(tasks)
         val registry = createRegistry()
+        assertTrue(tasks.all {
+            VyomFactoryTaskClassifier.classify(it) ==
+                VyomFactoryTaskClassifier.Result.Classified(VyomFactoryCapabilityRegistry.Domain.REPOSITORY)
+        })
         val proposed = Collections.synchronizedList(mutableListOf<Int>())
         val dispatcher = VyomFactoryWorkerPoolDispatcher(
             pool, registry, { tasks },
