@@ -208,6 +208,15 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
+            VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
+        } catch (error: Exception) {
+            android.util.Log.e(
+                "VyomFactoryQueueRefresh",
+                "Background queue refresh could not be scheduled; foreground refresh remains available",
+                error
+            )
+        }
+        try {
             val recoveredAttempts = VyomFactoryExecutionJournal(applicationContext)
                 .recoverAtStartup(System.currentTimeMillis())
             if (recoveredAttempts > 0) {
