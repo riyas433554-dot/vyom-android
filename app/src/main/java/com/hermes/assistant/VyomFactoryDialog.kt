@@ -1362,7 +1362,14 @@ internal class VyomFactoryDialog(
             fun action(label: String, next: String) {
                 controls.addView(Button(activity).apply {
                     text = label; textSize = 8f; isAllCaps = true
-                    setOnClickListener { update(task, next, task.metadata.priority) }
+                    setOnClickListener {
+                        update(
+                            task,
+                            next,
+                            task.metadata.priority,
+                            ownerApprovedStart = next == "in_progress"
+                        )
+                    }
                 }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { rightMargin = dp(3) })
             }
             when (task.metadata.status) {
@@ -1653,24 +1660,29 @@ internal class VyomFactoryDialog(
             }.setNegativeButton("CANCEL", null).show()
     }
 
-    private fun update(task: VyomFactoryGitHubClient.Task, nextStatus: String, priority: String) {
+    private fun update(
+        task: VyomFactoryGitHubClient.Task,
+        nextStatus: String,
+        priority: String,
+        ownerApprovedStart: Boolean = false
+    ) {
         if (busy) return
         busy = true
         status.text = "Saving task #${task.number}…"
         worker.execute {
             try {
-                val planningAllowed = when (nextStatus) {
-                    "in_progress" -> true
-                    "open", "paused", "blocked", "completed", "cancelled" -> false
-                    else -> task.metadata.lanePlanningAllowed
-                }
+                val planningAllowed = VyomFactoryPlanningApprovalPolicy.requestedLanePlanningAllowed(
+                    currentStatus = task.metadata.status,
+                    nextStatus = nextStatus,
+                    ownerApprovedStart = ownerApprovedStart
+                )
                 client.updateTask(
                     task,
                     newPriority = priority,
                     newStatus = nextStatus,
                     newLanePlanningAllowed = planningAllowed
                 )
-                if (nextStatus == "in_progress") {
+                if (ownerApprovedStart) {
                     VyomFactoryWorkerDispatchScheduler.enqueue(activity.applicationContext)
                 }
                 main.post {
