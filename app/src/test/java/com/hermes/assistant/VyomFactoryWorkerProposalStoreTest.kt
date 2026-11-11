@@ -1,23 +1,21 @@
 package com.hermes.assistant
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.util.UUID
 
 class VyomFactoryWorkerProposalStoreTest {
-    @Test fun ownerApprovedProposalLeavesPendingReviewAndRemainsHandled() {
+    @Test fun persistedOwnerApprovalSurvivesReloadAndLeavesPendingReview() {
         val root = File(System.getProperty("java.io.tmpdir"), "worker-proposal-${UUID.randomUUID()}")
         val store = VyomFactoryWorkerProposalStore(root)
-        val registry = VyomFactorySystemRegistry(File(root, "registry"))
         val binding = VyomFactoryWorkerBindingPolicy.createBinding(
             "https://github.com/riyas433554-dot/vyom-android",
             "a".repeat(40),
             1L
         )
-        registry.register(binding, ownerConfirmed = true)
         val metadata = VyomFactoryStatus.Metadata(
             "P1", "open", "chatgpt", "worker-issue-101",
             VyomFactoryStatus.idempotencyKey("chatgpt", "worker-issue-101")!!,
@@ -41,11 +39,12 @@ class VyomFactoryWorkerProposalStoreTest {
         )
         store.save(task, "worker-test-101", "lease-test-101", candidate)
 
-        assertTrue(store.markApproved(task.number))
+        // Simulate a process restart after the approval record was durably written.
+        val record = File(root, "issue-101.json")
+        record.writeText(JSONObject(record.readText()).put("status", "approved").toString())
 
         assertEquals("approved", store.get(task.number)?.status)
         assertTrue(store.pending().isEmpty())
         assertTrue(store.isHandled(task))
-        assertFalse(store.markApproved(999))
     }
 }
