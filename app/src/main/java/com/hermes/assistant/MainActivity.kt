@@ -1677,8 +1677,82 @@ class MainActivity : Activity() {
             onRunnerFailure = { failureType ->
                 submitFactoryWorkerFailure("factory_runner", UUID.randomUUID().toString(), failureType)
             },
-            onWorkerFailure = ::submitFactoryWorkerFailure
+            onWorkerFailure = ::submitFactoryWorkerFailure,
+            onUpdateApk = ::startFactoryApkUpdate
         ).show()
+    }
+
+    private fun startFactoryApkUpdate() {
+        val token = secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+        if (token.isBlank()) {
+            Toast.makeText(this, "Factory APK update needs a GitHub token with release asset read access.", Toast.LENGTH_LONG).show()
+            return
+        }
+        Toast.makeText(this, "Checking latest release and verifying the fixed APK signer…", Toast.LENGTH_LONG).show()
+        io.execute {
+            try {
+                val manager = VyomApkUpdateManager(applicationContext, token)
+                val update = manager.prepareLatest()
+                runOnUiThread {
+                    AlertDialog.Builder(this)
+                        .setTitle("Fixed-signer APK verified")
+                        .setMessage(
+                            "Version: ${update.versionName} (code ${update.versionCode})\n" +
+                                "Commit: ${update.commit.take(12)}\n" +
+                                "Signer SHA-256: ${update.signerSha256}\n\n" +
+                                "This uses Android's in-place update installer. Vyom will not be uninstalled or deleted."
+                        )
+                        .setPositiveButton("INSTALL UPDATE") { _, _ ->
+                            if (!manager.canRequestInstall()) {
+                                AlertDialog.Builder(this)
+                                    .setTitle("Allow Vyom to install its update")
+                                    .setMessage("Android requires the existing 'install unknown apps' setting. Enable it for Vyom, return here, then tap CHECK SIGNED APK UPDATE again.")
+                                    .setPositiveButton("OPEN ANDROID SETTINGS") { _, _ ->
+                                        startActivity(
+                                            Intent(
+                                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                                Uri.parse("package:$packageName")
+                                            )
+                                        )
+                                    }
+                                    .setNegativeButton("CANCEL", null)
+                                    .show()
+                            } else {
+                                io.execute {
+                                    try {
+                                        val sessionId = manager.installInPlace(update)
+                                        runOnUiThread {
+                                            Toast.makeText(
+                                                this,
+                                                "Android installer opened (session $sessionId). Approve the in-place Vyom update in the system prompt.",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    } catch (error: Exception) {
+                                        runOnUiThread {
+                                            Toast.makeText(
+                                                this,
+                                                "APK install failed closed: ${error.message ?: error.javaClass.simpleName}",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .setNegativeButton("CANCEL", null)
+                        .show()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "APK update rejected: ${error.message ?: error.javaClass.simpleName}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun openFactoryCodeProposal(task: VyomFactoryGitHubClient.Task) {
