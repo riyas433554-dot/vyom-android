@@ -131,6 +131,60 @@ class VyomFactoryWorkerPoolDispatchTest {
         assertEquals((2..20).toSet(), proposed.toSet())
     }
 
+    @Test fun revalidatesRemoteTaskStateBeforeEveryWorkerClaim() {
+        val tasks = VyomFactoryLaneRouter.Lane.values().mapIndexed { index, lane ->
+            remote(index + 1, lane, true).copy(
+                metadata = remote(index + 1, lane, true).metadata.copy(
+                    priority = if (index == 0) "P0" else "P1"
+                )
+            )
+        }.toMutableList()
+        val pool = createPool(tasks)
+        val registry = createRegistry()
+        val fetchCount = AtomicInteger()
+        val firstProposalReady = CountDownLatch(1)
+        val proposed = Collections.synchronizedList(mutableListOf<Int>())
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool, registry,
+            fetchRemoteTasks = {
+                val call = fetchCount.incrementAndGet()
+                if (call > 2) {
+                    assertTrue("First worker must finish its remote-state mutation", firstProposalReady.await(5, TimeUnit.SECONDS))
+                }
+                tasks.toList()
+            },
+            modelAdapterFactory = {
+                VyomFactoryRepositoryWorkerModelAdapter { task, _, _ ->
+                    synchronized(tasks) {
+                        tasks.indices.forEach { index ->
+                            if (tasks[index].number != task.number) {
+                                tasks[index] = tasks[index].copy(
+                                    metadata = tasks[index].metadata.copy(
+                                        status = "paused",
+                                        lanePlanningAllowed = false
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    firstProposalReady.countDown()
+                    candidate(task, registry)
+                }
+            },
+            onProposal = { task, _, _, _ -> proposed += task.number },
+            isStopped = { false },
+            heartbeatIntervalMillis = 25L
+        )
+
+        val result = dispatcher.dispatchAvailable()
+
+        assertEquals(1, result.proposedCount)
+        assertEquals(0, result.failedCount)
+        assertEquals(1, proposed.size)
+        assertTrue(proposed.single() in 1..4)
+        assertEquals(4, fetchCount.get())
+    }
+
     @Test fun globalStopLatchPersistsAcrossStoreInstances() {
         val prefs = MemoryPrefs()
         val first = VyomFactoryWorkerStopStore(prefs)
