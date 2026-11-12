@@ -322,7 +322,8 @@ class VyomFactoryWorkerPoolDispatchTest {
                 ownerApproved = false
             ),
             binding,
-            "Worker proposal for issue #${task.number}"
+            "Worker proposal for issue #${task.number}",
+            mapOf("app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt" to "b".repeat(64))
         )
     }
 
