@@ -86,7 +86,7 @@ class VyomFactoryWorkerPoolDispatchTest {
                     synchronized(tasks) {
                         val index = tasks.indexOfFirst { it.number == 802 }
                         tasks[index] = tasks[index].copy(
-                            state = "open", metadata = tasks[index].metadata.copy(status = "open")
+                            state = "open", metadata = tasks[index].metadata.copy(status = "paused", lanePlanningAllowed = false)
                         )
                     }
                     candidate(task, registry)
