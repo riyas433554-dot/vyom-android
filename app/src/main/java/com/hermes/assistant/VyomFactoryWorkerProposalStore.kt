@@ -248,11 +248,12 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
                 changes,
                 false
             )
-            val hashesJson = root.getJSONObject("source_file_sha256")
+            // Legacy records remain visible, but the review verifier rejects an empty hash map.
+            val hashesJson = root.optJSONObject("source_file_sha256") ?: JSONObject()
             val sourceHashes = hashesJson.keys().asSequence().associateWith { hashesJson.getString(it) }
-            require(sourceHashes.keys == changes.map { it.path }.toSet() &&
+            require((sourceHashes.isEmpty() || sourceHashes.keys == changes.map { it.path }.toSet()) &&
                 sourceHashes.values.all { it.matches(Regex("^[a-f0-9]{64}$")) }) {
-                "Stored proposal source SHA-256 evidence is missing or malformed"
+                "Stored proposal source SHA-256 evidence is partial or malformed"
             }
             val candidate = VyomFactoryRepositoryChangeReviewDialog.Candidate(
                 plan, binding, root.optString("summary").take(1_000), sourceHashes
