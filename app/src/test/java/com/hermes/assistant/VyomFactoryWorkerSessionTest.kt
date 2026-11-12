@@ -45,6 +45,34 @@ class VyomFactoryWorkerSessionTest {
         assertTrue(queue.contains(29))
     }
 
+    @Test fun dependentTasksWaitForClosedCompletedBlockersAcrossLanesAndFailClosedWhenMissing() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        val dependent = remote(
+            33, "P1", "source-33",
+            lane = VyomFactoryLaneRouter.Lane.INSTANT,
+            body = "Implement after the prerequisite. Blocked by: #34"
+        )
+        val openBlocker = remote(
+            34, "P1", "source-34",
+            lane = VyomFactoryLaneRouter.Lane.SCHEDULED
+        )
+        val session = session(queue, listOf(dependent, openBlocker))
+
+        assertNull(session.claimNext())
+        assertNull(session.claimNext(listOf(dependent)))
+        val cancelled = openBlocker.copy(
+            state = "closed", metadata = openBlocker.metadata.copy(status = "cancelled")
+        )
+        assertNull(session.claimNext(listOf(dependent, cancelled)))
+
+        val completed = openBlocker.copy(
+            state = "closed", metadata = openBlocker.metadata.copy(status = "completed")
+        )
+        val claim = session.claimNext(listOf(dependent, completed))
+        assertNotNull(claim)
+        assertEquals(33, claim!!.task.issueNumber)
+    }
+
     @Test fun doesNotImportOrClaimPausedOrClosedTasks() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         val session = session(queue, listOf(
@@ -175,14 +203,16 @@ class VyomFactoryWorkerSessionTest {
         priority: String,
         sourceId: String,
         metadataStatus: String = "open",
-        issueState: String = "open"
+        issueState: String = "open",
+        lane: VyomFactoryLaneRouter.Lane = VyomFactoryLaneRouter.Lane.INSTANT,
+        body: String = "Description"
     ): VyomFactoryGitHubClient.Task {
         val key = VyomFactoryStatus.idempotencyKey("factory", sourceId)!!
         val metadata = VyomFactoryStatus.Metadata(
             priority, metadataStatus, "factory", sourceId, key, emptyList(),
-            VyomFactoryLaneRouter.Lane.INSTANT, true
+            lane, true
         )
-        return VyomFactoryGitHubClient.Task(issue, "Task $issue", "Description", issueState,
+        return VyomFactoryGitHubClient.Task(issue, "Task $issue", body, issueState,
             "https://github.com/riyas433554-dot/vyom-android/issues/$issue", "2026-11-04T00:00:00Z", metadata)
     }
 

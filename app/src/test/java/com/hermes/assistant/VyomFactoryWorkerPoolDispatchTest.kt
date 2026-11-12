@@ -67,6 +67,44 @@ class VyomFactoryWorkerPoolDispatchTest {
         }
     }
 
+    @Test fun dependencyReopenedDuringModelCallFencesProposalBeforePersistence() {
+        val initialBlocker = remote(802, VyomFactoryLaneRouter.Lane.SCHEDULED, true)
+            .copy(state = "closed", metadata = remote(802, VyomFactoryLaneRouter.Lane.SCHEDULED, true).metadata.copy(status = "completed"))
+        val tasks = mutableListOf(
+            remote(801, VyomFactoryLaneRouter.Lane.INSTANT, true, body = "Blocked by: #802"),
+            initialBlocker
+        )
+        val registry = createRegistry()
+        val proposals = AtomicInteger()
+        val modelCalls = AtomicInteger()
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool = createPool(tasks),
+            fetchRemoteTasks = { synchronized(tasks) { tasks.toList() } },
+            modelAdapterFactory = {
+                VyomFactoryRepositoryWorkerModelAdapter { task, _, _ ->
+                    modelCalls.incrementAndGet()
+                    synchronized(tasks) {
+                        val index = tasks.indexOfFirst { it.number == 802 }
+                        tasks[index] = tasks[index].copy(
+                            state = "open", metadata = tasks[index].metadata.copy(status = "open")
+                        )
+                    }
+                    candidate(task, registry)
+                }
+            },
+            registry = registry,
+            onProposal = { proposals.incrementAndGet() },
+            isStopped = { false },
+            heartbeatIntervalMillis = 25L
+        )
+
+        val result = dispatcher.dispatchAvailable()
+
+        assertEquals(1, modelCalls.get())
+        assertEquals(0, result.proposedCount)
+        assertEquals(0, proposals.get())
+    }
+
     @Test fun dispatchSkipsUnapprovedAndNonRepositoryTasks() {
         val tasks = listOf(
             remote(1, VyomFactoryLaneRouter.Lane.INSTANT, false),
@@ -292,7 +330,8 @@ class VyomFactoryWorkerPoolDispatchTest {
         issue: Int,
         lane: VyomFactoryLaneRouter.Lane,
         planningAllowed: Boolean,
-        title: String = "Fix repository Gradle build #$issue"
+        title: String = "Fix repository Gradle build #$issue",
+        body: String = "Repository Gradle build fails; compile task must pass."
     ): VyomFactoryGitHubClient.Task {
         val sourceId = "dispatch-$issue"
         val metadata = VyomFactoryStatus.Metadata(
@@ -301,7 +340,7 @@ class VyomFactoryWorkerPoolDispatchTest {
             emptyList(), lane, planningAllowed
         )
         return VyomFactoryGitHubClient.Task(
-            issue, title, "Repository Gradle build fails; compile task must pass.", "open",
+            issue, title, body, "open",
             "https://github.com/riyas433554-dot/vyom-android/issues/$issue",
             "2026-11-11T10:00:00Z", metadata, "2026-11-10T10:00:00Z"
         )
