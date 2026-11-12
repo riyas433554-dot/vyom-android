@@ -21,7 +21,8 @@ internal class VyomFactoryRepositoryChangeReviewDialog(
     data class Candidate(
         val plan: VyomFactoryRepositoryChangePolicy.Plan,
         val binding: VyomFactorySystemRegistry.Binding,
-        val summary: String
+        val summary: String,
+        val sourceFileSha256: Map<String, String> = emptyMap()
     )
 
     fun show() {
