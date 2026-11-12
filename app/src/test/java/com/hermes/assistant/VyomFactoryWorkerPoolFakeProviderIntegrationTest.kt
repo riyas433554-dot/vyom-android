@@ -260,7 +260,12 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
             journal = journal,
             limits = VyomFactoryWorkerModelLimits(timeoutMillis = 10_000L, maxRetries = maxRetries),
             nowMillis = { 1_000L },
-            preCallAuthorization = { true }
+            preCallAuthorization = { true },
+            repositoryClient = VyomFactoryRepositoryClient(getJson = { requestPath ->
+                val relativePath = requestPath.substringAfter("/contents/").substringBefore("?ref=")
+                val sourceContent = "base snapshot for $relativePath".toByteArray(Charsets.UTF_8)
+                """{"type":"file","path":"$relativePath","encoding":"base64","size":${sourceContent.size},"sha":"blob-sha","content":"${java.util.Base64.getEncoder().encodeToString(sourceContent)}"}"""
+            })
         )
     }
 
