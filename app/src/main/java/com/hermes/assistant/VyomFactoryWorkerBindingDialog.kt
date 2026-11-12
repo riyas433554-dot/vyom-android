@@ -9,7 +9,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
 
-/** Owner-confirmed, local-only binding of the real worker to one immutable test repository. */
+/** Owner-confirmed binding of the code worker to the trusted app repository and safe Kotlin roots. */
 internal class VyomFactoryWorkerBindingDialog(
     private val activity: Activity,
     private val onStatus: (String) -> Unit
@@ -26,17 +26,19 @@ internal class VyomFactoryWorkerBindingDialog(
             return
         }
         val repositoryInput = EditText(activity).apply {
-            hint = "https://github.com/owner/test-repository"
+            hint = VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            existing?.let { setText(it.repositoryUrl) }
+            existing?.takeIf { it.repositoryUrl == VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL }?.let { setText(it.repositoryUrl) }
+                ?: setText(VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL)
         }
         val shaInput = EditText(activity).apply {
-            hint = "Exact 40-character lowercase base commit SHA"
+            hint = "Exact 40-character lowercase SHA on feature/real-worker-model"
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT
-            existing?.let { setText(it.commitSha) }
+            existing?.takeIf { it.repositoryUrl == VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL }?.let { setText(it.commitSha) }
         }
+        val roots = VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(28, 8, 28, 4)
@@ -45,14 +47,19 @@ internal class VyomFactoryWorkerBindingDialog(
             addView(repositoryInput, ViewGroup.LayoutParams(-1, -2))
             addView(shaInput, ViewGroup.LayoutParams(-1, -2))
             addView(TextView(activity).apply {
-                text = "ALLOWED PATHS · README.md only (locked)\nOWNER CONFIRMATION · required\nPROVIDER / LIVE CALL · OFF"
+                text = "ALLOWED ROOTS ·\n${roots.joinToString("\n")}\n" +
+                    "Kotlin source + unit tests only. Factory runtime, safety/control, build, manifest, workflow, signing and credential files are blocked.\n" +
+                    "OWNER REVIEW · required before any repository write\nLIVE MODEL CALLS · OFF until separately enabled"
                 textSize = 12f
                 setPadding(0, 12, 0, 8)
             }, ViewGroup.LayoutParams(-1, -2))
         }
         val dialog = AlertDialog.Builder(activity)
-            .setTitle("BIND TEST WORKER")
-            .setMessage("One worker, one owner-selected immutable test repository. This screen does not inspect remote content, call a model, or enable repository execution.")
+            .setTitle("BIND FACTORY CODE WORKER")
+            .setMessage(
+                "The worker is restricted to the trusted Vyom Android repository and an immutable commit. " +
+                    "It can create unapproved proposals only; it cannot merge or write without the separate owner-review flow."
+            )
             .setView(content)
             .setPositiveButton("REVIEW BINDING", null)
             .setNegativeButton("CANCEL", null)
@@ -74,27 +81,58 @@ internal class VyomFactoryWorkerBindingDialog(
                     onStatus("Worker binding registry is unreadable · ${error.javaClass.simpleName}")
                     return@setOnClickListener
                 }
-                if (current != null &&
-                    (current.repositoryUrl != proposed.repositoryUrl ||
+                val changed = current != null && (
+                    current.repositoryUrl != proposed.repositoryUrl ||
                         current.commitSha != proposed.commitSha ||
-                        current.allowedPaths != proposed.allowedPaths)
-                ) {
-                    onStatus("Worker already has a different immutable binding; no overwrite or migration was attempted.")
-                    AlertDialog.Builder(activity).setTitle("EXISTING BINDING IS DIFFERENT")
-                        .setMessage("Current binding:\n${current.repositoryUrl}\n${current.commitSha}\n${current.allowedPaths.joinToString()}\n\nA separate explicit migration flow is required. This screen will not replace it.")
-                        .setPositiveButton("OK", null).show()
+                        current.allowedPaths != proposed.allowedPaths
+                    )
+                if (changed) {
+                    val currentBinding = current ?: return@setOnClickListener
+                    AlertDialog.Builder(activity)
+                        .setTitle("MIGRATE WORKER BINDING")
+                        .setMessage(
+                            "CURRENT BINDING\n${currentBinding.repositoryUrl}\n${currentBinding.commitSha}\n${currentBinding.allowedPaths.joinToString()}\n\n" +
+                                "NEW BINDING\n${proposed.repositoryUrl}\n${proposed.commitSha}\n${proposed.allowedPaths.joinToString()}\n\n" +
+                                "Migration replaces the previous immutable worker scope. Existing live-call authorization will be revoked. " +
+                                "No model call or repository write happens during migration."
+                        )
+                        .setPositiveButton("CONFIRM MIGRATION") { _, _ ->
+                            try {
+                                val saved = VyomFactoryWorkerBindingPolicy.migrate(
+                                    registry, currentBinding, proposed, ownerConfirmed = true
+                                )
+                                runCatching { VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke() }
+                                VyomFactoryWorkerReadmeVerificationCache.invalidate()
+                                onStatus(
+                                    "Worker binding migrated · ${saved.repositoryUrl} · ${saved.commitSha.take(12)} · " +
+                                        "safe Kotlin roots · live calls OFF; re-enable separately."
+                                )
+                            } catch (error: Exception) {
+                                onStatus("Worker binding migration rejected · ${error.message ?: error.javaClass.simpleName}")
+                                AlertDialog.Builder(activity).setTitle("MIGRATION REJECTED")
+                                    .setMessage(error.message ?: "Registry rejected the migration")
+                                    .setPositiveButton("OK", null).show()
+                            }
+                        }
+                        .setNegativeButton("CANCEL", null)
+                        .show()
                     return@setOnClickListener
                 }
                 AlertDialog.Builder(activity)
                     .setTitle("OWNER CONFIRMATION")
                     .setMessage(
                         "System: worker\nRepository: ${proposed.repositoryUrl}\n" +
-                            "Base SHA: ${proposed.commitSha}\nAllowed path: README.md only\n\nConfirm this exact immutable test binding?"
+                            "Base SHA: ${proposed.commitSha}\nAllowed roots:\n${proposed.allowedPaths.joinToString("\n")}\n\n" +
+                            "Only safe Kotlin source and unit-test files are eligible. Protected Factory/security/build files remain blocked. " +
+                            "Every proposal still requires owner review. Confirm this exact immutable binding?"
                     )
                     .setPositiveButton("CONFIRM BINDING") { _, _ ->
                         try {
                             val saved = VyomFactoryWorkerBindingPolicy.register(registry, proposed, ownerConfirmed = true)
-                            onStatus("Worker test binding saved · ${saved.repositoryUrl} · ${saved.commitSha.take(12)} · README.md only · live-call OFF")
+                            onStatus(
+                                "Factory code worker binding saved · ${saved.repositoryUrl} · ${saved.commitSha.take(12)} · " +
+                                    "safe Kotlin roots · live-call OFF"
+                            )
                         } catch (error: Exception) {
                             onStatus("Worker binding rejected · ${error.message ?: error.javaClass.simpleName}")
                             AlertDialog.Builder(activity).setTitle("BINDING REJECTED")

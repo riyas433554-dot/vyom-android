@@ -57,7 +57,7 @@ class VyomFactoryStructuredWorkerModelTest {
         }
     }
 
-    private fun validJson(path: String = "README.md") = """
+    private fun validJson(path: String = "app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt") = """
         {
           "repository": "$repository",
           "base_sha": "$baseSha",
@@ -65,7 +65,7 @@ class VyomFactoryStructuredWorkerModelTest {
         }
     """.trimIndent()
 
-    private fun task(body: String = "Please add one short README note.", number: Int = 42) =
+    private fun task(body: String = "Please add one small safe Kotlin helper.", number: Int = 42) =
         VyomFactoryGitHubClient.Task(
             number, "Document the worker flow", body, "open",
             "https://github.com/riyas433554-dot/vyom-android/issues/$number", "2026-11-08",
@@ -114,13 +114,13 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("worker", candidate.plan.systemId)
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(baseSha, candidate.plan.baseCommitSha)
-        assertEquals("README.md", candidate.plan.changes.single().path)
+        assertEquals("app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt", candidate.plan.changes.single().path)
         assertEquals("feature/real-worker-model", candidate.plan.baseBranch)
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(1, provider.calls)
         assertEquals(repository, provider.lastRequest!!.repository)
         assertEquals(baseSha, provider.lastRequest!!.baseSha)
-        assertEquals(listOf("README.md"), provider.lastRequest!!.allowedPaths)
+        assertEquals(VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, provider.lastRequest!!.allowedPaths)
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(120, journal.entries.single().inputTokens)
         assertEquals(80, journal.entries.single().outputTokens)
@@ -144,7 +144,7 @@ class VyomFactoryStructuredWorkerModelTest {
         val request = provider.lastRequest!!
         assertTrue(request.taskDescriptionData.contains(injection))
         assertFalse(request.systemInstructions.contains(injection))
-        assertEquals(listOf("README.md"), request.allowedPaths)
+        assertEquals(VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, request.allowedPaths)
         assertFalse(request.systemInstructions.contains("app/secrets"))
         assertEquals("BLOCKED", journal.entries.single().result)
         assertTrue(journal.entries.single().providerCallStarted)
@@ -165,7 +165,7 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals(1, provider.calls)
         assertEquals("BLOCKED", journal.entries.single().result)
         assertTrue(journal.entries.single().providerCallStarted)
-        assertEquals(listOf("README.md"), provider.lastRequest!!.allowedPaths)
+        assertEquals(VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, provider.lastRequest!!.allowedPaths)
     }
 
     @Test fun apiKeyNeverAppearsInPromptOrCallJournal() {
@@ -439,7 +439,7 @@ class VyomFactoryStructuredWorkerModelTest {
             }
         )
 
-        assertEquals("README.md", candidate.plan.changes.single().path)
+        assertEquals("app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt", candidate.plan.changes.single().path)
         assertEquals("SUCCESS", journal.entries.single().result)
         assertTrue(journal.entries.single().providerCallStarted)
         assertEquals(5_000, journal.entries.single().inputTokens)

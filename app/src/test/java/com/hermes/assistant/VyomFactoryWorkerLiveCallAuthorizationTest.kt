@@ -7,10 +7,10 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
     private val config = VyomFactoryWorkerLiveCallConfig(
         providerId = NvidiaNemotronWorkerModelProvider.PROVIDER_ID,
         modelId = NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID,
-        repositoryUrl = "https://github.com/example/worker-test",
+        repositoryUrl = VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL,
         baseCommitSha = "a".repeat(40),
         readmeSha256 = "b".repeat(64),
-        allowedPaths = listOf("README.md")
+        allowedPaths = VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS
     )
     private val now = 1_800_000_000_000L
 
@@ -81,8 +81,8 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
         ))
     }
 
-    @Test fun onlyTheExactReadmePathCanBeAuthorized() {
-        for (paths in listOf(emptyList(), listOf("README.md", "docs"), listOf("README.md/child"), listOf("src"))) {
+    @Test fun onlyTheFixedSafeKotlinRootsCanBeAuthorized() {
+        for (paths in listOf(emptyList(), VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS + "docs", listOf(VyomFactoryWorkerBindingPolicy.MAIN_SOURCE_ROOT + "/child"), listOf("src"))) {
             assertThrows(IllegalArgumentException::class.java) {
                 VyomFactoryWorkerLiveCallAuthorizationPolicy.configSha256(config.copy(allowedPaths = paths))
             }
@@ -91,7 +91,7 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
     }
 
     @Test fun releaseCertificateCannotBeTouchedByWorkerOrSelfModificationPlan() {
-        assertEquals(listOf("README.md"), config.allowedPaths)
+        assertEquals(VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, config.allowedPaths)
         assertFalse(config.allowedPaths.contains("config/release-certificate.sha256"))
         assertFalse(SelfModificationPolicy.isAllowedPath("config/release-certificate.sha256"))
     }

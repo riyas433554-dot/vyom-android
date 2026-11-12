@@ -23,13 +23,13 @@ class SelfModificationPolicyTest {
     }
 
     @Test fun allowsUnitTestSourcesButProtectsFactoryWorkerInfrastructure() {
-        assertTrue(SelfModificationPolicy.isAllowedPath(
+        assertTrue(SelfModificationPolicy.isAllowedWorkerPath(
             "app/src/test/java/com/hermes/assistant/ReplyFormatterTest.kt"
         ))
         assertFalse(SelfModificationPolicy.isAllowedPath(
             "app/src/main/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatcher.kt"
         ))
-        assertFalse(SelfModificationPolicy.isAllowedPath(
+        assertFalse(SelfModificationPolicy.isAllowedWorkerPath(
             "app/src/test/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatchTest.kt"
         ))
     }

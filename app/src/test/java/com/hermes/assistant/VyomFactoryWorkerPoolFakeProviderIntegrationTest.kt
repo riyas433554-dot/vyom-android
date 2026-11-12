@@ -223,8 +223,8 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
                 lane = lane, lanePlanningAllowed = true
             )
             VyomFactoryGitHubClient.Task(
-                number, "Fake provider task $number", "Write a harmless README note for task $number",
-                "open", "https://github.com/example/repo/issues/$number", "2026-11-11T00:00:00Z", metadata
+                number, "Fake provider task $number", "Implement a harmless Kotlin helper for task $number",
+                "open", "https://github.com/riyas433554-dot/vyom-android/issues/$number", "2026-11-11T00:00:00Z", metadata
             )
         }.toMutableList()
         private var idSequence = 0
@@ -241,7 +241,7 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
         ).apply {
             register(
                 VyomFactorySystemRegistry.Binding(
-                    "worker", "https://github.com/example/repo", "a".repeat(40), listOf("README.md"), 1L
+                    "worker", VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL, "a".repeat(40), VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, 1L
                 ),
                 ownerConfirmed = true
             )
@@ -295,7 +295,7 @@ class VyomFactoryWorkerPoolFakeProviderIntegrationTest {
                     .put("repository", request.repository)
                     .put("base_sha", request.baseSha)
                     .put("files", JSONArray().put(
-                        JSONObject().put("path", "README.md").put("content", "Reviewed proposal for task ${request.taskNumber}")
+                        JSONObject().put("path", "app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt").put("content", "package com.hermes.assistant\n// Reviewed proposal for task ${request.taskNumber}")
                     ))
                     .toString()
                 return VyomFactoryWorkerModelProvider.Response(output, 10, 5)

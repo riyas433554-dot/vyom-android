@@ -277,7 +277,10 @@ class VyomFactoryWorkerPoolDispatchTest {
                 title = "Implement repository task ${task.number}",
                 baseBranch = SelfModificationPolicy.PROPOSAL_BASE_BRANCH,
                 baseCommitSha = binding.commitSha,
-                changes = listOf(VyomFactoryRepositoryChangePolicy.Change("README.md", "Updated for #${task.number}")),
+                changes = listOf(VyomFactoryRepositoryChangePolicy.Change(
+                    "app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt",
+                    "package com.hermes.assistant\n// Updated for #${task.number}"
+                )),
                 ownerApproved = false
             ),
             binding,

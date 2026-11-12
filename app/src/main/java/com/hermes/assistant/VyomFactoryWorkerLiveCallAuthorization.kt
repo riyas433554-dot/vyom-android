@@ -51,13 +51,14 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
         validate(config)
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { out ->
-            out.writeUTF("VYOM-WORKER-LIVE-AUTH-V1")
+            out.writeUTF("VYOM-WORKER-LIVE-AUTH-V2")
             out.writeUTF(config.providerId)
             out.writeUTF(config.modelId)
             out.writeUTF(config.repositoryUrl)
             out.writeUTF(config.baseCommitSha)
             out.writeUTF(config.readmeSha256)
-            out.writeUTF("README.md")
+            out.writeInt(config.allowedPaths.size)
+            config.allowedPaths.forEach(out::writeUTF)
         }
         return sha256Hex(bytes.toByteArray())
     }
@@ -71,8 +72,13 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
             "Worker repository URL is missing or invalid"
         }
         require(config.baseCommitSha.matches(Regex("^[a-f0-9]{40}$"))) { "Worker base commit SHA is missing or invalid" }
+        require(config.repositoryUrl == VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL) {
+            "Worker live calls are restricted to the trusted Vyom Android repository"
+        }
         require(config.readmeSha256.matches(Regex("^[a-f0-9]{64}$"))) { "README.md SHA-256 is missing or invalid" }
-        require(config.allowedPaths == listOf("README.md")) { "Worker live calls permit README.md only" }
+        require(config.allowedPaths == VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS) {
+            "Worker live calls require the fixed safe Kotlin source/test roots"
+        }
     }
 
     fun enable(
@@ -88,7 +94,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
         val expires = if (Long.MAX_VALUE - nowMillis < TTL_MILLIS) Long.MAX_VALUE else nowMillis + TTL_MILLIS
         return VyomFactoryWorkerLiveCallAuthorization(
             config.providerId, config.modelId, config.repositoryUrl, config.baseCommitSha,
-            config.readmeSha256, "README.md", hash, nowMillis, expires
+            config.readmeSha256, config.allowedPaths.joinToString("|"), hash, nowMillis, expires
         )
     }
 
@@ -106,7 +112,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
             authorization.repositoryUrl == currentConfig.repositoryUrl &&
             authorization.baseCommitSha == currentConfig.baseCommitSha &&
             authorization.readmeSha256 == currentConfig.readmeSha256 &&
-            authorization.allowedPath == "README.md" &&
+            authorization.allowedPath == currentConfig.allowedPaths.joinToString("|") &&
             authorization.configSha256 == currentHash
     }
 }
@@ -308,12 +314,12 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
             return
         }
         val generation = gate.generation()
-        onStatus("Verifying the exact README.md at the bound commit…")
+        onStatus("Verifying the immutable README sentinel at the bound commit…")
         Thread({
             try {
                 val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
                 val binding = registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID)
-                    ?: throw SecurityException("Bind the test worker repository first")
+                    ?: throw SecurityException("Bind the trusted Vyom worker repository first")
                 val readmeHash = VyomFactoryWorkerReadmeHashProvider(activity).readmeSha256(
                     binding.repositoryUrl, binding.commitSha
                 )
@@ -332,7 +338,8 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                         .setMessage(
                             "Provider: ${config.providerId}\nModel: ${config.modelId}\n" +
                                 "Repository: ${config.repositoryUrl}\nCommit: ${config.baseCommitSha}\n" +
-                                "README.md SHA-256: ${config.readmeSha256}\nAllowed path: README.md only\n\n" +
+                                "README.md sentinel SHA-256: ${config.readmeSha256}\nAllowed roots: ${config.allowedPaths.joinToString(", ")}\n" +
+                                "Factory runtime, safety/control, build, manifest, workflow and signing files are blocked.\n\n" +
                                 "Calls expire after 24 hours. Any configuration/hash mismatch disables them. Enable only for this exact binding?"
                         )
                         .setPositiveButton("ENABLE FOR 24 HOURS") { _, _ ->
@@ -349,7 +356,7 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                                     nowMillis = System.currentTimeMillis()
                                 )
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).save(authorization)
-                                onStatus("Live worker model calls ENABLED for 24 hours · README.md only.")
+                                onStatus("Live worker model calls ENABLED for 24 hours · safe Kotlin source/test roots · owner review required.")
                             } catch (error: Exception) {
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke()
                                 onStatus("Live worker authorization rejected · ${error.message ?: error.javaClass.simpleName}")

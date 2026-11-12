@@ -39,8 +39,22 @@ internal object SelfModificationPolicy {
         if (isExplicitlyProtectedRepositoryPath(path)) return false
         if (path.length > 240 || path.contains("..") || path.contains("//")) return false
         if (!Regex("^app/src/main/java/com/hermes/assistant/[A-Za-z0-9_/-]+\\.kt$").matches(path)) return false
+        return isSafeKotlinFile(path)
+    }
+
+    /** Worker proposals may include unit tests, but never Factory runtime/control code. */
+    fun isAllowedWorkerPath(path: String): Boolean {
+        if (path.substringAfterLast('/').startsWith("VyomFactory")) return false
+        if (isAllowedPath(path)) return true
+        if (isExplicitlyProtectedRepositoryPath(path) || path.length > 240 ||
+            path.contains("..") || path.contains("//")) return false
+        if (!Regex("^app/src/test/java/com/hermes/assistant/[A-Za-z0-9_/-]+\\.kt$").matches(path)) return false
+        return isSafeKotlinFile(path)
+    }
+
+    private fun isSafeKotlinFile(path: String): Boolean {
         val fileName = path.substringAfterLast('/')
-        if (fileName in protectedFileNames) return false
+        if (fileName.startsWith("VyomFactory") || fileName in protectedFileNames) return false
         val lower = path.lowercase()
         if (listOf("policy", "audit", "kill", "control", "accessibilityservice", "deviceactionexecutor",
                 "voiceforegroundservice", "selfmodification", "update", "signing", "keystore", "uibundle", "shizuku").any { it in lower }) return false

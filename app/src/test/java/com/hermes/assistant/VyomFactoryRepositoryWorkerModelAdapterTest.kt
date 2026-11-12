@@ -26,9 +26,9 @@ class VyomFactoryRepositoryWorkerModelAdapterTest {
             register(
                 VyomFactorySystemRegistry.Binding(
                     "worker",
-                    "https://github.com/example/repo",
+                    VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL,
                     "a".repeat(40),
-                    listOf("README.md"),
+                    VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS,
                     1L
                 ),
                 ownerConfirmed = true
@@ -55,9 +55,9 @@ class VyomFactoryRepositoryWorkerModelAdapterTest {
         val task = VyomFactoryGitHubClient.Task(
             1,
             "Repository proposal",
-            "Add one line to README.md",
+            "Add one safe Kotlin helper",
             "open",
-            "https://github.com/example/repo/issues/1",
+            "https://github.com/riyas433554-dot/vyom-android/issues/1",
             "2026-11-09",
             VyomFactoryStatus.Metadata("P2", "open", "test", "source-12345678", "idempotency", emptyList())
         )

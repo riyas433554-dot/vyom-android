@@ -263,19 +263,24 @@ class VyomFactoryRepositoryChangePolicyTest {
         }
     }
 
-    @Test fun workerBindingAllowsOnlyExactReadmePathAtTheChangePolicyBoundary() {
+    @Test fun workerBindingAllowsOnlySafeKotlinSourceAndTestPathsAtTheChangePolicyBoundary() {
         val root = File.createTempFile("worker-readme-only", ".tmp").apply { delete(); mkdirs() }
         try {
             val registry = VyomFactorySystemRegistry(root)
             val binding = VyomFactoryWorkerBindingPolicy.createBinding(
-                "https://github.com/example/test-repo", commit, 1L
+                repository, commit, 1L
             )
             VyomFactoryWorkerBindingPolicy.register(registry, binding, ownerConfirmed = true)
             val valid = plan(
-                changes = listOf(VyomFactoryRepositoryChangePolicy.Change("README.md", "test-only content"))
+                changes = listOf(VyomFactoryRepositoryChangePolicy.Change(
+                    "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt", "test-only content"
+                ))
             ).copy(systemId = "worker")
             assertEquals("worker", VyomFactoryRepositoryChangePolicy.validateCandidate(valid, registry).systemId)
-            for (path in listOf("README.md/child", "../README.md", "docs/README.md", "app/src/main/Secret.kt")) {
+            for (path in listOf("README.md", "README.md/child", "../README.md", "docs/README.md",
+                "app/src/main/java/com/hermes/assistant/MainActivity.kt",
+                "app/src/main/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatcher.kt",
+                "app/build.gradle.kts")) {
                 val rejected = valid.copy(changes = listOf(
                     VyomFactoryRepositoryChangePolicy.Change(path, "must be rejected")
                 ))

@@ -38,7 +38,7 @@ class VyomFactoryWorkerProposalStoreTest {
                 binding.systemId, task.number, "attempt-101-000",
                 "Fix Factory task runner", SelfModificationPolicy.PROPOSAL_BASE_BRANCH,
                 binding.commitSha,
-                listOf(VyomFactoryRepositoryChangePolicy.Change("README.md", "Factory runner fixed")),
+                listOf(VyomFactoryRepositoryChangePolicy.Change("app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt", "package com.hermes.assistant")),
                 ownerApproved = false
             ),
             binding,
