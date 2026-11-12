@@ -82,6 +82,7 @@ internal class VyomFactoryDialog(
     private lateinit var claimStatus: TextView
     private lateinit var retryStatus: TextView
     private lateinit var historyStatus: TextView
+    private lateinit var laneMetricsStatus: TextView
     private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
@@ -270,6 +271,15 @@ internal class VyomFactoryDialog(
             maxLines = 6
         }
         workerPanel.addView(historyStatus)
+        laneMetricsStatus = TextView(activity).apply {
+            text = "LANES · LOADING"
+            textSize = 9f; typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(0, dp(6), 0, 0)
+            contentDescription = "Lane-wise active workers, execution runs and failures"
+            maxLines = VyomFactoryLaneRouter.Lane.values().size + 1
+        }
+        workerPanel.addView(laneMetricsStatus)
         workerPanel.addView(Button(activity).apply {
             text = "DISCOVER / INSTALL SKILL REPOSITORY"
             textSize = 9f
@@ -1228,11 +1238,30 @@ internal class VyomFactoryDialog(
             )
             historyStatus.text = (listOf(history.label) + history.latest.map { it.label }).joinToString("\n")
             historyStatus.contentDescription = "${history.total} persisted attempts; ${history.active} active, ${history.succeeded} verified, ${history.failed} failed, ${history.interrupted} interrupted. Latest attempt rows are redacted."
+            val laneSummaries = VyomFactoryLaneMetrics.summarize(
+                VyomFactoryExecutionJournal(activity.applicationContext).all()
+            )
+            laneMetricsStatus.text = buildString {
+                append("LANE WORKERS · RUNS · FAILURES")
+                VyomFactoryLaneRouter.Lane.values().forEach { lane ->
+                    val laneSummary = laneSummaries.getValue(lane)
+                    append("\n").append(lane.name)
+                        .append(" · ").append(laneSummary.activeWorkers)
+                        .append(" · ").append(laneSummary.runs)
+                        .append(" · ").append(laneSummary.failures)
+                }
+            }
+            laneMetricsStatus.contentDescription = VyomFactoryLaneRouter.Lane.values().joinToString("; ") { lane ->
+                val value = laneSummaries.getValue(lane)
+                "${lane.name}: ${value.activeWorkers} active workers, ${value.runs} runs, ${value.failures} failures"
+            }
         } catch (error: Exception) {
             retryStatus.text = "RETRY STATUS UNAVAILABLE · REVIEW REQUIRED"
             retryStatus.contentDescription = "Retry schedule could not be read safely."
             historyStatus.text = "RUN HISTORY UNAVAILABLE · REVIEW REQUIRED"
             historyStatus.contentDescription = "Execution journal could not be read safely."
+            laneMetricsStatus.text = "LANE METRICS UNAVAILABLE · REVIEW REQUIRED"
+            laneMetricsStatus.contentDescription = "Lane execution metrics could not be read safely."
         }
     }
 
