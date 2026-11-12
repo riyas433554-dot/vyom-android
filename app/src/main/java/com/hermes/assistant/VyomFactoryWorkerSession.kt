@@ -39,7 +39,10 @@ internal class VyomFactoryWorkerSession(
             )
         })
         val cycles = VyomFactoryTaskIntelligence.circularDependencyIssues(claimable)
-        val eligibleTasks = VyomFactoryTaskOrdering.sort(claimable).filter { task ->
+        val dependencyReady = claimable.filter {
+            VyomFactoryTaskIntelligence.dependenciesSatisfied(it, snapshot)
+        }
+        val eligibleTasks = VyomFactoryTaskOrdering.sort(dependencyReady).filter { task ->
             task.number !in cycles && !VyomFactoryTaskIntelligence.isIterationLimitReached(task) && eligible(task)
         }
         return coordinator.claimNext(eligibleTasks, workerIdentity, timestamp, leaseDurationMs)

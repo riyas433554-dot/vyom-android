@@ -7,7 +7,7 @@ internal object VyomFactoryTaskIntelligence {
     data class Finding(val stage: Stage, val kind: FindingKind, val title: String, val detail: String)
     data class SeparateTaskProposal(val parentIssueNumber: Int, val title: String, val description: String, val sourceId: String)
 
-    private val dependencyPattern = Regex("(?im)^\\s*Blocked by\\s*:\\s*(.+)$")
+    private val dependencyPattern = Regex("(?im)^\\s*(?:Blocked by|Depends on)\\s*:\\s*(.+)$")
     private val issuePattern = Regex("#(\\d+)")
     private val criteriaHeader = Regex("(?im)^\\s*Acceptance criteria\\s*:\\s*$")
     private val criteriaItem = Regex("(?m)^\\s*[-*]\\s*\\[([ xX])\\]\\s+(.+?)\\s*$")
@@ -19,6 +19,18 @@ internal object VyomFactoryTaskIntelligence {
         dependencyPattern.findAll(cleanBody(task.body)).flatMap { match ->
             issuePattern.findAll(match.groupValues[1]).mapNotNull { it.groupValues[1].toIntOrNull() }
         }.filter { it > 0 && it != task.number }.toSet()
+
+    /** A dependency is satisfied only when its issue is present, closed, and explicitly completed. */
+    fun dependenciesSatisfied(
+        task: VyomFactoryGitHubClient.Task,
+        snapshot: List<VyomFactoryGitHubClient.Task>
+    ): Boolean {
+        val byNumber = snapshot.associateBy { it.number }
+        return dependencies(task).all { dependencyNumber ->
+            val dependency = byNumber[dependencyNumber] ?: return false
+            dependency.state == "closed" && dependency.metadata.status == "completed"
+        }
+    }
 
     /** Topological order; existing priority/FIFO ordering breaks ties among ready tasks. */
     fun order(tasks: List<VyomFactoryGitHubClient.Task>): List<VyomFactoryGitHubClient.Task> {

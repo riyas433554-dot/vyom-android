@@ -57,7 +57,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true)
         val snapshot = fetchRemoteTasks()
         if (stopRequested()) return Result(emptyList(), stopped = true)
-        if (snapshot.none(::isEligibleTask)) return Result(emptyList())
+        if (snapshot.none { isEligibleTask(it, snapshot) }) return Result(emptyList())
 
         val executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
@@ -87,7 +87,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         }
     }
 
-    private fun isEligibleTask(task: VyomFactoryGitHubClient.Task): Boolean =
+    private fun isEligibleTask(task: VyomFactoryGitHubClient.Task, snapshot: List<VyomFactoryGitHubClient.Task>): Boolean =
         task.state == "open" &&
             task.metadata.status in setOf("open", "in_progress") &&
             task.metadata.lanePlanningAllowed &&
@@ -111,7 +111,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
                 val freshSnapshot = fetchRemoteTasks()
                 if (stopRequested()) return WorkerOutcome(workerId, null, State.STOPPED)
                 val freshEligibleNumbers = freshSnapshot.asSequence()
-                    .filter(::isEligibleTask)
+                    .filter { isEligibleTask(it, freshSnapshot) }
                     .map { it.number }
                     .toSet()
                 session.claimNext(freshSnapshot) {
