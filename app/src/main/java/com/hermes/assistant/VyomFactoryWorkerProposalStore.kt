@@ -34,6 +34,10 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
         require(candidate.plan.issueNumber == task.number && !candidate.plan.ownerApproved)
         require(candidate.plan.baseCommitSha == candidate.binding.commitSha)
         require(candidate.plan.systemId == candidate.binding.systemId)
+        require(candidate.sourceFileSha256.keys == candidate.plan.changes.map { it.path }.toSet() &&
+            candidate.sourceFileSha256.values.all { it.matches(Regex("^[a-f0-9]{64}$")) }) {
+            "Worker proposal is missing exact-base source SHA-256 evidence"
+        }
         val previous = get(task.number)
         if (previous != null && previous.sourceId == task.metadata.sourceId &&
             previous.updatedAt == task.updatedAt && previous.status in HANDLED_STATES
@@ -178,6 +182,11 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
                 array.put(JSONObject().put("path", change.path).put("content", change.content))
             }
         }
+        val sourceHashes = JSONObject().also { hashes ->
+            value.candidate.sourceFileSha256.toSortedMap().forEach { (path, hash) ->
+                hashes.put(path, hash)
+            }
+        }
         return JSONObject()
             .put("schema", 1)
             .put("issue_number", value.issueNumber)
@@ -187,6 +196,7 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
             .put("lease_id", value.leaseId)
             .put("status", value.status)
             .put("summary", value.candidate.summary)
+            .put("source_file_sha256", sourceHashes)
             .put("binding", JSONObject()
                 .put("system_id", binding.systemId)
                 .put("repository_url", binding.repositoryUrl)
@@ -238,8 +248,14 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
                 changes,
                 false
             )
+            val hashesJson = root.getJSONObject("source_file_sha256")
+            val sourceHashes = hashesJson.keys().asSequence().associateWith { hashesJson.getString(it) }
+            require(sourceHashes.keys == changes.map { it.path }.toSet() &&
+                sourceHashes.values.all { it.matches(Regex("^[a-f0-9]{64}$")) }) {
+                "Stored proposal source SHA-256 evidence is missing or malformed"
+            }
             val candidate = VyomFactoryRepositoryChangeReviewDialog.Candidate(
-                plan, binding, root.optString("summary").take(1_000)
+                plan, binding, root.optString("summary").take(1_000), sourceHashes
             )
             val issue = root.getInt("issue_number")
             val sourceId = root.getString("source_id")
