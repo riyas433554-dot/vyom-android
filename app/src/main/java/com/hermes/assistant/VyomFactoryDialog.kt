@@ -1341,7 +1341,7 @@ internal class VyomFactoryDialog(
                 setTextColor(VyomDesignSpec.TEXT_PRIMARY)
             })
             card.addView(TextView(activity).apply {
-                text = "${task.metadata.priority} · ${task.metadata.status.uppercase()} · UPDATED ${task.updatedAt}"
+                text = "${task.metadata.lane.name} · ${task.metadata.priority} · ${task.metadata.status.uppercase()} · UPDATED ${task.updatedAt}"
                 textSize = 9f; typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(4), 0, dp(4))
             })
