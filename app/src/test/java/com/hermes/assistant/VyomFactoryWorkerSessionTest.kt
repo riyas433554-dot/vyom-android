@@ -50,7 +50,7 @@ class VyomFactoryWorkerSessionTest {
         val dependent = remote(
             33, "P1", "source-33",
             lane = VyomFactoryLaneRouter.Lane.INSTANT,
-            body = "Implement after the prerequisite. Blocked by: #34"
+            body = "Implement after the prerequisite.\nBlocked by: #34"
         )
         val openBlocker = remote(
             34, "P1", "source-34",
