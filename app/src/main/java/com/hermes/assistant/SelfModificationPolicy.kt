@@ -7,7 +7,7 @@ package com.hermes.assistant
  * Every proposal is opened as a PR against the working branch; this class never merges.
  */
 internal object SelfModificationPolicy {
-    const val PROPOSAL_BASE_BRANCH = "feature/memory-intelligence"
+    const val PROPOSAL_BASE_BRANCH = "feature/real-worker-model"
     private const val MAX_TITLE_LENGTH = 120
     private const val MAX_CONTENT_LENGTH = 200_000
 

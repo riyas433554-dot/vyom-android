@@ -53,7 +53,7 @@ internal class VyomFactoryGitHubClient(
         sourceId: String = UUID.randomUUID().toString(),
         lane: VyomFactoryLaneRouter.Lane = VyomFactoryLaneRouter.Lane.CUSTOM,
         lanePlanningAllowed: Boolean = false
-    ): Task {
+    ): Task = synchronized(CREATE_TASK_LOCK) {
         val cleanTitle = title.trim()
         require(cleanTitle.length in 4..120) { "Title must contain 4–120 characters" }
         require(description.trim().isNotEmpty() && description.length <= 12000) { "Description must contain 1–12,000 characters" }
@@ -244,6 +244,9 @@ internal class VyomFactoryGitHubClient(
     companion object {
         const val SYSTEM_ID = "factory-task-engine"
         const val ISSUES_PATH = "issues"
+        // GitHub Issues has no unique constraint for metadata keys. Serialize the
+        // list-then-create critical section across client instances in this process.
+        private val CREATE_TASK_LOCK = Any()
         private val PRIORITIES = setOf("P0", "P1", "P2", "P3")
         private const val MAX_PAGES = 10
     }
