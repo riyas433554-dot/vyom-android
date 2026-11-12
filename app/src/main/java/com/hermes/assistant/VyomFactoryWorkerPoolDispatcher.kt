@@ -57,18 +57,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true)
         val snapshot = fetchRemoteTasks()
         if (stopRequested()) return Result(emptyList(), stopped = true)
-        val eligibleNumbers = snapshot.asSequence()
-            .filter { task ->
-                task.state == "open" &&
-                    task.metadata.status in setOf("open", "in_progress") &&
-                    task.metadata.lanePlanningAllowed &&
-                    (VyomFactoryTaskClassifier.classify(task) as? VyomFactoryTaskClassifier.Result.Classified)
-                        ?.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
-                    shouldDispatch(task)
-            }
-            .map { it.number }
-            .toSet()
-        if (eligibleNumbers.isEmpty()) return Result(emptyList())
+        if (snapshot.none(::isEligibleTask)) return Result(emptyList())
 
         val executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
@@ -80,7 +69,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
             val futures = pool.sessions.map { session ->
                 executor.submit<WorkerOutcome> {
                     dispatchForSession(
-                        session, snapshot, eligibleNumbers, attemptedIssueNumbers, claimLock, heartbeats
+                        session, attemptedIssueNumbers, claimLock, heartbeats
                     )
                 }
             }
@@ -98,10 +87,16 @@ internal class VyomFactoryWorkerPoolDispatcher(
         }
     }
 
+    private fun isEligibleTask(task: VyomFactoryGitHubClient.Task): Boolean =
+        task.state == "open" &&
+            task.metadata.status in setOf("open", "in_progress") &&
+            task.metadata.lanePlanningAllowed &&
+            (VyomFactoryTaskClassifier.classify(task) as? VyomFactoryTaskClassifier.Result.Classified)
+                ?.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
+            shouldDispatch(task)
+
     private fun dispatchForSession(
         session: VyomFactoryWorkerSession,
-        snapshot: List<VyomFactoryGitHubClient.Task>,
-        eligibleNumbers: Set<Int>,
         attemptedIssueNumbers: MutableSet<Int>,
         claimLock: Any,
         heartbeats: java.util.concurrent.ScheduledExecutorService
@@ -110,8 +105,17 @@ internal class VyomFactoryWorkerPoolDispatcher(
         if (stopRequested()) return WorkerOutcome(workerId, null, State.STOPPED)
         val claim = try {
             synchronized(claimLock) {
-                session.claimNext(snapshot) {
-                    it.number in eligibleNumbers && it.number !in attemptedIssueNumbers
+                if (stopRequested()) return WorkerOutcome(workerId, null, State.STOPPED)
+                // Refresh the canonical issue registry before every lane-bound claim.
+                // A shared start-of-batch snapshot can authorize a stale task.
+                val freshSnapshot = fetchRemoteTasks()
+                if (stopRequested()) return WorkerOutcome(workerId, null, State.STOPPED)
+                val freshEligibleNumbers = freshSnapshot.asSequence()
+                    .filter(::isEligibleTask)
+                    .map { it.number }
+                    .toSet()
+                session.claimNext(freshSnapshot) {
+                    it.number in freshEligibleNumbers && it.number !in attemptedIssueNumbers
                 }?.also { attemptedIssueNumbers += it.task.issueNumber }
             }
         } catch (error: Exception) {
@@ -139,6 +143,16 @@ internal class VyomFactoryWorkerPoolDispatcher(
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
             val candidate = modelAdapterFactory().propose(claim.remoteTask, registry, control)
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.FENCED)
+            // A task may be paused, closed, or edited while the provider is working.
+            // Re-read it before persisting the proposal; approval-time checks remain separate.
+            val latestTask = fetchRemoteTasks().firstOrNull { it.number == claim.task.issueNumber }
+            if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
+            if (latestTask == null || !isEligibleTask(latestTask) ||
+                latestTask.metadata.sourceId != claim.remoteTask.metadata.sourceId ||
+                latestTask.metadata.idempotencyKey != claim.remoteTask.metadata.idempotencyKey ||
+                latestTask.metadata.lane != claim.task.lane ||
+                latestTask.updatedAt != claim.remoteTask.updatedAt
+            ) return WorkerOutcome(workerId, claim.task.issueNumber, State.FENCED)
             val binding = VyomFactoryRepositoryChangePolicy.validateCandidate(candidate.plan, registry)
             require(!candidate.plan.ownerApproved) { "Worker proposal must remain unapproved" }
             require(candidate.plan.issueNumber == claim.task.issueNumber) {

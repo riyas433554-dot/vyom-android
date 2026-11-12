@@ -182,7 +182,7 @@ class VyomFactoryWorkerPoolDispatchTest {
         assertEquals(0, result.failedCount)
         assertEquals(1, proposed.size)
         assertTrue(proposed.single() in 1..4)
-        assertEquals(4, fetchCount.get())
+        assertEquals(22, fetchCount.get())
     }
 
     @Test fun globalStopLatchPersistsAcrossStoreInstances() {
