@@ -90,6 +90,22 @@ class VyomFactoryWorkerSessionTest {
         assertTrue(queue.pending().isEmpty())
     }
 
+    @Test fun workersClaimOnlyTasksPersistedForTheirOwnLane() {
+        val queue = VyomFactoryTaskStore(MemoryPrefs())
+        val tasks = listOf(
+            remote(36, "P0", "instant-36", lane = VyomFactoryLaneRouter.Lane.INSTANT),
+            remote(37, "P1", "scheduled-37", lane = VyomFactoryLaneRouter.Lane.SCHEDULED)
+        )
+        val scheduled = session(queue, tasks, "scheduled-worker", VyomFactoryLaneRouter.Lane.SCHEDULED)
+        val claim = scheduled.claimNext()
+
+        assertNotNull(claim)
+        assertEquals(37, claim!!.task.issueNumber)
+        assertEquals(VyomFactoryLaneRouter.Lane.SCHEDULED, claim.lease.lane)
+        assertTrue(queue.contains(36))
+        assertTrue(queue.contains(37))
+    }
+
     @Test fun filteredClaimSkipsHigherPriorityTasksWithoutRemovingThemFromInbox() {
         val queue = VyomFactoryTaskStore(MemoryPrefs())
         val session = session(queue, listOf(
