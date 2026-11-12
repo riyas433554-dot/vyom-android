@@ -16,6 +16,36 @@ class VyomFactoryWorkerBindingPolicyTest {
         assertFalse(VyomFactoryWorkerBindingPolicy.allowsPath("README.md/child"))
     }
 
+    @Test fun bindsTrustedAppRepositoryToSafeKotlinSourceAndTestRoots() {
+        val binding = VyomFactoryWorkerBindingPolicy.createBinding(
+            "https://github.com/riyas433554-dot/vyom-android", "a".repeat(40), 1_000L
+        )
+        assertEquals(
+            listOf("app/src/main/java/com/hermes/assistant", "app/src/test/java/com/hermes/assistant"),
+            binding.allowedPaths
+        )
+        assertTrue(VyomFactoryWorkerBindingPolicy.allowsPath(
+            "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt"
+        ))
+        assertTrue(VyomFactoryWorkerBindingPolicy.allowsPath(
+            "app/src/test/java/com/hermes/assistant/ReplyFormatterTest.kt"
+        ))
+        for (path in listOf(
+            "README.md",
+            "app/src/main/java/com/hermes/assistant/MainActivity.kt",
+            "app/src/main/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatcher.kt",
+            "app/build.gradle.kts"
+        )) assertFalse(path, VyomFactoryWorkerBindingPolicy.allowsPath(path))
+    }
+
+    @Test fun refusesRepositoriesOutsideTheConfiguredExecutorTarget() {
+        assertThrows(IllegalArgumentException::class.java) {
+            VyomFactoryWorkerBindingPolicy.createBinding(
+                "https://github.com/example/test-repo", "a".repeat(40), 1_000L
+            )
+        }
+    }
+
     @Test fun rejectsMalformedOrNonCanonicalRepositoryAndWrongSha() {
         val validUrl = "https://github.com/example/test-repo"
         for (sha in listOf("a".repeat(39), "a".repeat(41), "g".repeat(40), "A".repeat(40), "")) {

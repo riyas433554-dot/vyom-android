@@ -231,6 +231,38 @@ class VyomFactoryRepositoryChangePolicyTest {
         assertTrue(error is IllegalArgumentException)
     }
 
+    @Test fun workerBindingAcceptsSafeKotlinSourceAndTestPathsButRejectsFactoryAndControlPaths() {
+        val root = File.createTempFile("worker-kotlin-roots", ".tmp").apply { delete(); mkdirs() }
+        try {
+            val registry = VyomFactorySystemRegistry(root)
+            val binding = VyomFactoryWorkerBindingPolicy.createBinding(repository, commit, 1L)
+            VyomFactoryWorkerBindingPolicy.register(registry, binding, ownerConfirmed = true)
+            val valid = plan(
+                changes = listOf(VyomFactoryRepositoryChangePolicy.Change(
+                    "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt", "package com.hermes.assistant"
+                ))
+            ).copy(systemId = "worker")
+            assertEquals("worker", VyomFactoryRepositoryChangePolicy.validateCandidate(valid, registry).systemId)
+            val testPlan = valid.copy(changes = listOf(VyomFactoryRepositoryChangePolicy.Change(
+                "app/src/test/java/com/hermes/assistant/ReplyFormatterTest.kt", "package com.hermes.assistant"
+            )))
+            assertEquals("worker", VyomFactoryRepositoryChangePolicy.validateCandidate(testPlan, registry).systemId)
+            for (path in listOf(
+                "README.md",
+                "app/src/main/java/com/hermes/assistant/MainActivity.kt",
+                "app/src/main/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatcher.kt",
+                "app/build.gradle.kts"
+            )) {
+                val rejected = valid.copy(changes = listOf(VyomFactoryRepositoryChangePolicy.Change(path, "blocked")))
+                assertTrue(path, runCatching {
+                    VyomFactoryRepositoryChangePolicy.validateCandidate(rejected, registry)
+                }.exceptionOrNull() is SecurityException)
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun workerBindingAllowsOnlyExactReadmePathAtTheChangePolicyBoundary() {
         val root = File.createTempFile("worker-readme-only", ".tmp").apply { delete(); mkdirs() }
         try {

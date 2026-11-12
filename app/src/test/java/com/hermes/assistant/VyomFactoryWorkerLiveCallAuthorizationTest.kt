@@ -65,6 +65,22 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
         }
     }
 
+    @Test fun authorizationBindsBothSafeKotlinRootsAndRejectsNarrowedOrChangedScopes() {
+        val paths = listOf(
+            "app/src/main/java/com/hermes/assistant",
+            "app/src/test/java/com/hermes/assistant"
+        )
+        val expanded = config.copy(
+            repositoryUrl = "https://github.com/riyas433554-dot/vyom-android",
+            allowedPaths = paths
+        )
+        val record = VyomFactoryWorkerLiveCallAuthorizationPolicy.enable(expanded, true, true, now)
+        assertTrue(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(record, expanded, now + 1L))
+        assertFalse(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(
+            record, expanded.copy(allowedPaths = listOf(paths.first())), now + 1L
+        ))
+    }
+
     @Test fun onlyTheExactReadmePathCanBeAuthorized() {
         for (paths in listOf(emptyList(), listOf("README.md", "docs"), listOf("README.md/child"), listOf("src"))) {
             assertThrows(IllegalArgumentException::class.java) {

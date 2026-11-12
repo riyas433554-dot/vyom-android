@@ -22,6 +22,18 @@ class SelfModificationPolicyTest {
         assertFalse(SelfModificationPolicy.isAllowedPath("app/src/main/java/com/hermes/assistant/VyomShizukuUserService.kt"))
     }
 
+    @Test fun allowsUnitTestSourcesButProtectsFactoryWorkerInfrastructure() {
+        assertTrue(SelfModificationPolicy.isAllowedPath(
+            "app/src/test/java/com/hermes/assistant/ReplyFormatterTest.kt"
+        ))
+        assertFalse(SelfModificationPolicy.isAllowedPath(
+            "app/src/main/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatcher.kt"
+        ))
+        assertFalse(SelfModificationPolicy.isAllowedPath(
+            "app/src/test/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatchTest.kt"
+        ))
+    }
+
     @Test fun releaseCertificateConfigIsExplicitlyProtectedFromSelfModification() {
         assertTrue(SelfModificationPolicy.isExplicitlyProtectedRepositoryPath("config/release-certificate.sha256"))
         assertFalse(SelfModificationPolicy.isAllowedPath("config/release-certificate.sha256"))
