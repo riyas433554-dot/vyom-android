@@ -46,7 +46,7 @@ class VyomFactoryRepositoryChangeReviewDialogTest {
         registry.register(
             VyomFactorySystemRegistry.Binding(
                 "worker", "https://github.com/riyas433554-dot/vyom-android", base,
-                listOf("README.md"), 1L
+                VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, 1L
             ),
             ownerConfirmed = true
         )

@@ -19,6 +19,8 @@ internal object SelfModificationPolicy {
         "DeviceActionExecutor.kt",
         "VoiceForegroundService.kt",
         "VyomAccessibilityService.kt",
+        "VyomApiClient.kt",
+        "GitHubReleaseTokenStore.kt",
         "SelfModificationPolicy.kt",
         "SelfModificationClient.kt",
         "UpdateVerifier.kt",
@@ -54,7 +56,7 @@ internal object SelfModificationPolicy {
 
     private fun isSafeKotlinFile(path: String): Boolean {
         val fileName = path.substringAfterLast('/')
-        if (fileName.startsWith("VyomFactory") || fileName in protectedFileNames) return false
+        if (fileName in protectedFileNames) return false
         val lower = path.lowercase()
         if (listOf("policy", "audit", "kill", "control", "accessibilityservice", "deviceactionexecutor",
                 "voiceforegroundservice", "selfmodification", "update", "signing", "keystore", "uibundle", "shizuku").any { it in lower }) return false

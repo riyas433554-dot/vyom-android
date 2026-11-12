@@ -23,21 +23,21 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult() {
         val fixture = Fixture(executionTarget = "repository_change", executionOperation = "propose_change",
-            executionArguments = """{"system_id":"worker","title":"Improve safe reply output","base_branch":"feature/real-worker-model","base_commit_sha":"${"a".repeat(40)}","changes":[{"path":"README.md","content":"class SafeReply"}]}""")
+            executionArguments = """{"system_id":"worker","title":"Improve safe reply output","base_branch":"feature/real-worker-model","base_commit_sha":"${"a".repeat(40)}","changes":[{"path":"app/src/main/java/com/hermes/assistant/ReplyFormatter.kt","content":"class SafeReply"}]}""")
         val baseSha = "a".repeat(40)
         val commitSha = "b".repeat(40)
         val registryRoot = File.createTempFile("repo-live-runner", ".tmp").apply { delete(); mkdirs() }
         val registry = VyomFactorySystemRegistry(registryRoot)
         val binding = VyomFactorySystemRegistry.Binding(
             "worker", "https://github.com/riyas433554-dot/vyom-android", baseSha,
-            listOf("README.md"), 1L
+            VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, 1L
         )
         registry.register(binding, ownerConfirmed = true)
         val plan = VyomFactoryRepositoryChangePolicy.Plan(
             "worker", 71, "repo-attempt-12345678", "Improve safe reply output",
             "feature/real-worker-model", baseSha,
             listOf(VyomFactoryRepositoryChangePolicy.Change(
-                "README.md", "class SafeReply"
+                "app/src/main/java/com/hermes/assistant/ReplyFormatter.kt", "class SafeReply"
             )), false
         )
         val workerClock = java.util.concurrent.atomic.AtomicLong(2_000L)

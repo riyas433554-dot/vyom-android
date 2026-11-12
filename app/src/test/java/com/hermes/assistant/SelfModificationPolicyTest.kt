@@ -26,11 +26,17 @@ class SelfModificationPolicyTest {
         assertTrue(SelfModificationPolicy.isAllowedWorkerPath(
             "app/src/test/java/com/hermes/assistant/ReplyFormatterTest.kt"
         ))
-        assertFalse(SelfModificationPolicy.isAllowedPath(
+        assertFalse(SelfModificationPolicy.isAllowedWorkerPath(
             "app/src/main/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatcher.kt"
         ))
         assertFalse(SelfModificationPolicy.isAllowedWorkerPath(
             "app/src/test/java/com/hermes/assistant/VyomFactoryWorkerPoolDispatchTest.kt"
+        ))
+        assertFalse(SelfModificationPolicy.isAllowedWorkerPath(
+            "app/src/main/java/com/hermes/assistant/VyomApiClient.kt"
+        ))
+        assertFalse(SelfModificationPolicy.isAllowedWorkerPath(
+            "app/src/main/java/com/hermes/assistant/GitHubReleaseTokenStore.kt"
         ))
     }
 
