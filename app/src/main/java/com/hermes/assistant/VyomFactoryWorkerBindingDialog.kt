@@ -36,7 +36,45 @@ internal class VyomFactoryWorkerBindingDialog(
             hint = "Exact 40-character lowercase SHA on feature/real-worker-model"
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT
-            existing?.takeIf { it.repositoryUrl == VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL }?.let { setText(it.commitSha) }
+            isEnabled = false
+            setText("")
+        }
+        var fetchedHead: String? = null
+        val headStatus = TextView(activity).apply {
+            text = "BRANCH HEAD · NOT FETCHED"
+            textSize = 11f
+        }
+        val fetchHeadButton = android.widget.Button(activity).apply {
+            text = "FETCH CURRENT BRANCH HEAD"
+            setOnClickListener {
+                isEnabled = false
+                text = "FETCHING GITHUB HEAD…"
+                headStatus.text = "FETCHING feature/real-worker-model FROM GITHUB…"
+                Thread {
+                    val result = runCatching {
+                        VyomFactoryRepositoryClient().readBranchHead(
+                            repositoryInput.text.toString().trim(),
+                            BASE_BRANCH
+                        )
+                    }
+                    activity.runOnUiThread {
+                        if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                        isEnabled = true
+                        text = "REFRESH CURRENT BRANCH HEAD"
+                        result.onSuccess { sha ->
+                            fetchedHead = sha
+                            shaInput.setText(sha)
+                            headStatus.text = "GITHUB HEAD · $BASE_BRANCH · $sha"
+                            onStatus("Fetched current GitHub branch HEAD · $BASE_BRANCH · ${sha.take(12)}")
+                        }.onFailure { error ->
+                            fetchedHead = null
+                            shaInput.setText("")
+                            headStatus.text = "BRANCH HEAD FETCH FAILED · ${error.message?.take(120) ?: error.javaClass.simpleName}"
+                            onStatus("GitHub branch HEAD fetch failed · ${error.message?.take(120) ?: error.javaClass.simpleName}")
+                        }
+                    }
+                }.start()
+            }
         }
         val roots = VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS
         val content = LinearLayout(activity).apply {
@@ -45,6 +83,8 @@ internal class VyomFactoryWorkerBindingDialog(
             addView(TextView(activity).apply { text = "SYSTEM ID · worker"; textSize = 14f },
                 ViewGroup.LayoutParams(-1, -2))
             addView(repositoryInput, ViewGroup.LayoutParams(-1, -2))
+            addView(fetchHeadButton, ViewGroup.LayoutParams(-1, -2))
+            addView(headStatus, ViewGroup.LayoutParams(-1, -2))
             addView(shaInput, ViewGroup.LayoutParams(-1, -2))
             addView(TextView(activity).apply {
                 text = "ALLOWED ROOTS ·\n${roots.joinToString("\n")}\n" +
@@ -66,6 +106,10 @@ internal class VyomFactoryWorkerBindingDialog(
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (fetchedHead.isNullOrBlank() || shaInput.text.toString() != fetchedHead) {
+                    headStatus.text = "FETCH THE CURRENT GITHUB BRANCH HEAD BEFORE CONFIRMING"
+                    return@setOnClickListener
+                }
                 val proposed = try {
                     VyomFactoryWorkerBindingPolicy.createBinding(
                         repositoryInput.text.toString(), shaInput.text.toString(), System.currentTimeMillis()
@@ -145,5 +189,9 @@ internal class VyomFactoryWorkerBindingDialog(
             }
         }
         dialog.show()
+    }
+
+    private companion object {
+        const val BASE_BRANCH = "feature/real-worker-model"
     }
 }
