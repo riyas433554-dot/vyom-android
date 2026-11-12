@@ -407,16 +407,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         val validatedBinding = VyomFactoryRepositoryChangePolicy.validateCandidate(plan, registry)
         require(validatedBinding == binding)
         // Capture every proposed path from the immutable registered base before it can be reviewed.
-        val sourceHashes = changes.associate { change ->
-            val source = repositoryClient.readBoundSystemFile(WORKER_SYSTEM_ID, change.path, registry)
-            require(source.path == change.path && source.contentSha256.matches(Regex("^[a-f0-9]{64}$"))) {
-                "GitHub source file could not be SHA-256 verified at the bound commit"
-            }
-            change.path to source.contentSha256
-        }
-        require(sourceHashes.keys == changes.map { it.path }.toSet()) {
-            "Not every proposal file has a verified immutable-base SHA-256"
-        }
+        val sourceHashes = VyomFactoryProposalSourceVerifier.capture(
+            plan, binding, registry, repositoryClient::readBoundSystemFile
+        )
         val summary = "Structured worker proposal for issue #$issueNumber"
         return VyomFactoryRepositoryChangeReviewDialog.Candidate(plan, binding, summary, sourceHashes)
     }
