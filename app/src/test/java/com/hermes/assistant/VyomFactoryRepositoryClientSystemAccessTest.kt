@@ -4,6 +4,34 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VyomFactoryRepositoryClientSystemAccessTest {
+    @Test fun branchHeadFetchUsesTheRequestedGitHubBranchAndReturnsItsExactCommit() {
+        val sha = "c".repeat(40)
+        var requested = ""
+        val client = VyomFactoryRepositoryClient(getJson = { path ->
+            requested = path
+            """{"name":"feature/real-worker-model","commit":{"sha":"$sha"}}"""
+        })
+
+        assertEquals(sha, client.readBranchHead(
+            "https://github.com/riyas433554-dot/vyom-android",
+            "feature/real-worker-model"
+        ))
+        assertEquals(
+            "/repos/riyas433554-dot/vyom-android/branches/feature%2Freal-worker-model",
+            requested
+        )
+    }
+
+    @Test fun branchHeadRejectsMalformedGitHubCommitSha() {
+        val client = VyomFactoryRepositoryClient(getJson = {
+            """{"commit":{"sha":"not-a-commit"}}"""
+        })
+        try {
+            client.readBranchHead("https://github.com/acme/repo", "feature/work")
+            fail("Expected malformed branch SHA rejection")
+        } catch (_: IllegalArgumentException) { }
+    }
+
     @Test fun boundReadUsesOnlyRegisteredRepositoryAndCommit() {
         val root = createTempDir(prefix = "vyom-system-read-")
         try {
