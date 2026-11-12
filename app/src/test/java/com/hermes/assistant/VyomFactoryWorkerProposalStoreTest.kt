@@ -84,6 +84,22 @@ class VyomFactoryWorkerProposalStoreTest {
         assertFalse(reloaded.markApproved(f.task.number))
     }
 
+    @Test fun legacyProposalWithoutSourceHashesRemainsVisibleButCannotBeReviewed() {
+        val f = fixture()
+        f.store.save(f.task, "worker-test-101", "lease-test-101", f.candidate)
+        val file = File(f.root, "issue-${f.task.number}.json")
+        val legacy = org.json.JSONObject(file.readText()).apply { remove("source_file_sha256") }
+        file.writeText(legacy.toString())
+
+        val loaded = VyomFactoryWorkerProposalStore(f.root).get(f.task.number)!!
+        assertTrue(loaded.candidate.sourceFileSha256.isEmpty())
+        org.junit.Assert.assertThrows(SecurityException::class.java) {
+            VyomFactoryProposalSourceVerifier.verify(loaded.candidate, object : VyomFactorySystemRegistry(f.root) {}, { _, path, _ ->
+                VyomFactoryRepositoryClient.FilePreview(path, "source", 6, "blob", "b".repeat(64), 0)
+            })
+        }
+    }
+
     @Test fun rejectedProposalCannotBeApproved() {
         val f = fixture()
         f.store.save(f.task, "worker-test-101", "lease-test-101", f.candidate)
