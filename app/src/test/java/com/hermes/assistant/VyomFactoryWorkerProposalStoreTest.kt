@@ -42,7 +42,8 @@ class VyomFactoryWorkerProposalStoreTest {
                 ownerApproved = false
             ),
             binding,
-            "Factory self-upgrade proposal"
+            "Factory self-upgrade proposal",
+            mapOf("app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt" to "b".repeat(64))
         )
         return Fixture(root, store, task, candidate)
     }
