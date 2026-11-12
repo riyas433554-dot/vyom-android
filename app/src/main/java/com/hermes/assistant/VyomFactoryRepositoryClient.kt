@@ -39,6 +39,26 @@ internal class VyomFactoryRepositoryClient(
 
     private val requestJson: (String) -> String = getJson ?: { path -> fetchJson(path) }
 
+    /** Resolves a named branch to its current immutable GitHub commit SHA. */
+    fun readBranchHead(repositoryUrl: String, branch: String): String {
+        require(branch.isNotBlank() && branch.length <= MAX_BRANCH_LENGTH &&
+            branch.none { it.isISOControl() }) { "GitHub branch name is invalid" }
+        val source = VyomFactoryRepositoryIntake.parseUrl(repositoryUrl)
+            ?: throw IllegalArgumentException("Use a canonical https://github.com/owner/repository URL")
+        val encodedBranch = URLEncoder.encode(branch, "UTF-8").replace("+", "%20")
+        val response = JSONObject(requestJson(
+            "/repos/${source.owner}/${source.name}/branches/$encodedBranch"
+        ))
+        require(response.optString("name") == branch) {
+            "GitHub returned a different branch than requested"
+        }
+        val sha = response.optJSONObject("commit")?.optString("sha").orEmpty()
+        require(COMMIT_PATTERN.matches(sha)) {
+            "GitHub did not return a valid current branch HEAD SHA"
+        }
+        return sha
+    }
+
     fun inspect(repositoryUrl: String): Preview {
         val source = VyomFactoryRepositoryIntake.parseUrl(repositoryUrl)
             ?: throw IllegalArgumentException("Use a canonical https://github.com/owner/repository URL")
