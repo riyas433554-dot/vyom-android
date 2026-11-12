@@ -264,7 +264,7 @@ class VyomFactoryRepositoryChangePolicyTest {
     }
 
     @Test fun workerBindingAllowsOnlySafeKotlinSourceAndTestPathsAtTheChangePolicyBoundary() {
-        val root = File.createTempFile("worker-readme-only", ".tmp").apply { delete(); mkdirs() }
+        val root = File.createTempFile("worker-kotlin-roots", ".tmp").apply { delete(); mkdirs() }
         try {
             val registry = VyomFactorySystemRegistry(root)
             val binding = VyomFactoryWorkerBindingPolicy.createBinding(

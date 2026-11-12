@@ -139,11 +139,11 @@ class VyomFactoryWorkerBindingPolicyTest {
         try {
             val registry = VyomFactorySystemRegistry(root)
             val original = VyomFactoryWorkerBindingPolicy.createBinding(
-                "https://github.com/example/first-test-repo", "d".repeat(40), 1_000L
+                "https://github.com/riyas433554-dot/vyom-android", "d".repeat(40), 1_000L
             )
             VyomFactoryWorkerBindingPolicy.register(registry, original, ownerConfirmed = true)
             val replacement = VyomFactoryWorkerBindingPolicy.createBinding(
-                "https://github.com/example/second-test-repo", "e".repeat(40), 2_000L
+                "https://github.com/riyas433554-dot/vyom-android", "e".repeat(40), 2_000L
             )
             assertThrows(SecurityException::class.java) {
                 VyomFactoryWorkerBindingPolicy.register(registry, replacement, ownerConfirmed = true)
