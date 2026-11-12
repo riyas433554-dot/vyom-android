@@ -93,6 +93,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
             task.metadata.lanePlanningAllowed &&
             (VyomFactoryTaskClassifier.classify(task) as? VyomFactoryTaskClassifier.Result.Classified)
                 ?.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
+            VyomFactoryTaskIntelligence.dependenciesSatisfied(task, snapshot) &&
             shouldDispatch(task)
 
     private fun dispatchForSession(
@@ -145,9 +146,10 @@ internal class VyomFactoryWorkerPoolDispatcher(
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.FENCED)
             // A task may be paused, closed, or edited while the provider is working.
             // Re-read it before persisting the proposal; approval-time checks remain separate.
-            val latestTask = fetchRemoteTasks().firstOrNull { it.number == claim.task.issueNumber }
+            val latestSnapshot = fetchRemoteTasks()
+            val latestTask = latestSnapshot.firstOrNull { it.number == claim.task.issueNumber }
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
-            if (latestTask == null || !isEligibleTask(latestTask) ||
+            if (latestTask == null || !isEligibleTask(latestTask, latestSnapshot) ||
                 latestTask.metadata.sourceId != claim.remoteTask.metadata.sourceId ||
                 latestTask.metadata.idempotencyKey != claim.remoteTask.metadata.idempotencyKey ||
                 latestTask.metadata.lane != claim.task.lane ||
