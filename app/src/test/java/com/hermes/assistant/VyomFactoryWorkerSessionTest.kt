@@ -71,6 +71,12 @@ class VyomFactoryWorkerSessionTest {
         val claim = session.claimNext(listOf(dependent, completed))
         assertNotNull(claim)
         assertEquals(33, claim!!.task.issueNumber)
+        val selfDependent = remote(
+            35, "P1", "source-35",
+            body = "Depends on: #35"
+        )
+        val selfSession = session(VyomFactoryTaskStore(MemoryPrefs()), listOf(selfDependent))
+        assertNull(selfSession.claimNext(listOf(selfDependent)))
     }
 
     @Test fun doesNotImportOrClaimPausedOrClosedTasks() {

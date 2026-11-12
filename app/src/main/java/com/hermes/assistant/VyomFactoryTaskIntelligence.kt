@@ -18,7 +18,7 @@ internal object VyomFactoryTaskIntelligence {
     fun dependencies(task: VyomFactoryGitHubClient.Task): Set<Int> =
         dependencyPattern.findAll(cleanBody(task.body)).flatMap { match ->
             issuePattern.findAll(match.groupValues[1]).mapNotNull { it.groupValues[1].toIntOrNull() }
-        }.filter { it > 0 && it != task.number }.toSet()
+        }.filter { it > 0 }.toSet()
 
     /** A dependency is satisfied only when its issue is present, closed, and explicitly completed. */
     fun dependenciesSatisfied(
