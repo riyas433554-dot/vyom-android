@@ -185,18 +185,29 @@ class VyomFactoryWorkerSessionTest {
         session(queue, tasks, "worker-a")
 
     private fun session(queue: VyomFactoryTaskStore, tasks: List<VyomFactoryGitHubClient.Task>, owner: String) =
-        VyomFactoryWorkerSession(
-            queue,
-            VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs())),
-            identity(owner),
-            fetchRemoteTasks = { tasks },
-            now = { 1_000L },
-            leaseDurationMs = 10_000L
-        )
+        session(queue, tasks, owner, VyomFactoryLaneRouter.Lane.INSTANT)
 
-    private fun identity(workerId: String, slot: Int = 0) = VyomFactoryWorkerIdentity(
+    private fun session(
+        queue: VyomFactoryTaskStore,
+        tasks: List<VyomFactoryGitHubClient.Task>,
+        owner: String,
+        lane: VyomFactoryLaneRouter.Lane
+    ) = VyomFactoryWorkerSession(
+        queue,
+        VyomFactoryWorkerClaimCoordinator(queue, VyomFactoryWorkerLeaseStore(MemoryPrefs())),
+        identity(owner, lane = lane),
+        fetchRemoteTasks = { tasks },
+        now = { 1_000L },
+        leaseDurationMs = 10_000L
+    )
+
+    private fun identity(
+        workerId: String,
+        slot: Int = 0,
+        lane: VyomFactoryLaneRouter.Lane = VyomFactoryLaneRouter.Lane.INSTANT
+    ) = VyomFactoryWorkerIdentity(
         workerId = workerId,
-        lane = VyomFactoryLaneRouter.Lane.INSTANT,
+        lane = lane,
         slotIndex = slot
     )
 
