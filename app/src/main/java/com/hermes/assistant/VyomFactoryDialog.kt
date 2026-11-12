@@ -1502,6 +1502,11 @@ internal class VyomFactoryDialog(
                 val validatedBinding = runCatching {
                     VyomFactoryRepositoryChangePolicy.validateCandidate(stored.candidate.plan, registry)
                 }.getOrNull()
+                val sourceVerificationFailure = runCatching {
+                    VyomFactoryProposalSourceVerifier.verify(
+                        stored.candidate, registry, VyomFactoryRepositoryClient()::readBoundSystemFile
+                    )
+                }.exceptionOrNull()
                 main.post {
                     busy = false
                     if (!dialog.isShowing) return@post
@@ -1515,12 +1520,20 @@ internal class VyomFactoryDialog(
                         status.text = "Worker proposal binding/path validation failed; review is blocked."
                         return@post
                     }
+                    if (sourceVerificationFailure != null) {
+                        status.text = "Worker proposal source SHA-256 verification failed; review is blocked · " +
+                            (sourceVerificationFailure.message?.take(140) ?: sourceVerificationFailure.javaClass.simpleName)
+                        return@post
+                    }
                     val plan = stored.candidate.plan
                     val preview = TextView(activity).apply {
                         text = "WORKER PROPOSAL · OWNER REVIEW REQUIRED\n" +
                             "Issue: #${fresh.number}\nWorker: ${stored.workerId}\n" +
                             "Repository: ${binding.repositoryUrl}\nBase: ${plan.baseBranch} · ${plan.baseCommitSha}\n" +
-                            "Paths: ${plan.changes.joinToString { it.path }}\n\n" +
+                            "Paths: ${plan.changes.joinToString { it.path }}\n" +
+                            "VERIFIED BASE SHA-256:\n" +
+                            stored.candidate.sourceFileSha256.toSortedMap().entries.joinToString("\n") { "${it.key} · ${it.value}" } +
+                            "\n\n" +
                             plan.changes.joinToString("\n\n") { "PATH: ${it.path}\n\n${it.content}" } +
                             "\n\nNo repository write occurs until you approve. Approval uses the existing one-time plan-bound token, immutable base, draft PR and exact-SHA CI gate."
                         textSize = 11f
@@ -1565,6 +1578,9 @@ internal class VyomFactoryDialog(
                                     val currentBinding = registry.get(plan.systemId)
                                         ?: throw SecurityException("Registered repository binding is missing")
                                     val validated = VyomFactoryRepositoryChangePolicy.validateCandidate(plan, registry)
+                                    VyomFactoryProposalSourceVerifier.verify(
+                                        stored.candidate, registry, VyomFactoryRepositoryClient()::readBoundSystemFile
+                                    )
                                     if (current.number != plan.issueNumber || currentBinding != binding || validated != binding) {
                                         throw SecurityException("Worker proposal no longer matches the registered repository or exact base")
                                     }
