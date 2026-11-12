@@ -1251,11 +1251,24 @@ internal class VyomFactoryDialog(
         val sourceId = pendingSourceId ?: prefs.getString("pending_draft_id", null) ?: UUID.randomUUID().toString()
         pendingSourceId = sourceId
         prefs.edit().putString("pending_draft_id", sourceId).apply()
+        val laneDecision = VyomFactoryLaneRouter.route(
+            VyomFactoryLaneRouter.Request(
+                origin = VyomFactoryLaneRouter.Origin.COMPLAINT,
+                text = "$title\\n$description"
+            )
+        )
         worker.execute {
             try {
-                val task = client.createTask(title, description, selectedPriority, "factory", sourceId)
+                val task = client.createTask(
+                    title, description, selectedPriority, "factory", sourceId,
+                    lane = laneDecision.lane,
+                    lanePlanningAllowed = false
+                )
                 VyomFactoryTaskStore(activity).enqueue(
-                    VyomFactoryTaskStore.QueuedTask(task.number, task.title, task.metadata.priority, sourceId, System.currentTimeMillis())
+                    VyomFactoryTaskStore.QueuedTask(
+                        task.number, task.title, task.metadata.priority, sourceId,
+                        System.currentTimeMillis(), task.metadata.lane, task.metadata.lanePlanningAllowed
+                    )
                 )
                 main.post {
                     if (!dialog.isShowing) return@post
