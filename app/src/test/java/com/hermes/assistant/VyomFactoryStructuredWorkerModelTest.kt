@@ -94,7 +94,12 @@ class VyomFactoryStructuredWorkerModelTest {
         journal = journal,
         limits = limits,
         nowMillis = { now },
-        preCallAuthorization = { true }
+        preCallAuthorization = { true },
+        repositoryClient = VyomFactoryRepositoryClient(getJson = { requestPath ->
+            val relativePath = requestPath.substringAfter("/contents/").substringBefore("?ref=")
+            val sourceContent = "base snapshot for $relativePath".toByteArray(Charsets.UTF_8)
+            """{"type":"file","path":"$relativePath","encoding":"base64","size":${sourceContent.size},"sha":"blob-sha","content":"${java.util.Base64.getEncoder().encodeToString(sourceContent)}"}"""
+        })
     )
 
     @Test fun fakeProviderProducesOnlyAnUnapprovedRegistryBoundPlan() {
@@ -115,6 +120,12 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(baseSha, candidate.plan.baseCommitSha)
         assertEquals("app/src/main/java/com/hermes/assistant/WorkerGeneratedNote.kt", candidate.plan.changes.single().path)
+        val sourcePath = candidate.plan.changes.single().path
+        val sourceContent = "base snapshot for $sourcePath"
+        val expectedSourceHash = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(sourceContent.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        assertEquals(mapOf(sourcePath to expectedSourceHash), candidate.sourceFileSha256)
         assertEquals("feature/real-worker-model", candidate.plan.baseBranch)
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(1, provider.calls)
