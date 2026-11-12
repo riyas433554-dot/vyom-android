@@ -115,7 +115,7 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("Document the worker flow", candidate.plan.title)
         assertEquals(baseSha, candidate.plan.baseCommitSha)
         assertEquals("README.md", candidate.plan.changes.single().path)
-        assertEquals("feature/memory-intelligence", candidate.plan.baseBranch)
+        assertEquals("feature/real-worker-model", candidate.plan.baseBranch)
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(1, provider.calls)
         assertEquals(repository, provider.lastRequest!!.repository)

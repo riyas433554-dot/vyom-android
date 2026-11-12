@@ -23,7 +23,7 @@ class VyomFactoryExecutionRunnerTest {
 
     @Test fun liveRunnerDispatchesLocallyApprovedRepositoryPlanToExecutorAndJournalsResult() {
         val fixture = Fixture(executionTarget = "repository_change", executionOperation = "propose_change",
-            executionArguments = """{"system_id":"worker","title":"Improve safe reply output","base_branch":"feature/memory-intelligence","base_commit_sha":"${"a".repeat(40)}","changes":[{"path":"README.md","content":"class SafeReply"}]}""")
+            executionArguments = """{"system_id":"worker","title":"Improve safe reply output","base_branch":"feature/real-worker-model","base_commit_sha":"${"a".repeat(40)}","changes":[{"path":"README.md","content":"class SafeReply"}]}""")
         val baseSha = "a".repeat(40)
         val commitSha = "b".repeat(40)
         val registryRoot = File.createTempFile("repo-live-runner", ".tmp").apply { delete(); mkdirs() }
@@ -35,7 +35,7 @@ class VyomFactoryExecutionRunnerTest {
         registry.register(binding, ownerConfirmed = true)
         val plan = VyomFactoryRepositoryChangePolicy.Plan(
             "worker", 71, "repo-attempt-12345678", "Improve safe reply output",
-            "feature/memory-intelligence", baseSha,
+            "feature/real-worker-model", baseSha,
             listOf(VyomFactoryRepositoryChangePolicy.Change(
                 "README.md", "class SafeReply"
             )), false
@@ -585,7 +585,7 @@ class VyomFactoryExecutionRunnerTest {
         override fun request(method: String, path: String, body: JSONObject?): JSONObject {
             calls += method to path
             return when {
-                method == "GET" && path == "/git/ref/heads/feature/memory-intelligence" ->
+                method == "GET" && path == "/git/ref/heads/feature/real-worker-model" ->
                     JSONObject().put("object", JSONObject().put("sha", baseSha))
                 method == "GET" && path.startsWith("/git/commits/") ->
                     JSONObject().put("tree", JSONObject().put("sha", "c".repeat(40)))

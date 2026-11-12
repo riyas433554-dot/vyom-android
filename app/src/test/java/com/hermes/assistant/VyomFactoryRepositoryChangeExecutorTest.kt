@@ -40,7 +40,7 @@ class VyomFactoryRepositoryChangeExecutorTest {
         issueNumber = 71,
         attemptId = "attempt-12345678",
         title = "Improve reply formatting",
-        baseBranch = "feature/memory-intelligence",
+        baseBranch = "feature/real-worker-model",
         baseCommitSha = baseSha,
         changes = listOf(
             VyomFactoryRepositoryChangePolicy.Change(
@@ -167,7 +167,7 @@ class VyomFactoryRepositoryChangeExecutorTest {
         override fun request(method: String, path: String, body: JSONObject?): JSONObject {
             calls += Call(method, path, body?.let { JSONObject(it.toString()) })
             return when {
-                method == "GET" && path == "/git/ref/heads/feature/memory-intelligence" ->
+                method == "GET" && path == "/git/ref/heads/feature/real-worker-model" ->
                     JSONObject().put("object", JSONObject().put("sha", baseSha))
                 method == "GET" && path.startsWith("/git/commits/") ->
                     JSONObject().put("tree", JSONObject().put("sha", "c".repeat(40)))
