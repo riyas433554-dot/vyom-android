@@ -93,10 +93,13 @@ class VyomFactoryWorkerProposalStoreTest {
 
         val loaded = VyomFactoryWorkerProposalStore(f.root).get(f.task.number)!!
         assertTrue(loaded.candidate.sourceFileSha256.isEmpty())
+        val registry = VyomFactorySystemRegistry(f.root).apply {
+            register(f.candidate.binding, ownerConfirmed = true)
+        }
         org.junit.Assert.assertThrows(SecurityException::class.java) {
-            VyomFactoryProposalSourceVerifier.verify(loaded.candidate, object : VyomFactorySystemRegistry(f.root) {}, { _, path, _ ->
+            VyomFactoryProposalSourceVerifier.verify(loaded.candidate, registry) { _, path, _ ->
                 VyomFactoryRepositoryClient.FilePreview(path, "source", 6, "blob", "b".repeat(64), 0)
-            })
+            }
         }
     }
 
