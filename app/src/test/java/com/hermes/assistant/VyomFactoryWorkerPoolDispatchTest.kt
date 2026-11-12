@@ -93,7 +93,7 @@ class VyomFactoryWorkerPoolDispatchTest {
                 }
             },
             registry = registry,
-            onProposal = { proposals.incrementAndGet() },
+            onProposal = { _, _, _, _ -> proposals.incrementAndGet() },
             isStopped = { false },
             heartbeatIntervalMillis = 25L
         )
