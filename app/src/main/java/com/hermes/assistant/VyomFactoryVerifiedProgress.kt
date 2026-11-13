@@ -33,11 +33,11 @@ internal object VyomFactoryVerifiedProgress {
 
     fun taskStateLabel(status: String, implementationVerified: Boolean): String = when {
         implementationVerified -> "IMPLEMENTATION VERIFIED"
-        status == "in_progress" -> "STARTED · IMPLEMENTATION NOT VERIFIED"
-        status == "paused" -> "PAUSED · IMPLEMENTATION NOT VERIFIED"
-        status == "blocked" -> "BLOCKED · IMPLEMENTATION NOT VERIFIED"
-        status == "completed" -> "CLOSED · VERIFICATION EVIDENCE REQUIRED"
-        status == "cancelled" -> "CANCELLED"
+        status.trim().lowercase() == "in_progress" -> "STARTED · IMPLEMENTATION NOT VERIFIED"
+        status.trim().lowercase() == "paused" -> "PAUSED · IMPLEMENTATION NOT VERIFIED"
+        status.trim().lowercase() == "blocked" -> "BLOCKED · IMPLEMENTATION NOT VERIFIED"
+        status.trim().lowercase() == "completed" -> "CLOSED · VERIFICATION EVIDENCE REQUIRED"
+        status.trim().lowercase() == "cancelled" -> "CANCELLED"
         else -> "NOT_STARTED"
     }
 
