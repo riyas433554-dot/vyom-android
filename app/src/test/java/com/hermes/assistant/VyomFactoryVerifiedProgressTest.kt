@@ -16,7 +16,7 @@ class VyomFactoryVerifiedProgressTest {
         val progress = calculate(task(), emptyList())
         assertEquals(0, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.NOT_STARTED, progress.stage)
-        assertEquals("NOT_STARTED", progress.label)
+        assertEquals("STARTED · IMPLEMENTATION NOT VERIFIED", progress.label)
     }
 
     @Test fun commitShaInLatestSuccessfulJournalMeansImplementationDoneAtTwentyFive() {
