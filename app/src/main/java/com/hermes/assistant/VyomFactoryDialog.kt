@@ -1829,18 +1829,22 @@ internal class VyomFactoryDialog(
                     nextStatus = nextStatus,
                     ownerApprovedStart = ownerApprovedStart
                 )
-                client.updateTask(
+                val persisted = client.updateTask(
                     task,
                     newPriority = priority,
                     newStatus = nextStatus,
                     newLanePlanningAllowed = planningAllowed
                 )
+                check(persisted.metadata.status == nextStatus &&
+                    persisted.metadata.lanePlanningAllowed == (planningAllowed ?: task.metadata.lanePlanningAllowed)) {
+                    "GitHub did not confirm the requested task state; refresh before retrying"
+                }
                 if (ownerApprovedStart) {
                     VyomFactoryWorkerDispatchScheduler.enqueue(activity.applicationContext)
                 }
                 main.post {
                     if (!dialog.isShowing) return@post
-                    status.text = "Task #${task.number} updated and saved."
+                    status.text = "GitHub confirmed #${task.number} · ${persisted.metadata.status.uppercase()}"
                     busy = false
                     refresh()
                 }
@@ -1863,7 +1867,7 @@ internal class VyomFactoryDialog(
         val api = error as? VyomFactoryGitHubClient.FactoryApiException
         return when (api?.code) {
             401 -> "GitHub token rejected (401). Replace it in Settings."
-            403 -> "GitHub denied access (403). Token needs Issues read/write permission for this repository."
+            403 -> "GitHub 403 · this token cannot perform the requested Issues operation. Grant this repository's token Issues: Read and write, then save the token in Settings. No task state was assumed changed."
             404 -> "Repository or issue endpoint not found (404). Check repository access."
             422 -> "GitHub rejected the task data (422). Check title, labels and issue permissions."
             else -> error.message?.take(180) ?: "Factory request failed."
