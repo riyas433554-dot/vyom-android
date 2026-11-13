@@ -481,12 +481,20 @@ internal class VyomFactoryDialog(
             .getWorkInfosForUniqueWorkLiveData(VyomFactoryWorkerDispatchScheduler.WORK_NAME)
         val observer = androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { infos ->
             if (!::claimStatus.isInitialized || !dialog.isShowing || busy || activeClaim != null) return@Observer
-            val state = infos.firstOrNull()?.state
+            val info = infos.firstOrNull()
+            val state = info?.state
+            val reason = info?.outputData?.getString("reason").orEmpty()
             claimStatus.text = when (state) {
                 androidx.work.WorkInfo.State.ENQUEUED -> "WORKER QUEUED · waiting for network/constraints"
                 androidx.work.WorkInfo.State.RUNNING -> "WORKER RUNNING · dispatch active; task completion not yet proven"
                 androidx.work.WorkInfo.State.SUCCEEDED -> "DISPATCH FINISHED · inspect RUNS/proposals; this is not task completion"
-                androidx.work.WorkInfo.State.FAILED -> "WORKER FAILED · authorization, binding or execution error"
+                androidx.work.WorkInfo.State.FAILED -> when (reason) {
+                    "OWNER_AUTHORIZATION_REQUIRED" -> "WORKER BLOCKED · enable owner-authorized live calls"
+                    "GITHUB_TOKEN_MISSING" -> "WORKER BLOCKED · save the GitHub Issues token in Settings"
+                    "WORKER_REPOSITORY_NOT_BOUND" -> "WORKER BLOCKED · bind the approved worker repository"
+                    "TASK_REGISTRY_ISSUES_PERMISSION_OR_BINDING_MISSING" -> "WORKER BLOCKED · verify task-registry Issues access"
+                    else -> "WORKER FAILED · ${reason.ifBlank { "inspect worker logs" }}"
+                }
                 androidx.work.WorkInfo.State.CANCELLED -> "WORKER CANCELLED"
                 else -> "WORKER IDLE · no active background dispatch"
             }
