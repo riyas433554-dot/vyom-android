@@ -9,11 +9,13 @@ on:
       - fix/item7-progress-gates
       - feature/real-worker-model
       - feature/factory-item5-task-intelligence
+      - fix/factory-five-issues
   pull_request:
     branches:
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
       - feature/factory-item5-task-intelligence
+      - feature/real-worker-model
 
 permissions:
   contents: read
