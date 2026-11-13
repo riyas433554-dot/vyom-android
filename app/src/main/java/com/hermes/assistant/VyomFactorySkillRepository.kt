@@ -23,7 +23,7 @@ internal class VyomFactorySkillRepositoryClient(
         val license: String,
         val skillMarkdown: String,
         val sourceUrl: String,
-        val skillPath: String
+        val skillPath: String = "SKILL.md"
     )
 
     fun search(query: String): List<Candidate> {
