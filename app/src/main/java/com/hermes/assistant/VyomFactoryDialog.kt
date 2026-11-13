@@ -1434,10 +1434,29 @@ internal class VyomFactoryDialog(
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(4), 0, dp(4))
             })
             val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-            if (description.isNotBlank()) card.addView(TextView(activity).apply {
-                text = description; textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
-                maxLines = 12; setPadding(0, 0, 0, dp(6))
-            })
+            if (description.isNotBlank()) {
+                val descriptionView = TextView(activity).apply {
+                    text = description
+                    textSize = 11f
+                    setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                    maxLines = 4
+                    setPadding(0, 0, 0, dp(4))
+                }
+                card.addView(descriptionView)
+                if (description.lineSequence().count() > 4 || description.length > 260) {
+                    card.addView(Button(activity).apply {
+                        text = "SHOW FULL TASK"
+                        textSize = 8f
+                        minHeight = dp(30)
+                        setPadding(dp(6), 0, dp(6), 0)
+                        setOnClickListener {
+                            val expanded = descriptionView.maxLines == 4
+                            descriptionView.maxLines = if (expanded) Int.MAX_VALUE else 4
+                            text = if (expanded) "COLLAPSE TASK" else "SHOW FULL TASK"
+                        }
+                    }, LinearLayout.LayoutParams(-2, dp(30)))
+                }
+            }
 
             val verifiedProgress = executionEntries?.let {
                 VyomFactoryVerifiedProgress.calculate(task, it)
