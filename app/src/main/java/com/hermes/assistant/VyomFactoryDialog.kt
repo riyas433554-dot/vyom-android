@@ -297,7 +297,18 @@ internal class VyomFactoryDialog(
                 ).show()
             }
         }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
-        root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        val workerToggle = Button(activity).apply {
+            text = "WORKER CONTROLS · SHOW"
+            textSize = 9f
+            setOnClickListener {
+                val expanded = workerPanel.visibility != android.view.View.VISIBLE
+                workerPanel.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
+                text = if (expanded) "WORKER CONTROLS · HIDE" else "WORKER CONTROLS · SHOW"
+            }
+        }
+        root.addView(workerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        workerPanel.visibility = android.view.View.GONE
+        root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
 
         pendingScreenshot?.takeIf { it.isFile }?.let { screenshot ->
             val evidencePanel = LinearLayout(activity).apply {
@@ -395,7 +406,18 @@ internal class VyomFactoryDialog(
         }
         actions.addView(createButton, LinearLayout.LayoutParams(0, dp(42), 1f).apply { leftMargin = dp(8) })
         composer.addView(actions)
-        root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        val composerToggle = Button(activity).apply {
+            text = "NEW TASK / COMPLAINT · SHOW"
+            textSize = 9f
+            setOnClickListener {
+                val expanded = composer.visibility != android.view.View.VISIBLE
+                composer.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
+                text = if (expanded) "NEW TASK / COMPLAINT · HIDE" else "NEW TASK / COMPLAINT · SHOW"
+            }
+        }
+        root.addView(composerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        composer.visibility = android.view.View.GONE
+        root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
         root.addView(TextView(activity).apply {
             text = "TASKS · LIVE FROM REPOSITORY"; textSize = 10f
@@ -1012,7 +1034,7 @@ internal class VyomFactoryDialog(
         }
         AlertDialog.Builder(activity)
             .setTitle("Discover public skill repositories")
-            .setMessage("Search GitHub repositories. Only root SKILL.md files with an approved SPDX license can be imported.")
+            .setMessage("Search GitHub repositories. Vyom scans the repository tree for root or nested SKILL.md files; only approved SPDX licenses can be imported.")
             .setView(query)
             .setPositiveButton("SEARCH") { _, _ ->
                 val term = query.text.toString().trim()
@@ -1377,7 +1399,7 @@ internal class VyomFactoryDialog(
             val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
             if (description.isNotBlank()) card.addView(TextView(activity).apply {
                 text = description; textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
-                maxLines = 3; setPadding(0, 0, 0, dp(6))
+                maxLines = 12; setPadding(0, 0, 0, dp(6))
             })
 
             val verifiedProgress = executionEntries?.let {
