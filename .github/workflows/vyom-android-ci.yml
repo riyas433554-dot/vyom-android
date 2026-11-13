@@ -6,6 +6,7 @@ on:
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
       - vyom-proposal-*
+      - vyom-worker-*
       - fix/item7-progress-gates
       - feature/real-worker-model
       - feature/factory-item5-task-intelligence
