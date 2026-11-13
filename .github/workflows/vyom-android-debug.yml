@@ -17,6 +17,7 @@ on:
       - fresh-history/android-app-copy
       - feature/memory-intelligence
       - feature/factory-item5-task-intelligence
+      - feature/real-worker-model
   workflow_dispatch:
 
 permissions:
