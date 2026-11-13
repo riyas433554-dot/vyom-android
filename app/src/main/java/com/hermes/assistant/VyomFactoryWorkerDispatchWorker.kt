@@ -28,13 +28,17 @@ internal class VyomFactoryWorkerDispatchWorker(
             )
 
             val token = GitHubReleaseTokenStore.read(context)
-            if (token.isBlank()) return Result.failure()
+            if (token.isBlank()) return Result.failure(
+                androidx.work.workDataOf("reason" to "GITHUB_TOKEN_MISSING")
+            )
             val registry = VyomFactorySystemRegistry(File(context.filesDir, "factory-system-registry"))
             if (!registry.allowsPath(
                     VyomFactoryGitHubClient.SYSTEM_ID,
                     VyomFactoryGitHubClient.ISSUES_PATH
                 )
-            ) return Result.failure()
+            ) return Result.failure(
+                androidx.work.workDataOf("reason" to "TASK_REGISTRY_ISSUES_PERMISSION_OR_BINDING_MISSING")
+            )
             if (registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID) == null) return Result.failure(
                 androidx.work.workDataOf("reason" to "WORKER_REPOSITORY_NOT_BOUND")
             )
@@ -63,7 +67,10 @@ internal class VyomFactoryWorkerDispatchWorker(
             )
             val dispatched = dispatcher.dispatchAvailable()
             when {
-                dispatched.stopped || dispatched.authorizationRequired -> Result.success()
+                dispatched.stopped -> Result.success()
+                dispatched.authorizationRequired -> Result.failure(
+                    androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
+                )
                 dispatched.retryableFailureCount > 0 -> Result.retry()
                 else -> Result.success()
             }
