@@ -83,7 +83,7 @@ internal class VyomFactorySkillRepositoryClient(
         return Preview(repository, branch, commit, license, markdown, "https://github.com/$repository/blob/$branch/$skillPath", skillPath)
     }
 
-    private fun pathSegment(value: String): String = URLEncoder.encode(value, "UTF-8")
+    private fun pathSegment(value: String): String = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
     private fun get(path: String): String {
         val connection = (URL(apiBaseUrl.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
