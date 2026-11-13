@@ -13,8 +13,25 @@ class VyomFactoryTaskPlanningApprovalTest {
         val server = MockWebServer()
         server.start()
         try {
+            val current = task(planningAllowed = false)
+            val persistedMetadata = current.metadata.copy(
+                status = "in_progress",
+                events = listOf("created", "updated:in_progress:P2", "planning:owner_approved"),
+                lanePlanningAllowed = true
+            )
+            val persistedBody = VyomFactoryStatus.withMetadata(
+                "Repository Gradle build fails.",
+                persistedMetadata
+            )
             server.enqueue(MockResponse().setResponseCode(200).setBody(
-                """{"number":42,"title":"[VYOM FACTORY][P2] Fix repository build","state":"open","html_url":"https://github.com/owner/repo/issues/42"}"""
+                JSONObject()
+                    .put("number", 42)
+                    .put("title", "[VYOM FACTORY][P2] Fix repository build")
+                    .put("state", "open")
+                    .put("body", persistedBody)
+                    .put("html_url", "https://github.com/owner/repo/issues/42")
+                    .put("updated_at", "2026-11-13T08:00:00Z")
+                    .toString()
             ))
             server.enqueue(MockResponse().setResponseCode(200).setBody("""{"id":1}"""))
             val registry = registry()
@@ -23,7 +40,6 @@ class VyomFactoryTaskPlanningApprovalTest {
                 registry,
                 apiBaseUrl = server.url("/").toString().trimEnd('/')
             )
-            val current = task(planningAllowed = false)
 
             val updated = client.updateTask(
                 current,
