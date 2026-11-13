@@ -23,7 +23,9 @@ internal class VyomFactoryWorkerDispatchWorker(
         return try {
             val stopStore = VyomFactoryWorkerStopStore(context)
             if (stopStore.isStopped()) return Result.success()
-            if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.success()
+            if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.failure(
+                androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
+            )
 
             val token = GitHubReleaseTokenStore.read(context)
             if (token.isBlank()) return Result.failure()
@@ -33,7 +35,9 @@ internal class VyomFactoryWorkerDispatchWorker(
                     VyomFactoryGitHubClient.ISSUES_PATH
                 )
             ) return Result.failure()
-            if (registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID) == null) return Result.success()
+            if (registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID) == null) return Result.failure(
+                androidx.work.workDataOf("reason" to "WORKER_REPOSITORY_NOT_BOUND")
+            )
 
             val client = VyomFactoryGitHubClient(token, registry)
             val taskStore = VyomFactoryTaskStore(context)
