@@ -1923,7 +1923,11 @@ internal class VyomFactoryDialog(
         val api = error as? VyomFactoryGitHubClient.FactoryApiException
         return when (api?.code) {
             401 -> "GitHub token rejected (401). Replace it in Settings."
-            403 -> "GitHub 403 · this token cannot perform the requested Issues operation. Grant this repository's token Issues: Read and write, then save the token in Settings. No task state was assumed changed."
+            403 -> buildString {
+                append("GitHub 403 · this token cannot perform the requested Issues operation. Grant this repository's token Issues: Read and write, then save the token in Settings.")
+                api.acceptedPermissions?.let { append(" GitHub requires: ").append(it).append(".") }
+                append(" No task state was assumed changed.")
+            }
             404 -> "Repository or issue endpoint not found (404). Check repository access."
             422 -> "GitHub rejected the task data (422). Check title, labels and issue permissions."
             else -> error.message?.take(180) ?: "Factory request failed."
