@@ -480,7 +480,7 @@ internal class VyomFactoryDialog(
         val liveData = androidx.work.WorkManager.getInstance(activity)
             .getWorkInfosForUniqueWorkLiveData(VyomFactoryWorkerDispatchScheduler.WORK_NAME)
         val observer = androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { infos ->
-            if (!::claimStatus.isInitialized || !dialog.isShowing || busy || activeClaim != null) return@Observer
+            if (!::claimStatus.isInitialized || !dialog.isShowing || activeClaim != null) return@Observer
             val info = infos.firstOrNull()
             val state = info?.state
             val reason = info?.outputData?.getString("reason").orEmpty()
