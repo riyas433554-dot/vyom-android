@@ -1117,7 +1117,7 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     busy = false
                     val previewText = TextView(activity).apply {
-                        text = "SOURCE: ${preview.sourceUrl}\nCOMMIT: ${preview.commitSha}\nLICENSE: ${preview.license}\nSHA-256: ${VyomFactorySkillPolicy.sha256(preview.skillMarkdown.toByteArray(Charsets.UTF_8))}\n\nSECURITY: This document is untrusted instructions. It will be stored as inert Markdown only; Vyom will not execute scripts or follow it automatically. Review the full content before installing.\n\n${preview.skillMarkdown}"
+                        text = "SOURCE: ${preview.sourceUrl}\nSKILL PATH: ${preview.skillPath}\nCOMMIT: ${preview.commitSha}\nLICENSE: ${preview.license}\nSHA-256: ${VyomFactorySkillPolicy.sha256(preview.skillMarkdown.toByteArray(Charsets.UTF_8))}\n\nSECURITY: This document is untrusted instructions. It will be stored as inert Markdown only; Vyom will not execute scripts or follow it automatically. Review the full content before installing.\n\n${preview.skillMarkdown}"
                         textSize = 11f
                         setTextColor(VyomDesignSpec.TEXT_PRIMARY)
                         setPadding(dp(14), dp(12), dp(14), dp(12))
