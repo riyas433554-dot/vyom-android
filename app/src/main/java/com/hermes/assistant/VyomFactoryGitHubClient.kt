@@ -28,7 +28,11 @@ internal class VyomFactoryGitHubClient(
         val createdAt: String = updatedAt
     )
 
-    class FactoryApiException(val code: Int, message: String) : IOException(message)
+    class FactoryApiException(
+        val code: Int,
+        message: String,
+        val acceptedPermissions: String? = null
+    ) : IOException(message)
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     fun listTasks(): List<Task> {
@@ -222,8 +226,12 @@ internal class VyomFactoryGitHubClient(
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 val detail = runCatching { JSONObject(body).optString("message") }.getOrDefault("")
-                throw FactoryApiException(response.code, "GitHub " + response.code + ": " +
-                    detail.take(180).ifBlank { "GitHub request failed" })
+                throw FactoryApiException(
+                    response.code,
+                    "GitHub " + response.code + ": " + detail.take(180).ifBlank { "GitHub request failed" },
+                    response.header("X-Accepted-GitHub-Permissions")
+                        ?.takeIf { it.length <= 240 && it.all { char -> !char.isISOControl() } }
+                )
             }
             return body
         }
