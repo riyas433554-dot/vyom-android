@@ -431,7 +431,7 @@ internal class VyomFactoryDialog(
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val footer = TextView(activity).apply {
-            text = "GitHub Issues is shared. RUN NEXT supports only explicitly confirmed media-volume changes while Vyom stays foregrounded."
+            text = "GitHub Issues is shared. Background workers only propose changes; repository writes require your local approval, then RUN NEXT executes the approved draft-PR + exact-SHA CI path while Vyom stays foregrounded."
             textSize = 9f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(2), dp(8), dp(2), 0)
         }
