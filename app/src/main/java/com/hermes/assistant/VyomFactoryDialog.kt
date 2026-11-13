@@ -83,6 +83,7 @@ internal class VyomFactoryDialog(
     private lateinit var retryStatus: TextView
     private lateinit var historyStatus: TextView
     private lateinit var laneMetricsStatus: TextView
+    private var dispatchObserver: androidx.lifecycle.Observer<List<androidx.work.WorkInfo>>? = null
     private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
@@ -439,6 +440,13 @@ internal class VyomFactoryDialog(
         dialog.setContentView(root)
         dialog.setOnDismissListener {
             main.removeCallbacks(refreshRunnable)
+            (activity as? androidx.lifecycle.LifecycleOwner)?.let {
+                dispatchObserver?.let { observer ->
+                    androidx.work.WorkManager.getInstance(activity)
+                        .getWorkInfosForUniqueWorkLiveData(VyomFactoryWorkerDispatchScheduler.WORK_NAME)
+                        .removeObserver(observer)
+                }
+            }
             stopRunRequested.set(true)
             cancelPendingConfirmation?.invoke()
             pendingConfirmationDialog?.dismiss()
@@ -450,6 +458,7 @@ internal class VyomFactoryDialog(
             setDimAmount(0.68f)
         }
         dialog.show()
+        observeWorkerDispatch()
         dialog.window?.setLayout(dp(560).coerceAtMost(activity.resources.displayMetrics.widthPixels - dp(24)),
             activity.resources.displayMetrics.heightPixels - dp(48))
         if (token.isBlank()) {
@@ -464,6 +473,26 @@ internal class VyomFactoryDialog(
             refresh()
             main.postDelayed(refreshRunnable, 15_000)
         }
+    }
+
+    private fun observeWorkerDispatch() {
+        val owner = activity as? androidx.lifecycle.LifecycleOwner ?: return
+        val liveData = androidx.work.WorkManager.getInstance(activity)
+            .getWorkInfosForUniqueWorkLiveData(VyomFactoryWorkerDispatchScheduler.WORK_NAME)
+        val observer = androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { infos ->
+            if (!::claimStatus.isInitialized || !dialog.isShowing || busy || activeClaim != null) return@Observer
+            val state = infos.firstOrNull()?.state
+            claimStatus.text = when (state) {
+                androidx.work.WorkInfo.State.ENQUEUED -> "WORKER QUEUED · waiting for network/constraints"
+                androidx.work.WorkInfo.State.RUNNING -> "WORKER RUNNING · dispatch active; task completion not yet proven"
+                androidx.work.WorkInfo.State.SUCCEEDED -> "DISPATCH FINISHED · inspect RUNS/proposals; this is not task completion"
+                androidx.work.WorkInfo.State.FAILED -> "WORKER FAILED · authorization, binding or execution error"
+                androidx.work.WorkInfo.State.CANCELLED -> "WORKER CANCELLED"
+                else -> "WORKER IDLE · no active background dispatch"
+            }
+        }
+        dispatchObserver = observer
+        liveData.observe(owner, observer)
     }
 
     private fun runNextTask() {
