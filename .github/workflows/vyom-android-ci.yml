@@ -28,7 +28,15 @@ concurrency:
 jobs:
   debug:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
+    environment:
+      name: vyom-release-signing
+    env:
+      HERMES_BASE_URL: ${{ vars.HERMES_BASE_URL }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,6 +63,43 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
+      - name: Validate persistent release signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_KEYSTORE_BASE64:-}" || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "${ANDROID_KEYSTORE_PASSWORD:-}" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "${ANDROID_KEY_ALIAS:-}" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "${ANDROID_KEY_PASSWORD:-}" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+          ENCODED="$(printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | tr '_-' '/+')"
+          [[ "$ENCODED" =~ ^[A-Za-z0-9+/]*={0,2}$ ]] || { echo "Keystore base64 is malformed; secret value was not logged."; exit 1; }
+          LENGTH="$(printf '%s' "$ENCODED" | wc -c | tr -d ' ')"
+          case $((LENGTH % 4)) in
+            0) ;;
+            2) ENCODED="${ENCODED}==" ;;
+            3) ENCODED="${ENCODED}=" ;;
+            *) echo "Keystore base64 length is invalid; secret value was not logged."; exit 1 ;;
+          esac
+          KEYSTORE="$RUNNER_TEMP/vyom-release.jks"
+          printf '%s' "$ENCODED" | base64 --decode > "$KEYSTORE"
+          unset ENCODED
+          test -s "$KEYSTORE" || { echo "Decoded keystore is empty"; exit 1; }
+          keytool -list -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          if keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" >/dev/null 2>&1; then
+            VERIFIED_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
+          elif keytool -certreq -alias "$ANDROID_KEY_ALIAS" -file "$RUNNER_TEMP/vyom-key-check.csr" -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            VERIFIED_KEY_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+          else
+            echo "Configured key password cannot unlock the alias; secret values were not logged."
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/vyom-key-check.csr"
+          {
+            printf 'ANDROID_KEYSTORE_PATH=%s\n' "$KEYSTORE"
+            printf 'ANDROID_KEYSTORE_PASSWORD=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'ANDROID_KEY_ALIAS=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'ANDROID_KEY_PASSWORD=%s\n' "$VERIFIED_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -156,15 +201,29 @@ jobs:
           [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] && (( VERSION_CODE <= 2100000000 )) || { echo "GITHUB_RUN_NUMBER is outside Android versionCode range"; exit 1; }
           echo "ANDROID_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "ANDROID_VERSION_NAME=0.3.1-ci.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
-      - name: Unit tests and debug APK
-        run: gradle testDebugUnitTest assembleDebug --no-daemon
-      - name: Package versioned APK and checksum
+      - name: Unit tests and release-signed APK
+        run: gradle testDebugUnitTest assembleRelease --no-daemon
+      - name: Verify fixed release certificate and package APK
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p output
-          cp app/build/outputs/apk/debug/app-debug.apk "output/vyom-phase6-${GITHUB_SHA}.apk"
+          APK="output/vyom-phase6-${GITHUB_SHA}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$APK"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
+          test -n "$APKSIGNER" || { echo "apksigner not found"; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs "$APK" > "$APK.certs.txt" 2>&1
+          CERT_SHA256="$(grep -i 'SHA-256' "$APK.certs.txt" | grep -Eo '[[:xdigit:]]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          [[ "$CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Could not extract signing certificate SHA-256 fingerprint"; exit 1; }
+          EXPECTED_CERT_SHA256="$(tr -d '[:space:]' < config/release-certificate.sha256 | tr '[:upper:]' '[:lower:]')"
+          [[ "$EXPECTED_CERT_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "Fixed release identity file is invalid"; exit 1; }
+          [[ "$CERT_SHA256" == "$EXPECTED_CERT_SHA256" ]] || { echo "Fixed release identity mismatch; artifact upload blocked."; exit 1; }
+          echo "Signing certificate SHA-256: $CERT_SHA256"
+          echo "Signing certificate SHA-256 matches the fixed release identity."
           (cd output && sha256sum "vyom-phase6-${GITHUB_SHA}.apk") > "output/vyom-phase6-${GITHUB_SHA}.apk.sha256"
-      - name: Upload debug APK
+          printf 'versionName=%s\nversionCode=%s\ncommit=%s\nsha256=%s\ncertificateSha256=%s\n' "$ANDROID_VERSION_NAME" "$ANDROID_VERSION_CODE" "$GITHUB_SHA" "$(cut -d ' ' -f 1 "output/vyom-phase6-${GITHUB_SHA}.apk.sha256")" "$CERT_SHA256" > output/build-info.txt
+      - name: Upload release-signed APK
         uses: actions/upload-artifact@v4
         with:
           name: vyom-phase6-${{ github.sha }}
