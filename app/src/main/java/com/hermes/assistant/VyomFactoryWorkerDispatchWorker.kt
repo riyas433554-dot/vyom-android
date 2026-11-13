@@ -83,7 +83,7 @@ internal class VyomFactoryWorkerDispatchWorker(
 
 /** Unique one-shot dispatch; queue refresh remains a separate read-only operation. */
 internal object VyomFactoryWorkerDispatchScheduler {
-    private const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
+    internal const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
 
     fun enqueue(context: Context) {
         val app = context.applicationContext
