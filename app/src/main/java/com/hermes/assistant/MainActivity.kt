@@ -739,7 +739,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         val workerProposalStatus = TextView(this).apply {
-            text = "Repository proposals require explicit owner review before any GitHub write."
+            text = "Default: owner review. Autonomous mode requires one-time consent and is limited to safe draft PRs plus exact-SHA CI."
             textSize = 11f
             setTextColor(Color.LTGRAY)
         }
