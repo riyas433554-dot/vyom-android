@@ -399,7 +399,7 @@ class VyomFactoryStructuredWorkerModelTest {
         }
         val journal = MemoryJournal()
 
-        assertThrows(IllegalStateException::class.java) {
+        assertThrows(VyomFactoryWorkerProviderRetriesExhaustedException::class.java) {
             adapter(
                 provider, journal,
                 limits = VyomFactoryWorkerModelLimits(maxRetries = 1)
