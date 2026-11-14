@@ -3,9 +3,11 @@ package com.hermes.assistant
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
@@ -13,7 +15,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** App-closed, network-constrained planner worker. It never approves or writes repository changes. */
+/** App-closed, network-constrained Factory worker. Autonomous writes remain separately gated. */
 internal class VyomFactoryWorkerDispatchWorker(
     appContext: Context,
     params: WorkerParameters
@@ -23,6 +25,7 @@ internal class VyomFactoryWorkerDispatchWorker(
         return try {
             val stopStore = VyomFactoryWorkerStopStore(context)
             if (stopStore.isStopped()) return Result.success()
+            if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) return Result.success()
             if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.failure(
                 androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
             )
@@ -62,12 +65,70 @@ internal class VyomFactoryWorkerDispatchWorker(
                     proposalStore.save(task, workerId, leaseId, candidate)
                 },
                 isStopped = stopStore::isStopped,
-                isAuthorized = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) },
-                shouldDispatch = { !proposalStore.isHandled(it) }
+                isAuthorized = {
+                    VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) &&
+                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
+                },
+                shouldDispatch = { proposalStore.pending().isEmpty() && !proposalStore.isHandled(it) },
+                maxConcurrentSessions = 1
             )
             val dispatched = dispatcher.dispatchAvailable()
+
+            // A saved proposal is executed serially in this background run. One task per
+            // WorkManager run keeps the bounded exact-SHA CI wait inside the worker budget.
+            val pending = proposalStore.pending().firstOrNull()
+            if (pending != null) {
+                val authorization = VyomFactoryAutonomousExecutionAuthorizationStore(context).read()
+                    ?: return Result.success()
+                val config = VyomFactoryAutonomousExecutionAuthorizationRuntime.currentConfig(context)
+                val executionCoordinator = VyomFactoryRepositoryProposalExecutionCoordinator(
+                    registry = registry,
+                    proposals = object : VyomFactoryRepositoryProposalExecutionCoordinator.ProposalAccess {
+                        override fun get(issueNumber: Int) = proposalStore.get(issueNumber)
+                        override fun markApproved(issueNumber: Int) = proposalStore.markApproved(issueNumber)
+                        override fun markSubmitted(issueNumber: Int) = proposalStore.markSubmitted(issueNumber)
+                        override fun markAutonomousExecuting(issueNumber: Int) = proposalStore.markAutonomousExecuting(issueNumber)
+                        override fun markAutonomousFailed(issueNumber: Int) = proposalStore.markAutonomousFailed(issueNumber)
+                    },
+                    fetchFreshTask = { issueNumber ->
+                        client.listTasks().firstOrNull { it.number == issueNumber }
+                    },
+                    verifyApproval = { _, _, _ ->
+                        throw SecurityException("Per-task approval is not used by the autonomous execution path")
+                    },
+                    executePlan = { plan, writeToken, control ->
+                        VyomFactoryRepositoryChangeExecutor(registry).execute(
+                            plan, writeToken, control, timeoutMillis = 7L * 60L * 1_000L
+                        )
+                    }
+                )
+                val control = object : VyomFactoryExecutionControl {
+                    override fun shouldStop(): Boolean =
+                        stopStore.isStopped() ||
+                            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
+                            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)
+                }
+                try {
+                    executionCoordinator.executeAutonomously(
+                        pending.issueNumber, authorization, config,
+                        System.currentTimeMillis(), token, control
+                    )
+                } catch (error: Exception) {
+                    // Stale or failed proposals are terminal; never replay a possibly partial GitHub write.
+                    proposalStore.markAutonomousFailed(pending.issueNumber)
+                    proposalStore.markRejected(pending.issueNumber)
+                    throw error
+                }
+            }
+
             when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
-                VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> Result.success()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> {
+                    if ((dispatched.proposedCount > 0 || pending != null) && !stopStore.isStopped() &&
+                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) {
+                        VyomFactoryWorkerDispatchScheduler.enqueueContinuation(context)
+                    }
+                    Result.success()
+                }
                 VyomFactoryWorkerDispatchResultPolicy.Decision.RETRY -> Result.retry()
                 VyomFactoryWorkerDispatchResultPolicy.Decision.FAILURE -> Result.failure(
                     androidx.work.workDataOf(
@@ -96,11 +157,52 @@ internal class VyomFactoryWorkerDispatchWorker(
     }
 }
 
+/** Periodic trigger only enqueues the unique one-time worker; it never overlaps task execution. */
+internal class VyomFactoryWorkerPeriodicTrigger(
+    appContext: Context,
+    params: WorkerParameters
+) : Worker(appContext, params) {
+    override fun doWork(): Result {
+        val context = applicationContext
+        if (VyomFactoryWorkerStopStore(context).isStopped()) return Result.success()
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
+            VyomFactoryWorkerLiveCallAuthorizationStore(context).read() == null
+        ) return Result.success()
+        VyomFactoryWorkerDispatchScheduler.enqueue(context)
+        return Result.success()
+    }
+}
+
 /** Unique one-shot dispatch; queue refresh remains a separate read-only operation. */
 internal object VyomFactoryWorkerDispatchScheduler {
     internal const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
+    internal const val PERIODIC_WORK_NAME = "vyom-factory-worker-dispatch-periodic-v1"
 
-    fun enqueue(context: Context) {
+    fun ensurePeriodicScheduled(context: Context) {
+        val app = context.applicationContext
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+            VyomFactoryWorkerLiveCallAuthorizationStore(app).read() == null) {
+            WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
+            return
+        }
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val request = PeriodicWorkRequestBuilder<VyomFactoryWorkerPeriodicTrigger>(15L, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(app).enqueueUniquePeriodicWork(
+            PERIODIC_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request
+        )
+    }
+
+    /** Initial/manual enqueue does not create duplicate chains when the app is reopened. */
+    fun enqueue(context: Context) = enqueueWork(context, ExistingWorkPolicy.KEEP)
+
+    /** A successful task appends exactly one next cycle after the current worker finishes. */
+    fun enqueueContinuation(context: Context) = enqueueWork(context, ExistingWorkPolicy.APPEND_OR_REPLACE)
+
+    private fun enqueueWork(context: Context, policy: ExistingWorkPolicy) {
         val app = context.applicationContext
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -109,6 +211,16 @@ internal object VyomFactoryWorkerDispatchScheduler {
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
             .build()
-        WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.KEEP, request)
+        // This is a local, non-blocking presence check. The worker performs full
+        // network-backed README/config validation off the UI thread before any provider call.
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+            VyomFactoryWorkerLiveCallAuthorizationStore(app).read() == null) return
+        WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, policy, request)
+    }
+
+    fun cancel(context: Context) {
+        val app = context.applicationContext
+        WorkManager.getInstance(app).cancelUniqueWork(WORK_NAME)
+        WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
     }
 }

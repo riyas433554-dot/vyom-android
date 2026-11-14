@@ -118,12 +118,30 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
         return true
     }
 
+    /** Durable one-shot marker before an unattended repository write begins. */
+    @Synchronized
+    fun markAutonomousExecuting(issueNumber: Int): Boolean {
+        val current = get(issueNumber) ?: return false
+        if (current.status != "awaiting_review") return false
+        write(current.copy(status = "autonomous_executing"))
+        return true
+    }
+
+    /** Failed/interrupted autonomous writes are terminal until an owner investigates them. */
+    @Synchronized
+    fun markAutonomousFailed(issueNumber: Int): Boolean {
+        val current = get(issueNumber) ?: return false
+        if (current.status != "autonomous_executing") return false
+        write(current.copy(status = "autonomous_failed"))
+        return true
+    }
+
     /** Mark the proposal handled only after the repository adapter reports its exact-SHA CI success. */
     @Synchronized
     fun markSubmitted(issueNumber: Int): Boolean {
         val current = get(issueNumber) ?: return false
         if (current.status == "submitted") return true
-        if (current.status != "approved") return false
+        if (current.status !in setOf("approved", "autonomous_executing")) return false
         write(current.copy(status = "submitted"))
         return true
     }
@@ -278,7 +296,7 @@ internal class VyomFactoryWorkerProposalStore(private val root: File) {
 
     companion object {
         private const val MAX_STORED_CHARS = 2_200_000
-        private val ALL_STATES = setOf("awaiting_review", "approved", "submitted", "rejected")
-        private val HANDLED_STATES = setOf("awaiting_review", "approved", "submitted", "rejected")
+        private val ALL_STATES = setOf("awaiting_review", "approved", "autonomous_executing", "autonomous_failed", "submitted", "rejected")
+        private val HANDLED_STATES = setOf("awaiting_review", "approved", "autonomous_executing", "autonomous_failed", "submitted", "rejected")
     }
 }

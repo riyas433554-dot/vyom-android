@@ -41,7 +41,6 @@ private fun sha256Hex(bytes: ByteArray): String =
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
 internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
-    const val TTL_MILLIS = 24L * 60L * 60L * 1000L
     private val providers = setOf(
         NvidiaNemotronWorkerModelProvider.PROVIDER_ID,
         GoogleGemmaWorkerModelProvider.PROVIDER_ID
@@ -91,10 +90,11 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
         check(foregroundSession) { "Live model calls can only be enabled in the owner's foreground session" }
         require(nowMillis > 0L)
         val hash = configSha256(config)
-        val expires = if (Long.MAX_VALUE - nowMillis < TTL_MILLIS) Long.MAX_VALUE else nowMillis + TTL_MILLIS
+        // Owner authorization persists until explicitly revoked or its bound config changes.
+        // Long.MAX_VALUE is a sentinel, not a wall-clock expiry.
         return VyomFactoryWorkerLiveCallAuthorization(
             config.providerId, config.modelId, config.repositoryUrl, config.baseCommitSha,
-            config.readmeSha256, config.allowedPaths.joinToString("|"), hash, nowMillis, expires
+            config.readmeSha256, config.allowedPaths.joinToString("|"), hash, nowMillis, Long.MAX_VALUE
         )
     }
 
@@ -104,8 +104,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
         nowMillis: Long
     ): Boolean {
         if (authorization == null || currentConfig == null || nowMillis <= 0L) return false
-        if (authorization.enabledAtMillis <= 0L || authorization.expiresAtMillis <= nowMillis) return false
-        if (authorization.expiresAtMillis - authorization.enabledAtMillis != TTL_MILLIS) return false
+        if (authorization.enabledAtMillis <= 0L || authorization.expiresAtMillis != Long.MAX_VALUE) return false
         val currentHash = runCatching { configSha256(currentConfig) }.getOrNull() ?: return false
         return authorization.providerId == currentConfig.providerId &&
             authorization.modelId == currentConfig.modelId &&
@@ -268,6 +267,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationRuntime {
         val app = context.applicationContext
         val store = VyomFactoryWorkerLiveCallAuthorizationStore(app)
         return try {
+            val authorization = store.read() ?: return false
             val prefs = app.getSharedPreferences(VyomFactoryWorkerModelRuntime.SETTINGS_PREFS, Context.MODE_PRIVATE)
             val providerId = prefs.getString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, null)
                 ?: throw SecurityException("Worker provider is missing")
@@ -287,7 +287,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationRuntime {
                     .readmeSha256(binding.repositoryUrl, binding.commitSha)
             }
             val current = currentConfig(app, readmeHash)
-            val valid = VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(store.read(), current, nowMillis)
+            val valid = VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(authorization, current, nowMillis)
             if (!valid) store.revoke()
             valid
         } catch (_: Exception) {
@@ -305,7 +305,8 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
 ) {
     fun disable() {
         VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke()
-        onStatus("Worker live model calls are OFF.")
+        VyomFactoryWorkerDispatchScheduler.cancel(activity)
+        onStatus("Worker live model calls are OFF. Autonomous dispatch is paused.")
     }
 
     fun enable() {
@@ -334,15 +335,15 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                         return@runOnUiThread
                     }
                     AlertDialog.Builder(activity)
-                        .setTitle("ENABLE LIVE WORKER MODEL CALLS · 24 HOURS")
+                        .setTitle("ENABLE LIVE WORKER MODEL CALLS")
                         .setMessage(
                             "Provider: ${config.providerId}\nModel: ${config.modelId}\n" +
                                 "Repository: ${config.repositoryUrl}\nCommit: ${config.baseCommitSha}\n" +
                                 "README.md sentinel SHA-256: ${config.readmeSha256}\nAllowed roots: ${config.allowedPaths.joinToString(", ")}\n" +
                                 "Factory runtime, safety/control, build, manifest, workflow and signing files are blocked.\n\n" +
-                                "Calls expire after 24 hours. Any configuration/hash mismatch disables them. Enable only for this exact binding?"
+                                "Calls remain enabled until the owner disables them. Any configuration/hash mismatch disables them. Model calls are made only when eligible tasks exist. Enable only for this exact binding?"
                         )
-                        .setPositiveButton("ENABLE FOR 24 HOURS") { _, _ ->
+                        .setPositiveButton("ENABLE UNTIL DISABLED") { _, _ ->
                             try {
                                 check(gate.isForegroundSession(generation)) {
                                     "Foreground owner confirmation session expired"
@@ -356,7 +357,11 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                                     nowMillis = System.currentTimeMillis()
                                 )
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).save(authorization)
-                                onStatus("Live worker model calls ENABLED for 24 hours · safe Kotlin source/test roots · owner review required.")
+                                if (VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(activity)) {
+                                    VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(activity)
+                                    VyomFactoryWorkerDispatchScheduler.enqueue(activity)
+                                }
+                                onStatus("Live worker model calls ENABLED until disabled · no eligible tasks means no provider calls.")
                             } catch (error: Exception) {
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke()
                                 onStatus("Live worker authorization rejected · ${error.message ?: error.javaClass.simpleName}")

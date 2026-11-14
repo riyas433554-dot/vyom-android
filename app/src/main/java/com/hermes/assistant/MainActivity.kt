@@ -209,6 +209,8 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
+            VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(applicationContext)
+            VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
         } catch (error: Exception) {
             android.util.Log.e(
                 "VyomFactoryQueueRefresh",
@@ -670,6 +672,7 @@ class MainActivity : Activity() {
             text = "SAVE WORKER PROVIDER SETTINGS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
+                VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
                 fun storeWorkerKey(providerId: String, input: EditText) {
                     val editable = input.text
                     if (editable.isNullOrEmpty()) return
@@ -706,7 +709,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
-            text = "ENABLE LIVE MODEL CALLS · 24H"
+            text = "ENABLE LIVE MODEL CALLS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationDialog(
                     this@MainActivity, factoryForegroundGate
@@ -721,6 +724,36 @@ class MainActivity : Activity() {
                 ) { message -> status.text = message }.disable()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "ENABLE AUTONOMOUS FACTORY EXECUTION"
+            setOnClickListener {
+                VyomFactoryAutonomousExecutionAuthorizationController(
+                    this@MainActivity, factoryForegroundGate
+                ) { message -> status.text = message }.enable()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "DISABLE AUTONOMOUS FACTORY EXECUTION"
+            setOnClickListener {
+                VyomFactoryAutonomousExecutionAuthorizationController(
+                    this@MainActivity, factoryForegroundGate
+                ) { message -> status.text = message }.disable()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        val workerProposalStatus = TextView(this).apply {
+            text = "Default: owner review. Autonomous mode requires one-time consent and is limited to safe draft PRs plus exact-SHA CI."
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(Button(this).apply {
+            text = "REVIEW NEXT WORKER PROPOSAL"
+            setOnClickListener {
+                VyomFactoryRepositoryProposalReviewController(
+                    this@MainActivity, io
+                ) { message -> workerProposalStatus.text = message }.reviewNext()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(workerProposalStatus, LinearLayout.LayoutParams(-1, -2))
         sttLanguageInput = EditText(this).apply {
             hint = "STT language code (blank = Auto, e.g. en)"
             setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f

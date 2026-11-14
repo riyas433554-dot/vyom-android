@@ -84,6 +84,22 @@ class VyomFactoryWorkerProposalStoreTest {
         assertFalse(reloaded.markApproved(f.task.number))
     }
 
+    @Test fun autonomousExecutionIsJournaledAndFailedAttemptCannotBeReplayed() {
+        val f = fixture()
+        f.store.save(f.task, "worker-test-101", "lease-test-101", f.candidate)
+
+        assertTrue(f.store.markAutonomousExecuting(f.task.number))
+        assertFalse(f.store.markAutonomousExecuting(f.task.number))
+        assertTrue(f.store.markAutonomousFailed(f.task.number))
+        assertFalse(f.store.markAutonomousExecuting(f.task.number))
+
+        val reloaded = VyomFactoryWorkerProposalStore(f.root)
+        assertEquals("autonomous_failed", reloaded.get(f.task.number)?.status)
+        assertTrue(reloaded.pending().isEmpty())
+        assertTrue(reloaded.isHandled(f.task))
+        assertFalse(reloaded.markSubmitted(f.task.number))
+    }
+
     @Test fun legacyProposalWithoutSourceHashesRemainsVisibleButCannotBeReviewed() {
         val f = fixture()
         f.store.save(f.task, "worker-test-101", "lease-test-101", f.candidate)

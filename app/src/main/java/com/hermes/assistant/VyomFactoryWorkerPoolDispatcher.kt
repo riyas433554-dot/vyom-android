@@ -21,7 +21,8 @@ internal class VyomFactoryWorkerPoolDispatcher(
     private val isStopped: () -> Boolean,
     private val isAuthorized: () -> Boolean = { true },
     private val shouldDispatch: (VyomFactoryGitHubClient.Task) -> Boolean = { true },
-    private val heartbeatIntervalMillis: Long = DEFAULT_HEARTBEAT_INTERVAL_MS
+    private val heartbeatIntervalMillis: Long = DEFAULT_HEARTBEAT_INTERVAL_MS,
+    private val maxConcurrentSessions: Int = pool.sessions.size
 ) {
     enum class State { PROPOSED, NO_WORK, FAILED, STOPPED, FENCED }
 
@@ -44,6 +45,9 @@ internal class VyomFactoryWorkerPoolDispatcher(
     }
 
     init {
+        require(maxConcurrentSessions in 1..pool.sessions.size) {
+            "Active worker session count must be within the provisioned pool"
+        }
         require(heartbeatIntervalMillis in 1L until pool.leaseDurationMs) {
             "Worker heartbeat must run before the configured lease expires"
         }
@@ -57,17 +61,40 @@ internal class VyomFactoryWorkerPoolDispatcher(
         if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true)
         val snapshot = fetchRemoteTasks()
         if (stopRequested()) return Result(emptyList(), stopped = true)
-        if (snapshot.none { isEligibleTask(it, snapshot) }) return Result(emptyList())
+        val eligibleSnapshot = snapshot.filter { isEligibleTask(it, snapshot) }
+        if (eligibleSnapshot.isEmpty()) return Result(emptyList())
+        // Select a session for the first eligible task's lane so a one-task cycle
+        // cannot stall merely because the pool's first identity belongs to another lane.
+        val preferredLane = eligibleSnapshot.first().metadata.lane
+        val laneSessions = pool.sessions.filter { it.workerIdentity.lane == preferredLane }
+        if (laneSessions.isEmpty()) {
+            return Result(listOf(WorkerOutcome("pool", null, State.FAILED, "NO_SESSION_FOR_ELIGIBLE_LANE")))
+        }
+        // A one-task cycle probes lane sessions serially until it finds a free
+        // identity. This avoids stalling behind a stale lease on the first slot.
+        val selectedSessions = if (maxConcurrentSessions == 1) laneSessions else pool.sessions.take(maxConcurrentSessions)
 
-        val executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
+        var executor: java.util.concurrent.ExecutorService? = null
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
         try {
             // Claim and mark an issue as attempted atomically. A fast failure/release
             // must not let the next session immediately reclaim the same issue.
             val claimLock = Any()
             val attemptedIssueNumbers = mutableSetOf<Int>()
-            val futures = pool.sessions.map { session ->
-                executor.submit<WorkerOutcome> {
+            if (maxConcurrentSessions == 1) {
+                val outcome = selectedSessions.asSequence()
+                    .map { session ->
+                        dispatchForSession(session, attemptedIssueNumbers, claimLock, heartbeats)
+                    }
+                    .firstOrNull { it.state != State.NO_WORK }
+                val outcomes = listOfNotNull(outcome)
+                return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
+            }
+
+            val activeExecutor = Executors.newFixedThreadPool(pool.concurrencyLimit)
+            executor = activeExecutor
+            val futures = selectedSessions.map { session ->
+                activeExecutor.submit<WorkerOutcome> {
                     dispatchForSession(
                         session, attemptedIssueNumbers, claimLock, heartbeats
                     )
@@ -82,7 +109,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
             }
             return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
         } finally {
-            executor.shutdownNow()
+            executor?.shutdownNow()
             heartbeats.shutdownNow()
         }
     }
@@ -138,7 +165,8 @@ internal class VyomFactoryWorkerPoolDispatcher(
         )
         val control = object : VyomFactoryExecutionControl {
             override fun shouldStop(): Boolean =
-                stopRequested() || leaseLost.get() || runCatching { session.isCurrent(claim) }.getOrDefault(false).not()
+                stopRequested() || !authorizationValid() || leaseLost.get() ||
+                    runCatching { session.isCurrent(claim) }.getOrDefault(false).not()
         }
         try {
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
