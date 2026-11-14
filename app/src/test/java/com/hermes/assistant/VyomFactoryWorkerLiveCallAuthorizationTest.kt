@@ -27,12 +27,19 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
         }
     }
 
-    @Test fun authorizationExpiresAfterExactlyTwentyFourHours() {
+    @Test fun authorizationDoesNotExpireWhileTheOwnerGrantRemainsEnabled() {
         val record = VyomFactoryWorkerLiveCallAuthorizationPolicy.enable(config, true, true, now)
-        assertEquals(now + VyomFactoryWorkerLiveCallAuthorizationPolicy.TTL_MILLIS, record.expiresAtMillis)
+        assertEquals(Long.MAX_VALUE, record.expiresAtMillis)
         assertTrue(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(record, config, now + 1L))
+        assertTrue(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(
+            record, config, now + 3650L * 24L * 60L * 60L * 1000L
+        ))
+    }
+
+    @Test fun malformedOrAlreadyExpiredAuthorizationIsStillRejected() {
+        val record = VyomFactoryWorkerLiveCallAuthorizationPolicy.enable(config, true, true, now)
         assertFalse(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(
-            record, config, now + VyomFactoryWorkerLiveCallAuthorizationPolicy.TTL_MILLIS
+            record.copy(expiresAtMillis = now), config, now + 1L
         ))
     }
 
