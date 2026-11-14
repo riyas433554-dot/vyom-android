@@ -192,6 +192,6 @@ internal class VyomFactoryWorkerBindingDialog(
     }
 
     private companion object {
-        const val BASE_BRANCH = "feature/real-worker-model"
+        const val BASE_BRANCH = VyomFactoryWorkerBindingPolicy.BASE_BRANCH
     }
 }
