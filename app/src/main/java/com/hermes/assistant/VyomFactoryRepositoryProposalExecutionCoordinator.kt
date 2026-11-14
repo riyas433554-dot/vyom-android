@@ -77,7 +77,8 @@ internal class VyomFactoryRepositoryProposalExecutionCoordinator(
         val binding = registry.get(plan.systemId)
             ?: throw SecurityException("Autonomous repository binding is missing")
         if (binding != candidate.binding || binding.repositoryUrl != config.repositoryUrl ||
-            binding.commitSha != config.baseCommitSha || binding.allowedPaths != config.allowedPaths
+            binding.commitSha != config.baseCommitSha || binding.allowedPaths != config.allowedPaths ||
+            plan.baseBranch != config.baseBranch
         ) {
             throw SecurityException("Autonomous repository binding changed after authorization")
         }
