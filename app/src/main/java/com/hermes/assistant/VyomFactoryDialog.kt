@@ -484,12 +484,16 @@ internal class VyomFactoryDialog(
             val info = infos.firstOrNull()
             val state = info?.state
             val reason = info?.outputData?.getString("reason").orEmpty()
+            val failedCount = info?.outputData?.getInt("failed_count", 0) ?: 0
+            val retryableCount = info?.outputData?.getInt("retryable_failure_count", 0) ?: 0
+            val proposedCount = info?.outputData?.getInt("proposed_count", 0) ?: 0
             claimStatus.text = when (state) {
                 androidx.work.WorkInfo.State.ENQUEUED -> "WORKER QUEUED · waiting for network/constraints"
                 androidx.work.WorkInfo.State.RUNNING -> "WORKER RUNNING · dispatch active; task completion not yet proven"
                 androidx.work.WorkInfo.State.SUCCEEDED -> "DISPATCH FINISHED · inspect RUNS/proposals; this is not task completion"
                 androidx.work.WorkInfo.State.FAILED -> when (reason) {
-                    "OWNER_AUTHORIZATION_REQUIRED" -> "WORKER BLOCKED · enable owner-authorized live calls"
+                    "OWNER_AUTHORIZATION_REQUIRED" -> "WORKER BLOCKED · owner authorization required"
+                    "WORKER_DISPATCH_FAILED" -> "WORKER FAILED · $failedCount failed · $proposedCount proposed · $retryableCount retryable"
                     "GITHUB_TOKEN_MISSING" -> "WORKER BLOCKED · save the GitHub Issues token in Settings"
                     "WORKER_REPOSITORY_NOT_BOUND" -> "WORKER BLOCKED · bind the approved worker repository"
                     "TASK_REGISTRY_ISSUES_PERMISSION_OR_BINDING_MISSING" -> "WORKER BLOCKED · verify task-registry Issues access"
