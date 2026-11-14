@@ -43,6 +43,15 @@ class VyomFactoryWorkerFailureRouterTest {
         assertTrue(report.complaint.contains("Source: Worker.kt:42"))
     }
 
+    @Test fun skillRepositoryFailureAlsoIncludesSanitizedMessageAndTopSourceFrame() {
+        val report = VyomFactoryWorkerFailureRouter.create(
+            "skill_repository", "inspect:owner/repo", "IOException",
+            "socket closed while reading repository", "VyomFactoryDialog.kt:1152"
+        )
+        assertTrue(report.complaint.contains("Message: socket closed while reading repository"))
+        assertTrue(report.complaint.contains("Source: VyomFactoryDialog.kt:1152"))
+    }
+
     @Test fun differentWorkersOrTasksHaveDistinctIdentities() {
         val runner = VyomFactoryWorkerFailureRouter.create("factory_runner", "run-42", "TimeoutException")
         val skill = VyomFactoryWorkerFailureRouter.create("skill_repository", "run-42", "TimeoutException")

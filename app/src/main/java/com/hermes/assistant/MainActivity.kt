@@ -1716,7 +1716,14 @@ class MainActivity : Activity() {
                     error.message, top
                 )
             },
-            onWorkerFailure = ::submitFactoryWorkerFailure,
+            onWorkerFailure = { worker, taskId, error ->
+                val top = error.stackTrace.firstOrNull()?.let {
+                    "${it.fileName ?: it.className.substringAfterLast('.')}:${it.lineNumber}"
+                }
+                submitFactoryWorkerFailure(
+                    worker, taskId, error.javaClass.simpleName, error.message, top
+                )
+            },
             onUpdateApk = ::startFactoryApkUpdate
         ).show()
     }

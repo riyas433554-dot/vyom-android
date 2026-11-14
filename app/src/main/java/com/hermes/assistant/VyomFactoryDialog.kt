@@ -40,7 +40,7 @@ internal class VyomFactoryDialog(
     private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {},
     private val onRunnerFailure: (Throwable) -> Unit = {},
     private val pendingScreenshot: File? = null,
-    private val onWorkerFailure: (String, String, String) -> Unit = { _, _, _ -> },
+    private val onWorkerFailure: (String, String, Throwable) -> Unit = { _, _, _ -> },
     private val onUpdateApk: () -> Unit = {}
 ) {
     private val density = activity.resources.displayMetrics.density
@@ -1125,7 +1125,7 @@ internal class VyomFactoryDialog(
                             busy = false
                             status.text = "Skill discovery failed · ${error.javaClass.simpleName}"
                             if (shouldReportSkillWorkerFailure(error)) {
-                                onWorkerFailure("skill_repository", workerFailureTaskId("search", term), error.javaClass.simpleName)
+                                onWorkerFailure("skill_repository", workerFailureTaskId("search", term), error)
                             }
                         }
                     }
@@ -1166,7 +1166,7 @@ internal class VyomFactoryDialog(
                     busy = false
                     status.text = "Skill inspection rejected · ${error.message?.take(140) ?: error.javaClass.simpleName}"
                     if (shouldReportSkillWorkerFailure(error)) {
-                        onWorkerFailure("skill_repository", workerFailureTaskId("inspect", candidate.fullName), error.javaClass.simpleName)
+                        onWorkerFailure("skill_repository", workerFailureTaskId("inspect", candidate.fullName), error)
                     }
                 }
             }
