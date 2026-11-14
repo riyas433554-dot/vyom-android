@@ -164,7 +164,7 @@ internal object VyomFactoryWorkerDispatchScheduler {
     fun ensurePeriodicScheduled(context: Context) {
         val app = context.applicationContext
         if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
-            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) {
+            VyomFactoryWorkerLiveCallAuthorizationStore(app).read() == null) {
             WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
             return
         }
