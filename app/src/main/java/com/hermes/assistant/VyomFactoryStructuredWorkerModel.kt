@@ -343,11 +343,12 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             } catch (error: IllegalStateException) {
                 if (error.message == "Worker model request timed out") throw error
                 lastFailure = error
-                if (attempt >= limits.maxRetries || error.message?.contains("provider failed") != true) {
+                if (error.message?.contains("provider failed") != true) {
                     record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
                     throw error
                 }
                 record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
+                // Let the bounded repeat finish so the typed retries-exhausted exception is raised below.
             } catch (error: Exception) {
                 record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
                 throw error
