@@ -45,9 +45,11 @@ internal class VyomFactoryRepositoryProposalExecutionCoordinator(
     ): VyomFactoryRepositoryChangeExecutor.Proposal {
         require(issueNumber > 0)
         require(githubToken.trim().length >= 20) { "GitHub repository write token is unavailable" }
-        check(VyomFactoryAutonomousExecutionAuthorizationPolicy.isValid(
+        if (!VyomFactoryAutonomousExecutionAuthorizationPolicy.isValid(
             authorization, config, nowMillis
-        )) { "Persistent autonomous execution authorization is missing or no longer matches the repository binding" }
+        )) {
+            throw SecurityException("Persistent autonomous execution authorization is missing or no longer matches the repository binding")
+        }
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
 
         val stored = proposals.get(issueNumber)
