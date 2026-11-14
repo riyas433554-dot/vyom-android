@@ -179,9 +179,13 @@ internal object VyomFactoryWorkerDispatchScheduler {
         )
     }
 
-    fun enqueue(context: Context) = enqueueContinuation(context)
+    /** Initial/manual enqueue does not create duplicate chains when the app is reopened. */
+    fun enqueue(context: Context) = enqueueWork(context, ExistingWorkPolicy.KEEP)
 
-    fun enqueueContinuation(context: Context) {
+    /** A successful task appends exactly one next cycle after the current worker finishes. */
+    fun enqueueContinuation(context: Context) = enqueueWork(context, ExistingWorkPolicy.APPEND_OR_REPLACE)
+
+    private fun enqueueWork(context: Context, policy: ExistingWorkPolicy) {
         val app = context.applicationContext
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -190,9 +194,11 @@ internal object VyomFactoryWorkerDispatchScheduler {
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
             .build()
+        // This is a local, non-blocking presence check. The worker performs full
+        // network-backed README/config validation off the UI thread before any provider call.
         if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
-            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) return
-        WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+            VyomFactoryWorkerLiveCallAuthorizationStore(app).read() == null) return
+        WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, policy, request)
     }
 
     fun cancel(context: Context) {
