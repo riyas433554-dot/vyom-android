@@ -69,8 +69,7 @@ internal class VyomFactoryWorkerDispatchWorker(
                     VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) &&
                         VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
                 },
-                shouldDispatch = { !proposalStore.isHandled(it) },
-                maxConcurrentSessions = 1
+                shouldDispatch = { !proposalStore.isHandled(it) }
             )
             val dispatched = dispatcher.dispatchAvailable()
 
