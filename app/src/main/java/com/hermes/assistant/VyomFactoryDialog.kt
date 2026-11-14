@@ -1285,7 +1285,14 @@ internal class VyomFactoryDialog(
     }
 
     private fun refresh() {
-        if (busy || token.isBlank() || !::status.isInitialized) return
+        if (busy || token.isBlank() || !::status.isInitialized) {
+            if (liveBoardDialog?.isShowing == true && busy) {
+                liveBoardLoading = false
+                liveBoardError = "Another Factory operation is still running. Refresh again when it finishes"
+                renderLiveBoardContent()
+            }
+            return
+        }
         busy = true
         if (liveBoardDialog?.isShowing == true) {
             liveBoardLoading = true
