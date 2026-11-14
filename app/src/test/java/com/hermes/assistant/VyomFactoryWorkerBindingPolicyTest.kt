@@ -4,8 +4,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VyomFactoryWorkerBindingPolicyTest {
-    @Test fun workerBindingPinsTheActiveFixesBranch() {
-        assertEquals("fix/factory-five-issues", VyomFactoryWorkerBindingPolicy.BASE_BRANCH)
+    @Test fun workerBindingPinsTheFrozenReleaseBranch() {
+        assertEquals("feature/real-worker-model", VyomFactoryWorkerBindingPolicy.BASE_BRANCH)
     }
 
     @Test fun createsOneWorkerBindingPinnedToExactCommitAndSafeKotlinRoots() {
