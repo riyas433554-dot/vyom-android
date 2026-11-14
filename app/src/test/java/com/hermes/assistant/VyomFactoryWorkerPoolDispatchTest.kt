@@ -224,13 +224,20 @@ class VyomFactoryWorkerPoolDispatchTest {
     }
 
     @Test fun oneTaskCycleFallsBackToAnotherSessionWhenFirstLaneWorkerIsAlreadyLeased() {
-        val tasks = listOf(
+        val initialTasks = listOf(
             remote(31, VyomFactoryLaneRouter.Lane.CUSTOM, true),
             remote(32, VyomFactoryLaneRouter.Lane.CUSTOM, true)
         )
-        val pool = createPool(tasks)
+        val pool = createPool(initialTasks)
         val laneSessions = pool.sessions.filter { it.workerIdentity.lane == VyomFactoryLaneRouter.Lane.CUSTOM }
-        val occupied = laneSessions.first().claimNext(tasks)!!
+        val occupied = laneSessions.first().claimNext(initialTasks)!!
+        val tasks = listOf(
+            initialTasks.first().copy(
+                state = "closed",
+                metadata = initialTasks.first().metadata.copy(status = "completed")
+            ),
+            initialTasks.last()
+        )
         val registry = createRegistry()
         val proposed = mutableListOf<Int>()
         val dispatcher = VyomFactoryWorkerPoolDispatcher(
