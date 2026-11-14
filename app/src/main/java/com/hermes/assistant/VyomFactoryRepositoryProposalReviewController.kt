@@ -67,6 +67,8 @@ internal class VyomFactoryRepositoryProposalReviewController(
                                             override fun get(issueNumber: Int) = proposalStore.get(issueNumber)
                                             override fun markApproved(issueNumber: Int) = proposalStore.markApproved(issueNumber)
                                             override fun markSubmitted(issueNumber: Int) = proposalStore.markSubmitted(issueNumber)
+                                            override fun markAutonomousExecuting(issueNumber: Int) = proposalStore.markAutonomousExecuting(issueNumber)
+                                            override fun markAutonomousFailed(issueNumber: Int) = proposalStore.markAutonomousFailed(issueNumber)
                                         },
                                         fetchFreshTask = { issueNumber ->
                                             client.listTasks().firstOrNull { it.number == issueNumber }
