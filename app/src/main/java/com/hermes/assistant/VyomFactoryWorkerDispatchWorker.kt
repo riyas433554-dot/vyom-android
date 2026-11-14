@@ -163,7 +163,8 @@ internal object VyomFactoryWorkerDispatchScheduler {
 
     fun ensurePeriodicScheduled(context: Context) {
         val app = context.applicationContext
-        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) {
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) {
             WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
             return
         }
@@ -189,7 +190,8 @@ internal object VyomFactoryWorkerDispatchScheduler {
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
             .build()
-        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) return
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) return
         WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
     }
 
