@@ -100,8 +100,12 @@ internal class VyomFactoryRepositoryProposalReviewController(
                             }
                         },
                         onRejected = {
-                            if (stored.status == "awaiting_review") proposalStore.markRejected(stored.issueNumber)
-                            postStatus("Repository proposal #${stored.issueNumber} rejected; no repository write was started.")
+                            if (stored.status == "awaiting_review") {
+                                proposalStore.markRejected(stored.issueNumber)
+                                postStatus("Repository proposal #${stored.issueNumber} rejected; no repository write was started.")
+                            } else {
+                                postStatus("Reauthorization cancelled for #${stored.issueNumber}; its previous approval remains recorded and no new write was started.")
+                            }
                         }
                     ).show()
                 }
