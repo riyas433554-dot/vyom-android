@@ -152,7 +152,8 @@ internal class VyomFactoryWorkerPoolDispatcher(
         )
         val control = object : VyomFactoryExecutionControl {
             override fun shouldStop(): Boolean =
-                stopRequested() || leaseLost.get() || runCatching { session.isCurrent(claim) }.getOrDefault(false).not()
+                stopRequested() || !authorizationValid() || leaseLost.get() ||
+                    runCatching { session.isCurrent(claim) }.getOrDefault(false).not()
         }
         try {
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
