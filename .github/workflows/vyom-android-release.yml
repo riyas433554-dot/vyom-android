@@ -20,7 +20,7 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/vyom-v') ||
       (github.event_name == 'workflow_dispatch' &&
-       contains(fromJSON('["refs/heads/feature/real-worker-model","refs/heads/fix/factory-five-issues"]'), github.ref))
+       github.ref == 'refs/heads/feature/real-worker-model')
     environment:
       name: vyom-release-signing
     permissions:
