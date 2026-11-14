@@ -85,6 +85,17 @@ internal class VyomFactoryDialog(
     private lateinit var laneMetricsStatus: TextView
     private var dispatchObserver: androidx.lifecycle.Observer<List<androidx.work.WorkInfo>>? = null
     private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
+    private var liveBoardDialog: Dialog? = null
+    private var liveBoardList: LinearLayout? = null
+    private var liveBoardSummary: TextView? = null
+    private var liveBoardQuery = ""
+    private var liveBoardLoading = false
+    private var liveBoardError: String? = null
+    private var liveBoardFilter = VyomFactoryLiveTaskBoardPolicy.Filter.ALL
+    private var liveBoardTasks: List<VyomFactoryGitHubClient.Task> = emptyList()
+    private var liveBoardProposals: Map<Int, VyomFactoryWorkerProposalStore.StoredProposal> = emptyMap()
+    private val expandedLiveBoardTasks = mutableSetOf<Int>()
+    private val liveBoardFilterButtons = mutableMapOf<VyomFactoryLiveTaskBoardPolicy.Filter, Button>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
     private val workerPool: VyomFactoryWorkerPool by lazy {
@@ -420,6 +431,21 @@ internal class VyomFactoryDialog(
         composer.visibility = android.view.View.GONE
         root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
+        root.addView(Button(activity).apply {
+            text = "OPEN FULL LIVE TASK BOARD"
+            textSize = 11f
+            isAllCaps = false
+            minHeight = dp(46)
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(0xFF12384A.toInt())
+                cornerRadius = dp(12).toFloat()
+                setStroke(dp(1), accent)
+            }
+            contentDescription = "Open the full-screen live repository task board with search and filters"
+            setOnClickListener { showLiveTaskBoard() }
+        }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(4); bottomMargin = dp(6) })
+
         root.addView(TextView(activity).apply {
             text = "TASKS · LIVE FROM REPOSITORY"; textSize = 10f
             letterSpacing = 0.1f; typeface = Typeface.MONOSPACE
@@ -439,6 +465,8 @@ internal class VyomFactoryDialog(
 
         dialog.setContentView(root)
         dialog.setOnDismissListener {
+            liveBoardDialog?.dismiss()
+            liveBoardDialog = null
             main.removeCallbacks(refreshRunnable)
             (activity as? androidx.lifecycle.LifecycleOwner)?.let {
                 dispatchObserver?.let { observer ->
@@ -1257,8 +1285,19 @@ internal class VyomFactoryDialog(
     }
 
     private fun refresh() {
-        if (busy || token.isBlank() || !::status.isInitialized) return
+        if (busy || token.isBlank() || !::status.isInitialized) {
+            if (liveBoardDialog?.isShowing == true && busy) {
+                liveBoardLoading = false
+                liveBoardError = "Another Factory operation is still running. Refresh again when it finishes"
+                renderLiveBoardContent()
+            }
+            return
+        }
         busy = true
+        if (liveBoardDialog?.isShowing == true) {
+            liveBoardLoading = true
+            renderLiveBoardContent()
+        }
         status.text = "Refreshing live tasks from GitHub…"
         worker.execute {
             try {
@@ -1269,6 +1308,11 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     status.text = "GitHub Issues · ${tasks.size} Factory tasks loaded"
                     render(tasks, proposals)
+                    liveBoardTasks = tasks
+                    liveBoardProposals = proposals
+                    liveBoardLoading = false
+                    liveBoardError = null
+                    if (liveBoardDialog?.isShowing == true) renderLiveBoardContent()
                     refreshRetryOverview()
                     busy = false
                 }
@@ -1276,9 +1320,12 @@ internal class VyomFactoryDialog(
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = errorMessage(error)
+                    liveBoardLoading = false
+                    liveBoardError = errorMessage(error)
                     taskList.removeAllViews()
-        progressViews.clear()
+                    progressViews.clear()
                     taskList.addView(message("Could not load the shared registry. No local fake tasks were substituted."))
+                    if (liveBoardDialog?.isShowing == true) renderLiveBoardContent()
                     busy = false
                 }
             }
@@ -1562,6 +1609,398 @@ internal class VyomFactoryDialog(
             }
             card.setOnClickListener { showTaskHistory(task) }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+    }
+
+    private fun showLiveTaskBoard() {
+        if (liveBoardDialog?.isShowing == true) return
+        if (token.isBlank()) {
+            status.text = "Save a GitHub token before opening the live task board."
+            return
+        }
+        liveBoardQuery = ""
+        liveBoardLoading = true
+        liveBoardError = null
+        liveBoardFilter = VyomFactoryLiveTaskBoardPolicy.Filter.ALL
+        expandedLiveBoardTasks.clear()
+        val board = Dialog(activity)
+        liveBoardDialog = board
+        val accent = VyomTheme.accent(
+            activity,
+            activity.getSharedPreferences("vyom_settings", Activity.MODE_PRIVATE)
+                .getString("theme_accent", "cyan") ?: "cyan"
+        )
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(12))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(0xFF101D2D.toInt(), 0xFF080E18.toInt())).apply {
+                setStroke(dp(1), Color.argb(180, Color.red(accent), Color.green(accent), Color.blue(accent)))
+            }
+        }
+        val header = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val heading = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        heading.addView(TextView(activity).apply {
+            text = "LIVE TASK BOARD"
+            textSize = 21f
+            letterSpacing = 0.04f
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+        })
+        heading.addView(TextView(activity).apply {
+            text = "REPOSITORY ISSUES · LIVE DATA"
+            textSize = 10f
+            typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+        })
+        header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(Button(activity).apply {
+            text = "REFRESH"
+            textSize = 10f
+            minHeight = dp(40)
+            setOnClickListener { refresh() }
+        }, LinearLayout.LayoutParams(-2, dp(42)))
+        header.addView(TextView(activity).apply {
+            text = "✕"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            contentDescription = "Close live task board"
+            setOnClickListener { board.dismiss() }
+        }, LinearLayout.LayoutParams(dp(42), dp(42)))
+        root.addView(header)
+
+        liveBoardSummary = TextView(activity).apply {
+            text = "Loading repository task counts…"
+            textSize = 12f
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(0, dp(10), 0, dp(10))
+        }
+        root.addView(liveBoardSummary)
+
+        val search = EditText(activity).apply {
+            hint = "Search issue number, title, details, lane or priority"
+            setSingleLine(true)
+            textSize = 14f
+            setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+            setHintTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = GradientDrawable().apply {
+                setColor(0xFF172638.toInt())
+                cornerRadius = dp(12).toFloat()
+                setStroke(dp(1), 0xFF38536B.toInt())
+            }
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    liveBoardQuery = s?.toString().orEmpty()
+                    renderLiveBoardContent()
+                }
+            })
+        }
+        root.addView(search, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(8) })
+
+        val filters = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        listOf(
+            VyomFactoryLiveTaskBoardPolicy.Filter.ALL to "ALL",
+            VyomFactoryLiveTaskBoardPolicy.Filter.ACTIVE to "ACTIVE",
+            VyomFactoryLiveTaskBoardPolicy.Filter.BLOCKED to "BLOCKED",
+            VyomFactoryLiveTaskBoardPolicy.Filter.COMPLETED to "DONE"
+        ).forEach { (filter, label) ->
+            val button = Button(activity).apply {
+                text = label
+                textSize = 9f
+                isAllCaps = false
+                minHeight = dp(42)
+                setPadding(dp(3), 0, dp(3), 0)
+                setOnClickListener {
+                    liveBoardFilter = filter
+                    updateLiveBoardFilterStyles(accent)
+                    renderLiveBoardContent()
+                }
+            }
+            liveBoardFilterButtons[filter] = button
+            filters.addView(button, LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                if (filter != VyomFactoryLiveTaskBoardPolicy.Filter.ALL) leftMargin = dp(5)
+            })
+        }
+        root.addView(filters, LinearLayout.LayoutParams(-1, dp(44)).apply { bottomMargin = dp(8) })
+
+        val scroll = ScrollView(activity).apply {
+            isFillViewport = true
+            clipToPadding = false
+            isNestedScrollingEnabled = true
+        }
+        liveBoardList = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(2), 0, dp(12))
+        }
+        scroll.addView(liveBoardList, android.widget.FrameLayout.LayoutParams(-1, -2))
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(TextView(activity).apply {
+            text = "SOURCE: GITHUB ISSUES  ·  REFRESHES WITH FACTORY EVERY 15 SECONDS"
+            textSize = 9f
+            typeface = Typeface.MONOSPACE
+            setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            setPadding(0, dp(8), 0, 0)
+        })
+
+        board.setContentView(root)
+        board.setOnDismissListener {
+            if (liveBoardDialog === board) liveBoardDialog = null
+            liveBoardList = null
+            liveBoardSummary = null
+            liveBoardFilterButtons.clear()
+        }
+        board.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        board.show()
+        board.window?.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT
+        )
+        updateLiveBoardFilterStyles(accent)
+        renderLiveBoardContent()
+        refresh()
+    }
+
+    private fun updateLiveBoardFilterStyles(accent: Int) {
+        liveBoardFilterButtons.forEach { (filter, button) ->
+            val selected = filter == liveBoardFilter
+            button.setTextColor(if (selected) Color.WHITE else VyomDesignSpec.TEXT_SECONDARY)
+            button.background = GradientDrawable().apply {
+                setColor(if (selected) Color.argb(42, Color.red(accent), Color.green(accent), Color.blue(accent))
+                    else 0xFF172638.toInt())
+                cornerRadius = dp(10).toFloat()
+                setStroke(dp(1), if (selected) accent else 0xFF31465B.toInt())
+            }
+            button.contentDescription = "${button.text}${if (selected) ", selected" else ""} filter"
+        }
+    }
+
+    private fun renderLiveBoardContent() {
+        val list = liveBoardList ?: return
+        if (liveBoardDialog?.isShowing != true) return
+        val counts = VyomFactoryLiveTaskBoardPolicy.counts(liveBoardTasks)
+        liveBoardSummary?.text =
+            "${if (liveBoardError != null) "STALE SNAPSHOT  ·  " else ""}${counts.total} TOTAL   ·   ${counts.active} ACTIVE   ·   ${counts.blocked} BLOCKED   ·   ${counts.completed} DONE"
+        list.removeAllViews()
+        if (liveBoardError != null) {
+            list.addView(message("Latest refresh failed: ${liveBoardError}. Showing the last successfully loaded repository snapshot."))
+        }
+        if (liveBoardLoading && liveBoardTasks.isEmpty()) {
+            list.addView(message("Loading live repository tasks…"))
+            return
+        }
+        val visible = VyomFactoryLiveTaskBoardPolicy.filter(
+            VyomFactoryTaskOrdering.sort(liveBoardTasks),
+            liveBoardFilter,
+            liveBoardQuery
+        )
+        if (visible.isEmpty()) {
+            val empty = when {
+                liveBoardTasks.isEmpty() -> "No repository tasks yet. Register a task in Factory to start the queue."
+                liveBoardQuery.isNotBlank() -> "No tasks match “${liveBoardQuery.trim()}”. Clear the search to see the full queue."
+                else -> "No ${liveBoardFilter.name.lowercase()} tasks right now."
+            }
+            list.addView(message(empty))
+            return
+        }
+        val journal = runCatching {
+            VyomFactoryExecutionJournal(activity.applicationContext).all()
+        }.getOrNull()
+        visible.forEach { task ->
+            val state = task.metadata.status.lowercase()
+            val statusColor = when (state) {
+                "completed" -> 0xFF63D69B.toInt()
+                "blocked", "cancelled" -> 0xFFFF8A80.toInt()
+                "in_progress" -> 0xFF67C8FF.toInt()
+                "paused" -> 0xFFFFC36B.toInt()
+                else -> 0xFFB4C6D8.toInt()
+            }
+            val card = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(15), dp(14), dp(15), dp(14))
+                background = GradientDrawable().apply {
+                    setColor(0xFF142235.toInt())
+                    cornerRadius = dp(15).toFloat()
+                    setStroke(dp(1), Color.argb(105, Color.red(statusColor), Color.green(statusColor), Color.blue(statusColor)))
+                }
+            }
+            val top = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            top.addView(TextView(activity).apply {
+                text = "#${task.number}  ·  ${task.metadata.priority}"
+                textSize = 11f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            top.addView(TextView(activity).apply {
+                text = state.replace('_', ' ').uppercase()
+                textSize = 10f
+                typeface = Typeface.MONOSPACE
+                setTextColor(statusColor)
+                setPadding(dp(9), dp(6), dp(9), dp(6))
+                background = GradientDrawable().apply {
+                    setColor(Color.argb(30, Color.red(statusColor), Color.green(statusColor), Color.blue(statusColor)))
+                    cornerRadius = dp(9).toFloat()
+                }
+            })
+            card.addView(top)
+            card.addView(TextView(activity).apply {
+                text = task.title
+                textSize = 18f
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+                setPadding(0, dp(9), 0, dp(7))
+                setTextIsSelectable(true)
+            })
+            val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+            if (description.isNotBlank()) {
+                val expanded = task.number in expandedLiveBoardTasks
+                val descriptionView = TextView(activity).apply {
+                    text = description
+                    textSize = 14f
+                    setTextColor(0xFFD1DCE8.toInt())
+                    setLineSpacing(dp(2).toFloat(), 1.0f)
+                    maxLines = if (expanded) Int.MAX_VALUE else 7
+                    setTextIsSelectable(true)
+                }
+                card.addView(descriptionView)
+                if (description.length > 420 || description.lineSequence().count() > 7) {
+                    card.addView(Button(activity).apply {
+                        text = if (expanded) "SHOW LESS" else "READ FULL DESCRIPTION"
+                        textSize = 10f
+                        isAllCaps = false
+                        minHeight = dp(38)
+                        setOnClickListener {
+                            if (expanded) expandedLiveBoardTasks.remove(task.number)
+                            else expandedLiveBoardTasks.add(task.number)
+                            renderLiveBoardContent()
+                        }
+                    }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(4) })
+                }
+            }
+            card.addView(TextView(activity).apply {
+                text = "${task.metadata.lane.name}  ·  ${task.metadata.source.uppercase()}  ·  UPDATED ${task.updatedAt}"
+                textSize = 10f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                setPadding(0, dp(9), 0, dp(5))
+            })
+            val progress = journal?.let { VyomFactoryVerifiedProgress.calculate(task, it) }
+            val progressLabel = TextView(activity).apply {
+                text = progress?.let(::progressText) ?: "VERIFIED PROGRESS UNAVAILABLE · JOURNAL COULD NOT BE READ"
+                textSize = 10f
+                typeface = Typeface.MONOSPACE
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                setPadding(0, dp(4), 0, dp(6))
+                contentDescription = text.toString()
+            }
+            card.addView(progressLabel)
+            progress?.let { snapshot ->
+                card.addView(android.widget.ProgressBar(
+                    activity, null, android.R.attr.progressBarStyleHorizontal
+                ).apply {
+                    max = 100
+                    this.progress = snapshot.percent
+                    isIndeterminate = false
+                    progressTintList = android.content.res.ColorStateList.valueOf(statusColor)
+                    contentDescription = "Verified progress ${snapshot.percent} percent"
+                }, LinearLayout.LayoutParams(-1, dp(8)).apply { bottomMargin = dp(8) })
+            }
+
+            val actions = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            fun addAction(label: String, next: String) {
+                actions.addView(Button(activity).apply {
+                    text = label
+                    textSize = 9f
+                    isAllCaps = false
+                    minHeight = dp(42)
+                    setOnClickListener {
+                        update(task, next, task.metadata.priority, ownerApprovedStart = next == "in_progress")
+                    }
+                }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(5) })
+            }
+            when (state) {
+                "open" -> { addAction("Start", "in_progress"); addAction("Pause", "paused"); addAction("Block", "blocked") }
+                "in_progress" -> {
+                    addAction("Pause", "paused")
+                    addAction("Block", "blocked")
+                    if (VyomFactoryVerificationPolicy.canComplete(description, task.metadata.events)) {
+                        addAction("Complete", "completed")
+                    } else {
+                        actions.addView(Button(activity).apply {
+                            text = "Verify"
+                            textSize = 9f
+                            isAllCaps = false
+                            minHeight = dp(42)
+                            setOnClickListener { showVerificationDialog(task) }
+                        }, LinearLayout.LayoutParams(0, dp(44), 1f))
+                    }
+                }
+                "paused" -> { addAction("Resume", "in_progress"); addAction("Cancel", "cancelled") }
+                "blocked" -> { addAction("Reopen", "open"); addAction("Cancel", "cancelled") }
+            }
+            if (actions.childCount > 0) {
+                card.addView(actions, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(7) })
+            }
+            val secondary = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            secondary.addView(Button(activity).apply {
+                text = "DETAILS & HISTORY"
+                textSize = 9f
+                isAllCaps = false
+                minHeight = dp(40)
+                setOnClickListener { showTaskHistory(task) }
+            }, LinearLayout.LayoutParams(0, dp(42), 1f))
+            secondary.addView(Button(activity).apply {
+                text = "PRIORITY"
+                textSize = 9f
+                isAllCaps = false
+                minHeight = dp(40)
+                setOnClickListener { choosePriority(task) }
+            }, LinearLayout.LayoutParams(0, dp(42), 0.65f).apply { leftMargin = dp(6) })
+            card.addView(secondary, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(5) })
+
+            val proposal = liveBoardProposals[task.number]?.takeIf {
+                it.status in setOf("awaiting_review", "approved") &&
+                    it.sourceId == task.metadata.sourceId && it.updatedAt == task.updatedAt
+            }
+            if (proposal != null) {
+                card.addView(Button(activity).apply {
+                    text = if (proposal.status == "approved") "REAUTHORIZE WORKER PROPOSAL" else "REVIEW WORKER PROPOSAL"
+                    textSize = 9f
+                    isAllCaps = false
+                    setOnClickListener { showWorkerProposalPreview(task, proposal) }
+                }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
+            }
+            if (task.state == "open" && state in setOf("open", "in_progress")) {
+                card.addView(Button(activity).apply {
+                    text = "PROPOSE CODE FIX"
+                    textSize = 9f
+                    isAllCaps = false
+                    setOnClickListener {
+                        liveBoardDialog?.dismiss()
+                        dialog.dismiss()
+                        onProposeFix(task)
+                    }
+                }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
+            }
+            list.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
         }
     }
 
