@@ -72,7 +72,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         }
         // A one-task cycle probes lane sessions serially until it finds a free
         // identity. This avoids stalling behind a stale lease on the first slot.
-        val selectedSessions = if (maxConcurrentSessions == 1) laneSessions else laneSessions.take(maxConcurrentSessions)
+        val selectedSessions = if (maxConcurrentSessions == 1) laneSessions else pool.sessions.take(maxConcurrentSessions)
 
         var executor: java.util.concurrent.ExecutorService? = null
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
@@ -91,9 +91,10 @@ internal class VyomFactoryWorkerPoolDispatcher(
                 return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
             }
 
-            executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
+            val activeExecutor = Executors.newFixedThreadPool(pool.concurrencyLimit)
+            executor = activeExecutor
             val futures = selectedSessions.map { session ->
-                executor.submit<WorkerOutcome> {
+                activeExecutor.submit<WorkerOutcome> {
                     dispatchForSession(
                         session, attemptedIssueNumbers, claimLock, heartbeats
                     )
