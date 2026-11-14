@@ -71,7 +71,9 @@ internal class VyomFactoryRepositoryProposalReviewController(
                                         fetchFreshTask = { issueNumber ->
                                             client.listTasks().firstOrNull { it.number == issueNumber }
                                         },
-                                        verifyApproval = approvalStore::verifyAndConsume,
+                                        verifyApproval = { plan, reviewedBinding, token ->
+                                            approvalStore.verifyAndConsume(plan, reviewedBinding, token)
+                                        },
                                         executePlan = { plan, token, control ->
                                             VyomFactoryRepositoryChangeExecutor(registry)
                                                 .execute(plan, token, control)
