@@ -706,7 +706,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
-            text = "ENABLE LIVE MODEL CALLS · 24H"
+            text = "ENABLE LIVE MODEL CALLS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationDialog(
                     this@MainActivity, factoryForegroundGate
