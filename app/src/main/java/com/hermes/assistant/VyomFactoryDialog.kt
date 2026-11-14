@@ -89,6 +89,8 @@ internal class VyomFactoryDialog(
     private var liveBoardList: LinearLayout? = null
     private var liveBoardSummary: TextView? = null
     private var liveBoardQuery = ""
+    private var liveBoardLoading = false
+    private var liveBoardError: String? = null
     private var liveBoardFilter = VyomFactoryLiveTaskBoardPolicy.Filter.ALL
     private var liveBoardTasks: List<VyomFactoryGitHubClient.Task> = emptyList()
     private var liveBoardProposals: Map<Int, VyomFactoryWorkerProposalStore.StoredProposal> = emptyMap()
@@ -1285,6 +1287,10 @@ internal class VyomFactoryDialog(
     private fun refresh() {
         if (busy || token.isBlank() || !::status.isInitialized) return
         busy = true
+        if (liveBoardDialog?.isShowing == true) {
+            liveBoardLoading = true
+            renderLiveBoardContent()
+        }
         status.text = "Refreshing live tasks from GitHub…"
         worker.execute {
             try {
@@ -1297,6 +1303,8 @@ internal class VyomFactoryDialog(
                     render(tasks, proposals)
                     liveBoardTasks = tasks
                     liveBoardProposals = proposals
+                    liveBoardLoading = false
+                    liveBoardError = null
                     if (liveBoardDialog?.isShowing == true) renderLiveBoardContent()
                     refreshRetryOverview()
                     busy = false
@@ -1305,9 +1313,12 @@ internal class VyomFactoryDialog(
                 main.post {
                     if (!dialog.isShowing) return@post
                     status.text = errorMessage(error)
+                    liveBoardLoading = false
+                    liveBoardError = errorMessage(error)
                     taskList.removeAllViews()
-        progressViews.clear()
+                    progressViews.clear()
                     taskList.addView(message("Could not load the shared registry. No local fake tasks were substituted."))
+                    if (liveBoardDialog?.isShowing == true) renderLiveBoardContent()
                     busy = false
                 }
             }
@@ -1595,11 +1606,14 @@ internal class VyomFactoryDialog(
     }
 
     private fun showLiveTaskBoard() {
+        if (liveBoardDialog?.isShowing == true) return
         if (token.isBlank()) {
             status.text = "Save a GitHub token before opening the live task board."
             return
         }
         liveBoardQuery = ""
+        liveBoardLoading = true
+        liveBoardError = null
         liveBoardFilter = VyomFactoryLiveTaskBoardPolicy.Filter.ALL
         expandedLiveBoardTasks.clear()
         val board = Dialog(activity)
@@ -1759,7 +1773,7 @@ internal class VyomFactoryDialog(
                 cornerRadius = dp(10).toFloat()
                 setStroke(dp(1), if (selected) accent else 0xFF31465B.toInt())
             }
-            button.contentDescription = "\${button.text}\${if (selected) ", selected" else ""} filter"
+            button.contentDescription = "${button.text}${if (selected) ", selected" else ""} filter"
         }
     }
 
@@ -1768,8 +1782,15 @@ internal class VyomFactoryDialog(
         if (liveBoardDialog?.isShowing != true) return
         val counts = VyomFactoryLiveTaskBoardPolicy.counts(liveBoardTasks)
         liveBoardSummary?.text =
-            "\${counts.total} TOTAL   ·   \${counts.active} ACTIVE   ·   \${counts.blocked} BLOCKED   ·   \${counts.completed} DONE"
+            "${if (liveBoardError != null) "STALE SNAPSHOT  ·  " else ""}${counts.total} TOTAL   ·   ${counts.active} ACTIVE   ·   ${counts.blocked} BLOCKED   ·   ${counts.completed} DONE"
         list.removeAllViews()
+        if (liveBoardError != null) {
+            list.addView(message("Latest refresh failed: ${liveBoardError}. Showing the last successfully loaded repository snapshot."))
+        }
+        if (liveBoardLoading && liveBoardTasks.isEmpty()) {
+            list.addView(message("Loading live repository tasks…"))
+            return
+        }
         val visible = VyomFactoryLiveTaskBoardPolicy.filter(
             VyomFactoryTaskOrdering.sort(liveBoardTasks),
             liveBoardFilter,
@@ -1778,8 +1799,8 @@ internal class VyomFactoryDialog(
         if (visible.isEmpty()) {
             val empty = when {
                 liveBoardTasks.isEmpty() -> "No repository tasks yet. Register a task in Factory to start the queue."
-                liveBoardQuery.isNotBlank() -> "No tasks match “\${liveBoardQuery.trim()}”. Clear the search to see the full queue."
-                else -> "No \${liveBoardFilter.name.lowercase()} tasks right now."
+                liveBoardQuery.isNotBlank() -> "No tasks match “${liveBoardQuery.trim()}”. Clear the search to see the full queue."
+                else -> "No ${liveBoardFilter.name.lowercase()} tasks right now."
             }
             list.addView(message(empty))
             return
@@ -1810,7 +1831,7 @@ internal class VyomFactoryDialog(
                 gravity = Gravity.CENTER_VERTICAL
             }
             top.addView(TextView(activity).apply {
-                text = "#\${task.number}  ·  \${task.metadata.priority}"
+                text = "#${task.number}  ·  ${task.metadata.priority}"
                 textSize = 11f
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
@@ -1862,7 +1883,7 @@ internal class VyomFactoryDialog(
                 }
             }
             card.addView(TextView(activity).apply {
-                text = "\${task.metadata.lane.name}  ·  \${task.metadata.source.uppercase()}  ·  UPDATED \${task.updatedAt}"
+                text = "${task.metadata.lane.name}  ·  ${task.metadata.source.uppercase()}  ·  UPDATED ${task.updatedAt}"
                 textSize = 10f
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
@@ -1886,7 +1907,7 @@ internal class VyomFactoryDialog(
                     this.progress = snapshot.percent
                     isIndeterminate = false
                     progressTintList = android.content.res.ColorStateList.valueOf(statusColor)
-                    contentDescription = "Verified progress \${snapshot.percent} percent"
+                    contentDescription = "Verified progress ${snapshot.percent} percent"
                 }, LinearLayout.LayoutParams(-1, dp(8)).apply { bottomMargin = dp(8) })
             }
 
