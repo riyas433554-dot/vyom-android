@@ -262,6 +262,34 @@ class VyomFactoryWorkerPoolDispatchTest {
         }
     }
 
+    @Test fun dispatchReportsEveryTaskLevelEligibilitySkipWithStableReason() {
+        val tasks = listOf(
+            remote(901, VyomFactoryLaneRouter.Lane.CUSTOM, true).copy(state = "closed"),
+            remote(902, VyomFactoryLaneRouter.Lane.CUSTOM, false),
+            remote(903, VyomFactoryLaneRouter.Lane.CUSTOM, true, title = "Set media volume"),
+            remote(904, VyomFactoryLaneRouter.Lane.CUSTOM, true).copy(body = "Blocked by: #999"),
+            remote(905, VyomFactoryLaneRouter.Lane.CUSTOM, true)
+        )
+        val registry = createRegistry()
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool = createPool(tasks), registry = registry, fetchRemoteTasks = { tasks },
+            modelAdapterFactory = { VyomFactoryRepositoryWorkerModelAdapter { task, _, _ -> candidate(task, registry) } },
+            onProposal = { _, _, _, _ -> }, isStopped = { false },
+            shouldDispatch = { it.number != 905 },
+            dispatchSkipReason = { task -> if (task.number == 905) "ALREADY_HANDLED" else null },
+            heartbeatIntervalMillis = 25L, maxConcurrentSessions = 1
+        )
+        val result = dispatcher.dispatchAvailable()
+        assertEquals(0, result.proposedCount)
+        assertEquals(
+            mapOf(901 to "ISSUE_NOT_OPEN", 902 to "LANE_PLANNING_DISABLED",
+                903 to "CLASSIFIER_REQUIRES_OWNER_REVIEW", 904 to "DEPENDENCIES_NOT_SATISFIED",
+                905 to "ALREADY_HANDLED"),
+            result.skippedTasks.associate { it.issueNumber to it.reason }
+        )
+        assertEquals("ZERO_ELIGIBLE_TASKS", result.reason)
+    }
+
     @Test fun globalStopLatchPersistsAcrossStoreInstances() {
         val prefs = MemoryPrefs()
         val first = VyomFactoryWorkerStopStore(prefs)

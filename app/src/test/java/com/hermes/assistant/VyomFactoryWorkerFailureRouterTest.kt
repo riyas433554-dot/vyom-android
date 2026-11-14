@@ -22,6 +22,27 @@ class VyomFactoryWorkerFailureRouterTest {
         assertFalse(unsafe.complaint.contains("sk_live_secret_value"))
     }
 
+    @Test fun runnerFailureIncludesRedactedMessageAndTopSourceFrame() {
+        val failure = IllegalArgumentException("Invalid worker argument")
+        failure.stackTrace = arrayOf(StackTraceElement("com.hermes.assistant.VyomFactoryDialog", "runNextTask", "VyomFactoryDialog.kt", 768))
+        val report = VyomFactoryWorkerFailureRouter.create(
+            "factory_runner", "run-44", failure.javaClass.simpleName,
+            failure.message, failure.stackTrace.firstOrNull()?.let { "${it.fileName}:${it.lineNumber}" }
+        )
+        assertTrue(report.complaint.contains("Message: Invalid worker argument"))
+        assertTrue(report.complaint.contains("Source: VyomFactoryDialog.kt:768"))
+    }
+
+    @Test fun runnerFailureRedactsCredentialBearingExceptionMessage() {
+        val report = VyomFactoryWorkerFailureRouter.create(
+            "factory_runner", "run-45", "IllegalStateException",
+            "request failed with api key sk-live-secret-value", "Worker.kt:42"
+        )
+        assertTrue(report.complaint.contains("Message: [REDACTED]"))
+        assertFalse(report.complaint.contains("sk-live-secret-value"))
+        assertTrue(report.complaint.contains("Source: Worker.kt:42"))
+    }
+
     @Test fun differentWorkersOrTasksHaveDistinctIdentities() {
         val runner = VyomFactoryWorkerFailureRouter.create("factory_runner", "run-42", "TimeoutException")
         val skill = VyomFactoryWorkerFailureRouter.create("skill_repository", "run-42", "TimeoutException")
