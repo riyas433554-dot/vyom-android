@@ -105,7 +105,8 @@ internal class VyomFactoryWorkerDispatchWorker(
                 val control = object : VyomFactoryExecutionControl {
                     override fun shouldStop(): Boolean =
                         stopStore.isStopped() ||
-                            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
+                            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
+                            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)
                 }
                 try {
                     executionCoordinator.executeAutonomously(
