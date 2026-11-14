@@ -40,7 +40,7 @@ Current source already has the exact base palette in `VyomDesignSpec` and `VyomT
 | 10 | Floating orb | `VyomAccessibilityService` agent overlay is not the same as the designed orb | Dedicated draggable orb, tap/long-press menu, mute and STOP overlay remains unimplemented/unverified. |
 | 11 | Floating status panel | No dedicated persistent task-status overlay identified | Add service-hosted status panel with pending/working/done items and current step; lifecycle and permission required. |
 | 12 | Notification windows | `VoiceForegroundService`, Activity dialogs/notifications | Voice notification exists; task-complete/error/permission notification designs and deep links remain. |
-| 13 | Tasks | `MainActivity.createTask()`, `renderTasks()` | Task list/progress/result cards exist; compare clipping, status pills, queue controls and live updates. |
+| 13 | Tasks | `MainActivity.createTask()`, `renderTasks()`, `VyomFactoryDialog.showLiveTaskBoard()` | Added a dedicated full-screen GitHub task board with search, status filters, readable multi-line issue cards, verified progress, and task history/actions; existing compact task surface remains as fallback. Device screenshot and touch/scroll verification remain required. |
 | 14 | Task detail | `VyomTaskDetailDialog` | Detail dialog exists; convert to full-screen detail with steps, logs, retry/cancel and artifact viewer. |
 | 15 | Animations — VFX | No production Creative Studio screen yet | Build only after the creative pipeline adapters are real; do not show a dead drawer item. |
 | 16 | New automation | No active entry point; non-persistent placeholder button removed | Scheduler-backed editor with trigger/repeat/action/save is pending; restore the entry only after schedules persist and can be inspected. |
