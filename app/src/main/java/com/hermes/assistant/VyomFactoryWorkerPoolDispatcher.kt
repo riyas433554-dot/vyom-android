@@ -21,7 +21,8 @@ internal class VyomFactoryWorkerPoolDispatcher(
     private val isStopped: () -> Boolean,
     private val isAuthorized: () -> Boolean = { true },
     private val shouldDispatch: (VyomFactoryGitHubClient.Task) -> Boolean = { true },
-    private val heartbeatIntervalMillis: Long = DEFAULT_HEARTBEAT_INTERVAL_MS
+    private val heartbeatIntervalMillis: Long = DEFAULT_HEARTBEAT_INTERVAL_MS,
+    private val maxConcurrentSessions: Int = pool.sessions.size
 ) {
     enum class State { PROPOSED, NO_WORK, FAILED, STOPPED, FENCED }
 
@@ -44,6 +45,9 @@ internal class VyomFactoryWorkerPoolDispatcher(
     }
 
     init {
+        require(maxConcurrentSessions in 1..pool.sessions.size) {
+            "Active worker session count must be within the provisioned pool"
+        }
         require(heartbeatIntervalMillis in 1L until pool.leaseDurationMs) {
             "Worker heartbeat must run before the configured lease expires"
         }
@@ -66,7 +70,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
             // must not let the next session immediately reclaim the same issue.
             val claimLock = Any()
             val attemptedIssueNumbers = mutableSetOf<Int>()
-            val futures = pool.sessions.map { session ->
+            val futures = pool.sessions.take(maxConcurrentSessions).map { session ->
                 executor.submit<WorkerOutcome> {
                     dispatchForSession(
                         session, attemptedIssueNumbers, claimLock, heartbeats
