@@ -304,7 +304,8 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
 ) {
     fun disable() {
         VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke()
-        onStatus("Worker live model calls are OFF.")
+        VyomFactoryWorkerDispatchScheduler.cancel(activity)
+        onStatus("Worker live model calls are OFF. Autonomous dispatch is paused.")
     }
 
     fun enable() {
@@ -355,7 +356,11 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                                     nowMillis = System.currentTimeMillis()
                                 )
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).save(authorization)
-                                onStatus("Live worker model calls ENABLED until disabled · no eligible tasks means no model calls · owner review required.")
+                                if (VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(activity)) {
+                                    VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(activity)
+                                    VyomFactoryWorkerDispatchScheduler.enqueue(activity)
+                                }
+                                onStatus("Live worker model calls ENABLED until disabled · no eligible tasks means no provider calls.")
                             } catch (error: Exception) {
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke()
                                 onStatus("Live worker authorization rejected · ${error.message ?: error.javaClass.simpleName}")
