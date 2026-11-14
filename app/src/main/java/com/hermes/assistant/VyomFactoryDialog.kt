@@ -196,7 +196,7 @@ internal class VyomFactoryDialog(
         claimStatus = TextView(activity).apply {
             text = "WORKER IDLE · foreground claim only"
             textSize = 9f; typeface = Typeface.MONOSPACE
-            maxLines = 12
+            maxLines = 100
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
         }
         workerPanel.addView(claimStatus)
@@ -782,7 +782,7 @@ internal class VyomFactoryDialog(
                     }
                 ).outcomes
             } catch (error: Exception) {
-                main.post { onRunnerFailure(error.javaClass.simpleName) }
+                main.post { onRunnerFailure(error) }
                 null
             }
             outcomes.orEmpty().forEach { item ->

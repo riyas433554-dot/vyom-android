@@ -104,10 +104,19 @@ internal class VyomFactoryWorkerPoolDispatcher(
                     .firstOrNull { it.state != State.NO_WORK }
                 val outcomes = listOfNotNull(outcome)
                 val stopped = stopRequested() || outcomes.any { it.state == State.STOPPED }
+                val runtimeSkips = outcomes.mapNotNull { item ->
+                    item.issueNumber?.let { issue ->
+                        when (item.state) {
+                            State.FENCED -> SkippedTask(issue, "CLAIM_OR_TASK_FENCED")
+                            State.STOPPED -> SkippedTask(issue, "GLOBAL_STOP_ACTIVE")
+                            else -> null
+                        }
+                    }
+                }
                 return Result(
                     outcomes,
                     stopped = stopped,
-                    skippedTasks = skippedTasks,
+                    skippedTasks = (skippedTasks + runtimeSkips).distinctBy { it.issueNumber },
                     reason = when {
                         stopped -> "GLOBAL_STOP_ACTIVE"
                         outcomes.isEmpty() -> "NO_FREE_WORKER_SESSION"
@@ -130,10 +139,19 @@ internal class VyomFactoryWorkerPoolDispatcher(
                 }
             }
             val stopped = stopRequested() || outcomes.any { it.state == State.STOPPED }
+            val runtimeSkips = outcomes.mapNotNull { item ->
+                item.issueNumber?.let { issue ->
+                    when (item.state) {
+                        State.FENCED -> SkippedTask(issue, "CLAIM_OR_TASK_FENCED")
+                        State.STOPPED -> SkippedTask(issue, "GLOBAL_STOP_ACTIVE")
+                        else -> null
+                    }
+                }
+            }
             return Result(
                 outcomes,
                 stopped = stopped,
-                skippedTasks = skippedTasks,
+                skippedTasks = (skippedTasks + runtimeSkips).distinctBy { it.issueNumber },
                 reason = when {
                     stopped -> "GLOBAL_STOP_ACTIVE"
                     outcomes.all { it.state == State.NO_WORK } -> "NO_FREE_WORKER_SESSION"

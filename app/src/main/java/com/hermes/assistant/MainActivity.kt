@@ -3674,7 +3674,11 @@ class MainActivity : Activity() {
         submitFactoryComplaint(complaint, report, "task_failure")
     }
 
-    private fun submitFactoryWorkerFailure(worker: String, taskId: String, failureType: String, failureMessage: String? = null, topFrame: String? = null) {
+    private fun submitFactoryWorkerFailure(worker: String, taskId: String, failureType: String) {
+        submitFactoryWorkerFailure(worker, taskId, failureType, null, null)
+    }
+
+    private fun submitFactoryWorkerFailure(worker: String, taskId: String, failureType: String, failureMessage: String?, topFrame: String?) {
         val report = VyomFactoryWorkerFailureRouter.create(worker, taskId, failureType, failureMessage, topFrame)
         val id = "task-failure:factory-worker:" + report.sourceId
         val existing = chatMessages.firstOrNull { it.id == id }
