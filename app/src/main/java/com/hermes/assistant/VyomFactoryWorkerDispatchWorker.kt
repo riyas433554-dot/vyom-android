@@ -65,13 +65,64 @@ internal class VyomFactoryWorkerDispatchWorker(
                     proposalStore.save(task, workerId, leaseId, candidate)
                 },
                 isStopped = stopStore::isStopped,
-                isAuthorized = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) },
-                shouldDispatch = { !proposalStore.isHandled(it) }
+                isAuthorized = {
+                    VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) &&
+                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
+                },
+                shouldDispatch = { !proposalStore.isHandled(it) },
+                maxConcurrentSessions = 1
             )
             val dispatched = dispatcher.dispatchAvailable()
+
+            // A saved proposal is executed serially in this background run. One task per
+            // WorkManager run keeps the bounded exact-SHA CI wait inside the worker budget.
+            val pending = proposalStore.pending().firstOrNull()
+            if (pending != null) {
+                val authorization = VyomFactoryAutonomousExecutionAuthorizationStore(context).read()
+                    ?: return Result.success()
+                val config = VyomFactoryAutonomousExecutionAuthorizationRuntime.currentConfig(context)
+                val executionCoordinator = VyomFactoryRepositoryProposalExecutionCoordinator(
+                    registry = registry,
+                    proposals = object : VyomFactoryRepositoryProposalExecutionCoordinator.ProposalAccess {
+                        override fun get(issueNumber: Int) = proposalStore.get(issueNumber)
+                        override fun markApproved(issueNumber: Int) = proposalStore.markApproved(issueNumber)
+                        override fun markSubmitted(issueNumber: Int) = proposalStore.markSubmitted(issueNumber)
+                        override fun markAutonomousExecuting(issueNumber: Int) = proposalStore.markAutonomousExecuting(issueNumber)
+                        override fun markAutonomousFailed(issueNumber: Int) = proposalStore.markAutonomousFailed(issueNumber)
+                    },
+                    fetchFreshTask = { issueNumber ->
+                        client.listTasks().firstOrNull { it.number == issueNumber }
+                    },
+                    verifyApproval = { _, _, _ ->
+                        throw SecurityException("Per-task approval is not used by the autonomous execution path")
+                    },
+                    executePlan = { plan, writeToken, control ->
+                        VyomFactoryRepositoryChangeExecutor(registry).execute(
+                            plan, writeToken, control, timeoutMillis = 7L * 60L * 1_000L
+                        )
+                    }
+                )
+                val control = object : VyomFactoryExecutionControl {
+                    override fun shouldStop(): Boolean =
+                        stopStore.isStopped() ||
+                            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
+                }
+                try {
+                    executionCoordinator.executeAutonomously(
+                        pending.issueNumber, authorization, config,
+                        System.currentTimeMillis(), token, control
+                    )
+                } catch (error: Exception) {
+                    // Stale or failed proposals are terminal; never replay a possibly partial GitHub write.
+                    proposalStore.markAutonomousFailed(pending.issueNumber)
+                    proposalStore.markRejected(pending.issueNumber)
+                    throw error
+                }
+            }
+
             when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
                 VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> {
-                    if (dispatched.proposedCount > 0 && !stopStore.isStopped() &&
+                    if ((dispatched.proposedCount > 0 || pending != null) && !stopStore.isStopped() &&
                         VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) {
                         VyomFactoryWorkerDispatchScheduler.enqueueContinuation(context)
                     }
