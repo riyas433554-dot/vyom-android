@@ -67,7 +67,7 @@ class SelfModificationPolicyTest {
     }
 
     @Test fun proposalBaseBranchTargetsTheActiveWorkerBranch() {
-        assertTrue(SelfModificationPolicy.PROPOSAL_BASE_BRANCH == "feature/real-worker-model")
+        assertTrue(SelfModificationPolicy.PROPOSAL_BASE_BRANCH == "fix/factory-five-issues")
     }
 
 
