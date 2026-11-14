@@ -3,9 +3,11 @@ package com.hermes.assistant
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
@@ -13,7 +15,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** App-closed, network-constrained planner worker. It never approves or writes repository changes. */
+/** App-closed, network-constrained Factory worker. Autonomous writes remain separately gated. */
 internal class VyomFactoryWorkerDispatchWorker(
     appContext: Context,
     params: WorkerParameters
@@ -23,6 +25,7 @@ internal class VyomFactoryWorkerDispatchWorker(
         return try {
             val stopStore = VyomFactoryWorkerStopStore(context)
             if (stopStore.isStopped()) return Result.success()
+            if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) return Result.success()
             if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.failure(
                 androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
             )
@@ -67,7 +70,13 @@ internal class VyomFactoryWorkerDispatchWorker(
             )
             val dispatched = dispatcher.dispatchAvailable()
             when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
-                VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> Result.success()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> {
+                    if (dispatched.proposedCount > 0 && !stopStore.isStopped() &&
+                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) {
+                        VyomFactoryWorkerDispatchScheduler.enqueueContinuation(context)
+                    }
+                    Result.success()
+                }
                 VyomFactoryWorkerDispatchResultPolicy.Decision.RETRY -> Result.retry()
                 VyomFactoryWorkerDispatchResultPolicy.Decision.FAILURE -> Result.failure(
                     androidx.work.workDataOf(
@@ -99,8 +108,28 @@ internal class VyomFactoryWorkerDispatchWorker(
 /** Unique one-shot dispatch; queue refresh remains a separate read-only operation. */
 internal object VyomFactoryWorkerDispatchScheduler {
     internal const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
+    internal const val PERIODIC_WORK_NAME = "vyom-factory-worker-dispatch-periodic-v1"
 
-    fun enqueue(context: Context) {
+    fun ensurePeriodicScheduled(context: Context) {
+        val app = context.applicationContext
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) {
+            WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
+            return
+        }
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val request = PeriodicWorkRequestBuilder<VyomFactoryWorkerDispatchWorker>(15L, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(app).enqueueUniquePeriodicWork(
+            PERIODIC_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request
+        )
+    }
+
+    fun enqueue(context: Context) = enqueueContinuation(context)
+
+    fun enqueueContinuation(context: Context) {
         val app = context.applicationContext
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -109,6 +138,13 @@ internal object VyomFactoryWorkerDispatchScheduler {
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
             .build()
-        WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.KEEP, request)
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) return
+        WorkManager.getInstance(app).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+    }
+
+    fun cancel(context: Context) {
+        val app = context.applicationContext
+        WorkManager.getInstance(app).cancelUniqueWork(WORK_NAME)
+        WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
     }
 }
