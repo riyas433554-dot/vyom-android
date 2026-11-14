@@ -38,7 +38,7 @@ internal class VyomFactoryDialog(
     private val token: String,
     private val onOpenSettings: () -> Unit,
     private val onProposeFix: (VyomFactoryGitHubClient.Task) -> Unit = {},
-    private val onRunnerFailure: (String) -> Unit = {},
+    private val onRunnerFailure: (Throwable) -> Unit = {},
     private val pendingScreenshot: File? = null,
     private val onWorkerFailure: (String, String, String) -> Unit = { _, _, _ -> },
     private val onUpdateApk: () -> Unit = {}
@@ -196,6 +196,7 @@ internal class VyomFactoryDialog(
         claimStatus = TextView(activity).apply {
             text = "WORKER IDLE · foreground claim only"
             textSize = 9f; typeface = Typeface.MONOSPACE
+            maxLines = 12
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
         }
         workerPanel.addView(claimStatus)
@@ -483,24 +484,40 @@ internal class VyomFactoryDialog(
             if (!::claimStatus.isInitialized || !dialog.isShowing || activeClaim != null) return@Observer
             val info = infos.firstOrNull()
             val state = info?.state
-            val reason = info?.outputData?.getString("reason").orEmpty()
-            val failedCount = info?.outputData?.getInt("failed_count", 0) ?: 0
-            val retryableCount = info?.outputData?.getInt("retryable_failure_count", 0) ?: 0
-            val proposedCount = info?.outputData?.getInt("proposed_count", 0) ?: 0
-            claimStatus.text = when (state) {
+            val data = if (state == androidx.work.WorkInfo.State.RUNNING) info?.progress else info?.outputData
+            val reason = data?.getString("reason").orEmpty()
+            val skipped = data?.getString("skipped_tasks").orEmpty()
+            val proposedCount = data?.getInt("proposed_count", 0) ?: 0
+            val failedCount = data?.getInt("failed_count", 0) ?: 0
+            val retryableCount = data?.getInt("retryable_failure_count", 0) ?: 0
+            val baseStatus = when (state) {
                 androidx.work.WorkInfo.State.ENQUEUED -> "WORKER QUEUED · waiting for network/constraints"
                 androidx.work.WorkInfo.State.RUNNING -> "WORKER RUNNING · dispatch active; task completion not yet proven"
-                androidx.work.WorkInfo.State.SUCCEEDED -> "DISPATCH FINISHED · inspect RUNS/proposals; this is not task completion"
+                androidx.work.WorkInfo.State.SUCCEEDED -> when (reason) {
+                    "GLOBAL_STOP_ACTIVE" -> "DISPATCH BLOCKED · GLOBAL STOP is active"
+                    "AUTONOMOUS_EXECUTION_DISABLED" -> "DISPATCH SKIPPED · AUTONOMOUS MODE OFF"
+                    "AUTONOMOUS_AUTHORIZATION_MISSING" -> "DISPATCH BLOCKED · autonomous owner authorization missing"
+                    "ZERO_ELIGIBLE_TASKS" -> "NO ELIGIBLE TASKS · all scanned issues have skip reasons below"
+                    "PROPOSAL_EXECUTED" -> "AUTONOMOUS PROPOSAL EXECUTED · inspect RUNS for exact-SHA proof"
+                    "PROPOSAL_CREATED" -> "PROPOSAL CREATED · $proposedCount · repository write not yet verified"
+                    "NO_FREE_WORKER_SESSION" -> "NO FREE WORKER SESSION · eligible tasks remain queued"
+                    else -> "DISPATCH COMPLETED · $proposedCount proposed · $failedCount failed"
+                }
                 androidx.work.WorkInfo.State.FAILED -> when (reason) {
-                    "OWNER_AUTHORIZATION_REQUIRED" -> "WORKER BLOCKED · owner authorization required"
+                    "OWNER_AUTHORIZATION_REQUIRED" -> "WORKER BLOCKED · owner live-call authorization required"
                     "WORKER_DISPATCH_FAILED" -> "WORKER FAILED · $failedCount failed · $proposedCount proposed · $retryableCount retryable"
                     "GITHUB_TOKEN_MISSING" -> "WORKER BLOCKED · save the GitHub Issues token in Settings"
                     "WORKER_REPOSITORY_NOT_BOUND" -> "WORKER BLOCKED · bind the approved worker repository"
                     "TASK_REGISTRY_ISSUES_PERMISSION_OR_BINDING_MISSING" -> "WORKER BLOCKED · verify task-registry Issues access"
+                    "GITHUB_API_REJECTED" -> "WORKER FAILED · GitHub rejected the dispatch request"
                     else -> "WORKER FAILED · ${reason.ifBlank { "inspect worker logs" }}"
                 }
-                androidx.work.WorkInfo.State.CANCELLED -> "WORKER CANCELLED"
+                androidx.work.WorkInfo.State.CANCELLED -> "WORKER CANCELLED · queued work was cancelled"
                 else -> "WORKER IDLE · no active background dispatch"
+            }
+            claimStatus.text = buildString {
+                append(baseStatus)
+                if (skipped.isNotBlank()) append("\nSKIPPED TASKS\n").append(skipped)
             }
         }
         dispatchObserver = observer
@@ -624,7 +641,7 @@ internal class VyomFactoryDialog(
                                                     VyomFactoryRepositoryChangeAdapter.ApprovedPlan(plan, approval)
                                                 main.post { runNextTask() }
                                             } catch (error: Exception) {
-                                                main.post { onRunnerFailure(error.javaClass.simpleName) }
+                                                main.post { onRunnerFailure(error) }
                                             }
                                         }
                                     },

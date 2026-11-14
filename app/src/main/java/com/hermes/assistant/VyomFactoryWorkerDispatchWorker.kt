@@ -22,10 +22,20 @@ internal class VyomFactoryWorkerDispatchWorker(
 ) : Worker(appContext, params) {
     override fun doWork(): Result {
         val context = applicationContext
+        fun dispatchData(reason: String, result: VyomFactoryWorkerPoolDispatcher.Result? = null) =
+            androidx.work.workDataOf(
+                "reason" to reason,
+                "skipped_tasks" to result?.skippedTasks.orEmpty().joinToString("\n") {
+                    "#${it.issueNumber} · ${it.reason}"
+                },
+                "proposed_count" to (result?.proposedCount ?: 0),
+                "failed_count" to (result?.failedCount ?: 0),
+                "retryable_failure_count" to (result?.retryableFailureCount ?: 0)
+            )
         return try {
             val stopStore = VyomFactoryWorkerStopStore(context)
-            if (stopStore.isStopped()) return Result.success()
-            if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) return Result.success()
+            if (stopStore.isStopped()) return Result.success(dispatchData("GLOBAL_STOP_ACTIVE"))
+            if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) return Result.success(dispatchData("AUTONOMOUS_EXECUTION_DISABLED"))
             if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.failure(
                 androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
             )
@@ -70,7 +80,14 @@ internal class VyomFactoryWorkerDispatchWorker(
                         VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
                 },
                 shouldDispatch = { proposalStore.pending().isEmpty() && !proposalStore.isHandled(it) },
-                maxConcurrentSessions = 1
+                maxConcurrentSessions = 1,
+                dispatchSkipReason = { task ->
+                    when {
+                        proposalStore.pending().isNotEmpty() -> "PENDING_PROPOSAL_QUEUE"
+                        proposalStore.isHandled(task) -> "ALREADY_HANDLED"
+                        else -> "ALREADY_HANDLED_OR_PENDING"
+                    }
+                }
             )
             val dispatched = dispatcher.dispatchAvailable()
 
@@ -79,7 +96,7 @@ internal class VyomFactoryWorkerDispatchWorker(
             val pending = proposalStore.pending().firstOrNull()
             if (pending != null) {
                 val authorization = VyomFactoryAutonomousExecutionAuthorizationStore(context).read()
-                    ?: return Result.success()
+                    ?: return Result.success(dispatchData("AUTONOMOUS_AUTHORIZATION_MISSING", dispatched))
                 val config = VyomFactoryAutonomousExecutionAuthorizationRuntime.currentConfig(context)
                 val executionCoordinator = VyomFactoryRepositoryProposalExecutionCoordinator(
                     registry = registry,
@@ -127,28 +144,34 @@ internal class VyomFactoryWorkerDispatchWorker(
                         VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) {
                         VyomFactoryWorkerDispatchScheduler.enqueueContinuation(context)
                     }
-                    Result.success()
+                    val reason = when {
+                        stopStore.isStopped() || dispatched.stopped -> "GLOBAL_STOP_ACTIVE"
+                        pending != null -> "PROPOSAL_EXECUTED"
+                        dispatched.reason == "ZERO_ELIGIBLE_TASKS" -> "ZERO_ELIGIBLE_TASKS"
+                        dispatched.proposedCount > 0 -> "PROPOSAL_CREATED"
+                        else -> dispatched.reason
+                    }
+                    Result.success(dispatchData(reason, dispatched))
                 }
-                VyomFactoryWorkerDispatchResultPolicy.Decision.RETRY -> Result.retry()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.RETRY -> {
+                    setProgressAsync(dispatchData("RETRY_PENDING", dispatched))
+                    Result.retry()
+                }
                 VyomFactoryWorkerDispatchResultPolicy.Decision.FAILURE -> Result.failure(
-                    androidx.work.workDataOf(
-                        "reason" to if (dispatched.authorizationRequired) {
-                            "OWNER_AUTHORIZATION_REQUIRED"
-                        } else {
-                            "WORKER_DISPATCH_FAILED"
-                        },
-                        "failed_count" to dispatched.failedCount,
-                        "retryable_failure_count" to dispatched.retryableFailureCount,
-                        "proposed_count" to dispatched.proposedCount
+                    dispatchData(
+                        if (dispatched.authorizationRequired) "OWNER_AUTHORIZATION_REQUIRED"
+                        else "WORKER_DISPATCH_FAILED",
+                        dispatched
                     )
                 )
             }
         } catch (error: VyomFactoryGitHubClient.FactoryApiException) {
-            if (error.code == 429 || error.code >= 500) Result.retry() else Result.failure()
+            if (error.code == 429 || error.code >= 500) { setProgressAsync(dispatchData("GITHUB_RETRY_PENDING")); Result.retry() } else Result.failure(dispatchData("GITHUB_API_REJECTED"))
         } catch (_: IOException) {
+            setProgressAsync(dispatchData("NETWORK_RETRY_PENDING"))
             Result.retry()
         } catch (_: Exception) {
-            Result.failure()
+            Result.failure(dispatchData("WORKER_UNEXPECTED_FAILURE"))
         }
     }
 

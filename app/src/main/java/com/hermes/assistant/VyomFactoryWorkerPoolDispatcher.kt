@@ -22,7 +22,8 @@ internal class VyomFactoryWorkerPoolDispatcher(
     private val isAuthorized: () -> Boolean = { true },
     private val shouldDispatch: (VyomFactoryGitHubClient.Task) -> Boolean = { true },
     private val heartbeatIntervalMillis: Long = DEFAULT_HEARTBEAT_INTERVAL_MS,
-    private val maxConcurrentSessions: Int = pool.sessions.size
+    private val maxConcurrentSessions: Int = pool.sessions.size,
+    private val dispatchSkipReason: (VyomFactoryGitHubClient.Task) -> String? = { null }
 ) {
     enum class State { PROPOSED, NO_WORK, FAILED, STOPPED, FENCED }
 
@@ -34,10 +35,14 @@ internal class VyomFactoryWorkerPoolDispatcher(
         val retryable: Boolean = false
     )
 
+    data class SkippedTask(val issueNumber: Int, val reason: String)
+
     data class Result(
         val outcomes: List<WorkerOutcome>,
         val authorizationRequired: Boolean = false,
-        val stopped: Boolean = false
+        val stopped: Boolean = false,
+        val skippedTasks: List<SkippedTask> = emptyList(),
+        val reason: String = "DISPATCH_COMPLETED"
     ) {
         val proposedCount: Int get() = outcomes.count { it.state == State.PROPOSED }
         val failedCount: Int get() = outcomes.count { it.state == State.FAILED }
@@ -57,18 +62,32 @@ internal class VyomFactoryWorkerPoolDispatcher(
     private fun authorizationValid(): Boolean = runCatching(isAuthorized).getOrDefault(false)
 
     fun dispatchAvailable(): Result {
-        if (stopRequested()) return Result(emptyList(), stopped = true)
-        if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true)
+        if (stopRequested()) return Result(emptyList(), stopped = true, reason = "GLOBAL_STOP_ACTIVE")
+        if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true, reason = "AUTONOMOUS_AUTHORIZATION_OFF")
         val snapshot = fetchRemoteTasks()
-        if (stopRequested()) return Result(emptyList(), stopped = true)
-        val eligibleSnapshot = snapshot.filter { isEligibleTask(it, snapshot) }
-        if (eligibleSnapshot.isEmpty()) return Result(emptyList())
+        if (stopRequested()) return Result(emptyList(), stopped = true, reason = "GLOBAL_STOP_ACTIVE")
+        val skippedTasks = snapshot.mapNotNull { task ->
+            ineligibilityReason(task, snapshot)?.let { SkippedTask(task.number, it) }
+        }
+        val eligibleSnapshot = snapshot.filter { ineligibilityReason(it, snapshot) == null }
+        if (eligibleSnapshot.isEmpty()) {
+            return Result(
+                emptyList(),
+                stopped = stopRequested(),
+                skippedTasks = skippedTasks,
+                reason = if (stopRequested()) "GLOBAL_STOP_ACTIVE" else "ZERO_ELIGIBLE_TASKS"
+            )
+        }
         // Select a session for the first eligible task's lane so a one-task cycle
         // cannot stall merely because the pool's first identity belongs to another lane.
         val preferredLane = eligibleSnapshot.first().metadata.lane
         val laneSessions = pool.sessions.filter { it.workerIdentity.lane == preferredLane }
         if (laneSessions.isEmpty()) {
-            return Result(listOf(WorkerOutcome("pool", null, State.FAILED, "NO_SESSION_FOR_ELIGIBLE_LANE")))
+            return Result(
+                listOf(WorkerOutcome("pool", null, State.FAILED, "NO_SESSION_FOR_ELIGIBLE_LANE")),
+                skippedTasks = skippedTasks,
+                reason = "NO_SESSION_FOR_ELIGIBLE_LANE"
+            )
         }
         // A one-task cycle probes lane sessions serially until it finds a free
         // identity. This avoids stalling behind a stale lease on the first slot.
@@ -77,51 +96,81 @@ internal class VyomFactoryWorkerPoolDispatcher(
         var executor: java.util.concurrent.ExecutorService? = null
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
         try {
-            // Claim and mark an issue as attempted atomically. A fast failure/release
-            // must not let the next session immediately reclaim the same issue.
             val claimLock = Any()
             val attemptedIssueNumbers = mutableSetOf<Int>()
             if (maxConcurrentSessions == 1) {
                 val outcome = selectedSessions.asSequence()
-                    .map { session ->
-                        dispatchForSession(session, attemptedIssueNumbers, claimLock, heartbeats)
-                    }
+                    .map { session -> dispatchForSession(session, attemptedIssueNumbers, claimLock, heartbeats) }
                     .firstOrNull { it.state != State.NO_WORK }
                 val outcomes = listOfNotNull(outcome)
-                return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
+                val stopped = stopRequested() || outcomes.any { it.state == State.STOPPED }
+                return Result(
+                    outcomes,
+                    stopped = stopped,
+                    skippedTasks = skippedTasks,
+                    reason = when {
+                        stopped -> "GLOBAL_STOP_ACTIVE"
+                        outcomes.isEmpty() -> "NO_FREE_WORKER_SESSION"
+                        else -> "DISPATCH_COMPLETED"
+                    }
+                )
             }
 
             val activeExecutor = Executors.newFixedThreadPool(pool.concurrencyLimit)
             executor = activeExecutor
             val futures = selectedSessions.map { session ->
                 activeExecutor.submit<WorkerOutcome> {
-                    dispatchForSession(
-                        session, attemptedIssueNumbers, claimLock, heartbeats
-                    )
+                    dispatchForSession(session, attemptedIssueNumbers, claimLock, heartbeats)
                 }
             }
             val outcomes = futures.map { future ->
-                try {
-                    future.get()
-                } catch (error: Exception) {
+                try { future.get() }
+                catch (error: Exception) {
                     WorkerOutcome("pool", null, State.FAILED, error.javaClass.simpleName, isRetryable(error))
                 }
             }
-            return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
+            val stopped = stopRequested() || outcomes.any { it.state == State.STOPPED }
+            return Result(
+                outcomes,
+                stopped = stopped,
+                skippedTasks = skippedTasks,
+                reason = when {
+                    stopped -> "GLOBAL_STOP_ACTIVE"
+                    outcomes.all { it.state == State.NO_WORK } -> "NO_FREE_WORKER_SESSION"
+                    else -> "DISPATCH_COMPLETED"
+                }
+            )
         } finally {
             executor?.shutdownNow()
             heartbeats.shutdownNow()
         }
     }
 
+    private fun ineligibilityReason(
+        task: VyomFactoryGitHubClient.Task,
+        snapshot: List<VyomFactoryGitHubClient.Task>
+    ): String? {
+        if (task.state != "open") return "ISSUE_NOT_OPEN"
+        if (task.metadata.status !in setOf("open", "in_progress")) return "TASK_STATUS_NOT_ACTIVE"
+        if (!task.metadata.lanePlanningAllowed) return "LANE_PLANNING_DISABLED"
+        val classification = VyomFactoryTaskClassifier.classify(task)
+        if (classification !is VyomFactoryTaskClassifier.Result.Classified) {
+            return "CLASSIFIER_REQUIRES_OWNER_REVIEW"
+        }
+        if (classification.domain != VyomFactoryCapabilityRegistry.Domain.REPOSITORY) {
+            return "CLASSIFIER_NOT_REPOSITORY"
+        }
+        if (!VyomFactoryTaskIntelligence.dependenciesSatisfied(task, snapshot)) {
+            return "DEPENDENCIES_NOT_SATISFIED"
+        }
+        if (!shouldDispatch(task)) {
+            return dispatchSkipReason(task) ?: "ALREADY_HANDLED_OR_PENDING"
+        }
+        return null
+    }
+
     private fun isEligibleTask(task: VyomFactoryGitHubClient.Task, snapshot: List<VyomFactoryGitHubClient.Task>): Boolean =
-        task.state == "open" &&
-            task.metadata.status in setOf("open", "in_progress") &&
-            task.metadata.lanePlanningAllowed &&
-            (VyomFactoryTaskClassifier.classify(task) as? VyomFactoryTaskClassifier.Result.Classified)
-                ?.domain == VyomFactoryCapabilityRegistry.Domain.REPOSITORY &&
-            VyomFactoryTaskIntelligence.dependenciesSatisfied(task, snapshot) &&
-            shouldDispatch(task)
+        ineligibilityReason(task, snapshot) == null
 
     private fun dispatchForSession(
         session: VyomFactoryWorkerSession,

@@ -1707,8 +1707,14 @@ class MainActivity : Activity() {
             onOpenSettings = { showTab(false, true) },
             onProposeFix = ::openFactoryCodeProposal,
             pendingScreenshot = storedScreenshot,
-            onRunnerFailure = { failureType ->
-                submitFactoryWorkerFailure("factory_runner", UUID.randomUUID().toString(), failureType)
+            onRunnerFailure = { error ->
+                val top = error.stackTrace.firstOrNull()?.let {
+                    "${it.fileName ?: it.className.substringAfterLast('.')}:${it.lineNumber}"
+                }
+                submitFactoryWorkerFailure(
+                    "factory_runner", UUID.randomUUID().toString(), error.javaClass.simpleName,
+                    error.message, top
+                )
             },
             onWorkerFailure = ::submitFactoryWorkerFailure,
             onUpdateApk = ::startFactoryApkUpdate
@@ -3668,8 +3674,8 @@ class MainActivity : Activity() {
         submitFactoryComplaint(complaint, report, "task_failure")
     }
 
-    private fun submitFactoryWorkerFailure(worker: String, taskId: String, failureType: String) {
-        val report = VyomFactoryWorkerFailureRouter.create(worker, taskId, failureType)
+    private fun submitFactoryWorkerFailure(worker: String, taskId: String, failureType: String, failureMessage: String? = null, topFrame: String? = null) {
+        val report = VyomFactoryWorkerFailureRouter.create(worker, taskId, failureType, failureMessage, topFrame)
         val id = "task-failure:factory-worker:" + report.sourceId
         val existing = chatMessages.firstOrNull { it.id == id }
         if (existing != null) {
