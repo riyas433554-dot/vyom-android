@@ -23,17 +23,25 @@ internal class VyomFactoryWorkerDispatchWorker(
         return try {
             val stopStore = VyomFactoryWorkerStopStore(context)
             if (stopStore.isStopped()) return Result.success()
-            if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.success()
+            if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)) return Result.failure(
+                androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
+            )
 
             val token = GitHubReleaseTokenStore.read(context)
-            if (token.isBlank()) return Result.failure()
+            if (token.isBlank()) return Result.failure(
+                androidx.work.workDataOf("reason" to "GITHUB_TOKEN_MISSING")
+            )
             val registry = VyomFactorySystemRegistry(File(context.filesDir, "factory-system-registry"))
             if (!registry.allowsPath(
                     VyomFactoryGitHubClient.SYSTEM_ID,
                     VyomFactoryGitHubClient.ISSUES_PATH
                 )
-            ) return Result.failure()
-            if (registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID) == null) return Result.success()
+            ) return Result.failure(
+                androidx.work.workDataOf("reason" to "TASK_REGISTRY_ISSUES_PERMISSION_OR_BINDING_MISSING")
+            )
+            if (registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID) == null) return Result.failure(
+                androidx.work.workDataOf("reason" to "WORKER_REPOSITORY_NOT_BOUND")
+            )
 
             val client = VyomFactoryGitHubClient(token, registry)
             val taskStore = VyomFactoryTaskStore(context)
@@ -58,10 +66,21 @@ internal class VyomFactoryWorkerDispatchWorker(
                 shouldDispatch = { !proposalStore.isHandled(it) }
             )
             val dispatched = dispatcher.dispatchAvailable()
-            when {
-                dispatched.stopped || dispatched.authorizationRequired -> Result.success()
-                dispatched.retryableFailureCount > 0 -> Result.retry()
-                else -> Result.success()
+            when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
+                VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> Result.success()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.RETRY -> Result.retry()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.FAILURE -> Result.failure(
+                    androidx.work.workDataOf(
+                        "reason" to if (dispatched.authorizationRequired) {
+                            "OWNER_AUTHORIZATION_REQUIRED"
+                        } else {
+                            "WORKER_DISPATCH_FAILED"
+                        },
+                        "failed_count" to dispatched.failedCount,
+                        "retryable_failure_count" to dispatched.retryableFailureCount,
+                        "proposed_count" to dispatched.proposedCount
+                    )
+                )
             }
         } catch (error: VyomFactoryGitHubClient.FactoryApiException) {
             if (error.code == 429 || error.code >= 500) Result.retry() else Result.failure()
@@ -79,7 +98,7 @@ internal class VyomFactoryWorkerDispatchWorker(
 
 /** Unique one-shot dispatch; queue refresh remains a separate read-only operation. */
 internal object VyomFactoryWorkerDispatchScheduler {
-    private const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
+    internal const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
 
     fun enqueue(context: Context) {
         val app = context.applicationContext

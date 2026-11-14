@@ -12,11 +12,15 @@ class VyomFactoryVerifiedProgressTest {
             "pr=https://github.com/riyas433554-dot/vyom-android/pull/9; " +
             "ci=Both required workflows succeeded for exact commit $commit"
 
+    @Test fun taskStateLabelNormalizesCanonicalStatusCase() {
+        assertEquals("STARTED · IMPLEMENTATION NOT VERIFIED", VyomFactoryVerifiedProgress.taskStateLabel("IN_PROGRESS", false))
+    }
+
     @Test fun noJournalCommitMeansZeroNotStarted() {
         val progress = calculate(task(), emptyList())
         assertEquals(0, progress.percent)
         assertEquals(VyomFactoryVerifiedProgress.Stage.NOT_STARTED, progress.stage)
-        assertEquals("NOT_STARTED", progress.label)
+        assertEquals("STARTED · IMPLEMENTATION NOT VERIFIED", progress.label)
     }
 
     @Test fun commitShaInLatestSuccessfulJournalMeansImplementationDoneAtTwentyFive() {

@@ -4,6 +4,10 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VyomFactoryWorkerBindingPolicyTest {
+    @Test fun workerBindingPinsTheFrozenReleaseBranch() {
+        assertEquals("feature/real-worker-model", VyomFactoryWorkerBindingPolicy.BASE_BRANCH)
+    }
+
     @Test fun createsOneWorkerBindingPinnedToExactCommitAndSafeKotlinRoots() {
         val binding = VyomFactoryWorkerBindingPolicy.createBinding(
             "https://github.com/riyas433554-dot/vyom-android", "a".repeat(40), 1_000L

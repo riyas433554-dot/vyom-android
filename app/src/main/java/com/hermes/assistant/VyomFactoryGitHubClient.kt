@@ -28,7 +28,11 @@ internal class VyomFactoryGitHubClient(
         val createdAt: String = updatedAt
     )
 
-    class FactoryApiException(val code: Int, message: String) : IOException(message)
+    class FactoryApiException(
+        val code: Int,
+        message: String,
+        val acceptedPermissions: String? = null
+    ) : IOException(message)
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     fun listTasks(): List<Task> {
@@ -120,7 +124,13 @@ internal class VyomFactoryGitHubClient(
         val updated = JSONObject(execute("PATCH", "/issues/" + current.number,
             JSONObject().put("title", "[VYOM FACTORY][$newPriority] $cleanTitle")
                 .put("body", body).put("state", if (closed) "closed" else "open")))
-        val task = updated.toTask(metadata)
+        val persistedMetadata = VyomFactoryStatus.readMetadata(updated.optString("body"))
+            ?: throw IllegalStateException("GitHub accepted the update but returned no valid Factory metadata")
+        if (persistedMetadata.status != newStatus ||
+            persistedMetadata.lanePlanningAllowed != planningAllowed ||
+            persistedMetadata.priority != newPriority
+        ) throw IllegalStateException("GitHub response did not persist the requested task state; refresh before retrying")
+        val task = updated.toTask(persistedMetadata)
         // The issue body/metadata PATCH is canonical. A comment failure must not
         // make callers believe the already-persisted state change was rejected.
         runCatching {
@@ -216,8 +226,12 @@ internal class VyomFactoryGitHubClient(
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 val detail = runCatching { JSONObject(body).optString("message") }.getOrDefault("")
-                throw FactoryApiException(response.code, "GitHub " + response.code + ": " +
-                    detail.take(180).ifBlank { "GitHub request failed" })
+                throw FactoryApiException(
+                    response.code,
+                    "GitHub " + response.code + ": " + detail.take(180).ifBlank { "GitHub request failed" },
+                    response.header("X-Accepted-GitHub-Permissions")
+                        ?.takeIf { it.length <= 240 && it.all { char -> !char.isISOControl() } }
+                )
             }
             return body
         }

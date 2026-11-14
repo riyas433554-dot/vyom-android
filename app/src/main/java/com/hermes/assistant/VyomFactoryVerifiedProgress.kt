@@ -31,6 +31,16 @@ internal object VyomFactoryVerifiedProgress {
         val executionInProgress: Boolean
     )
 
+    fun taskStateLabel(status: String, implementationVerified: Boolean): String = when {
+        implementationVerified -> "IMPLEMENTATION VERIFIED"
+        status.trim().lowercase() == "in_progress" -> "STARTED · IMPLEMENTATION NOT VERIFIED"
+        status.trim().lowercase() == "paused" -> "PAUSED · IMPLEMENTATION NOT VERIFIED"
+        status.trim().lowercase() == "blocked" -> "BLOCKED · IMPLEMENTATION NOT VERIFIED"
+        status.trim().lowercase() == "completed" -> "CLOSED · VERIFICATION EVIDENCE REQUIRED"
+        status.trim().lowercase() == "cancelled" -> "CANCELLED"
+        else -> "NOT_STARTED"
+    }
+
     private val criteriaHeader = Regex("(?im)^\\s*Acceptance criteria\\s*:\\s*$")
     private val criteriaItem = Regex("(?m)^\\s*[-*]\\s*\\[([ xX])\\]\\s+(.+?)\\s*$")
     private val commitPattern = Regex("commit=([a-f0-9]{40})")
@@ -106,7 +116,7 @@ internal object VyomFactoryVerifiedProgress {
         }
         val label = when {
             executionInProgress && !implementationVerified -> "IMPLEMENTATION RUNNING"
-            !implementationVerified -> "NOT_STARTED"
+            !implementationVerified -> taskStateLabel(task.metadata.status, false)
             !ciVerified -> "IMPLEMENTATION DONE · CI PENDING"
             !criteriaVerified -> "CI VERIFIED · CRITERIA PENDING"
             probeRequired && !probeVerified -> "PHONE-PENDING"

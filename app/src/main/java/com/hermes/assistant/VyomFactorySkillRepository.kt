@@ -22,7 +22,8 @@ internal class VyomFactorySkillRepositoryClient(
         val commitSha: String,
         val license: String,
         val skillMarkdown: String,
-        val sourceUrl: String
+        val sourceUrl: String,
+        val skillPath: String = "SKILL.md"
     )
 
     fun search(query: String): List<Candidate> {
@@ -55,22 +56,34 @@ internal class VyomFactorySkillRepositoryClient(
         require(branch.isNotBlank() && branch.length <= 200 && !branch.contains("..")) {
             "Repository default branch is invalid"
         }
-        val commit = JSONObject(get("/repos/$repository/commits/${pathSegment(branch)}"))
-            .optString("sha")
+        val commitPayload = JSONObject(get("/repos/$repository/commits/${pathSegment(branch)}"))
+        val commit = commitPayload.optString("sha")
         require(commit.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve an immutable repository commit" }
+        val treeSha = commitPayload.optJSONObject("commit")?.optJSONObject("tree")?.optString("sha").orEmpty()
+        require(treeSha.matches(Regex("^[a-f0-9]{40}$"))) { "Could not resolve the repository tree" }
+        val tree = JSONObject(get("/repos/$repository/git/trees/$treeSha?recursive=1"))
+        require(!tree.optBoolean("truncated")) { "Repository tree is too large to inspect safely; choose a smaller skill repository" }
+        val entries = tree.optJSONArray("tree") ?: org.json.JSONArray()
+        val paths = (0 until entries.length()).mapNotNull { index ->
+            entries.optJSONObject(index)?.takeIf { it.optString("type") == "blob" }
+                ?.optString("path")?.takeIf { it.endsWith("/SKILL.md") || it == "SKILL.md" }
+        }
+        val skillPath = VyomFactorySkillPolicy.selectSkillDocumentPath(paths)
+            ?: throw IllegalStateException("No SKILL.md was found in the repository tree")
         val encodedBranch = URLEncoder.encode(branch, "UTF-8")
-        val file = JSONObject(get("/repos/$repository/contents/SKILL.md?ref=$encodedBranch"))
-        require(file.optString("encoding") == "base64") { "Root SKILL.md is not returned as base64 text" }
+        val encodedPath = skillPath.split("/").joinToString("/") { pathSegment(it) }
+        val file = JSONObject(get("/repos/$repository/contents/$encodedPath?ref=$encodedBranch"))
+        require(file.optString("encoding") == "base64") { "Selected SKILL.md is not returned as base64 text" }
         val raw = file.optString("content").replace("\n", "").trim()
         require(raw.isNotBlank() && raw.length <= VyomFactorySkillPolicy.MAX_BASE64_LENGTH) {
             "SKILL.md is empty or exceeds the safe import size"
         }
         val bytes = Base64.getMimeDecoder().decode(raw)
         val markdown = VyomFactorySkillPolicy.decodeDocument(bytes)
-        return Preview(repository, branch, commit, license, markdown, "https://github.com/$repository/blob/$branch/SKILL.md")
+        return Preview(repository, branch, commit, license, markdown, "https://github.com/$repository/blob/$branch/$skillPath", skillPath)
     }
 
-    private fun pathSegment(value: String): String = URLEncoder.encode(value, "UTF-8")
+    private fun pathSegment(value: String): String = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
     private fun get(path: String): String {
         val connection = (URL(apiBaseUrl.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
@@ -109,6 +122,16 @@ internal object VyomFactorySkillPolicy {
         repositoryPattern.matches(value) && !value.contains("..")
 
     fun isAllowedLicense(spdx: String): Boolean = spdx in approvedLicenses
+
+    fun selectSkillDocumentPath(paths: List<String>): String? =
+        paths.asSequence()
+            .filter { it == "SKILL.md" || it.endsWith("/SKILL.md") }
+            .filter { path -> path.split("/").all { it.isNotBlank() && it != "." && it != ".." } }
+            .sortedWith(compareBy<String> { if (it == "SKILL.md") 0 else 1 }
+                .thenBy { it.count { char -> char == '/' } }
+                .thenBy { it })
+            .firstOrNull()
+
 
     fun decodeDocument(bytes: ByteArray): String {
         require(bytes.isNotEmpty() && bytes.size <= MAX_DOCUMENT_BYTES) { "SKILL.md must be 1–64 KiB" }

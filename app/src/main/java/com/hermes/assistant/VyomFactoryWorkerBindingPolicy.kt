@@ -3,6 +3,7 @@ package com.hermes.assistant
 /** Owner-approved binding for the isolated Factory code worker. */
 internal object VyomFactoryWorkerBindingPolicy {
     const val SYSTEM_ID = "worker"
+    const val BASE_BRANCH = "feature/real-worker-model"
     const val TRUSTED_REPOSITORY_URL = "https://github.com/riyas433554-dot/vyom-android"
     const val MAIN_SOURCE_ROOT = "app/src/main/java/com/hermes/assistant"
     const val TEST_SOURCE_ROOT = "app/src/test/java/com/hermes/assistant"

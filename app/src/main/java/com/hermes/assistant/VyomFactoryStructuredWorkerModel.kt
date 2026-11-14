@@ -12,6 +12,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
+internal class VyomFactoryWorkerProviderRetriesExhaustedException(cause: Throwable?) :
+    java.io.IOException("Worker provider retries exhausted", cause)
+
 /** Provider-neutral request. Task text is data, never merged into system instructions. */
 internal interface VyomFactoryWorkerModelProvider {
     val providerId: String
@@ -340,11 +343,12 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             } catch (error: IllegalStateException) {
                 if (error.message == "Worker model request timed out") throw error
                 lastFailure = error
-                if (attempt >= limits.maxRetries || error.message?.contains("provider failed") != true) {
+                if (error.message?.contains("provider failed") != true) {
                     record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
                     throw error
                 }
                 record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
+                // Let the bounded repeat finish so the typed retries-exhausted exception is raised below.
             } catch (error: Exception) {
                 record(task.number, inputTokens, outputTokens, "FAILED", providerCallStarted = providerCallStarted, callId = callId, outputHash = outputHash)
                 throw error
@@ -353,7 +357,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 executor.shutdownNow()
             }
         }
-        throw IllegalStateException("Worker model retries exhausted (${lastFailure?.javaClass?.simpleName ?: "unknown"})")
+        throw VyomFactoryWorkerProviderRetriesExhaustedException(lastFailure)
     }
 
     private fun parseCandidate(

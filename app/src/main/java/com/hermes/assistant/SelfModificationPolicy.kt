@@ -7,7 +7,7 @@ package com.hermes.assistant
  * Every proposal is opened as a PR against the working branch; this class never merges.
  */
 internal object SelfModificationPolicy {
-    const val PROPOSAL_BASE_BRANCH = "feature/real-worker-model"
+    const val PROPOSAL_BASE_BRANCH = VyomFactoryWorkerBindingPolicy.BASE_BRANCH
     private const val MAX_TITLE_LENGTH = 120
     private const val MAX_CONTENT_LENGTH = 200_000
 

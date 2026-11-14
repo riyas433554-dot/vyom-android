@@ -7,14 +7,17 @@ on:
       - feature/u1-live-orbit-tasks
       - feature/memory-intelligence
       - vyom-proposal-*
+      - vyom-worker-*
       - fix/item7-progress-gates
       - feature/real-worker-model
       - feature/factory-item5-task-intelligence
+      - fix/factory-five-issues
   pull_request:
     branches:
       - fresh-history/android-app-copy
       - feature/memory-intelligence
       - feature/factory-item5-task-intelligence
+      - feature/real-worker-model
   workflow_dispatch:
 
 permissions:

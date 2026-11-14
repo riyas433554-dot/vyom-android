@@ -83,6 +83,7 @@ internal class VyomFactoryDialog(
     private lateinit var retryStatus: TextView
     private lateinit var historyStatus: TextView
     private lateinit var laneMetricsStatus: TextView
+    private var dispatchObserver: androidx.lifecycle.Observer<List<androidx.work.WorkInfo>>? = null
     private val progressViews = mutableMapOf<Int, Pair<TextView, android.widget.ProgressBar>>()
     private var screenshotAttachButton: Button? = null
     private var activeClaim: VyomFactoryWorkerClaimCoordinator.Claim? = null
@@ -297,7 +298,18 @@ internal class VyomFactoryDialog(
                 ).show()
             }
         }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
-        root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        val workerToggle = Button(activity).apply {
+            text = "WORKER CONTROLS · SHOW"
+            textSize = 9f
+            setOnClickListener {
+                val expanded = workerPanel.visibility != android.view.View.VISIBLE
+                workerPanel.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
+                text = if (expanded) "WORKER CONTROLS · HIDE" else "WORKER CONTROLS · SHOW"
+            }
+        }
+        root.addView(workerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        workerPanel.visibility = android.view.View.GONE
+        root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
 
         pendingScreenshot?.takeIf { it.isFile }?.let { screenshot ->
             val evidencePanel = LinearLayout(activity).apply {
@@ -395,7 +407,18 @@ internal class VyomFactoryDialog(
         }
         actions.addView(createButton, LinearLayout.LayoutParams(0, dp(42), 1f).apply { leftMargin = dp(8) })
         composer.addView(actions)
-        root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        val composerToggle = Button(activity).apply {
+            text = "NEW TASK / COMPLAINT · SHOW"
+            textSize = 9f
+            setOnClickListener {
+                val expanded = composer.visibility != android.view.View.VISIBLE
+                composer.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
+                text = if (expanded) "NEW TASK / COMPLAINT · HIDE" else "NEW TASK / COMPLAINT · SHOW"
+            }
+        }
+        root.addView(composerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        composer.visibility = android.view.View.GONE
+        root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
         root.addView(TextView(activity).apply {
             text = "TASKS · LIVE FROM REPOSITORY"; textSize = 10f
@@ -408,7 +431,7 @@ internal class VyomFactoryDialog(
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val footer = TextView(activity).apply {
-            text = "GitHub Issues is shared. RUN NEXT supports only explicitly confirmed media-volume changes while Vyom stays foregrounded."
+            text = "GitHub Issues is shared. Background workers only propose changes; repository writes require your local approval, then RUN NEXT executes the approved draft-PR + exact-SHA CI path while Vyom stays foregrounded."
             textSize = 9f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(2), dp(8), dp(2), 0)
         }
@@ -417,6 +440,13 @@ internal class VyomFactoryDialog(
         dialog.setContentView(root)
         dialog.setOnDismissListener {
             main.removeCallbacks(refreshRunnable)
+            (activity as? androidx.lifecycle.LifecycleOwner)?.let {
+                dispatchObserver?.let { observer ->
+                    androidx.work.WorkManager.getInstance(activity)
+                        .getWorkInfosForUniqueWorkLiveData(VyomFactoryWorkerDispatchScheduler.WORK_NAME)
+                        .removeObserver(observer)
+                }
+            }
             stopRunRequested.set(true)
             cancelPendingConfirmation?.invoke()
             pendingConfirmationDialog?.dismiss()
@@ -428,6 +458,7 @@ internal class VyomFactoryDialog(
             setDimAmount(0.68f)
         }
         dialog.show()
+        observeWorkerDispatch()
         dialog.window?.setLayout(dp(560).coerceAtMost(activity.resources.displayMetrics.widthPixels - dp(24)),
             activity.resources.displayMetrics.heightPixels - dp(48))
         if (token.isBlank()) {
@@ -442,6 +473,38 @@ internal class VyomFactoryDialog(
             refresh()
             main.postDelayed(refreshRunnable, 15_000)
         }
+    }
+
+    private fun observeWorkerDispatch() {
+        val owner = activity as? androidx.lifecycle.LifecycleOwner ?: return
+        val liveData = androidx.work.WorkManager.getInstance(activity)
+            .getWorkInfosForUniqueWorkLiveData(VyomFactoryWorkerDispatchScheduler.WORK_NAME)
+        val observer = androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { infos ->
+            if (!::claimStatus.isInitialized || !dialog.isShowing || activeClaim != null) return@Observer
+            val info = infos.firstOrNull()
+            val state = info?.state
+            val reason = info?.outputData?.getString("reason").orEmpty()
+            val failedCount = info?.outputData?.getInt("failed_count", 0) ?: 0
+            val retryableCount = info?.outputData?.getInt("retryable_failure_count", 0) ?: 0
+            val proposedCount = info?.outputData?.getInt("proposed_count", 0) ?: 0
+            claimStatus.text = when (state) {
+                androidx.work.WorkInfo.State.ENQUEUED -> "WORKER QUEUED · waiting for network/constraints"
+                androidx.work.WorkInfo.State.RUNNING -> "WORKER RUNNING · dispatch active; task completion not yet proven"
+                androidx.work.WorkInfo.State.SUCCEEDED -> "DISPATCH FINISHED · inspect RUNS/proposals; this is not task completion"
+                androidx.work.WorkInfo.State.FAILED -> when (reason) {
+                    "OWNER_AUTHORIZATION_REQUIRED" -> "WORKER BLOCKED · owner authorization required"
+                    "WORKER_DISPATCH_FAILED" -> "WORKER FAILED · $failedCount failed · $proposedCount proposed · $retryableCount retryable"
+                    "GITHUB_TOKEN_MISSING" -> "WORKER BLOCKED · save the GitHub Issues token in Settings"
+                    "WORKER_REPOSITORY_NOT_BOUND" -> "WORKER BLOCKED · bind the approved worker repository"
+                    "TASK_REGISTRY_ISSUES_PERMISSION_OR_BINDING_MISSING" -> "WORKER BLOCKED · verify task-registry Issues access"
+                    else -> "WORKER FAILED · ${reason.ifBlank { "inspect worker logs" }}"
+                }
+                androidx.work.WorkInfo.State.CANCELLED -> "WORKER CANCELLED"
+                else -> "WORKER IDLE · no active background dispatch"
+            }
+        }
+        dispatchObserver = observer
+        liveData.observe(owner, observer)
     }
 
     private fun runNextTask() {
@@ -1012,7 +1075,7 @@ internal class VyomFactoryDialog(
         }
         AlertDialog.Builder(activity)
             .setTitle("Discover public skill repositories")
-            .setMessage("Search GitHub repositories. Only root SKILL.md files with an approved SPDX license can be imported.")
+            .setMessage("Search GitHub repositories. Vyom scans the repository tree for root or nested SKILL.md files; only approved SPDX licenses can be imported.")
             .setView(query)
             .setPositiveButton("SEARCH") { _, _ ->
                 val term = query.text.toString().trim()
@@ -1066,7 +1129,7 @@ internal class VyomFactoryDialog(
                     if (!dialog.isShowing) return@post
                     busy = false
                     val previewText = TextView(activity).apply {
-                        text = "SOURCE: ${preview.sourceUrl}\nCOMMIT: ${preview.commitSha}\nLICENSE: ${preview.license}\nSHA-256: ${VyomFactorySkillPolicy.sha256(preview.skillMarkdown.toByteArray(Charsets.UTF_8))}\n\nSECURITY: This document is untrusted instructions. It will be stored as inert Markdown only; Vyom will not execute scripts or follow it automatically. Review the full content before installing.\n\n${preview.skillMarkdown}"
+                        text = "SOURCE: ${preview.sourceUrl}\nSKILL PATH: ${preview.skillPath}\nCOMMIT: ${preview.commitSha}\nLICENSE: ${preview.license}\nSHA-256: ${VyomFactorySkillPolicy.sha256(preview.skillMarkdown.toByteArray(Charsets.UTF_8))}\n\nSECURITY: This document is untrusted instructions. It will be stored as inert Markdown only; Vyom will not execute scripts or follow it automatically. Review the full content before installing.\n\n${preview.skillMarkdown}"
                         textSize = 11f
                         setTextColor(VyomDesignSpec.TEXT_PRIMARY)
                         setPadding(dp(14), dp(12), dp(14), dp(12))
@@ -1375,10 +1438,29 @@ internal class VyomFactoryDialog(
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(4), 0, dp(4))
             })
             val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-            if (description.isNotBlank()) card.addView(TextView(activity).apply {
-                text = description; textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
-                maxLines = 3; setPadding(0, 0, 0, dp(6))
-            })
+            if (description.isNotBlank()) {
+                val descriptionView = TextView(activity).apply {
+                    text = description
+                    textSize = 11f
+                    setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+                    maxLines = 4
+                    setPadding(0, 0, 0, dp(4))
+                }
+                card.addView(descriptionView)
+                if (description.lineSequence().count() > 4 || description.length > 260) {
+                    card.addView(Button(activity).apply {
+                        text = "SHOW FULL TASK"
+                        textSize = 8f
+                        minHeight = dp(30)
+                        setPadding(dp(6), 0, dp(6), 0)
+                        setOnClickListener {
+                            val expanded = descriptionView.maxLines == 4
+                            descriptionView.maxLines = if (expanded) Int.MAX_VALUE else 4
+                            text = if (expanded) "COLLAPSE TASK" else "SHOW FULL TASK"
+                        }
+                    }, LinearLayout.LayoutParams(-2, dp(30)))
+                }
+            }
 
             val verifiedProgress = executionEntries?.let {
                 VyomFactoryVerifiedProgress.calculate(task, it)
@@ -1807,18 +1889,22 @@ internal class VyomFactoryDialog(
                     nextStatus = nextStatus,
                     ownerApprovedStart = ownerApprovedStart
                 )
-                client.updateTask(
+                val persisted = client.updateTask(
                     task,
                     newPriority = priority,
                     newStatus = nextStatus,
                     newLanePlanningAllowed = planningAllowed
                 )
+                check(persisted.metadata.status == nextStatus &&
+                    persisted.metadata.lanePlanningAllowed == (planningAllowed ?: task.metadata.lanePlanningAllowed)) {
+                    "GitHub did not confirm the requested task state; refresh before retrying"
+                }
                 if (ownerApprovedStart) {
                     VyomFactoryWorkerDispatchScheduler.enqueue(activity.applicationContext)
                 }
                 main.post {
                     if (!dialog.isShowing) return@post
-                    status.text = "Task #${task.number} updated and saved."
+                    status.text = "GitHub confirmed #${task.number} · ${persisted.metadata.status.uppercase()}"
                     busy = false
                     refresh()
                 }
@@ -1841,7 +1927,11 @@ internal class VyomFactoryDialog(
         val api = error as? VyomFactoryGitHubClient.FactoryApiException
         return when (api?.code) {
             401 -> "GitHub token rejected (401). Replace it in Settings."
-            403 -> "GitHub denied access (403). Token needs Issues read/write permission for this repository."
+            403 -> buildString {
+                append("GitHub 403 · this token cannot perform the requested Issues operation. Grant this repository's token Issues: Read and write, then save the token in Settings.")
+                api.acceptedPermissions?.let { append(" GitHub requires: ").append(it).append(".") }
+                append(" No task state was assumed changed.")
+            }
             404 -> "Repository or issue endpoint not found (404). Check repository access."
             422 -> "GitHub rejected the task data (422). Check title, labels and issue permissions."
             else -> error.message?.take(180) ?: "Factory request failed."
