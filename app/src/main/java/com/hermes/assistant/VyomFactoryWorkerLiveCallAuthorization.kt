@@ -131,6 +131,15 @@ internal class VyomFactoryWorkerLiveCallAuthorizationStore(context: Context) {
     @Synchronized
     fun read(): VyomFactoryWorkerLiveCallAuthorization? = runCatching {
         if (!prefs.getBoolean("enabled", false)) return null
+        val storedExpiry = prefs.getLong("expires_at", 0L)
+        if (storedExpiry <= System.currentTimeMillis()) return null
+        // Migrate an existing, still-active 24-hour owner grant to the new
+        // persistent grant. An already-expired grant is never revived.
+        if (storedExpiry != VyomFactoryWorkerLiveCallAuthorizationPolicy.NO_EXPIRY) {
+            check(prefs.edit().putLong("expires_at", VyomFactoryWorkerLiveCallAuthorizationPolicy.NO_EXPIRY).commit()) {
+                "Worker live-call authorization migration could not be stored"
+            }
+        }
         VyomFactoryWorkerLiveCallAuthorization(
             providerId = prefs.getString("provider_id", null) ?: return null,
             modelId = prefs.getString("model_id", null) ?: return null,
@@ -140,7 +149,7 @@ internal class VyomFactoryWorkerLiveCallAuthorizationStore(context: Context) {
             allowedPath = prefs.getString("allowed_path", null) ?: return null,
             configSha256 = prefs.getString("config_sha256", null) ?: return null,
             enabledAtMillis = prefs.getLong("enabled_at", 0L),
-            expiresAtMillis = prefs.getLong("expires_at", 0L)
+            expiresAtMillis = VyomFactoryWorkerLiveCallAuthorizationPolicy.NO_EXPIRY
         )
     }.getOrNull()
 
