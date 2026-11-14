@@ -41,7 +41,6 @@ private fun sha256Hex(bytes: ByteArray): String =
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
 internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
-    const val TTL_MILLIS = 24L * 60L * 60L * 1000L
     private val providers = setOf(
         NvidiaNemotronWorkerModelProvider.PROVIDER_ID,
         GoogleGemmaWorkerModelProvider.PROVIDER_ID
@@ -91,10 +90,11 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
         check(foregroundSession) { "Live model calls can only be enabled in the owner's foreground session" }
         require(nowMillis > 0L)
         val hash = configSha256(config)
-        val expires = if (Long.MAX_VALUE - nowMillis < TTL_MILLIS) Long.MAX_VALUE else nowMillis + TTL_MILLIS
+        // Owner authorization persists until explicitly revoked or its bound config changes.
+        // Long.MAX_VALUE is a sentinel, not a wall-clock expiry.
         return VyomFactoryWorkerLiveCallAuthorization(
             config.providerId, config.modelId, config.repositoryUrl, config.baseCommitSha,
-            config.readmeSha256, config.allowedPaths.joinToString("|"), hash, nowMillis, expires
+            config.readmeSha256, config.allowedPaths.joinToString("|"), hash, nowMillis, Long.MAX_VALUE
         )
     }
 
@@ -104,8 +104,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationPolicy {
         nowMillis: Long
     ): Boolean {
         if (authorization == null || currentConfig == null || nowMillis <= 0L) return false
-        if (authorization.enabledAtMillis <= 0L || authorization.expiresAtMillis <= nowMillis) return false
-        if (authorization.expiresAtMillis - authorization.enabledAtMillis != TTL_MILLIS) return false
+        if (authorization.enabledAtMillis <= 0L || authorization.expiresAtMillis != Long.MAX_VALUE) return false
         val currentHash = runCatching { configSha256(currentConfig) }.getOrNull() ?: return false
         return authorization.providerId == currentConfig.providerId &&
             authorization.modelId == currentConfig.modelId &&
