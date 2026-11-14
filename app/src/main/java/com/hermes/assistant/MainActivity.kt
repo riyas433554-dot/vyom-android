@@ -209,6 +209,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
+            VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(applicationContext)
         } catch (error: Exception) {
             android.util.Log.e(
                 "VyomFactoryQueueRefresh",
@@ -717,6 +718,22 @@ class MainActivity : Activity() {
             text = "DISABLE LIVE MODEL CALLS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationDialog(
+                    this@MainActivity, factoryForegroundGate
+                ) { message -> status.text = message }.disable()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "ENABLE AUTONOMOUS FACTORY EXECUTION"
+            setOnClickListener {
+                VyomFactoryAutonomousExecutionAuthorizationController(
+                    this@MainActivity, factoryForegroundGate
+                ) { message -> status.text = message }.enable()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(Button(this).apply {
+            text = "DISABLE AUTONOMOUS FACTORY EXECUTION"
+            setOnClickListener {
+                VyomFactoryAutonomousExecutionAuthorizationController(
                     this@MainActivity, factoryForegroundGate
                 ) { message -> status.text = message }.disable()
             }
