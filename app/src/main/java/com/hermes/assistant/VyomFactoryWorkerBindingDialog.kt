@@ -33,7 +33,7 @@ internal class VyomFactoryWorkerBindingDialog(
                 ?: setText(VyomFactoryWorkerBindingPolicy.TRUSTED_REPOSITORY_URL)
         }
         val shaInput = EditText(activity).apply {
-            hint = "Exact 40-character lowercase SHA on feature/real-worker-model"
+            hint = "Exact 40-character lowercase SHA on fix/factory-five-issues"
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT
             isEnabled = false
@@ -49,7 +49,7 @@ internal class VyomFactoryWorkerBindingDialog(
             setOnClickListener {
                 isEnabled = false
                 text = "FETCHING GITHUB HEAD…"
-                headStatus.text = "FETCHING feature/real-worker-model FROM GITHUB…"
+                headStatus.text = "FETCHING fix/factory-five-issues FROM GITHUB…"
                 Thread {
                     val result = runCatching {
                         VyomFactoryRepositoryClient().readBranchHead(
