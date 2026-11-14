@@ -61,7 +61,17 @@ internal class VyomFactoryWorkerPoolDispatcher(
         if (!authorizationValid()) return Result(emptyList(), authorizationRequired = true)
         val snapshot = fetchRemoteTasks()
         if (stopRequested()) return Result(emptyList(), stopped = true)
-        if (snapshot.none { isEligibleTask(it, snapshot) }) return Result(emptyList())
+        val eligibleSnapshot = snapshot.filter { isEligibleTask(it, snapshot) }
+        if (eligibleSnapshot.isEmpty()) return Result(emptyList())
+        // Select a session for the first eligible task's lane so a one-task cycle
+        // cannot stall merely because the pool's first identity belongs to another lane.
+        val preferredLane = eligibleSnapshot.first().metadata.lane
+        val selectedSessions = pool.sessions
+            .filter { it.workerIdentity.lane == preferredLane }
+            .take(maxConcurrentSessions)
+        if (selectedSessions.isEmpty()) {
+            return Result(listOf(WorkerOutcome("pool", null, State.FAILED, "NO_SESSION_FOR_ELIGIBLE_LANE")))
+        }
 
         val executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
@@ -70,7 +80,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
             // must not let the next session immediately reclaim the same issue.
             val claimLock = Any()
             val attemptedIssueNumbers = mutableSetOf<Int>()
-            val futures = pool.sessions.take(maxConcurrentSessions).map { session ->
+            val futures = selectedSessions.map { session ->
                 executor.submit<WorkerOutcome> {
                     dispatchForSession(
                         session, attemptedIssueNumbers, claimLock, heartbeats
