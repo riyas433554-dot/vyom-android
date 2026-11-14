@@ -66,13 +66,21 @@ internal class VyomFactoryWorkerDispatchWorker(
                 shouldDispatch = { !proposalStore.isHandled(it) }
             )
             val dispatched = dispatcher.dispatchAvailable()
-            when {
-                dispatched.stopped -> Result.success()
-                dispatched.authorizationRequired -> Result.failure(
-                    androidx.work.workDataOf("reason" to "OWNER_AUTHORIZATION_REQUIRED")
+            when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
+                VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> Result.success()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.RETRY -> Result.retry()
+                VyomFactoryWorkerDispatchResultPolicy.Decision.FAILURE -> Result.failure(
+                    androidx.work.workDataOf(
+                        "reason" to if (dispatched.authorizationRequired) {
+                            "OWNER_AUTHORIZATION_REQUIRED"
+                        } else {
+                            "WORKER_DISPATCH_FAILED"
+                        },
+                        "failed_count" to dispatched.failedCount,
+                        "retryable_failure_count" to dispatched.retryableFailureCount,
+                        "proposed_count" to dispatched.proposedCount
+                    )
                 )
-                dispatched.retryableFailureCount > 0 -> Result.retry()
-                else -> Result.success()
             }
         } catch (error: VyomFactoryGitHubClient.FactoryApiException) {
             if (error.code == 429 || error.code >= 500) Result.retry() else Result.failure()
