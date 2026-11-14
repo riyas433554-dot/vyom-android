@@ -671,6 +671,7 @@ class MainActivity : Activity() {
             text = "SAVE WORKER PROVIDER SETTINGS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
+                VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
                 fun storeWorkerKey(providerId: String, input: EditText) {
                     val editable = input.text
                     if (editable.isNullOrEmpty()) return
