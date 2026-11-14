@@ -157,6 +157,22 @@ internal class VyomFactoryWorkerDispatchWorker(
     }
 }
 
+/** Periodic trigger only enqueues the unique one-time worker; it never overlaps task execution. */
+internal class VyomFactoryWorkerPeriodicTrigger(
+    appContext: Context,
+    params: WorkerParameters
+) : Worker(appContext, params) {
+    override fun doWork(): Result {
+        val context = applicationContext
+        if (VyomFactoryWorkerStopStore(context).isStopped()) return Result.success()
+        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
+            VyomFactoryWorkerLiveCallAuthorizationStore(context).read() == null
+        ) return Result.success()
+        VyomFactoryWorkerDispatchScheduler.enqueue(context)
+        return Result.success()
+    }
+}
+
 /** Unique one-shot dispatch; queue refresh remains a separate read-only operation. */
 internal object VyomFactoryWorkerDispatchScheduler {
     internal const val WORK_NAME = "vyom-factory-worker-dispatch-v1"
@@ -172,7 +188,7 @@ internal object VyomFactoryWorkerDispatchScheduler {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
-        val request = PeriodicWorkRequestBuilder<VyomFactoryWorkerDispatchWorker>(15L, TimeUnit.MINUTES)
+        val request = PeriodicWorkRequestBuilder<VyomFactoryWorkerPeriodicTrigger>(15L, TimeUnit.MINUTES)
             .setConstraints(constraints)
             .build()
         WorkManager.getInstance(app).enqueueUniquePeriodicWork(
