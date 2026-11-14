@@ -126,7 +126,7 @@ class VyomFactoryStructuredWorkerModelTest {
             .digest(sourceContent.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
         assertEquals(mapOf(sourcePath to expectedSourceHash), candidate.sourceFileSha256)
-        assertEquals("feature/real-worker-model", candidate.plan.baseBranch)
+        assertEquals(SelfModificationPolicy.PROPOSAL_BASE_BRANCH, candidate.plan.baseBranch)
         assertFalse(candidate.plan.ownerApproved)
         assertEquals(1, provider.calls)
         assertEquals(repository, provider.lastRequest!!.repository)
