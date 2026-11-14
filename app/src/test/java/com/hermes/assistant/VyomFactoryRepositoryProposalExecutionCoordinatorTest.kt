@@ -126,8 +126,20 @@ class VyomFactoryRepositoryProposalExecutionCoordinatorTest {
         override fun markSubmitted(issueNumber: Int): Boolean {
             val value = get(issueNumber) ?: return false
             if (value.status == "submitted") return true
-            if (value.status != "approved") return false
+            if (value.status !in setOf("approved", "autonomous_executing")) return false
             current = value.copy(status = "submitted")
+            return true
+        }
+        override fun markAutonomousExecuting(issueNumber: Int): Boolean {
+            val value = get(issueNumber) ?: return false
+            if (value.status != "awaiting_review") return false
+            current = value.copy(status = "autonomous_executing")
+            return true
+        }
+        override fun markAutonomousFailed(issueNumber: Int): Boolean {
+            val value = get(issueNumber) ?: return false
+            if (value.status != "autonomous_executing") return false
+            current = value.copy(status = "autonomous_failed")
             return true
         }
     }
