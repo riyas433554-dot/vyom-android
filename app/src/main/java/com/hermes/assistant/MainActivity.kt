@@ -721,6 +721,20 @@ class MainActivity : Activity() {
                 ) { message -> status.text = message }.disable()
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
+        val workerProposalStatus = TextView(this).apply {
+            text = "Repository proposals require explicit owner review before any GitHub write."
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(Button(this).apply {
+            text = "REVIEW NEXT WORKER PROPOSAL"
+            setOnClickListener {
+                VyomFactoryRepositoryProposalReviewController(
+                    this@MainActivity, io
+                ) { message -> workerProposalStatus.text = message }.reviewNext()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(workerProposalStatus, LinearLayout.LayoutParams(-1, -2))
         sttLanguageInput = EditText(this).apply {
             hint = "STT language code (blank = Auto, e.g. en)"
             setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
