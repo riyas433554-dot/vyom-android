@@ -210,6 +210,7 @@ class MainActivity : Activity() {
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
             VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(applicationContext)
+            VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
         } catch (error: Exception) {
             android.util.Log.e(
                 "VyomFactoryQueueRefresh",
