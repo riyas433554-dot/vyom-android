@@ -267,6 +267,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationRuntime {
         val app = context.applicationContext
         val store = VyomFactoryWorkerLiveCallAuthorizationStore(app)
         return try {
+            val authorization = store.read() ?: return false
             val prefs = app.getSharedPreferences(VyomFactoryWorkerModelRuntime.SETTINGS_PREFS, Context.MODE_PRIVATE)
             val providerId = prefs.getString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, null)
                 ?: throw SecurityException("Worker provider is missing")
@@ -286,7 +287,7 @@ internal object VyomFactoryWorkerLiveCallAuthorizationRuntime {
                     .readmeSha256(binding.repositoryUrl, binding.commitSha)
             }
             val current = currentConfig(app, readmeHash)
-            val valid = VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(store.read(), current, nowMillis)
+            val valid = VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(authorization, current, nowMillis)
             if (!valid) store.revoke()
             valid
         } catch (_: Exception) {
