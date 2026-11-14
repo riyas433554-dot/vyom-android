@@ -27,13 +27,13 @@ class VyomFactoryWorkerLiveCallAuthorizationTest {
         }
     }
 
-    @Test fun authorizationExpiresAfterExactlyTwentyFourHours() {
+    @Test fun ownerAuthorizationRemainsValidUntilExplicitlyRevokedOrConfigurationChanges() {
         val record = VyomFactoryWorkerLiveCallAuthorizationPolicy.enable(config, true, true, now)
-        assertEquals(now + VyomFactoryWorkerLiveCallAuthorizationPolicy.TTL_MILLIS, record.expiresAtMillis)
+        assertEquals(Long.MAX_VALUE, record.expiresAtMillis)
         assertTrue(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(record, config, now + 1L))
-        assertFalse(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(
-            record, config, now + VyomFactoryWorkerLiveCallAuthorizationPolicy.TTL_MILLIS
-        ))
+        assertTrue(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(record, config, now + 30L * 24L * 60L * 60L * 1_000L))
+        assertTrue(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(record, config, Long.MAX_VALUE - 1L))
+        assertFalse(VyomFactoryWorkerLiveCallAuthorizationPolicy.isValid(record, config.copy(modelId = "changed-model"), now + 1L))
     }
 
     @Test fun anyProviderModelRepositoryCommitOrReadmeHashChangeInvalidatesAuthorization() {
