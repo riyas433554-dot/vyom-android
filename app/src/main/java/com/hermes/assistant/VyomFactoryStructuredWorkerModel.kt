@@ -12,6 +12,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
+internal class VyomFactoryWorkerProviderRetriesExhaustedException(cause: Throwable?) :
+    java.io.IOException("Worker provider retries exhausted", cause)
+
 /** Provider-neutral request. Task text is data, never merged into system instructions. */
 internal interface VyomFactoryWorkerModelProvider {
     val providerId: String
@@ -353,7 +356,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 executor.shutdownNow()
             }
         }
-        throw IllegalStateException("Worker model retries exhausted (${lastFailure?.javaClass?.simpleName ?: "unknown"})")
+        throw VyomFactoryWorkerProviderRetriesExhaustedException(lastFailure)
     }
 
     private fun parseCandidate(
