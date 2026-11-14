@@ -105,6 +105,33 @@ class VyomFactoryWorkerPoolDispatchTest {
         assertEquals(0, proposals.get())
     }
 
+    @Test fun emptyOrIneligibleQueueDoesNotCreateProviderAdapterOrMakeModelCalls() {
+        val tasks = listOf(
+            remote(901, VyomFactoryLaneRouter.Lane.CUSTOM, false),
+            remote(902, VyomFactoryLaneRouter.Lane.CUSTOM, true, title = "Set media volume")
+        )
+        val registry = createRegistry()
+        val adapterCreations = AtomicInteger()
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool = createPool(tasks),
+            registry = registry,
+            fetchRemoteTasks = { tasks },
+            modelAdapterFactory = {
+                adapterCreations.incrementAndGet()
+                throw AssertionError("Provider adapter must not be created without eligible repository tasks")
+            },
+            onProposal = { _, _, _, _ -> fail("No proposal should be persisted") },
+            isStopped = { false },
+            heartbeatIntervalMillis = 25L
+        )
+
+        val result = dispatcher.dispatchAvailable()
+
+        assertEquals(0, adapterCreations.get())
+        assertEquals(0, result.proposedCount)
+        assertEquals(0, result.failedCount)
+    }
+
     @Test fun dispatchSkipsUnapprovedAndNonRepositoryTasks() {
         val tasks = listOf(
             remote(1, VyomFactoryLaneRouter.Lane.INSTANT, false),
