@@ -14,7 +14,7 @@ internal class VyomFactoryAutonomousExecutionAuthorizationController(
             onStatus("Enable autonomous execution only from the owner's foreground session.")
             return
         }
-        if (!VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(activity)) {
+        if (VyomFactoryWorkerLiveCallAuthorizationStore(activity).read() == null) {
             onStatus("Enable live worker model calls first. Autonomous execution requires both authorizations.")
             return
         }
