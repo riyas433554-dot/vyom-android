@@ -333,15 +333,15 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                         return@runOnUiThread
                     }
                     AlertDialog.Builder(activity)
-                        .setTitle("ENABLE LIVE WORKER MODEL CALLS · 24 HOURS")
+                        .setTitle("ENABLE LIVE WORKER MODEL CALLS")
                         .setMessage(
                             "Provider: ${config.providerId}\nModel: ${config.modelId}\n" +
                                 "Repository: ${config.repositoryUrl}\nCommit: ${config.baseCommitSha}\n" +
                                 "README.md sentinel SHA-256: ${config.readmeSha256}\nAllowed roots: ${config.allowedPaths.joinToString(", ")}\n" +
                                 "Factory runtime, safety/control, build, manifest, workflow and signing files are blocked.\n\n" +
-                                "Calls expire after 24 hours. Any configuration/hash mismatch disables them. Enable only for this exact binding?"
+                                "Calls remain enabled until the owner disables them. Any configuration/hash mismatch disables them. Model calls are made only when eligible tasks exist. Enable only for this exact binding?"
                         )
-                        .setPositiveButton("ENABLE FOR 24 HOURS") { _, _ ->
+                        .setPositiveButton("ENABLE UNTIL DISABLED") { _, _ ->
                             try {
                                 check(gate.isForegroundSession(generation)) {
                                     "Foreground owner confirmation session expired"
@@ -355,7 +355,7 @@ internal class VyomFactoryWorkerLiveCallAuthorizationDialog(
                                     nowMillis = System.currentTimeMillis()
                                 )
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).save(authorization)
-                                onStatus("Live worker model calls ENABLED for 24 hours · safe Kotlin source/test roots · owner review required.")
+                                onStatus("Live worker model calls ENABLED until disabled · no eligible tasks means no model calls · owner review required.")
                             } catch (error: Exception) {
                                 VyomFactoryWorkerLiveCallAuthorizationStore(activity).revoke()
                                 onStatus("Live worker authorization rejected · ${error.message ?: error.javaClass.simpleName}")
