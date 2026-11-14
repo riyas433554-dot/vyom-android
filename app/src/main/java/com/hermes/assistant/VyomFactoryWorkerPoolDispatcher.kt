@@ -66,20 +66,32 @@ internal class VyomFactoryWorkerPoolDispatcher(
         // Select a session for the first eligible task's lane so a one-task cycle
         // cannot stall merely because the pool's first identity belongs to another lane.
         val preferredLane = eligibleSnapshot.first().metadata.lane
-        val selectedSessions = pool.sessions
-            .filter { it.workerIdentity.lane == preferredLane }
-            .take(maxConcurrentSessions)
-        if (selectedSessions.isEmpty()) {
+        val laneSessions = pool.sessions.filter { it.workerIdentity.lane == preferredLane }
+        if (laneSessions.isEmpty()) {
             return Result(listOf(WorkerOutcome("pool", null, State.FAILED, "NO_SESSION_FOR_ELIGIBLE_LANE")))
         }
+        // A one-task cycle probes lane sessions serially until it finds a free
+        // identity. This avoids stalling behind a stale lease on the first slot.
+        val selectedSessions = if (maxConcurrentSessions == 1) laneSessions else laneSessions.take(maxConcurrentSessions)
 
-        val executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
+        var executor: java.util.concurrent.ExecutorService? = null
         val heartbeats = Executors.newScheduledThreadPool(minOf(4, pool.concurrencyLimit).coerceAtLeast(1))
         try {
             // Claim and mark an issue as attempted atomically. A fast failure/release
             // must not let the next session immediately reclaim the same issue.
             val claimLock = Any()
             val attemptedIssueNumbers = mutableSetOf<Int>()
+            if (maxConcurrentSessions == 1) {
+                val outcome = selectedSessions.asSequence()
+                    .map { session ->
+                        dispatchForSession(session, attemptedIssueNumbers, claimLock, heartbeats)
+                    }
+                    .firstOrNull { it.state != State.NO_WORK }
+                val outcomes = listOfNotNull(outcome)
+                return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
+            }
+
+            executor = Executors.newFixedThreadPool(pool.concurrencyLimit)
             val futures = selectedSessions.map { session ->
                 executor.submit<WorkerOutcome> {
                     dispatchForSession(
@@ -96,7 +108,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
             }
             return Result(outcomes, stopped = stopRequested() || outcomes.any { it.state == State.STOPPED })
         } finally {
-            executor.shutdownNow()
+            executor?.shutdownNow()
             heartbeats.shutdownNow()
         }
     }
