@@ -223,6 +223,38 @@ class VyomFactoryWorkerPoolDispatchTest {
         assertEquals(22, fetchCount.get())
     }
 
+    @Test fun oneTaskCycleFallsBackToAnotherSessionWhenFirstLaneWorkerIsAlreadyLeased() {
+        val tasks = listOf(
+            remote(31, VyomFactoryLaneRouter.Lane.CUSTOM, true),
+            remote(32, VyomFactoryLaneRouter.Lane.CUSTOM, true)
+        )
+        val pool = createPool(tasks)
+        val laneSessions = pool.sessions.filter { it.workerIdentity.lane == VyomFactoryLaneRouter.Lane.CUSTOM }
+        val occupied = laneSessions.first().claimNext(tasks)!!
+        val registry = createRegistry()
+        val proposed = mutableListOf<Int>()
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool = pool,
+            registry = registry,
+            fetchRemoteTasks = { tasks },
+            modelAdapterFactory = {
+                VyomFactoryRepositoryWorkerModelAdapter { task, _, _ -> candidate(task, registry) }
+            },
+            onProposal = { task, _, _, _ -> proposed += task.number },
+            isStopped = { false },
+            heartbeatIntervalMillis = 25L,
+            maxConcurrentSessions = 1
+        )
+
+        try {
+            val result = dispatcher.dispatchAvailable()
+            assertEquals(1, result.proposedCount)
+            assertEquals(listOf(32), proposed)
+        } finally {
+            laneSessions.first().release(occupied)
+        }
+    }
+
     @Test fun globalStopLatchPersistsAcrossStoreInstances() {
         val prefs = MemoryPrefs()
         val first = VyomFactoryWorkerStopStore(prefs)
