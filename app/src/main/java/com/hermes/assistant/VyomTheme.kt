@@ -100,18 +100,19 @@ internal object VyomTheme {
                     Color.argb(92, Color.red(color), Color.green(color), Color.blue(color)))
             }
             "danger" -> GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(ACCENT_DANGER, ACCENT_DANGER)).apply {
+                intArrayOf(SURFACE_DANGER, SURFACE_DANGER)).apply {
                 cornerRadius = 999f * density
+                setStroke((density).toInt().coerceAtLeast(1), ACCENT_DANGER)
             }
             else -> {
                 GradientDrawable().apply {
-                    setColor(color)
+                    setColor(SURFACE_ASSISTANT_BUBBLE)
                     cornerRadius = 999f * density
                     setStroke((density).toInt().coerceAtLeast(1), color)
                 }
             }
         }
-        button.setTextColor(if (variant.lowercase() == "secondary") color else TEXT_PRIMARY)
+        button.setTextColor(if (variant.lowercase() in setOf("secondary", "danger")) TEXT_PRIMARY else color)
         button.isAllCaps = false
         button.textSize = 14f
         button.minHeight = (44f * density).toInt()
