@@ -22,11 +22,11 @@ internal class VyomGitHubMcpClientTest {
             sessionId: String?,
             protocolVersion: String?,
             payload: String
-        ): Response {
+        ): VyomGitHubMcpClient.Transport.Response {
             val request = JSONObject(payload)
             calls += Call(token, sessionId, protocolVersion, request)
             return when (request.optString("method")) {
-                "initialize" -> Response(
+                "initialize" -> VyomGitHubMcpClient.Transport.Response(
                     200, "application/json", "test-session",
                     JSONObject().put("jsonrpc", "2.0")
                         .put("id", request.getLong("id"))
