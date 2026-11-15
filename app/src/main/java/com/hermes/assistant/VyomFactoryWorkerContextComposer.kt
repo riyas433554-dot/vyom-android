@@ -24,7 +24,7 @@ internal object VyomFactoryWorkerContextComposer {
 
     fun compose(
         baseInstructions: String,
-        memoryFacts: List<String>,
+        memoryFacts: List<String?>,
         skills: List<VyomFactoryWorkerSkillContext>
     ): String {
         require(baseInstructions.isNotBlank()) { "Base worker instructions are required" }
@@ -32,9 +32,11 @@ internal object VyomFactoryWorkerContextComposer {
         val output = StringBuilder(baseInstructions.trim())
         var remaining = MAX_TOTAL_CHARS
 
+        // Treat malformed nullable entries as absent; memory is external reference data.
         val safeFacts = memoryFacts.asSequence()
-            .map(String::trim)
-            .filter { it.isNotBlank() && !MemoryCapturePolicy.isSensitive(it) }
+            .mapNotNull { fact ->
+                fact?.trim()?.takeIf { it.isNotBlank() && !MemoryCapturePolicy.isSensitive(it) }
+            }
             .distinctBy { it.lowercase() }
             .take(MAX_MEMORY_FACTS)
             .toList()
