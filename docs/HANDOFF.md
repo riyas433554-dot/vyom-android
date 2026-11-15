@@ -2521,8 +2521,9 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Debug run `43720553426`: `conclusion=failure`, `head_sha=ed39a87d9477c0d00928736d78db515d981ff0b8` — same case 023 assertion.
 - Debug run `43720927835`: `conclusion=failure`, `head_sha=96fadd2f6a61d5d0e58ccb234bbf99b373d18009` — same case 023 assertion. Full CI run `43720927851`: `conclusion=cancelled`, same `head_sha`.
 - Final code Full CI run `43721090278`: `conclusion=success`, `head_sha=68e7b2d98a40ddded3f59effbc21a240a49166ed`. Unit tests, full reachable-history secret scan, debug APK packaging and artifact upload all passed.
-- Final code Debug workflow run `43721090261`: `conclusion=in_progress` at the time this HANDOFF section was authored; `head_sha=68e7b2d98a40ddded3f59effbc21a240a49166ed`.
-- Full CI artifact `vyom-phase6-3028d803223c3a400381d5aaca40c9f013a3ab11`, artifact ID `14164677451`, contains one APK and one SHA-256 file. Extracted APK size: 96,134,466 bytes. SHA-256 in the sidecar and independently calculated from the APK both equal `65a1b6dc14037d283d8e02999e92fb4cc6091af41993950147baf12c80e9c41b`. This is a debug build, not a release-signed APK.
+- Final code Debug workflow run `43721090261`: `conclusion=success`; `head_sha=68e7b2d98a40ddded3f59effbc21a240a49166ed`.
+- Full CI artifact `vyom-phase6-3028d803223c3a400381d5aaca40c9f013a3ab11`, artifact ID `14164677451`, contains one APK and one SHA-256 file. Extracted APK size: 96,134,466 bytes. SHA-256 in the sidecar and independently calculated from the APK both equal `65a1b6dc14037d283d8e02999e92fb4cc6091af41993950147baf12c80e9c41b`.
+- Separate Debug artifact `vyom-debug-3028d803223c3a400381d5aaca40c9f013a3ab11`, artifact ID `14164364159`, contains build-info, `vyom-0.3.1-3028d80-debug.apk`, and its SHA-256 sidecar. Extracted APK size: 96,134,466 bytes. Sidecar and independently calculated APK SHA-256 both equal `84eb1ed668b56591596c07c2450b4dfd2e1f719b3dbf43469afc506f61eecc79`. Both artifacts are debug builds, not release-signed APKs.
 
 ### Remaining verification boundary
 
