@@ -1497,7 +1497,7 @@ internal class VyomFactoryDialog(
                             descriptionView.maxLines = if (expanded) Int.MAX_VALUE else 4
                             text = if (expanded) "COLLAPSE TASK" else "SHOW FULL TASK"
                         }
-                    }, LinearLayout.LayoutParams(-2, dp(30)))
+                    }, LinearLayout.LayoutParams(-1, dp(48)))
                 }
             }
 
