@@ -101,7 +101,9 @@ internal class VyomGitHubMcpCodingAgentTest {
 
         val result = agent.run("Fix the failing Factory source tests")
 
-        assertEquals("PR created and ready for CI.", result)
+        assertTrue(result.startsWith("PR created and ready for CI."))
+        assertTrue(result.contains("Branch created: true"))
+        assertTrue(result.contains("Files written: true"))
         assertEquals(
             listOf("get_file_contents", "create_branch", "push_files", "create_pull_request"),
             transport.calls.map { it.first }
