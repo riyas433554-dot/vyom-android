@@ -75,10 +75,9 @@ internal class VyomFactoryWorkerDispatchWorker(
                     proposalStore.save(task, workerId, leaseId, candidate)
                 },
                 isStopped = stopStore::isStopped,
-                // Provider planning is read-only and requires live model-call authorization.
-                // Autonomous authorization is checked separately before repository writes.
                 isAuthorized = {
-                    VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)
+                    VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) &&
+                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)
                 },
                 shouldDispatch = { proposalStore.pending().isEmpty() && !proposalStore.isHandled(it) },
                 maxConcurrentSessions = 1,
