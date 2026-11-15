@@ -6,7 +6,7 @@ internal object MemoryCapturePolicy {
     private const val MAX_FACT_CHARS = 300
     private val sensitivePatterns = listOf(
         Regex("(?i)\\b(password|passcode|otp|one[- ]time password|verification code|security code|pin|upi pin|cvv|cvc)\\b"),
-        Regex("(?i)\\b(api key|secret key|access token|refresh token|bearer token|private key|recovery phrase|seed phrase)\\b"),
+        Regex("(?i)\\b(api keys?|secret keys?|access tokens?|refresh tokens?|bearer tokens?|private keys?|recovery phrases?|seed phrases?)\\b"),
         Regex("(?i)\\b(bank account|account number|routing number|credit card|debit card|card number|wallet address)\\b"),
         Regex("(?i)\\b(aadhaar|aadhar|pan number|passport number|social security number|ssn)\\b"),
         Regex("(?i)\\b(medical diagnosis|medication|prescription|health condition)\\b"),
