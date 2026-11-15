@@ -85,7 +85,7 @@ internal class VyomGitHubMcpCodingAgentTest {
         val provider = FakeProvider(mutableListOf(
             """{"action":"tool","name":"get_file_contents","arguments":{"owner":"acme","repo":"factory","path":"src","ref":"feature/repair"}}""",
             """{"action":"tool","name":"create_branch","arguments":{"owner":"acme","repo":"factory","branch":"vyom-agent/test-run","from_branch":"feature/repair"}}""",
-            """{"action":"tool","name":"push_files","arguments":{"owner":"acme","repo":"factory","branch":"vyom-agent/test-run","message":"Fix factory issue","files":[{"path":"src/Fix.kt","content":"class Fix"}]}}""",
+            """{"action":"tool","name":"push_files","arguments":{"owner":"acme","repo":"factory","branch":"vyom-agent/test-run","message":"Fix factory issue","files":[{"path":"app/src/Fix.kt","content":"class Fix"}]}}""",
             """{"action":"tool","name":"create_pull_request","arguments":{"owner":"acme","repo":"factory","title":"Fix factory issue","head":"vyom-agent/test-run","base":"feature/repair","body":"Automated fix"}}""",
             """{"action":"final","message":"PR created and ready for CI."}"""
         ))
