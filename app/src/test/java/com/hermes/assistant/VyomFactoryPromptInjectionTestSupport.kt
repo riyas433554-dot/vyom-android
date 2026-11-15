@@ -70,7 +70,8 @@ internal object VyomFactoryPromptInjectionTestSupport {
         limits: VyomFactoryWorkerModelLimits = VyomFactoryWorkerModelLimits(),
         key: String = "fake-provider-key",
         now: Long = 1_800_000_000_000L,
-        contextProvider: (String) -> String = { "" }
+        contextProvider: (String) -> String = { "" },
+        warningLogger: (String, String, Throwable) -> Unit = { _, _, _ -> }
     ) = VyomFactoryStructuredWorkerModelAdapter(
         provider = provider,
         keyStore = MemoryKeyStore(key),
@@ -83,6 +84,7 @@ internal object VyomFactoryPromptInjectionTestSupport {
             val sourceContent = "base snapshot for $relativePath".toByteArray(Charsets.UTF_8)
             """{"type":"file","path":"$relativePath","encoding":"base64","size":${sourceContent.size},"sha":"blob-sha","content":"${java.util.Base64.getEncoder().encodeToString(sourceContent)}"}"""
         }),
-        contextProvider = contextProvider
+        contextProvider = contextProvider,
+        warningLogger = warningLogger
     )
 }

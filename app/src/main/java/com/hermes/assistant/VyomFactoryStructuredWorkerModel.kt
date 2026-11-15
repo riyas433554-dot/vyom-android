@@ -220,7 +220,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val preCallAuthorization: () -> Boolean = { false },
     private val repositoryClient: VyomFactoryRepositoryClient = VyomFactoryRepositoryClient(),
-    private val contextProvider: (String) -> String = { "" }
+    private val contextProvider: (String) -> String = { "" },
+    private val warningLogger: (String, String, Throwable) -> Unit = { tag, message, error -> Log.w(tag, message, error) }
 ) : VyomFactoryRepositoryWorkerModelAdapter {
     override fun propose(
         task: VyomFactoryGitHubClient.Task,
@@ -245,7 +246,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         val workerContext = try {
             contextProvider(baseTaskData)
         } catch (error: Exception) {
-            runCatching { Log.w("VyomFactoryWorker", "Optional memory and skill context unavailable; continuing with task data", error) }
+            warningLogger("VyomFactoryWorker", "Optional memory and skill context unavailable; continuing with task data", error)
             ""
         }
         val request = buildRequest(task, binding, workerContext)
