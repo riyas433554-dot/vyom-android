@@ -180,6 +180,7 @@ class MainActivity : Activity() {
     private lateinit var ttsConfigStatus: TextView
     private lateinit var api: VyomApiClient
     private val io = Executors.newSingleThreadExecutor()
+    private val codingAgentExecutor = Executors.newFixedThreadPool(3)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val settingsPrefs by lazy { getSharedPreferences("vyom_settings", MODE_PRIVATE) }
     private val controlPrefs by lazy { getSharedPreferences("vyom_control_audit", MODE_PRIVATE) }
@@ -962,6 +963,63 @@ class MainActivity : Activity() {
                 }
             }
         }, LinearLayout.LayoutParams(-1, dp(44)))
+        val codingAgentPrefs = getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, MODE_PRIVATE)
+        val codingRepositoryInput = EditText(this).apply {
+            hint = "GitHub repository · owner/repo"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(codingAgentPrefs.getString(
+                VyomGitHubMcpCodingAgentRuntime.KEY_REPOSITORY,
+                VyomGitHubMcpCodingAgentRuntime.DEFAULT_REPOSITORY
+            ))
+        }
+        settingsContent.addView(codingRepositoryInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val codingBaseBranchInput = EditText(this).apply {
+            hint = "Non-main base branch"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(codingAgentPrefs.getString(
+                VyomGitHubMcpCodingAgentRuntime.KEY_BASE_BRANCH,
+                VyomGitHubMcpCodingAgentRuntime.DEFAULT_BASE_BRANCH
+            ))
+        }
+        settingsContent.addView(codingBaseBranchInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val codingModeButton = Button(this).apply {
+            text = if (codingAgentPrefs.getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)) {
+                "DISABLE VYOM GITHUB CODING MODE"
+            } else {
+                "ENABLE VYOM GITHUB CODING MODE"
+            }
+            setOnClickListener {
+                val enabled = !codingAgentPrefs.getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+                try {
+                    VyomGitHubMcpCodingAgentRuntime.configure(
+                        codingAgentPrefs,
+                        codingRepositoryInput.text.toString().trim(),
+                        codingBaseBranchInput.text.toString().trim(),
+                        enabled
+                    )
+                    text = if (enabled) "DISABLE VYOM GITHUB CODING MODE" else "ENABLE VYOM GITHUB CODING MODE"
+                    selfChangeNotice.text = if (enabled) {
+                        "Coding mode ON · use /code <task>. Each task gets its own vyom-agent branch; no merge or delete."
+                    } else {
+                        "GitHub coding mode is OFF."
+                    }
+                } catch (error: Exception) {
+                    selfChangeNotice.text = error.message ?: "Coding mode settings are invalid."
+                }
+            }
+        }
+        settingsContent.addView(codingModeButton, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(TextView(this).apply {
+            text = "Parallel coding tasks: up to 3. Example: /code inspect and repair Factory task engine. Writes stay on a new vyom-agent/* branch; main/master, deletes, merges, signing and production paths are blocked."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, -2))
         selfChangeButton = Button(this).apply {
             text = "PROPOSE SELF-CHANGE"
             setOnClickListener {
@@ -3624,6 +3682,21 @@ class MainActivity : Activity() {
             return
         }
         if (!chatReady) return
+        if (lowerMessage.startsWith("/code ")) {
+            val codingTask = message.substringAfter(' ').trim()
+            if (codingTask.isBlank()) {
+                showChatNotice("Use /code followed by the repository task.")
+                return
+            }
+            memoryStore.learnFrom(message)
+            chatInput.setText("")
+            val codingItem = ChatMessage(UUID.randomUUID().toString(), message, "queued")
+            chatMessages.add(codingItem)
+            persistChatMessages()
+            renderChatMessages()
+            scheduleGitHubCodingAgentMessage(codingItem, codingTask)
+            return
+        }
         memoryStore.learnFrom(message)
         chatInput.setText("")
         val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
@@ -3835,6 +3908,41 @@ class MainActivity : Activity() {
                     } else {
                         status.text = "VYOM  •  OFFLINE"
                     }
+                    renderChatMessages()
+                }
+            }
+        }
+    }
+
+    private fun scheduleGitHubCodingAgentMessage(item: ChatMessage, task: String) {
+        codingAgentExecutor.execute {
+            runOnUiThread {
+                item.state = "running"
+                item.reply = "Vyom is inspecting the selected GitHub repository…"
+                persistChatMessages()
+                status.text = "VYOM  •  CODING"
+                renderChatMessages()
+            }
+            try {
+                val reply = VyomGitHubMcpCodingAgentRuntime.run(applicationContext, task)
+                runOnUiThread {
+                    item.state = "done"
+                    item.reply = reply
+                    persistChatMessages()
+                    status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) {
+                        "VYOM  •  CODING"
+                    } else {
+                        "VYOM  •  READY"
+                    }
+                    renderChatMessages()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    item.state = "error"
+                    item.reply = error.message?.takeIf { it.isNotBlank() }
+                        ?: "GitHub coding task failed. Please inspect the repository connection and retry."
+                    persistChatMessages()
+                    status.text = "VYOM  •  CODING ERROR"
                     renderChatMessages()
                 }
             }
