@@ -943,9 +943,9 @@ class MainActivity : Activity() {
                 isEnabled = false
                 text = "CONNECTING TO GITHUB MCP…"
                 io.execute {
-                    val client = VyomGitHubMcpClient {
+                    val client = VyomGitHubMcpClient(tokenProvider = {
                         secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
-                    }
+                    })
                     val result = runCatching { client.connect() }
                     runOnUiThread {
                         isEnabled = true
