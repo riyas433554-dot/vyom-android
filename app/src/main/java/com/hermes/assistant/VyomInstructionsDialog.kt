@@ -190,7 +190,7 @@ internal class VyomInstructionsDialog(
 
         val save = Button(activity).apply {
             text = "SAVE"
-            VyomTheme.stylePill(this, activity, "cyan", "primary")
+            VyomTheme.stylePill(this, activity, "indigo", "primary")
             setOnClickListener {
                 val raw = rules.text.toString()
                 if (!VyomInstructionsPolicy.isValidRules(raw)) {
