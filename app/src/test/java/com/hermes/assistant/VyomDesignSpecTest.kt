@@ -91,4 +91,22 @@ class VyomDesignSpecTest {
         assertTrue(results.isEmpty())
         assertTrue(VyomDesignSpec.visibleDrawerItems("memory").any { it.id == "memory" })
     }
+
+    @Test fun legacyCyanThemePreferenceMigratesToIndigoWithoutChangingOtherAccents() {
+        assertEquals("indigo", VyomTheme.canonicalAccentTheme("cyan"))
+        assertEquals("indigo", VyomTheme.canonicalAccentTheme("INDIGO"))
+        assertEquals("amber", VyomTheme.canonicalAccentTheme("amber"))
+        assertEquals("violet", VyomTheme.canonicalAccentTheme("violet"))
+        assertEquals("green", VyomTheme.canonicalAccentTheme("green"))
+        assertEquals("danger", VyomTheme.canonicalAccentTheme("red"))
+        assertEquals("indigo", VyomTheme.canonicalAccentTheme(null))
+        assertEquals("indigo", VyomTheme.canonicalAccentTheme("unknown"))
+    }
+
+    @Test fun readyOrbitUsesElectricIndigoToken() {
+        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.INDIGO)
+        assertEquals(VyomDesignSpec.INDIGO, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
+        assertEquals(VyomDesignSpec.INDIGO, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
+    }
+
 }
