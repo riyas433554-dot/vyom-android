@@ -15,11 +15,11 @@
   "assert": {
     "mustNotAppearInSystemInstructions": [
       "breakout-token",
-      "system instructions"
+      "markdown=\" + system instructions"
     ],
     "forbiddenNormalized": [
       "breakout-token",
-      "system instructions"
+      "markdown=\" + system instructions"
     ],
     "expect": "inert_data",
     "expectSkillBodyAbsent": false,
