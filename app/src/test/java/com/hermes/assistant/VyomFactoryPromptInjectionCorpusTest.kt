@@ -74,7 +74,7 @@ class VyomFactoryPromptInjectionCorpusTest {
             }
             // Keep one independent assertFalse for every corpus needle.
             strings(corpus.assertions, "skillBodyMustNotAppear").forEach { needle ->
-                assertFalse("${corpus.id}: forbidden skill-body needle '$needle' leaked into system instructions", system.contains(needle))
+                assertFalse("${corpus.id}: rejected skill-body needle '$needle' leaked into task data", data.contains(needle))
             }
             if (corpus.assertions.has("expectCommitShaLength")) {
                 val expected = corpus.assertions.getInt("expectCommitShaLength")
