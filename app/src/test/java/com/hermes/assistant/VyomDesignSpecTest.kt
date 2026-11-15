@@ -140,6 +140,10 @@ class VyomDesignSpecTest {
                 )
             }
         }
+        assertTrue(
+            "Platinum emergency STOP text must meet WCAG AA on the preserved dark-red surface",
+            contrastRatio(VyomDesignSpec.TEXT_PRIMARY, VyomTheme.SURFACE_DANGER) >= 4.5
+        )
     }
 
     private fun contrastRatio(first: Int, second: Int): Double {
