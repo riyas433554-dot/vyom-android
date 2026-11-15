@@ -1,3 +1,13 @@
+## PR #116 — exact-HEAD verification and worker-context injection safety (2026-11-15)
+
+- Initial requested verification: GitHub branch ref confirmed pre-test HEAD `e48dd7ee918bd59fed2a583de4cb744822765a46`, matching the last-known SHA. Its PR CI and Debug runs were both successful: `43706570049` and `43706570105`. This environment did not have a local checkout, so literal `git fetch && git rev-parse HEAD` was not executed; the remote branch ref was checked through GitHub.
+- Added regression coverage in `VyomFactoryStructuredWorkerModelTest` for prompt-injection role separation and malformed/oversized memory plus invalid skill handling.
+- Test-first RED on corrected test-only SHA `c80c3f56d51fa4c6d2b55bce0b0367b9adcb88b1`: Debug run `43708884481` failed at `malformedAndOversizedMemoryEntriesAreSkippedWithoutCrashing`, `VyomFactoryStructuredWorkerModelTest.kt:591`; `822 tests completed, 1 failed`. The failure was a `NullPointerException` when the composer processed a malformed nullable memory fact. The injection-separation regression test passed in that run.
+- Minimal fix commit: `4d3dcb976094357427b7318265d5c3f40af42005`. `VyomFactoryWorkerContextComposer.compose` now accepts nullable memory entries and drops null/blank/sensitive entries before processing. Existing size limits, sensitive-memory filtering, pinned-skill validation and JSON encoding are unchanged. Test fixture now supplies the nullable fact directly.
+- Exact-SHA CI runs for the fix commit were started: Full CI `43709357712` and Debug `43709357721`. Their status was still in progress when this HANDOFF entry was written; no passing result is claimed here.
+- No merge, main-branch change, Render/backend/production Supabase change, signing configuration change, force-push or release-signing dispatch was performed. Device acceptance remains NOT TESTED.
+- Next: verify both workflows on the final branch HEAD, inspect exact logs, and record final test/security results before marking this slice complete.
+
 ## Obsidian capability integration — in progress (2026-11-15)
 
 - Working branch: `feature/vyom-memory-skills-intelligence`; current HEAD at this update: `2c9a3dc3f8cec60d37799478a1d8dab97d874efb`; parent base remains frozen worker SHA `d1b7bfc81a937eedd7b077642b66e02fbdb4ef08`.
