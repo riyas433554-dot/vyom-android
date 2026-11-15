@@ -128,6 +128,7 @@ class VyomMemoryStoreTest {
         val storage = FakeStorage()
         val memory = VyomMemoryStore(storage, isMainThread = { true }, testOnly = true)
         memory.learnFrom("Remember that I prefer concise reports.")
+        memory.ensureCorePrinciples()
         memory.replaceFacts("A manual preference.")
         memory.setEnabled(false)
         memory.clearFacts()
