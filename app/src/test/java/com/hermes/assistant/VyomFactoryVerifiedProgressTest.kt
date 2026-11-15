@@ -12,6 +12,22 @@ class VyomFactoryVerifiedProgressTest {
             "pr=https://github.com/riyas433554-dot/vyom-android/pull/9; " +
             "ci=Both required workflows succeeded for exact commit $commit"
 
+    @Test fun verifiedAndroidActionMustNotRemainAtZeroProgressOrInventACommit() {
+        val actionTask = task(
+            description = """<!-- VYOM_FACTORY_EXECUTION:{"schema":1,"target":"android_action","operation":"set_media_volume","request":"Set media volume to 35%","arguments":{"percent":35,"confirmation_id":"approval-1"}} -->"""
+        )
+        val verifiedAction = entry(
+            result = "Verified: Media volume is 5/15 (requested 35%)."
+        ).copy(operationKey = "android_action:set_media_volume")
+
+        val progress = calculate(actionTask, listOf(verifiedAction))
+
+        assertEquals(100, progress.percent)
+        assertEquals("ACTION VERIFIED", progress.label)
+        assertNull(progress.commitSha)
+        assertFalse(progress.ciVerified)
+    }
+
     @Test fun taskStateLabelNormalizesCanonicalStatusCase() {
         assertEquals("STARTED · IMPLEMENTATION NOT VERIFIED", VyomFactoryVerifiedProgress.taskStateLabel("IN_PROGRESS", false))
     }
