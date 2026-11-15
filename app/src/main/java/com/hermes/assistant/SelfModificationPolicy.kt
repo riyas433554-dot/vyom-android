@@ -58,8 +58,12 @@ internal object SelfModificationPolicy {
         val fileName = path.substringAfterLast('/')
         if (fileName in protectedFileNames) return false
         val lower = path.lowercase()
-        if (listOf("policy", "audit", "kill", "control", "accessibilityservice", "deviceactionexecutor",
-                "voiceforegroundservice", "selfmodification", "update", "signing", "keystore", "uibundle", "shizuku").any { it in lower }) return false
+        if (listOf(
+                "policy", "audit", "kill", "control", "stop", "lease", "allowlist", "allow-list",
+                "verifier", "verification", "verify", "accessibilityservice", "deviceactionexecutor",
+                "voiceforegroundservice", "selfmodification", "update", "signing", "release",
+                "keystore", "uibundle", "shizuku"
+            ).any { it in lower }) return false
         return true
     }
 
