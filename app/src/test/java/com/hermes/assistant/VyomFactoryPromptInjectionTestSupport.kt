@@ -4,7 +4,7 @@ import java.io.File
 
 /** Shared real-adapter fixtures for worker-model and prompt-injection tests. */
 internal object VyomFactoryPromptInjectionTestSupport {
-    const val BASE_SHA = "a".repeat(40)
+    val BASE_SHA = "a".repeat(40)
     const val REPOSITORY = "https://github.com/riyas433554-dot/vyom-android"
 
     class MemoryKeyStore(private val value: String) : VyomFactoryWorkerApiKeyStore {
