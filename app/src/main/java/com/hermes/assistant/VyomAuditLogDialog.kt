@@ -137,7 +137,7 @@ internal class VyomAuditLogDialog(
 
         val clear = Button(activity).apply {
             text = "CLEAR AUDIT HISTORY"
-            VyomTheme.stylePill(this, activity, "cyan", "danger")
+            VyomTheme.stylePill(this, activity, "indigo", "danger")
             setOnClickListener {
                 AlertDialog.Builder(activity)
                     .setTitle("Clear local audit history?")
