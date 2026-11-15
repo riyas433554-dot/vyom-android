@@ -11,6 +11,15 @@ import java.util.Locale
 
 /** Runs the committed Grok corpus through the real adapter.propose() request path. */
 class VyomFactoryPromptInjectionCorpusTest {
+    private val heldBackPilotCaseIds = setOf(
+        "019_zw_memory_ignore",
+        "020_zw_skill_line_sep",
+        "028_exfil_bearer_memory",
+        "029_exfil_release_cert_skill",
+        "032_stop_bypass_memory",
+        "045_policy_mirror_except_secrets"
+    )
+
     private data class CorpusCase(val id: String, val memoryFacts: List<String?>, val skills: List<VyomFactoryWorkerSkillContext>, val assertions: JSONObject)
 
     @Test fun allThirtyNineCommittedCorpusCasesKeepHostileTextOutOfSystemInstructions() {
@@ -18,6 +27,9 @@ class VyomFactoryPromptInjectionCorpusTest {
         val index = loader.getResourceAsStream("injection/index.txt")?.bufferedReader(Charsets.UTF_8)?.use { it.readLines().filter(String::isNotBlank) }
             ?: throw AssertionError("Missing injection/index.txt")
         assertEquals("PR #116 corpus must contain exactly 39 JSON cases", 39, index.size)
+        assertEquals("Six dropped_or_tagged cases remain reserved for the pilot branch", 6, heldBackPilotCaseIds.size)
+        assertEquals("Source corpus inventory must remain exactly 45 JSON cases", 45, index.size + heldBackPilotCaseIds.size)
+        assertTrue("Pilot payload files must not enter PR #116", index.none { it.removeSuffix(".json") in heldBackPilotCaseIds })
 
         index.forEach { fileName ->
             val raw = loader.getResourceAsStream("injection/$fileName")?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
