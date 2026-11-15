@@ -369,9 +369,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         workerContext: String
     ): VyomFactoryWorkerModelProvider.Request {
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        val baseTaskData = "TITLE (UNTRUSTED DATA):\\n${task.title}\\n\\nDESCRIPTION (UNTRUSTED DATA):\\n${description}"
+        val baseTaskData = "TITLE (UNTRUSTED DATA):\n${task.title}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
         val taskData = if (workerContext.isBlank()) baseTaskData else
-            baseTaskData + "\\n\\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\\n" + workerContext
+            baseTaskData + "\n\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\n" + workerContext
         return VyomFactoryWorkerModelProvider.Request(
             taskNumber = task.number,
             repository = binding.repositoryUrl,
