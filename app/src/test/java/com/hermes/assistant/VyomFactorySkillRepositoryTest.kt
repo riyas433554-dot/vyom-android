@@ -4,6 +4,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.File
 
@@ -24,6 +25,17 @@ class VyomFactorySkillRepositoryTest {
         assertRejected {
             VyomFactorySkillPolicy.validateDocument("# Too large\n" + "x".repeat(VyomFactorySkillPolicy.MAX_DOCUMENT_BYTES))
         }
+    }
+
+
+    @Test fun acceptsExactlySixtyFourKiBAndRejectsOneByteOver() {
+        val header = "# A\\n"
+        val exact = header + "x".repeat(VyomFactorySkillPolicy.MAX_DOCUMENT_BYTES - header.toByteArray(Charsets.UTF_8).size)
+        assertEquals(VyomFactorySkillPolicy.MAX_DOCUMENT_BYTES, exact.toByteArray(Charsets.UTF_8).size)
+        VyomFactorySkillPolicy.validateDocument(exact)
+        val oneByteOver = exact + "x"
+        assertEquals(VyomFactorySkillPolicy.MAX_DOCUMENT_BYTES + 1, oneByteOver.toByteArray(Charsets.UTF_8).size)
+        assertThrows(IllegalArgumentException::class.java) { VyomFactorySkillPolicy.validateDocument(oneByteOver) }
     }
 
     @Test fun invalidUtf8IsRejectedInsteadOfSilentlyReplaced() {
