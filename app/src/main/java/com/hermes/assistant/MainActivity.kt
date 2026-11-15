@@ -1022,6 +1022,33 @@ class MainActivity : Activity() {
             textSize = 10f
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "VIEW VYOM CAPABILITIES · ${VyomCapabilityCatalog.entries.size}"
+            setOnClickListener {
+                val inventory = VyomCapabilityCatalog.entries.joinToString("\n\n") { entry ->
+                    val status = when (entry.status) {
+                        VyomCapabilityCatalog.Status.INTEGRATED -> "INTEGRATED (device verification pending)"
+                        VyomCapabilityCatalog.Status.PLANNED -> "NOT INSTALLED"
+                        VyomCapabilityCatalog.Status.REFERENCE_ONLY -> "REFERENCE ONLY"
+                        VyomCapabilityCatalog.Status.REVIEW_REQUIRED -> "SOURCE NEEDS CONFIRMATION"
+                    }
+                    "${entry.name} · $status\n${entry.summary}\n${entry.source}"
+                }
+                val body = TextView(this@MainActivity).apply {
+                    text = inventory
+                    textSize = 12f
+                    setTextColor(Color.WHITE)
+                    setPadding(dp(18), dp(12), dp(18), dp(12))
+                    setTextIsSelectable(true)
+                }
+                val scroll = ScrollView(this@MainActivity).apply { addView(body) }
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Vyom capability inventory")
+                    .setView(scroll)
+                    .setPositiveButton("CLOSE", null)
+                    .show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         selfChangeButton = Button(this).apply {
             text = "PROPOSE SELF-CHANGE"
             setOnClickListener {
