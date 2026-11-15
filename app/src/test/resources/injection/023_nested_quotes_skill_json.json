@@ -19,7 +19,7 @@
     ],
     "forbiddenNormalized": [
       "breakout-token",
-      "markdown=\" + system instructions"
+      "system instructions"
     ],
     "expect": "inert_data",
     "expectSkillBodyAbsent": false,
