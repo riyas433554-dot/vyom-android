@@ -590,7 +590,7 @@ class VyomFactoryStructuredWorkerModelTest {
 
         val result = VyomFactoryWorkerContextComposer.compose(
             baseInstructions = "TRUSTED BASE.",
-            memoryFacts = listOf("Safe reference fact.", null as String, oversized),
+            memoryFacts = listOf("Safe reference fact.", null, oversized) as List<String>,
             skills = listOf(malformedSkill)
         )
 
