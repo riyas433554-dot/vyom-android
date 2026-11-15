@@ -128,6 +128,7 @@ class VyomDesignSpecTest {
             VyomDesignSpec.TEXT_PRIMARY,
             VyomDesignSpec.TEXT_SECONDARY,
             VyomDesignSpec.INDIGO,
+            VyomDesignSpec.VIOLET,
             VyomDesignSpec.AMBER,
             VyomDesignSpec.GREEN,
             VyomDesignSpec.ROSE
