@@ -114,8 +114,8 @@ internal object VyomTheme {
         }
         button.setTextColor(if (variant.lowercase() in setOf("secondary", "danger")) TEXT_PRIMARY else color)
         button.isAllCaps = false
-        button.textSize = 14f
-        button.minHeight = (44f * density).toInt()
+        button.textSize = TYPE_SMALL_SP.toFloat()
+        button.minHeight = (48f * density).toInt()
         button.setPadding((16f * density).toInt(), 0, (16f * density).toInt(), 0)
         button.elevation = if (variant.lowercase() == "secondary") 0f else 3f * density
     }
