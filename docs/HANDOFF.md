@@ -2524,6 +2524,7 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Final code Debug workflow run `43721090261`: `conclusion=success`; `head_sha=68e7b2d98a40ddded3f59effbc21a240a49166ed`.
 - Full CI artifact `vyom-phase6-3028d803223c3a400381d5aaca40c9f013a3ab11`, artifact ID `14164677451`, contains one APK and one SHA-256 file. Extracted APK size: 96,134,466 bytes. SHA-256 in the sidecar and independently calculated from the APK both equal `65a1b6dc14037d283d8e02999e92fb4cc6091af41993950147baf12c80e9c41b`.
 - Separate Debug artifact `vyom-debug-3028d803223c3a400381d5aaca40c9f013a3ab11`, artifact ID `14164364159`, contains build-info, `vyom-0.3.1-3028d80-debug.apk`, and its SHA-256 sidecar. Extracted APK size: 96,134,466 bytes. Sidecar and independently calculated APK SHA-256 both equal `84eb1ed668b56591596c07c2450b4dfd2e1f719b3dbf43469afc506f61eecc79`. Both artifacts are debug builds, not release-signed APKs.
+- Pull-request workflow nuance: GitHub checked out synthetic merge commit `3028d803223c3a400381d5aaca40c9f013a3ab11` (`Merge 68e7b2d98a40ddded3f59effbc21a240a49166ed into d1b7bfc81a937eedd7b077642b66e02fbdb4ef08`) for the PR build. The workflow run's `head_sha` remains the PR branch head `68e7b2d98a40ddded3f59effbc21a240a49166ed`; the artifact's `build-info.txt` records the synthetic merge SHA by design, not a different PR branch commit.
 
 ### Remaining verification boundary
 
