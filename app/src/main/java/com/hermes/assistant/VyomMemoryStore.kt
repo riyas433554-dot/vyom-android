@@ -36,18 +36,33 @@ private class EncryptedVyomMemoryStorage(context: Context) : VyomMemoryStorage {
     override fun remove(key: String) = prefs.edit().remove(key).commit()
 }
 
-/** Encrypted, user-controlled on-device facts. Every persisted fact is untrusted reference data. */
+/**
+ * Encrypted, user-controlled on-device facts. Every persisted fact is untrusted reference data.
+ * All mutation methods use synchronous SharedPreferences.commit() and MUST be called off the main
+ * thread. The store rejects main-thread mutations rather than risking UI-thread disk I/O.
+ */
 internal class VyomMemoryStore private constructor(
-    private val storage: VyomMemoryStorage
+    private val storage: VyomMemoryStorage,
+    private val isMainThread: () -> Boolean
 ) {
-    constructor(context: Context) : this(EncryptedVyomMemoryStorage(context.applicationContext))
-    internal constructor(storage: VyomMemoryStorage, testOnly: Boolean = true) : this(storage)
+    constructor(context: Context) : this(
+        EncryptedVyomMemoryStorage(context.applicationContext),
+        { Thread.currentThread().name == "main" }
+    )
+    internal constructor(storage: VyomMemoryStorage, testOnly: Boolean = true) :
+        this(storage, { Thread.currentThread().name == "main" })
+    internal constructor(
+        storage: VyomMemoryStorage,
+        isMainThread: () -> Boolean,
+        testOnly: Boolean = true
+    ) : this(storage, isMainThread)
 
     fun isEnabled(): Boolean = synchronized(LOCK) {
         storage.readBoolean(KEY_ENABLED, true)
     }
 
     fun setEnabled(enabled: Boolean) = synchronized(LOCK) {
+        requireBackgroundThread()
         check(storage.commitBoolean(KEY_ENABLED, enabled)) { "Memory setting could not be persisted" }
     }
 
@@ -82,10 +97,18 @@ internal class VyomMemoryStore private constructor(
     }
 
     fun clearFacts() = synchronized(LOCK) {
+        requireBackgroundThread()
         check(storage.remove(KEY_FACTS)) { "Memory facts could not be cleared" }
     }
 
     private fun isEnabledLocked() = storage.readBoolean(KEY_ENABLED, true)
+
+    /** SharedPreferences.commit() is synchronous: every mutation must be dispatched off main. */
+    private fun requireBackgroundThread() {
+        check(!isMainThread()) {
+            "Vyom memory writes must run on a background thread; synchronous commit on main is forbidden"
+        }
+    }
 
     /** Reads both legacy string entries and the current tagged-object schema. */
     private fun readFactsLocked(): List<String> {
@@ -116,6 +139,7 @@ internal class VyomMemoryStore private constructor(
 
     /** One JSON snapshot, one synchronous commit, under a process-wide read/modify/write lock. */
     private fun writeLocked(items: List<String>) {
+        requireBackgroundThread()
         val safe = items.mapNotNull(::safeFact)
             .distinctBy { it.lowercase() }
             .takeLast(MAX_FACTS)

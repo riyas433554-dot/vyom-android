@@ -537,10 +537,15 @@ internal object VyomFactoryWorkerModelRuntime {
             preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) },
             contextProvider = { taskQuery ->
                 val contextPrefs = context.applicationContext.getSharedPreferences(
-                    "vyom_factory_worker_context",
+                    VyomFactorySkillsEnabledPolicy.PREFERENCES_NAME,
                     Context.MODE_PRIVATE
                 )
-                val skillsEnabled = contextPrefs.getBoolean("skills_enabled", false)
+                val skillsEnabled = VyomFactorySkillsEnabledPolicy.isEnabled(
+                    contextPrefs.getBoolean(
+                        VyomFactorySkillsEnabledPolicy.PREFERENCE_KEY,
+                        VyomFactorySkillsEnabledPolicy.DEFAULT_ENABLED
+                    )
+                )
                 VyomFactoryWorkerContextReader(
                     memory = VyomMemoryStore(context.applicationContext),
                     skillsRoot = java.io.File(context.applicationContext.filesDir, "factory-skills"),
