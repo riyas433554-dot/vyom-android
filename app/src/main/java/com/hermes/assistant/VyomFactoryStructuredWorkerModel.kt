@@ -2,6 +2,7 @@ package com.hermes.assistant
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -218,7 +219,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     private val limits: VyomFactoryWorkerModelLimits = VyomFactoryWorkerModelLimits(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val preCallAuthorization: () -> Boolean = { false },
-    private val repositoryClient: VyomFactoryRepositoryClient = VyomFactoryRepositoryClient()
+    private val repositoryClient: VyomFactoryRepositoryClient = VyomFactoryRepositoryClient(),
+    private val contextProvider: (String) -> String = { "" },
+    private val warningLogger: (String, String, Throwable) -> Unit = { tag, message, error -> Log.w(tag, message, error) }
 ) : VyomFactoryRepositoryWorkerModelAdapter {
     override fun propose(
         task: VyomFactoryGitHubClient.Task,
@@ -235,20 +238,18 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             throw SecurityException("Worker repository binding has no allowed paths")
         }
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        val taskData = "TITLE (UNTRUSTED DATA):\n${task.title}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
+        val baseTaskData = "TITLE (UNTRUSTED DATA):\n${task.title}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
         if (MemoryCapturePolicy.isSensitive(task.title) || MemoryCapturePolicy.isSensitive(description)) {
             record(task.number, 0, 0, "BLOCKED")
             throw SecurityException("Sensitive issue text cannot be sent to the worker model")
         }
-        val request = VyomFactoryWorkerModelProvider.Request(
-            taskNumber = task.number,
-            repository = binding.repositoryUrl,
-            baseSha = binding.commitSha,
-            baseBranch = SelfModificationPolicy.PROPOSAL_BASE_BRANCH,
-            allowedPaths = binding.allowedPaths.toList(),
-            systemInstructions = SYSTEM_INSTRUCTIONS,
-            taskDescriptionData = taskData
-        )
+        val workerContext = try {
+            contextProvider(baseTaskData)
+        } catch (error: Exception) {
+            warningLogger("VyomFactoryWorker", "Optional memory and skill context unavailable; continuing with task data", error)
+            ""
+        }
+        val request = buildRequest(task, binding, workerContext)
         if (control.shouldStop()) {
             record(task.number, 0, 0, "STOPPED")
             throw VyomFactoryExecutionStoppedException()
@@ -358,6 +359,30 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             }
         }
         throw VyomFactoryWorkerProviderRetriesExhaustedException(lastFailure)
+    }
+
+    /**
+     * The single production request builder used by both propose() and the injection corpus.
+     * Tests inspect the returned Request.systemInstructions rather than duplicating this policy.
+     */
+    internal fun buildRequest(
+        task: VyomFactoryGitHubClient.Task,
+        binding: VyomFactorySystemRegistry.Binding,
+        workerContext: String
+    ): VyomFactoryWorkerModelProvider.Request {
+        val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+        val baseTaskData = "TITLE (UNTRUSTED DATA):\n${task.title}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
+        val taskData = if (workerContext.isBlank()) baseTaskData else
+            baseTaskData + "\n\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\n" + workerContext
+        return VyomFactoryWorkerModelProvider.Request(
+            taskNumber = task.number,
+            repository = binding.repositoryUrl,
+            baseSha = binding.commitSha,
+            baseBranch = SelfModificationPolicy.PROPOSAL_BASE_BRANCH,
+            allowedPaths = binding.allowedPaths.toList(),
+            systemInstructions = SYSTEM_INSTRUCTIONS,
+            taskDescriptionData = taskData
+        )
     }
 
     private fun parseCandidate(
@@ -511,7 +536,24 @@ internal object VyomFactoryWorkerModelRuntime {
             provider = provider,
             keyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, providerId),
             journal = journal,
-            preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) }
+            preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) },
+            contextProvider = { taskQuery ->
+                val contextPrefs = context.applicationContext.getSharedPreferences(
+                    VyomFactorySkillsEnabledPolicy.PREFERENCES_NAME,
+                    Context.MODE_PRIVATE
+                )
+                val skillsEnabled = VyomFactorySkillsEnabledPolicy.isEnabled(
+                    contextPrefs.getBoolean(
+                        VyomFactorySkillsEnabledPolicy.PREFERENCE_KEY,
+                        VyomFactorySkillsEnabledPolicy.DEFAULT_ENABLED
+                    )
+                )
+                VyomFactoryWorkerContextReader(
+                    memory = VyomMemoryStore(context.applicationContext),
+                    skillsRoot = java.io.File(context.applicationContext.filesDir, "factory-skills"),
+                    skillsEnabled = skillsEnabled
+                ).compose(taskQuery)
+            }
         )
     }
 }
