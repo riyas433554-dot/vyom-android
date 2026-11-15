@@ -1006,7 +1006,7 @@ class MainActivity : Activity() {
                     )
                     text = if (enabled) "DISABLE VYOM GITHUB CODING MODE" else "ENABLE VYOM GITHUB CODING MODE"
                     selfChangeNotice.text = if (enabled) {
-                        "Coding mode ON · use /code <task>. Each task gets its own vyom-agent branch; no merge or delete."
+                        "Coding mode ON · chat messages go directly to Vyom's GitHub coding agent. Each task gets its own vyom-agent branch; no merge or delete."
                     } else {
                         "GitHub coding mode is OFF."
                     }
@@ -1017,7 +1017,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(codingModeButton, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(TextView(this).apply {
-            text = "Parallel coding tasks: up to 3. Example: /code inspect and repair Factory task engine. Writes stay on a new vyom-agent/* branch; main/master, deletes, merges, signing and production paths are blocked."
+            text = "Parallel coding tasks: up to 3. When coding mode is ON, each chat message is a repository task. Writes stay on a new vyom-agent/* branch; main/master, deletes, merges, signing and production paths are blocked."
             textSize = 10f
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, -2))
@@ -3683,10 +3683,13 @@ class MainActivity : Activity() {
             return
         }
         if (!chatReady) return
-        if (lowerMessage.startsWith("/code ")) {
-            val codingTask = message.substringAfter(' ').trim()
+        val explicitCodingCommand = lowerMessage.startsWith("/code ")
+        val codingModeEnabled = getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, MODE_PRIVATE)
+            .getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+        if (codingModeEnabled || explicitCodingCommand) {
+            val codingTask = if (explicitCodingCommand) message.substringAfter(' ').trim() else message.trim()
             if (codingTask.isBlank()) {
-                showChatNotice("Use /code followed by the repository task.")
+                showChatNotice("Enter a repository coding task.")
                 return
             }
             memoryStore.learnFrom(message)
