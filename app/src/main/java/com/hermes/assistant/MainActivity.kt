@@ -417,7 +417,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.RECTANGLE
                 setColor(VyomTheme.SURFACE_GLASS)
                 cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), Color.argb(100, 120, 150, 190))
+                setStroke(dp(1), VyomTheme.BORDER_GLASS)
             }
         }
         sendButton = Button(this).apply {
@@ -3995,7 +3995,7 @@ class MainActivity : Activity() {
                         shape = GradientDrawable.RECTANGLE
                         setColor(VyomTheme.SURFACE_ASSISTANT_BUBBLE)
                         cornerRadius = dp(16).toFloat()
-                        setStroke(dp(1), Color.argb(100, 100, 130, 170))
+                        setStroke(dp(1), VyomTheme.BORDER_SUBTLE)
                     }
                 }
                 replyBubble.maxWidth = (resources.displayMetrics.widthPixels * 0.92f).toInt()
@@ -5535,7 +5535,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.RECTANGLE
                 setColor(VyomTheme.SURFACE_ASSISTANT_BUBBLE)
                 cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), Color.argb(130, 0, 190, 255))
+                setStroke(dp(1), VyomTheme.BORDER_GLASS)
             }
         }
         dashboard.addView(TextView(this).apply {
@@ -5764,7 +5764,7 @@ class MainActivity : Activity() {
                     shape = GradientDrawable.RECTANGLE
                     setColor(VyomTheme.SURFACE_GLASS)
                     cornerRadius = dp(10).toFloat()
-                    setStroke(dp(1), Color.argb(80, 0, 190, 255))
+                    setStroke(dp(1), VyomTheme.BORDER_GLASS)
                 }
             }
             card.addView(TextView(this).apply {
