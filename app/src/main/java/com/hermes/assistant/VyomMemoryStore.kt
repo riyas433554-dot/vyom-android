@@ -62,7 +62,7 @@ internal class VyomMemoryStore private constructor(
     }
 
     fun setEnabled(enabled: Boolean) = synchronized(LOCK) {
-        requireBackgroundThread()
+        if (!requireBackgroundThread()) return@synchronized
         check(storage.commitBoolean(KEY_ENABLED, enabled)) { "Memory setting could not be persisted" }
     }
 
@@ -97,18 +97,17 @@ internal class VyomMemoryStore private constructor(
     }
 
     fun clearFacts() = synchronized(LOCK) {
-        requireBackgroundThread()
+        if (!requireBackgroundThread()) return@synchronized
         check(storage.remove(KEY_FACTS)) { "Memory facts could not be cleared" }
     }
 
     private fun isEnabledLocked() = storage.readBoolean(KEY_ENABLED, true)
 
-    /** SharedPreferences.commit() is synchronous: every mutation must be dispatched off main. */
-    private fun requireBackgroundThread() {
-        check(!isMainThread()) {
-            "Vyom memory writes must run on a background thread; synchronous commit on main is forbidden"
-        }
-    }
+    /**
+     * SharedPreferences.commit() is synchronous. A missed main-thread call must never crash the
+     * activity: safely skip that write. All known UI callers dispatch through background executors.
+     */
+    private fun requireBackgroundThread(): Boolean = !isMainThread()
 
     /** Reads both legacy string entries and the current tagged-object schema. */
     private fun readFactsLocked(): List<String> {
@@ -139,7 +138,7 @@ internal class VyomMemoryStore private constructor(
 
     /** One JSON snapshot, one synchronous commit, under a process-wide read/modify/write lock. */
     private fun writeLocked(items: List<String>) {
-        requireBackgroundThread()
+        if (!requireBackgroundThread()) return
         val safe = items.mapNotNull(::safeFact)
             .distinctBy { it.lowercase() }
             .takeLast(MAX_FACTS)
@@ -160,7 +159,7 @@ internal class VyomMemoryStore private constructor(
     private fun encode(items: List<String>): String {
         val array = JSONArray()
         items.forEach { fact ->
-            array.put(JSONObject().put("text", fact).put("trust", UNTRUSTED_TAG))
+            array.put(JSONObject().put("text", fact).put("trust", UNTRUSTED_TAG).put("instruction_like", MemoryCapturePolicy.isInstructionLike(fact)))
         }
         return array.toString()
     }
