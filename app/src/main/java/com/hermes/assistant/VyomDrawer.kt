@@ -170,7 +170,7 @@ internal class VyomDrawer(
         val stop = Button(activity).apply {
             text = "STOP CONTROL"
             contentDescription = "Emergency stop for all Vyom device actions"
-            VyomTheme.stylePill(this, activity, "cyan", "danger")
+            VyomTheme.stylePill(this, activity, "indigo", "danger")
             setOnClickListener {
                 dialog.dismiss()
                 onNavigate("stop_control")
