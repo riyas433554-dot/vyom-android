@@ -184,9 +184,9 @@ internal class VyomFactoryDialog(
         root.addView(status)
         root.addView(Button(activity).apply {
             text = "CHECK SIGNED APK UPDATE"
-            textSize = 10f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { onUpdateApk() }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { bottomMargin = dp(8) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(8) })
 
         val workerPanel = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -195,7 +195,7 @@ internal class VyomFactoryDialog(
         }
         claimStatus = TextView(activity).apply {
             text = "WORKER IDLE · foreground claim only"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             maxLines = 100
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
         }
@@ -264,7 +264,7 @@ internal class VyomFactoryDialog(
         }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
         retryStatus = TextView(activity).apply {
             text = "RETRIES · LOADING"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(6), 0, 0)
             contentDescription = "Foreground retry schedule status"
@@ -272,7 +272,7 @@ internal class VyomFactoryDialog(
         workerPanel.addView(retryStatus)
         historyStatus = TextView(activity).apply {
             text = "RUNS · LOADING"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(6), 0, 0)
             contentDescription = "Recent persisted Factory execution attempts"
@@ -281,7 +281,7 @@ internal class VyomFactoryDialog(
         workerPanel.addView(historyStatus)
         laneMetricsStatus = TextView(activity).apply {
             text = "LANES · LOADING"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(6), 0, 0)
             contentDescription = "Lane-wise active workers, execution runs and failures"
@@ -290,12 +290,12 @@ internal class VyomFactoryDialog(
         workerPanel.addView(laneMetricsStatus)
         workerPanel.addView(Button(activity).apply {
             text = "DISCOVER / INSTALL SKILL REPOSITORY"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { discoverSkillRepositories() }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         workerPanel.addView(Button(activity).apply {
             text = "INSPECT / REGISTER ANY GITHUB REPOSITORY"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 VyomFactoryRepositoryReviewDialog(
                     activity,
@@ -304,17 +304,17 @@ internal class VyomFactoryDialog(
                     }
                 ).show()
             }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         val workerToggle = Button(activity).apply {
             text = "WORKER CONTROLS · SHOW"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 val expanded = workerPanel.visibility != android.view.View.VISIBLE
                 workerPanel.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
                 text = if (expanded) "WORKER CONTROLS · HIDE" else "WORKER CONTROLS · SHOW"
             }
         }
-        root.addView(workerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        root.addView(workerToggle, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(4) })
         workerPanel.visibility = android.view.View.GONE
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
 
@@ -361,10 +361,10 @@ internal class VyomFactoryDialog(
             } else {
                 screenshotAttachButton = Button(activity).apply {
                     text = "ATTACH TO FACTORY ISSUE"
-                    textSize = 9f
+                    VyomTheme.stylePill(this, activity, variant = "secondary")
                     setOnClickListener { chooseScreenshotIssue(screenshot) }
                 }
-                evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(40)).apply {
+                evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(48)).apply {
                     topMargin = dp(6)
                 })
             }
