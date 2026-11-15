@@ -207,6 +207,11 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val storedAccent = settingsPrefs.getString("theme_accent", null)
+        val canonicalAccent = VyomTheme.canonicalAccentTheme(storedAccent)
+        if (storedAccent != canonicalAccent) {
+            settingsPrefs.edit().putString("theme_accent", canonicalAccent).apply()
+        }
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
             VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(applicationContext)
@@ -306,7 +311,7 @@ class MainActivity : Activity() {
             text = "VYOM  •  CONNECTING"
             textSize = 9f
             letterSpacing = 0.20f
-            setTextColor(VyomTheme.ACCENT_CYAN)
+            setTextColor(VyomTheme.ACCENT_INDIGO)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
         }
@@ -323,7 +328,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.RECTANGLE
                 setColor(0xE6101A2E.toInt())
                 cornerRadius = dp(VyomTheme.RADIUS_LARGE_DP).toFloat()
-                setStroke(dp(1), Color.argb(125, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
+                setStroke(dp(1), Color.argb(125, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
             }
             elevation = dp(8).toFloat()
         }
@@ -334,7 +339,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.RECTANGLE
                 setColor(0xD90F1A2E.toInt())
                 cornerRadius = dp(34).toFloat()
-                setStroke(dp(1), Color.argb(115, Color.red(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")), Color.green(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")), Color.blue(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))))
+                setStroke(dp(1), Color.argb(115, Color.red(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")), Color.green(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")), Color.blue(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))))
             }
             setPadding(dp(5), dp(3), dp(5), dp(3))
         }
@@ -346,7 +351,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             textSize = if (label == "◉") 22f else 10f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
             setOnClickListener { action() }
         }
         chatTab = dockItem("Chat") { showTab(false) }
@@ -514,7 +519,7 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, dp(24)))
         val orbColors = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("CYAN", "AMBER", "VIOLET", "GREEN").forEachIndexed { mode, label ->
+        listOf("INDIGO", "AMBER", "VIOLET", "GREEN").forEachIndexed { mode, label ->
             orbColors.addView(Button(this).apply {
                 text = label
                 contentDescription = "Set orb color to $label"
@@ -763,7 +768,7 @@ class MainActivity : Activity() {
         settingsContent.addView(TextView(this).apply { text = "MIC INPUT LEVEL"; textSize = 11f; setTextColor(Color.LTGRAY) })
         micLevelMeter = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100; progress = 0; contentDescription = "Microphone input level"
-            progressTintList = android.content.res.ColorStateList.valueOf(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            progressTintList = android.content.res.ColorStateList.valueOf(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
         }
         settingsContent.addView(micLevelMeter, LinearLayout.LayoutParams(-1, dp(20)))
         settingsContent.addView(Button(this).apply {
@@ -1310,7 +1315,7 @@ class MainActivity : Activity() {
 
         val orbitView = OrbitHomeView(this)
         orbitHomeView = orbitView
-        orbitView.setAccentColor(VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+        orbitView.setAccentColor(VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
         orbitView.setLiteMode(liteMode)
         root.addView(orbitView, 0, FrameLayout.LayoutParams(-1, -1))
         root.addView(orb, FrameLayout.LayoutParams(1, 1, Gravity.CENTER))
@@ -1323,7 +1328,7 @@ class MainActivity : Activity() {
             text = "☰"
             textSize = 25f
             gravity = Gravity.CENTER
-            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
             contentDescription = "Open navigation drawer"
             setOnClickListener { showProfileMenu() }
         }, LinearLayout.LayoutParams(dp(44), dp(44)))
@@ -1421,7 +1426,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.RECTANGLE
                 setColor(0xC7101A2E.toInt())
                 cornerRadius = dp(VyomTheme.RADIUS_CHAT_DP).toFloat()
-                setStroke(dp(1), Color.argb(140, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
+                setStroke(dp(1), Color.argb(140, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
             }
             setPadding(dp(10), dp(2), dp(4), dp(2))
         }
@@ -1441,7 +1446,7 @@ class MainActivity : Activity() {
             text = "➤"
             textSize = 19f
             gravity = Gravity.CENTER
-            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
             contentDescription = "Send prompt to Vyom chat"
             setPadding(dp(12), dp(8), dp(12), dp(8))
             setOnClickListener {
@@ -1474,7 +1479,7 @@ class MainActivity : Activity() {
                     shape = GradientDrawable.RECTANGLE
                     setColor(0xB80F1A2E.toInt())
                     cornerRadius = dp(999).toFloat()
-                    setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
+                    setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
                 }
                 setOnClickListener {
                     askInput.setText(when (label) {
@@ -1513,7 +1518,7 @@ class MainActivity : Activity() {
                     shape = GradientDrawable.RECTANGLE
                     setColor(0xC7182846.toInt())
                     cornerRadius = dp(VyomTheme.RADIUS_SMALL_DP).toFloat()
-                    setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_CYAN shr 16 and 0xFF, VyomTheme.ACCENT_CYAN shr 8 and 0xFF, VyomTheme.ACCENT_CYAN and 0xFF))
+                    setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
                 }
                 isClickable = true
                 isFocusable = true
@@ -1536,8 +1541,8 @@ class MainActivity : Activity() {
             textSize = 9f
             letterSpacing = 0.12f
             typeface = Typeface.MONOSPACE
-            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
-            background = VyomTheme.glass(this@MainActivity, 999, VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
+            background = VyomTheme.glass(this@MainActivity, 999, VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
             setPadding(dp(12), dp(7), dp(12), dp(7))
         }, LinearLayout.LayoutParams(-2, -2))
         routeRow.addView(TextView(this).apply {
@@ -1550,7 +1555,7 @@ class MainActivity : Activity() {
         content.addView(routeRow, LinearLayout.LayoutParams(-1, -2))
         val stopControl = Button(this).apply {
             text = if (controlKillSwitch) "CONTROL STOPPED" else "STOP CONTROL"
-            VyomTheme.stylePill(this, this@MainActivity, "cyan", "danger")
+            VyomTheme.stylePill(this, this@MainActivity, "indigo", "danger")
             setOnClickListener { activateControlKillSwitch() }
         }
         content.addView(stopControl, LinearLayout.LayoutParams(-1, dp(46)))
@@ -4043,7 +4048,7 @@ class MainActivity : Activity() {
             1 -> "amber"
             2 -> "violet"
             3 -> "green"
-            else -> "cyan"
+            else -> "indigo"
         }
         settingsPrefs.edit()
             .putInt("orb_mode", orbMode)
@@ -4057,7 +4062,7 @@ class MainActivity : Activity() {
     private fun applyDesignSystem(view: View) {
         if (view is Button) {
             val label = view.text?.toString()?.trim()?.uppercase().orEmpty()
-            val theme = settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"
+            val theme = settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"
             val variant = when {
                 label.contains("STOP CONTROL") || label == "END" || label.contains("DELETE") -> "danger"
                 label.contains("CONNECT VYOM") || label == "SEND" || label.contains("CREATE TASK") || label.contains("START LIVE") -> "primary"
@@ -4070,7 +4075,7 @@ class MainActivity : Activity() {
             view.setHintTextColor(VyomTheme.TEXT_SECONDARY)
             if (view.background != null) {
                 view.background = VyomTheme.glass(this, VyomTheme.RADIUS_SMALL_DP,
-                    VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+                    VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
                 view.setPadding(dp(12), view.paddingTop.coerceAtLeast(dp(8)), dp(12), view.paddingBottom.coerceAtLeast(dp(8)))
             }
         }
@@ -4080,7 +4085,7 @@ class MainActivity : Activity() {
     }
 
     private fun applyThemeAccent() {
-        val accent = VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+        val accent = VyomTheme.accent(this, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")
         if (::status.isInitialized) status.setTextColor(accent)
         mainPanel?.let { panel ->
             applyDesignSystem(panel)
@@ -4255,7 +4260,7 @@ class MainActivity : Activity() {
         }
         val topBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL }
         topBar.addView(Button(this).apply {
-            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")
             text = if (liveCaptionsEnabled) "CAPTIONS ON" else "CAPTIONS OFF"
             contentDescription = "Toggle live captions"
             setOnClickListener {
@@ -4266,7 +4271,7 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(dp(128), dp(42)))
         topBar.addView(Button(this).apply {
-            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")
             text = "⋮"
             contentDescription = "Live voice menu"
             setOnClickListener {
@@ -4297,7 +4302,7 @@ class MainActivity : Activity() {
             textSize = 18f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
-            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan"))
+            setTextColor(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
             contentDescription = "Live voice state"
         }
         panel.addView(liveStateLabel, LinearLayout.LayoutParams(-1, dp(38)))
@@ -4312,7 +4317,7 @@ class MainActivity : Activity() {
         panel.addView(liveCaptionView, LinearLayout.LayoutParams(-1, dp(76)))
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         controls.addView(Button(this).apply {
-            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "cyan") ?: "cyan")
+            VyomTheme.stylePill(this, this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")
             text = if (voiceMuted) "UNMUTE" else "MUTE"
             contentDescription = if (voiceMuted) "Unmute microphone" else "Mute microphone"
             setOnClickListener {
@@ -5713,7 +5718,7 @@ class MainActivity : Activity() {
             if (state in activeStates) {
                 card.addView(Button(this).apply {
                     text = "CANCEL TASK"
-                    VyomTheme.stylePill(this, this@MainActivity, "cyan", "danger")
+                    VyomTheme.stylePill(this, this@MainActivity, "indigo", "danger")
                     setOnClickListener { cancelTask(id) }
                 }, LinearLayout.LayoutParams(-1, dp(42)))
             }

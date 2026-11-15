@@ -9,6 +9,7 @@ internal object VyomDesignSpec {
     const val BACKGROUND = 0xFF090B10.toInt()
     const val GLASS = 0xFF171A22.toInt()
     const val INDIGO = 0xFF7775E8.toInt()
+    @Deprecated("Use INDIGO; renderer mode 0 remains the indigo mode.")
     const val CYAN = INDIGO
     const val VIOLET = 0xFF9997F0.toInt()
     const val AMBER = 0xFFC6AD82.toInt()
@@ -94,7 +95,7 @@ internal object VyomDesignSpec {
         OrbState.ERROR -> ROSE
     }
 
-    /** Renderer modes: cyan=0, amber=1, violet=2, green=3, muted/offline=4, error=5. */
+    /** Renderer modes: indigo=0, amber=1, violet=2, green=3, muted/offline=4, error=5. */
     fun orbMode(state: OrbState): Int = when (state) {
         OrbState.READY, OrbState.LISTENING, OrbState.HEARING -> 0
         OrbState.TASK_RUNNING, OrbState.CONTROL_ACTIVE, OrbState.CONFIRM_NEEDED -> 1

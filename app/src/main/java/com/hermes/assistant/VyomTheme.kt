@@ -17,7 +17,9 @@ internal object VyomTheme {
     const val SURFACE_TASK_CARD: Int = 0xFF1C202A.toInt()
     const val TEXT_PRIMARY: Int = 0xFFE8E8ED.toInt()
     const val TEXT_SECONDARY: Int = 0xFF9296A3.toInt()
-    const val ACCENT_CYAN: Int = 0xFF7775E8.toInt()
+    const val ACCENT_INDIGO: Int = 0xFF7775E8.toInt()
+    @Deprecated("Use ACCENT_INDIGO")
+    const val ACCENT_CYAN: Int = ACCENT_INDIGO
     const val ACCENT_VIOLET: Int = 0xFF9997F0.toInt()
     const val ACCENT_AMBER: Int = 0xFFC6AD82.toInt()
     const val ACCENT_GREEN: Int = 0xFF55B995.toInt()
@@ -38,19 +40,28 @@ internal object VyomTheme {
     const val GLASS_BLUR_MIN_DP = 20
     const val GLASS_BLUR_MAX_DP = 40
 
-    fun accent(context: Context, theme: String = "cyan"): Int = when (theme.lowercase()) {
+    fun canonicalAccentTheme(theme: String?): String = when (theme?.trim()?.lowercase()) {
+        "indigo", "cyan", null, "" -> "indigo"
+        "amber" -> "amber"
+        "violet" -> "violet"
+        "green" -> "green"
+        "danger", "red" -> "danger"
+        else -> "indigo"
+    }
+
+    fun accent(context: Context, theme: String = "indigo"): Int = when (canonicalAccentTheme(theme)) {
         "amber" -> ACCENT_AMBER
         "violet" -> ACCENT_VIOLET
         "green" -> ACCENT_GREEN
-        "danger", "red" -> ACCENT_DANGER
-        else -> ACCENT_CYAN
+        "danger" -> ACCENT_DANGER
+        else -> ACCENT_INDIGO
     }
 
-    fun panel(context: Context, theme: String = "cyan"): GradientDrawable {
+    fun panel(context: Context, theme: String = "indigo"): GradientDrawable {
         val color = accent(context, theme)
         return GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
-            intArrayOf(Color.rgb(29, 32, 42), Color.rgb(20, 23, 32))
+            intArrayOf(SURFACE_TASK_CARD, SURFACE_ASSISTANT_BUBBLE)
         ).apply {
             cornerRadius = RADIUS_LARGE_DP * context.resources.displayMetrics.density
             setStroke((context.resources.displayMetrics.density).toInt().coerceAtLeast(1),
@@ -58,7 +69,7 @@ internal object VyomTheme {
         }
     }
 
-    fun glass(context: Context, radiusDp: Int = RADIUS_LARGE_DP, accent: Int = ACCENT_CYAN): GradientDrawable =
+    fun glass(context: Context, radiusDp: Int = RADIUS_LARGE_DP, accent: Int = ACCENT_INDIGO): GradientDrawable =
         GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(SURFACE_GLASS)
@@ -67,7 +78,7 @@ internal object VyomTheme {
                 Color.argb(42, Color.red(accent), Color.green(accent), Color.blue(accent)))
         }
 
-    fun stylePill(button: Button, context: Context, theme: String = "cyan", variant: String = "primary") {
+    fun stylePill(button: Button, context: Context, theme: String = "indigo", variant: String = "primary") {
         val color = when (variant.lowercase()) {
             "danger" -> ACCENT_DANGER
             "secondary" -> accent(context, theme)

@@ -17,7 +17,7 @@ import kotlin.math.sin
  */
 internal class OrbitHomeView(context: Context) : View(context) {
     private val orbitPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(27, 61, 102)
+        color = VyomTheme.BORDER_GLASS
         style = Paint.Style.STROKE
         strokeWidth = dp(1f)
         pathEffect = android.graphics.DashPathEffect(floatArrayOf(dp(4f), dp(5f)), 0f)
@@ -28,7 +28,7 @@ internal class OrbitHomeView(context: Context) : View(context) {
         strokeWidth = dp(1f)
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(207, 232, 255)
+        color = VyomTheme.TEXT_PRIMARY
         textSize = dp(11f)
         typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
     }
@@ -36,12 +36,8 @@ internal class OrbitHomeView(context: Context) : View(context) {
     private var downX = 0f
     private var dragging = false
     private var tasks: List<Pair<String, String>> = emptyList()
-    private var accentColor: Int = Color.rgb(56, 189, 248)
+    private var accentColor: Int = VyomTheme.ACCENT_INDIGO
     private var liteMode: Boolean = false
-    private val colors = intArrayOf(
-        Color.rgb(56, 189, 248), Color.rgb(167, 139, 250), Color.rgb(251, 191, 36),
-        Color.rgb(244, 114, 182), Color.rgb(52, 211, 153)
-    )
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -56,11 +52,11 @@ internal class OrbitHomeView(context: Context) : View(context) {
         canvas.restore()
         val visibleTasks = tasks.take(5)
         if (visibleTasks.isEmpty()) {
-            textPaint.color = Color.rgb(207, 232, 255)
+            textPaint.color = VyomTheme.TEXT_PRIMARY
             textPaint.textSize = dp(12f)
             canvas.drawText("TASKS", cx - dp(20f), cy - dp(6f), textPaint)
             textPaint.textSize = dp(10f)
-            textPaint.color = Color.LTGRAY
+            textPaint.color = VyomTheme.TEXT_SECONDARY
             canvas.drawText("No saved tasks", cx - dp(35f), cy + dp(14f), textPaint)
             return
         }
@@ -74,19 +70,14 @@ internal class OrbitHomeView(context: Context) : View(context) {
             cardPaint.alpha = if (liteMode) 245 else if (sin(angle) > 0.6) 230 else 155
             canvas.drawRoundRect(rect, dp(5f), dp(5f), cardPaint)
             val state = visibleTasks[i].second.lowercase()
-            val cardColor = when (state) {
-                "failed", "error" -> Color.rgb(248, 113, 113)
-                "running", "in_progress" -> Color.rgb(56, 189, 248)
-                "success", "completed", "done" -> Color.rgb(52, 211, 153)
-                else -> Color.rgb(251, 191, 36)
-            }
+            val cardColor = VyomDesignSpec.taskStatusAccent(state)
             borderPaint.color = cardColor
             borderPaint.alpha = if (sin(angle) > 0.6) 235 else 150
             canvas.drawRoundRect(rect, dp(5f), dp(5f), borderPaint)
             textPaint.color = cardColor
             textPaint.textSize = dp(10f)
             canvas.drawText(state.uppercase().take(12), rect.left + dp(8f), rect.top + dp(16f), textPaint)
-            textPaint.color = Color.rgb(207, 232, 255)
+            textPaint.color = VyomTheme.TEXT_PRIMARY
             textPaint.textSize = dp(10f)
             val title = visibleTasks[i].first
             canvas.drawText(if (title.length > 15) title.take(14) + "…" else title, rect.left + dp(8f), rect.top + dp(36f), textPaint)

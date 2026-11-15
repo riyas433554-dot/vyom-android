@@ -9,7 +9,7 @@ class VyomDesignSpecTest {
     @Test fun designTokensMatchTheApprovedObsidianPlatinumPalette() {
         assertEquals(0xFF090B10.toInt(), VyomDesignSpec.BACKGROUND)
         assertEquals(0xFF171A22.toInt(), VyomDesignSpec.GLASS)
-        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.CYAN)
+        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.INDIGO)
         assertEquals(0xFF9997F0.toInt(), VyomDesignSpec.VIOLET)
         assertEquals(0xFFC6AD82.toInt(), VyomDesignSpec.AMBER)
         assertEquals(0xFF55B995.toInt(), VyomDesignSpec.GREEN)
@@ -36,8 +36,8 @@ class VyomDesignSpecTest {
     }
 
     @Test fun orbStatesHaveExplicitVisualSemantics() {
-        assertEquals(VyomDesignSpec.CYAN, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
-        assertEquals(VyomDesignSpec.CYAN, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
+        assertEquals(VyomDesignSpec.INDIGO, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
+        assertEquals(VyomDesignSpec.INDIGO, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
         assertEquals(VyomDesignSpec.VIOLET, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.THINKING))
         assertEquals(VyomDesignSpec.VIOLET, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.SPEAKING))
         assertEquals(VyomDesignSpec.AMBER, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.TASK_RUNNING))
