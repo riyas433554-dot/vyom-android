@@ -145,7 +145,7 @@ internal class VyomFactoryDialog(
     fun show() {
         dialog = Dialog(activity)
         val accent = VyomTheme.accent(activity, activity.getSharedPreferences("vyom_settings", Activity.MODE_PRIVATE)
-            .getString("theme_accent", "cyan") ?: "cyan")
+            .getString("theme_accent", "indigo") ?: "indigo")
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(16), dp(18), dp(14))
