@@ -1,3 +1,17 @@
+## Obsidian capability integration — in progress (2026-11-15)
+
+- Working branch: `feature/vyom-memory-skills-intelligence`; current HEAD at this update: `2c9a3dc3f8cec60d37799478a1d8dab97d874efb`; parent base remains frozen worker SHA `d1b7bfc81a937eedd7b077642b66e02fbdb4ef08`.
+- PR #116 remains a draft and currently contains the test-first worker-context contract plus implementation commits. No merge, release, signing, Android `main`, Render, backend or production Supabase change was made.
+- Added `VyomFactoryWorkerContextComposer`: bounds context, filters sensitive memory, validates skill repository/commit/document metadata, and JSON-encodes memory/skill content under explicit untrusted-reference labels.
+- Added `VyomFactoryWorkerContextReader`: reads encrypted local memory and only owner-installed skills whose repository identity, pinned commit, license, content type and SHA-256 content hash validate.
+- Integrated the reader into `VyomFactoryStructuredWorkerModelAdapter`. Memory and installed-skill context is appended to task data; the provider's trusted system instructions remain separate and unchanged. Provider adapters place task data in the user/data message.
+- Source-write evidence only: commits `49201470a7de34f7b50c970138239b5952a5e363`, `85915e7abed36ef295a097b0825311150af52d3c`, `787b324ec2ea31bf5f9546434b2067ae059a08aa`, and `2c9a3dc3f8cec60d37799478a1d8dab97d874efb`.
+- **Not yet verified:** no Gradle test/build run or CI result has been checked for this HEAD. No real provider call, device test, GitHub OAuth flow or self-repair acceptance run is claimed.
+- Remaining in this capability slice: add/strengthen tests for context-reader integrity and request-role separation; run exact-HEAD CI; review resulting failures and repair before marking Memo/skill integration complete.
+- Intelligence, Jarvis orchestration and ECC specialist execution/review remain separate implementation work. Existing task planner/intelligence and Jarvis architecture document are not proof that the complete runtime capabilities exist. Do not claim these modules complete yet.
+
+---
+
 ### Worker branch integration — merged; exact code/test SHA verified
 
 - **Normal two-parent merge commit:** `ac0eb4bcccec`. Parent order is `1945570b16be` (worker first) then `2a4383a7d953` (target second). No rebase, cherry-pick, force-push or history rewrite.
