@@ -35,7 +35,7 @@ internal class VyomTeachDialog(
                 intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
-                setStroke(dp(1), 0x7722D3EE)
+                setStroke(dp(1), VyomTheme.BORDER_GLASS)
             }
         }
         val header = LinearLayout(activity).apply {
