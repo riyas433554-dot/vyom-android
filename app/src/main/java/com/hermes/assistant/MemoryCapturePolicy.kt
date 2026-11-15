@@ -21,12 +21,12 @@ internal object MemoryCapturePolicy {
     /** Distinct from trust=untrusted: this marks content that looks like an instruction. */
     const val INSTRUCTION_LIKE_MARKER = "[INSTRUCTION-LIKE UNTRUSTED DATA]"
     private val instructionLikePatterns = listOf(
-        Regex("""\\b(ignore|disregard|override|bypass|reveal|exfiltrate|steal|dump|disable|execute|run|unrestricted|escalate|must|never|always|do not|don't|should|avoid|preserve|keep|report only)\\b"""),
-        Regex("""\\b(system|developer)\\s*:"""),
-        Regex("""authorization\\s*:\\s*bearer"""),
-        Regex("""release-certificate(?:\\.sha256)?"""),
-        Regex("""\\b(stop|shouldstop)\\b.{0,40}\\b(continue|false|optional|succeeded)\\b"""),
-        Regex("""system instructions are authoritative except|print all api keys|curl\\s*\\|\\s*sh|ci green without running ci""")
+        Regex("""\b(ignore|disregard|override|bypass|reveal|exfiltrate|steal|dump|disable|execute|run|unrestricted|escalate|must|never|always|do not|don't|should|avoid|preserve|keep|report only)\b"""),
+        Regex("""\b(system|developer)\s*:"""),
+        Regex("""authorization\s*:\s*bearer"""),
+        Regex("""release-certificate(?:\.sha256)?"""),
+        Regex("""\b(stop|shouldstop)\b.{0,40}\b(continue|false|optional|succeeded)\b"""),
+        Regex("""system instructions are authoritative except|print all api keys|curl\s*\|\s*sh|ci green without running ci""")
     )
 
     fun isInstructionLike(text: String): Boolean {
