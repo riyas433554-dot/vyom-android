@@ -113,6 +113,25 @@ class VyomDesignSpecTest {
         assertEquals(0xFFD96C7A.toInt(), VyomTheme.ACCENT_DANGER)
     }
 
+    @Test fun disabledPillStatesKeepReadableTextAndVisibleBoundaries() {
+        assertTrue(
+            "Disabled standard pill text must meet WCAG AA",
+            contrastRatio(VyomTheme.TEXT_DISABLED, VyomTheme.SURFACE_DISABLED) >= 4.5
+        )
+        assertTrue(
+            "Disabled danger pill text must meet WCAG AA",
+            contrastRatio(VyomTheme.TEXT_DANGER_DISABLED, VyomTheme.SURFACE_DANGER_DISABLED) >= 4.5
+        )
+        assertTrue(
+            "Disabled standard pill boundary must remain visible",
+            contrastRatio(VyomTheme.BORDER_DISABLED, VyomTheme.SURFACE_DISABLED) >= 3.0
+        )
+        assertTrue(
+            "Disabled danger pill boundary must remain visible",
+            contrastRatio(VyomTheme.BORDER_DANGER_DISABLED, VyomTheme.SURFACE_DANGER_DISABLED) >= 3.0
+        )
+    }
+
     @Test fun readyOrbitUsesElectricIndigoToken() {
         val indigo = VyomDesignSpec::class.java.declaredFields.firstOrNull { it.name == "INDIGO" }
         assertTrue("Design spec must expose the semantically named INDIGO token", indigo != null)
