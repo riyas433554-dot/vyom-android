@@ -586,7 +586,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(liveModelNotice, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(TextView(this).apply {
-            text = "FACTORY WORKER MODEL PROVIDERS · LIVE CALLS OFF UNTIL OWNER ENABLES"
+            text = "VYOM CODING AGENT MODELS · GEMMA / NEMOTRON"
             textSize = 11f
             setTextColor(Color.LTGRAY)
             setPadding(0, dp(12), 0, dp(4))
@@ -622,10 +622,10 @@ class MainActivity : Activity() {
             ))
         }
         val workerProviderButton = Button(this)
-        workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+        workerProviderButton.text = "CODING AGENT MODEL: ${workerProviderLabel(selectedWorkerProviderId)}"
         workerProviderButton.setOnClickListener {
             AlertDialog.Builder(this@MainActivity)
-                .setTitle("Select Factory worker provider")
+                .setTitle("Select Vyom coding-agent model")
                 .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma")) { _, which ->
                     selectedWorkerProviderId = if (which == 0) {
                         NvidiaNemotronWorkerModelProvider.PROVIDER_ID
@@ -636,7 +636,7 @@ class MainActivity : Activity() {
                         .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
                         .apply()
                     VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
-                    workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+                    workerProviderButton.text = "CODING AGENT MODEL: ${workerProviderLabel(selectedWorkerProviderId)}"
                     workerModelIdInput.setText(
                         workerModelPrefs.getString(
                             selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
@@ -650,7 +650,7 @@ class MainActivity : Activity() {
         settingsContent.addView(workerProviderButton, LinearLayout.LayoutParams(-1, dp(42)))
         settingsContent.addView(workerModelIdInput, LinearLayout.LayoutParams(-1, dp(44)))
         val workerNvidiaKeyInput = EditText(this).apply {
-            hint = "NVIDIA Nemotron worker key (blank = keep saved)"
+            hint = "NVIDIA Nemotron coding-agent key (blank = keep saved)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
             isSaveEnabled = false
@@ -661,7 +661,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(workerNvidiaKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         val workerGoogleKeyInput = EditText(this).apply {
-            hint = "Google Gemma worker key (blank = keep saved)"
+            hint = "Google Gemma coding-agent key (blank = keep saved)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
             isSaveEnabled = false
@@ -672,7 +672,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(workerGoogleKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
-            text = "SAVE WORKER PROVIDER SETTINGS"
+            text = "SAVE CODING AGENT MODEL SETTINGS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
                 VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
@@ -697,7 +697,7 @@ class MainActivity : Activity() {
                         .apply()
                     storeWorkerKey(NvidiaNemotronWorkerModelProvider.PROVIDER_ID, workerNvidiaKeyInput)
                     storeWorkerKey(GoogleGemmaWorkerModelProvider.PROVIDER_ID, workerGoogleKeyInput)
-                    status.text = "Worker provider settings saved. Previous live-call authorization was revoked."
+                    status.text = "Coding-agent model settings saved."
                 } catch (_: Exception) {
                     status.text = "Worker settings could not be saved. Check model ID and retry."
                 }
