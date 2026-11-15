@@ -6,16 +6,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VyomDesignSpecTest {
-    @Test fun designTokensMatchTheSuppliedHudReference() {
-        assertEquals(0xFF070B14.toInt(), VyomDesignSpec.BACKGROUND)
-        assertEquals(0xFF0F1A2E.toInt(), VyomDesignSpec.GLASS)
-        assertEquals(0xFF22D3EE.toInt(), VyomDesignSpec.CYAN)
-        assertEquals(0xFF8B5CF6.toInt(), VyomDesignSpec.VIOLET)
-        assertEquals(0xFFFBBF24.toInt(), VyomDesignSpec.AMBER)
-        assertEquals(0xFF34D399.toInt(), VyomDesignSpec.GREEN)
-        assertEquals(0xFFF43F5E.toInt(), VyomDesignSpec.ROSE)
-        assertEquals(0xFFE6F1FF.toInt(), VyomDesignSpec.TEXT_PRIMARY)
-        assertEquals(0xFF8FA3BF.toInt(), VyomDesignSpec.TEXT_SECONDARY)
+    @Test fun designTokensMatchTheApprovedObsidianPlatinumPalette() {
+        assertEquals(0xFF090B10.toInt(), VyomDesignSpec.BACKGROUND)
+        assertEquals(0xFF171A22.toInt(), VyomDesignSpec.GLASS)
+        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.CYAN)
+        assertEquals(0xFF9997F0.toInt(), VyomDesignSpec.VIOLET)
+        assertEquals(0xFFC6AD82.toInt(), VyomDesignSpec.AMBER)
+        assertEquals(0xFF55B995.toInt(), VyomDesignSpec.GREEN)
+        assertEquals(0xFFD96C7A.toInt(), VyomDesignSpec.ROSE)
+        assertEquals(0xFFE8E8ED.toInt(), VyomDesignSpec.TEXT_PRIMARY)
+        assertEquals(0xFF9296A3.toInt(), VyomDesignSpec.TEXT_SECONDARY)
     }
 
     @Test fun bottomNavigationMatchesFivePrimaryDestinations() {

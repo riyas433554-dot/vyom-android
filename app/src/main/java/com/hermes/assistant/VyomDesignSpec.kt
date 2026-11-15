@@ -6,15 +6,16 @@ package com.hermes.assistant
  * deliberately visible as planned, never represented as a working feature.
  */
 internal object VyomDesignSpec {
-    const val BACKGROUND = 0xFF070B14.toInt()
-    const val GLASS = 0xFF0F1A2E.toInt()
-    const val CYAN = 0xFF22D3EE.toInt()
-    const val VIOLET = 0xFF8B5CF6.toInt()
-    const val AMBER = 0xFFFBBF24.toInt()
-    const val GREEN = 0xFF34D399.toInt()
-    const val ROSE = 0xFFF43F5E.toInt()
-    const val TEXT_PRIMARY = 0xFFE6F1FF.toInt()
-    const val TEXT_SECONDARY = 0xFF8FA3BF.toInt()
+    const val BACKGROUND = 0xFF090B10.toInt()
+    const val GLASS = 0xFF171A22.toInt()
+    const val INDIGO = 0xFF7775E8.toInt()
+    const val CYAN = INDIGO
+    const val VIOLET = 0xFF9997F0.toInt()
+    const val AMBER = 0xFFC6AD82.toInt()
+    const val GREEN = 0xFF55B995.toInt()
+    const val ROSE = 0xFFD96C7A.toInt()
+    const val TEXT_PRIMARY = 0xFFE8E8ED.toInt()
+    const val TEXT_SECONDARY = 0xFF9296A3.toInt()
 
     data class NavItem(
         val id: String,
