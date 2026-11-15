@@ -236,7 +236,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             throw SecurityException("Worker repository binding has no allowed paths")
         }
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        val baseTaskData = "TITLE (UNTRUSTED DATA):\\n${task.title}\\n\\nDESCRIPTION (UNTRUSTED DATA):\\n${description}"
+        val baseTaskData = "TITLE (UNTRUSTED DATA):\n${task.title}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
         if (MemoryCapturePolicy.isSensitive(task.title) || MemoryCapturePolicy.isSensitive(description)) {
             record(task.number, 0, 0, "BLOCKED")
             throw SecurityException("Sensitive issue text cannot be sent to the worker model")
@@ -248,7 +248,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             throw IllegalStateException("Worker memory and installed-skill context could not be read safely")
         }
         val taskData = if (workerContext.isBlank()) baseTaskData else
-            baseTaskData + "\\n\\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\\n" + workerContext
+            baseTaskData + "\n\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\n" + workerContext
         val request = VyomFactoryWorkerModelProvider.Request(
             taskNumber = task.number,
             repository = binding.repositoryUrl,
