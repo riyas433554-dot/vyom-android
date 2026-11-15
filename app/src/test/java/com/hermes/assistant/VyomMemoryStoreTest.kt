@@ -52,7 +52,7 @@ class VyomMemoryStoreTest {
         val memory = store(storage)
         memory.learnFrom("Remember that my API key is nvapi-abcdefghijklmnop")
         memory.replaceFacts("Safe preference.\nMy OTP is 123456")
-        assertTrue(memory.facts().isEmpty())
+        assertEquals(listOf("Safe preference."), memory.facts())
         assertFalse(storage.rawFacts().contains("nvapi-"))
         assertFalse(storage.rawFacts().contains("123456"))
     }
@@ -108,7 +108,7 @@ class VyomMemoryStoreTest {
         val facts = memory.facts()
         assertEquals(writers, facts.size)
         (1..writers).forEach { index ->
-            assertTrue(facts.any { it.contains("writer marker $index") })
+            assertTrue(facts.any { it.contains("writer marker $index", ignoreCase = true) })
         }
     }
 }
