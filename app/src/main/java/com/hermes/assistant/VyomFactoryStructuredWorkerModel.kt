@@ -245,7 +245,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         val workerContext = try {
             contextProvider(baseTaskData)
         } catch (error: Exception) {
-            Log.w("VyomFactoryWorker", "Optional memory and skill context unavailable; continuing with task data", error)
+            runCatching { Log.w("VyomFactoryWorker", "Optional memory and skill context unavailable; continuing with task data", error) }
             ""
         }
         val request = buildRequest(task, binding, workerContext)
