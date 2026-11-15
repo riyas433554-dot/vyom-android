@@ -33,8 +33,8 @@ internal class VyomGitHubMcpClientTest {
                         .put("result", JSONObject().put("protocolVersion", "2025-03-26"))
                         .toString()
                 )
-                "notifications/initialized" -> Response(202, "", "test-session", "")
-                "tools/list" -> Response(
+                "notifications/initialized" -> VyomGitHubMcpClient.Transport.Response(202, "", "test-session", "")
+                "tools/list" -> VyomGitHubMcpClient.Transport.Response(
                     200, "application/json", "test-session",
                     JSONObject().put("jsonrpc", "2.0")
                         .put("id", request.getLong("id"))
@@ -45,7 +45,7 @@ internal class VyomGitHubMcpClientTest {
                                 .put("inputSchema", JSONObject().put("type", "object")))))
                         .toString()
                 )
-                "tools/call" -> Response(
+                "tools/call" -> VyomGitHubMcpClient.Transport.Response(
                     200, "application/json", "test-session",
                     JSONObject().put("jsonrpc", "2.0")
                         .put("id", request.getLong("id"))
