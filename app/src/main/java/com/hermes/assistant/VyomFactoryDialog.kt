@@ -205,23 +205,25 @@ internal class VyomFactoryDialog(
             gravity = Gravity.CENTER_VERTICAL
         }
         claimButton = Button(activity).apply {
-            text = "CLAIM NEXT"; textSize = 9f
+            text = "CLAIM NEXT"
+            VyomTheme.stylePill(this, activity, variant = "primary")
             setOnClickListener { claimNextTask() }
         }
-        workerActions.addView(claimButton, LinearLayout.LayoutParams(0, dp(40), 1f))
+        workerActions.addView(claimButton, LinearLayout.LayoutParams(0, dp(48), 1f))
         releaseClaimButton = Button(activity).apply {
-            text = "RELEASE CLAIM"; textSize = 9f
+            text = "RELEASE CLAIM"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             isEnabled = false
             setOnClickListener { releaseActiveClaim() }
         }
-        workerActions.addView(releaseClaimButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+        workerActions.addView(releaseClaimButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
             leftMargin = dp(8)
         })
         workerPanel.addView(workerActions)
 
         workerPanel.addView(Button(activity).apply {
             text = "BIND TEST WORKER REPOSITORY"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 VyomFactoryWorkerBindingDialog(
                     activity,
@@ -230,14 +232,17 @@ internal class VyomFactoryDialog(
                     }
                 ).show()
             }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         runButton = Button(activity).apply {
-            text = "RUN NEXT VERIFIED ACTION"; textSize = 9f
+            text = "RUN NEXT VERIFIED ACTION"
+            VyomTheme.stylePill(this, activity, variant = "primary")
             setOnClickListener { runNextTask() }
         }
-        workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
+        workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         stopButton = Button(activity).apply {
-            text = "STOP ALL WORKERS"; textSize = 9f; isEnabled = true
+            text = "STOP ALL WORKERS"
+            VyomTheme.stylePill(this, activity, variant = "danger")
+            isEnabled = true
             setOnClickListener {
                 workerStopStore.stopAll()
                 stopRunRequested.set(true)
@@ -246,16 +251,17 @@ internal class VyomFactoryDialog(
                 isEnabled = false
             }
         }
-        workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+        workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
         workerPanel.addView(Button(activity).apply {
-            text = "RESUME WORKERS"; textSize = 9f
+            text = "RESUME WORKERS"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 workerStopStore.resumeAll()
                 stopRunRequested.set(false)
                 stopButton.isEnabled = true
                 status.text = "Global STOP cleared. Worker dispatch may resume under the existing owner approvals."
             }
-        }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
         retryStatus = TextView(activity).apply {
             text = "RETRIES · LOADING"
             textSize = 9f; typeface = Typeface.MONOSPACE
