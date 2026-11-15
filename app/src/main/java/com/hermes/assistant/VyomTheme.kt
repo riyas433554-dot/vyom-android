@@ -6,25 +6,24 @@ import android.graphics.drawable.GradientDrawable
 import android.widget.Button
 
 /**
- * Vyom Design System v2 tokens.
- * Palette and component geometry follow the supplied "Vyom — Design System v2 + screens" reference.
+ * Vyom premium design tokens: Obsidian surfaces, Platinum typography and restrained Indigo/Champagne accents.
  */
 internal object VyomTheme {
-    const val BACKGROUND: Int = 0xFF070B14.toInt()
-    const val SURFACE_GLASS: Int = 0xE6101A2E.toInt()
-    const val SURFACE_GLASS_SOFT: Int = 0xB80F1A2E.toInt()
-    const val SURFACE_USER_BUBBLE: Int = 0xFF142C43.toInt()
-    const val SURFACE_ASSISTANT_BUBBLE: Int = 0xE60F1A2E.toInt()
-    const val SURFACE_TASK_CARD: Int = 0xC7182846.toInt()
-    const val TEXT_PRIMARY: Int = 0xFFE6F1FF.toInt()
-    const val TEXT_SECONDARY: Int = 0xFF8FA3BF.toInt()
-    const val ACCENT_CYAN: Int = 0xFF22D3EE.toInt()
-    const val ACCENT_VIOLET: Int = 0xFF8B5CF6.toInt()
-    const val ACCENT_AMBER: Int = 0xFFFBBF24.toInt()
-    const val ACCENT_GREEN: Int = 0xFF34D399.toInt()
-    const val ACCENT_DANGER: Int = 0xFFF43F5E.toInt()
-    const val BORDER_SUBTLE: Int = 0x506482AA
-    const val BORDER_GLASS: Int = 0x4722D3EE
+    const val BACKGROUND: Int = 0xFF090B10.toInt()
+    const val SURFACE_GLASS: Int = 0xF2171A22.toInt()
+    const val SURFACE_GLASS_SOFT: Int = 0xD91B1E27.toInt()
+    const val SURFACE_USER_BUBBLE: Int = 0xFF25283A.toInt()
+    const val SURFACE_ASSISTANT_BUBBLE: Int = 0xFF171A22.toInt()
+    const val SURFACE_TASK_CARD: Int = 0xFF1C202A.toInt()
+    const val TEXT_PRIMARY: Int = 0xFFE8E8ED.toInt()
+    const val TEXT_SECONDARY: Int = 0xFF9296A3.toInt()
+    const val ACCENT_CYAN: Int = 0xFF7775E8.toInt()
+    const val ACCENT_VIOLET: Int = 0xFF9997F0.toInt()
+    const val ACCENT_AMBER: Int = 0xFFC6AD82.toInt()
+    const val ACCENT_GREEN: Int = 0xFF55B995.toInt()
+    const val ACCENT_DANGER: Int = 0xFFD96C7A.toInt()
+    const val BORDER_SUBTLE: Int = 0x3DFFFFFF
+    const val BORDER_GLASS: Int = 0x337775E8
     const val RADIUS_SMALL_DP = 12
     const val RADIUS_LARGE_DP = 18
     const val RADIUS_CHAT_DP = 16
@@ -51,11 +50,11 @@ internal object VyomTheme {
         val color = accent(context, theme)
         return GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
-            intArrayOf(Color.rgb(24, 40, 70), Color.rgb(15, 26, 46))
+            intArrayOf(Color.rgb(29, 32, 42), Color.rgb(20, 23, 32))
         ).apply {
             cornerRadius = RADIUS_LARGE_DP * context.resources.displayMetrics.density
             setStroke((context.resources.displayMetrics.density).toInt().coerceAtLeast(1),
-                Color.argb(105, Color.red(color), Color.green(color), Color.blue(color)))
+                Color.argb(58, Color.red(color), Color.green(color), Color.blue(color)))
         }
     }
 
@@ -65,7 +64,7 @@ internal object VyomTheme {
             setColor(SURFACE_GLASS)
             cornerRadius = radiusDp * context.resources.displayMetrics.density
             setStroke((context.resources.displayMetrics.density).toInt().coerceAtLeast(1),
-                Color.argb(110, Color.red(accent), Color.green(accent), Color.blue(accent)))
+                Color.argb(42, Color.red(accent), Color.green(accent), Color.blue(accent)))
         }
 
     fun stylePill(button: Button, context: Context, theme: String = "cyan", variant: String = "primary") {
@@ -81,25 +80,24 @@ internal object VyomTheme {
         button.background = when (variant.lowercase()) {
             "secondary" -> GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.argb(24, Color.red(color), Color.green(color), Color.blue(color)))
+                setColor(Color.argb(22, Color.red(color), Color.green(color), Color.blue(color)))
                 cornerRadius = 999f * density
                 setStroke((density).toInt().coerceAtLeast(1),
-                    Color.argb(150, Color.red(color), Color.green(color), Color.blue(color)))
+                    Color.argb(92, Color.red(color), Color.green(color), Color.blue(color)))
             }
             "danger" -> GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(0xFFF95C75.toInt(), ACCENT_DANGER)).apply {
+                intArrayOf(ACCENT_DANGER, ACCENT_DANGER)).apply {
                 cornerRadius = 999f * density
             }
             else -> {
-                val start = Color.rgb((Color.red(color) * 0.55f).toInt(),
-                    (Color.green(color) * 0.55f).toInt(), (Color.blue(color) * 0.55f).toInt())
-                GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(start, color)).apply {
+                GradientDrawable().apply {
+                    setColor(color)
                     cornerRadius = 999f * density
                     setStroke((density).toInt().coerceAtLeast(1), color)
                 }
             }
         }
-        button.setTextColor(if (variant.lowercase() == "secondary") color else Color.rgb(4, 20, 30))
+        button.setTextColor(if (variant.lowercase() == "secondary") color else Color.WHITE)
         button.isAllCaps = false
         button.textSize = 14f
         button.minHeight = (44f * density).toInt()
