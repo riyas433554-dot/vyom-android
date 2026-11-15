@@ -77,6 +77,7 @@ internal class VyomMemoryStore private constructor(
             .map(String::trim)
             .filter(String::isNotBlank)
             .mapNotNull(::safeFact)
+            .toList()
         writeLocked(safe)
     }
 
