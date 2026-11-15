@@ -151,7 +151,11 @@ class VyomMemoryStoreTest {
         samples.forEach { sample ->
             assertTrue("Expected instruction-like marker for $sample", MemoryCapturePolicy.isInstructionLike(sample))
         }
-        memory.replaceFacts("I prefer concise reports.\n" + samples.joinToString("\n"))
+        // The API-key exfiltration case is dropped by the sensitive-data filter, not stored.
+        assertTrue(MemoryCapturePolicy.isSensitive(samples[2]))
+        val persistableSamples = samples.filterNot { MemoryCapturePolicy.isSensitive(it) }
+        memory.replaceFacts("I prefer concise reports.\n" + persistableSamples.joinToString("\n"))
+        assertFalse(storage.rawFacts().contains("Authorization: Bearer"))
         val entries = org.json.JSONArray(storage.rawFacts())
         val safe = entries.getJSONObject(0)
         assertEquals(VyomMemoryStore.UNTRUSTED_TAG, safe.getString("trust"))
