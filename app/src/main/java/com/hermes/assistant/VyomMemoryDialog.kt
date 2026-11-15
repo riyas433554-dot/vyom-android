@@ -127,7 +127,7 @@ internal class VyomMemoryDialog(
         }
         val clear = Button(activity).apply {
             text = "DELETE ALL"
-            VyomTheme.stylePill(this, activity, "cyan", "danger")
+            VyomTheme.stylePill(this, activity, "indigo", "danger")
             setOnClickListener {
                 AlertDialog.Builder(activity)
                     .setTitle("Delete all saved memories?")
