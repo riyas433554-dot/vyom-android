@@ -140,6 +140,12 @@ internal class VyomGitHubMcpCodingAgent(
         filesWritten: Boolean
     ) {
         if (name == "get_me") return
+        if (name == "search_code") {
+            require(args.optString("query").contains("repo:" + repository)) {
+                "Code search must be scoped to the selected repository."
+            }
+            return
+        }
         require(args.optString("owner") == owner && args.optString("repo") == repo) {
             "GitHub MCP call was blocked: repository does not match the selected target."
         }
