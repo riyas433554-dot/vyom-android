@@ -116,6 +116,7 @@ class MainActivity : Activity() {
     private var pendingSelfChangeTask = ""
     private var pendingSelfChangeTitle = ""
     private var pendingSelfChangeIssueNumber: Int? = null
+    @Volatile private var githubMcpClient: VyomGitHubMcpClient? = null
     private lateinit var updateNotice: TextView
     private lateinit var rollbackButton: Button
     private lateinit var personaButton: Button
@@ -930,6 +931,37 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         settingsContent.addView(selfChangeNotice, LinearLayout.LayoutParams(-1, -2))
+        val githubMcpStatus = TextView(this).apply {
+            text = "GITHUB MCP · NOT CONNECTED"
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(githubMcpStatus, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "CONNECT GITHUB MCP"
+            setOnClickListener {
+                isEnabled = false
+                text = "CONNECTING TO GITHUB MCP…"
+                io.execute {
+                    val client = VyomGitHubMcpClient {
+                        secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+                    }
+                    val result = runCatching { client.connect() }
+                    runOnUiThread {
+                        isEnabled = true
+                        text = "CONNECT GITHUB MCP"
+                        result.onSuccess { tools ->
+                            githubMcpClient = client
+                            githubMcpStatus.text = "CONNECTED · ${tools.size} GitHub tools discovered"
+                            selfChangeNotice.text = "GitHub MCP connected in this Vyom session. Repository tools are ready for the coding-agent runtime."
+                        }.onFailure { error ->
+                            githubMcpClient = null
+                            githubMcpStatus.text = "CONNECTION FAILED · ${error.message ?: error.javaClass.simpleName}"
+                        }
+                    }
+                }
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         selfChangeButton = Button(this).apply {
             text = "PROPOSE SELF-CHANGE"
             setOnClickListener {
