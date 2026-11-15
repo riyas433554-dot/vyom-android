@@ -88,7 +88,7 @@ internal object VyomDesignSpec {
     }
 
     fun orbAccent(state: OrbState): Int = when (state) {
-        OrbState.READY, OrbState.LISTENING, OrbState.HEARING -> CYAN
+        OrbState.READY, OrbState.LISTENING, OrbState.HEARING -> INDIGO
         OrbState.THINKING, OrbState.SPEAKING -> VIOLET
         OrbState.TASK_RUNNING, OrbState.CONTROL_ACTIVE, OrbState.CONFIRM_NEEDED -> AMBER
         OrbState.MUTED, OrbState.OFFLINE -> TEXT_SECONDARY

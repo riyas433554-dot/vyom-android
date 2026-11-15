@@ -295,7 +295,11 @@ class MainActivity : Activity() {
             background = android.graphics.drawable.GradientDrawable().apply {
                 setGradientType(android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT)
                 setGradientRadius(dp(520).toFloat())
-                setColors(intArrayOf(0x2222D3EE, VyomTheme.BACKGROUND, VyomTheme.BACKGROUND))
+                setColors(intArrayOf(
+                    Color.argb(34, Color.red(VyomTheme.ACCENT_INDIGO), Color.green(VyomTheme.ACCENT_INDIGO), Color.blue(VyomTheme.ACCENT_INDIGO)),
+                    VyomTheme.BACKGROUND,
+                    VyomTheme.BACKGROUND
+                ))
             }
             fitsSystemWindows = true
         }
