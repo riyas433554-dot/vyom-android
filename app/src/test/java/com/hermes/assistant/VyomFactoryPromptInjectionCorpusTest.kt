@@ -57,10 +57,10 @@ class VyomFactoryPromptInjectionCorpusTest {
             val data = request.taskDescriptionData
             val fence = "LOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA"
             val fenceIndex = data.indexOf(fence)
-            val sources = corpus.memoryFacts.filterNotNull() + corpus.skills.map { it.markdown }
+            val sources = corpus.memoryFacts.filterNotNull().map { it.trim() } + corpus.skills.map { it.markdown.trim() }
             val needles = (strings(corpus.assertions, "mustNotAppearInSystemInstructions") + strings(corpus.assertions, "forbiddenNormalized")).distinct()
             needles.forEach { needle ->
-                val occurrence = data.indexOf(needle)
+                val occurrence = data.indexOf(needle, ignoreCase = true)
                 if (occurrence >= 0) {
                     assertTrue("${corpus.id}: '$needle' escaped the data fence", fenceIndex >= 0 && occurrence > fenceIndex)
                     assertTrue("${corpus.id}: '$needle' is not in a JSON-quoted source fact/skill", sources.any { source ->
@@ -70,7 +70,7 @@ class VyomFactoryPromptInjectionCorpusTest {
             }
 
             if (corpus.assertions.optBoolean("expectSkillBodyAbsent", false)) {
-                corpus.skills.forEach { skill -> assertFalse("${corpus.id}: rejected skill body leaked", data.contains(skill.markdown)) }
+                corpus.skills.forEach { skill -> assertFalse("${corpus.id}: rejected skill body leaked", data.contains(skill.markdown.trim())) }
             }
             // Keep one independent assertFalse for every corpus needle.
             strings(corpus.assertions, "skillBodyMustNotAppear").forEach { needle ->
