@@ -1,8 +1,10 @@
 package com.hermes.assistant
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.widget.Button
 
 /**
@@ -18,6 +20,12 @@ internal object VyomTheme {
     const val SURFACE_TASK_CARD: Int = 0xFF1C202A.toInt()
     /** Deep red fill preserves readable emergency STOP controls; Rose remains the text/accent danger color. */
     const val SURFACE_DANGER: Int = 0xFFAA1923.toInt()
+    const val SURFACE_DISABLED: Int = 0xFF30343E.toInt()
+    const val SURFACE_DANGER_DISABLED: Int = 0xFF71343D.toInt()
+    const val BORDER_DISABLED: Int = 0xFF9BA2B1.toInt()
+    const val BORDER_DANGER_DISABLED: Int = 0xFFE0A0A8.toInt()
+    const val TEXT_DISABLED: Int = 0xFFE1E4EA.toInt()
+    const val TEXT_DANGER_DISABLED: Int = 0xFFFFFFFF.toInt()
     const val TEXT_PRIMARY: Int = 0xFFE8E8ED.toInt()
     const val TEXT_SECONDARY: Int = 0xFF9296A3.toInt()
     const val ACCENT_INDIGO: Int = 0xFF7775E8.toInt()
@@ -91,7 +99,7 @@ internal object VyomTheme {
             else -> accent(context, theme)
         }
         val density = context.resources.displayMetrics.density
-        button.background = when (variant.lowercase()) {
+        val enabledBackground = when (variant.lowercase()) {
             "secondary" -> GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 setColor(Color.argb(22, Color.red(color), Color.green(color), Color.blue(color)))
@@ -112,7 +120,27 @@ internal object VyomTheme {
                 }
             }
         }
-        button.setTextColor(if (variant.lowercase() in setOf("secondary", "danger")) TEXT_PRIMARY else color)
+        val isDanger = variant.equals("danger", ignoreCase = true)
+        val disabledBackground = GradientDrawable().apply {
+            setColor(if (isDanger) SURFACE_DANGER_DISABLED else SURFACE_DISABLED)
+            cornerRadius = 999f * density
+            setStroke(
+                (density).toInt().coerceAtLeast(1),
+                if (isDanger) BORDER_DANGER_DISABLED else BORDER_DISABLED
+            )
+        }
+        button.background = StateListDrawable().apply {
+            addState(intArrayOf(-android.R.attr.state_enabled), disabledBackground)
+            addState(intArrayOf(), enabledBackground)
+        }
+        val enabledText = if (variant.lowercase() in setOf("secondary", "danger")) TEXT_PRIMARY else color
+        val disabledText = if (isDanger) TEXT_DANGER_DISABLED else TEXT_DISABLED
+        button.setTextColor(
+            ColorStateList(
+                arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
+                intArrayOf(disabledText, enabledText)
+            )
+        )
         button.isAllCaps = false
         button.textSize = TYPE_SMALL_SP.toFloat()
         button.minHeight = (48f * density).toInt()
