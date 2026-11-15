@@ -191,7 +191,7 @@ internal class VyomFactoryDialog(
         val workerPanel = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = GradientDrawable().apply { setColor(Color.argb(34, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS))); cornerRadius = dp(12).toFloat() }
+            background = GradientDrawable().apply { setColor(Color.argb(34, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE))); cornerRadius = dp(12).toFloat() }
         }
         claimStatus = TextView(activity).apply {
             text = "WORKER IDLE · foreground claim only"
@@ -317,7 +317,7 @@ internal class VyomFactoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(Color.argb(51, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS)))
+                    setColor(Color.argb(51, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE)))
                     cornerRadius = dp(14).toFloat()
                 }
             }
@@ -368,7 +368,7 @@ internal class VyomFactoryDialog(
         val composer = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = GradientDrawable().apply { setColor(Color.argb(51, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS))); cornerRadius = dp(16).toFloat() }
+            background = GradientDrawable().apply { setColor(Color.argb(51, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE))); cornerRadius = dp(16).toFloat() }
         }
         composer.addView(TextView(activity).apply {
             text = "REGISTER A COMPLAINT / TASK"; textSize = 10f
@@ -1440,7 +1440,7 @@ internal class VyomFactoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(Color.argb(51, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS))); cornerRadius = dp(14).toFloat()
+                    setColor(Color.argb(51, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE))); cornerRadius = dp(14).toFloat()
                     setStroke(dp(1), VyomTheme.BORDER_GLASS)
                 }
             }
