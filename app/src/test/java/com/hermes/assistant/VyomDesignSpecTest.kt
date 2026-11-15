@@ -121,4 +121,38 @@ class VyomDesignSpecTest {
         assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
     }
 
+
+    @Test fun approvedPaletteMeetsWcagAaForTextAndAccentsOnDarkSurfaces() {
+        val surfaces = listOf(VyomDesignSpec.BACKGROUND, VyomDesignSpec.GLASS)
+        val foregrounds = listOf(
+            VyomDesignSpec.TEXT_PRIMARY,
+            VyomDesignSpec.TEXT_SECONDARY,
+            VyomDesignSpec.INDIGO,
+            VyomDesignSpec.AMBER,
+            VyomDesignSpec.GREEN,
+            VyomDesignSpec.ROSE
+        )
+        foregrounds.forEach { foreground ->
+            surfaces.forEach { background ->
+                assertTrue(
+                    "Contrast ${foreground.toUInt().toString(16)} on ${background.toUInt().toString(16)} must be >= 4.5:1",
+                    contrastRatio(foreground, background) >= 4.5
+                )
+            }
+        }
+    }
+
+    private fun contrastRatio(first: Int, second: Int): Double {
+        fun luminance(color: Int): Double {
+            fun channel(shift: Int): Double {
+                val value = ((color ushr shift) and 0xFF) / 255.0
+                return if (value <= 0.04045) value / 12.92 else Math.pow((value + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
+        }
+        val light = maxOf(luminance(first), luminance(second))
+        val dark = minOf(luminance(first), luminance(second))
+        return (light + 0.05) / (dark + 0.05)
+    }
+
 }
