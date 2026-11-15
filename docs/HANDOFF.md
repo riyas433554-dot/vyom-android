@@ -2437,3 +2437,68 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Exact implementation/test-fixture SHA Debug run `43157330920`: **SUCCESS**, same `head_sha`; debug APK artifact `vyom-debug-fe0188219c82d6411a4f8eb1b14f8e3467ba7931`, artifact ID `13916960972`. This is an unsigned debug artifact, not a signed release.
 - No issue was closed. No workflow, signing, trust-root, `.gitleaksignore`, Android permission, release dispatch, live-call authorization, `main`, backend, Render, or production Supabase change was made.
 - Owner must create/install the signed release and bind only after final HEAD verification. Any subsequent commit changes the exact base SHA and requires a fresh binding.
+
+## PR #116 — memory, opt-in skills, prompt-injection corpus and protected paths (2026-11-15)
+
+- Working branch: `feature/vyom-memory-skills-intelligence`; PR #116 remains OPEN and DRAFT against `feature/real-worker-model`. Final implementation HEAD before this documentation-only update: `c7cc4918d59e796c2f52d7def8f7fd9b98d5954a`.
+- No merge, Android `main`, Render/backend, production Supabase, signing config, release-signing workflow, force-push, or device install was performed.
+
+### C1 — bounded and inert worker context
+
+- Commit: `0538b7b90ee3a17c4934823ac74cb2097e2f57f8`.
+- Files: `VyomFactoryWorkerContextComposer.kt`, `VyomFactoryWorkerContextComposerTest.kt`.
+- Enforces the hard 32,000-character total context cap with the base instructions consuming the budget; rejects base instructions above the cap.
+- Rejects skill documents over 16,000 grapheme-like characters or 64 KiB UTF-8 bytes without truncation; filters sensitive facts and the Vyom-owned `CORE_LEARN_BEFORE_ACT` principle from untrusted memory; deduplicates facts; JSON-quotes content and escapes marker-like/invisible Unicode delimiters.
+- Tests cover total hard cap, both independent skill limits, policy principle exclusion, deterministic composition, and delimiter/quote/Unicode injection handling.
+- Exact SHA Full CI `43712058610`: SUCCESS; `head_sha=0538b7b90ee3a17c4934823ac74cb2097e2f57f8`.
+- Exact SHA Debug `43712058691`: SUCCESS; same `head_sha`.
+
+### C2 — opt-in skills reader
+
+- Initial commit `118f5442bf0b6410428f5dbafd25c703a03dd99b` failed compilation because the optional callback type was incorrectly declared non-nullable.
+- Corrective commit: `40a0feed89fe47a09ff80481389a3b81a12e6b34`; files: `VyomFactoryWorkerContextReader.kt`, `VyomFactoryStructuredWorkerModel.kt`, new `VyomFactoryWorkerContextReaderTest.kt`.
+- `skillsEnabled` defaults false and is checked before the installed-skill disk reader is invoked. Runtime preference is `vyom_factory_worker_context/skills_enabled`, default false. Memory retrieval remains independent of skill enablement.
+- Tests cover disabled default/no skill-provider call, enabled composition, and memory-only composition.
+- Exact SHA Full CI `43712939004`: SUCCESS; `head_sha=40a0feed89fe47a09ff80481389a3b81a12e6b34`.
+- Exact SHA Debug `43712938962`: SUCCESS; same `head_sha`.
+
+### C3 — atomic, bounded, untrusted memory storage
+
+- Initial commit `1d08c45723493c5357d893af1cdcc533bb781e9b` failed compilation because a Kotlin Sequence was passed to a List parameter.
+- Follow-up `720f371a7188bdec86e63d31106ab5b300832b01` fixed materialization but exposed two incorrect test expectations (safe replacement facts correctly survive alongside filtered secret facts; the concurrent writer assertion needed case-insensitive matching).
+- Final green test commit: `5cacc3cf6d65050a3129a0cedd38afba50a25820`; files: `VyomMemoryStore.kt`, new `VyomMemoryStoreTest.kt`.
+- Memory updates now use a process-wide lock around read/modify/write and one synchronous storage commit for each facts snapshot. Persisted facts use JSON objects tagged `trust=untrusted`; legacy string entries are treated as untrusted. Sensitive values are rejected. Limits: 100 facts, 300 characters per fact, 32 KiB serialized storage. Facts are deduplicated case-insensitively.
+- Tests cover one-commit persistence, secret rejection, size bounds, deduplication, inert instruction-like storage, and 24 concurrent writers.
+- Exact SHA Full CI `43714075734`: SUCCESS; `head_sha=5cacc3cf6d65050a3129a0cedd38afba50a25820`.
+- Exact SHA Debug `43714075811`: SUCCESS; same `head_sha`.
+- CI uploaded APK artifact `vyom-phase6-699b211d164a4bcbca8fc8aa19abc9da2de53a1a` for this run. This is a CI debug artifact, not a signed release or device-install proof.
+
+### Prompt-injection corpus — real request builder
+
+- Initial corpus commit `768fb5a73fdef4abebc25959d1e4cc2311741256` was followed by newline-escaping correction `7adbcdf672d1cfe5cc0a984be2dcec8469bd1a9b`.
+- Files: `VyomFactoryStructuredWorkerModel.kt`, new `VyomFactoryPromptInjectionCorpusTest.kt`.
+- Production `propose()` and the corpus both use the same `buildRequest()` method. The runner inspects the actual returned `Request.systemInstructions`; it does not duplicate a system prompt constant in the test.
+- Corpus includes instruction override, role change, XML/marker closure, secret exfiltration, false approval and shell-command payloads. Rejected skill cases assert the skill body is absent from both composed context and the actual request data.
+- Confirmed `app/build.gradle.kts` includes JVM `testImplementation("org.json:json:20240303")`; the corpus also has a JVM unit test exercising `JSONObject.quote`.
+- Exact SHA Full CI `43714686610`: SUCCESS; `head_sha=7adbcdf672d1cfe5cc0a984be2dcec8469bd1a9b`.
+- Exact SHA Debug `43714686602`: SUCCESS; same `head_sha`.
+
+### Protected paths and CODEOWNERS
+
+- Commit: `c7cc4918d59e796c2f52d7def8f7fd9b98d5954a`.
+- Files: `CODEOWNERS`, `SelfModificationPolicy.kt`, `VyomFactoryRepositoryChangePolicy.kt`, `VyomFactoryRepositoryChangePolicyTest.kt`.
+- Worker change validation rejects workflow files, `config/**` release/signing material, STOP/lease coordination, allowlist/verifier/verification/policy files, and corresponding security-verification tests—even when a deliberately broad registry root is supplied.
+- Kotlin worker path allowlisting also rejects STOP, lease, allowlist, verifier and verification-named source/test files.
+- Added explicit CODEOWNERS entries for workflows, config, build/Gradle, STOP/lease, allowlist/verifier/signing and policy test paths. Existing global owner rule remains.
+- Exact SHA Full CI `43715506461`: SUCCESS; `head_sha=c7cc4918d59e796c2f52d7def8f7fd9b98d5954a`.
+- Exact SHA Debug `43715506424`: SUCCESS; same `head_sha`.
+- Exact SHA CI APK artifact ID `14162422310` (47,035,416 bytes); Debug artifact ID `14162013409` (47,035,268 bytes). Both artifact records report workflow `head_sha=c7cc4918d59e796c2f52d7def8f7fd9b98d5954a`.
+- **Important enforcement limitation:** GitHub reports this feature branch as `protected=false`, with protection disabled and required status checks off. CODEOWNERS rules are committed, but GitHub will not enforce mandatory owner approval until branch protection/rulesets are configured. No branch protection settings were changed in this task.
+
+### Remaining verification boundary
+
+- All listed Full CI and Debug runs above completed SUCCESS on the exact corresponding commit SHA. No local Termux Gradle execution was claimed.
+- No live model/provider call, no actual worker-generated PR, and no device acceptance test was performed. Device status: **NOT TESTED**.
+- PR #116 remains draft/open and unmerged. Keep signing, release, backend and production systems untouched unless separately authorized.
+- This HANDOFF update is documentation-only and must be verified by fresh Full CI + Debug runs on its own exact commit SHA before treating the final documentation HEAD as green.
+
