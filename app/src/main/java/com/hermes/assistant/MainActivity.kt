@@ -372,8 +372,8 @@ class MainActivity : Activity() {
         pairingInput = EditText(this).apply {
             hint = "First-time pairing code"
             setSingleLine(true)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 14f
         }
         pairButton = Button(this).apply {
@@ -385,7 +385,7 @@ class MainActivity : Activity() {
         transcript = TextView(this).apply {
             text = "Hermes chat will appear here."
             textSize = 14f
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             setPadding(0, dp(8), 0, dp(8))
             setTextIsSelectable(true)
         }
@@ -399,14 +399,14 @@ class MainActivity : Activity() {
             addView(chatMessageList, FrameLayout.LayoutParams(-1, -2))
         }
         chatMessageList.addView(transcript, LinearLayout.LayoutParams(-1, -2))
-        val chatInputLabel = TextView(this).apply { text = "CHAT MESSAGE"; setTextColor(Color.LTGRAY); textSize = 10f }
+        val chatInputLabel = TextView(this).apply { text = "CHAT MESSAGE"; setTextColor(VyomTheme.TEXT_SECONDARY); textSize = 10f }
         chatInput = EditText(this).apply {
             id = View.generateViewId()
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
             hint = "Message Vyom…"
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 15f
             minLines = 1
             maxLines = 5
@@ -415,7 +415,7 @@ class MainActivity : Activity() {
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.rgb(20, 29, 45))
+                setColor(VyomTheme.SURFACE_GLASS)
                 cornerRadius = dp(14).toFloat()
                 setStroke(dp(1), Color.argb(100, 120, 150, 190))
             }
@@ -450,7 +450,7 @@ class MainActivity : Activity() {
         micIndicator = TextView(this).apply {
             text = "MIC OFF"
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             contentDescription = "Microphone status: off"
         }
         voiceButton = Button(this).apply {
@@ -465,17 +465,17 @@ class MainActivity : Activity() {
         taskNotice = TextView(this).apply {
             text = "Tasks run one at a time. Queued is normal."
             textSize = 12f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(5), 0, dp(5))
         }
-        val taskInputLabel = TextView(this).apply { text = "TASK DESCRIPTION"; setTextColor(Color.LTGRAY); textSize = 10f }
+        val taskInputLabel = TextView(this).apply { text = "TASK DESCRIPTION"; setTextColor(VyomTheme.TEXT_SECONDARY); textSize = 10f }
         taskInput = EditText(this).apply {
             id = View.generateViewId()
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
             hint = "Task-only input (max 4000 chars)"
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 14f
             minLines = 2
             maxLines = 4
@@ -520,7 +520,7 @@ class MainActivity : Activity() {
         settingsContent.addView(TextView(this).apply {
             text = "ORB APPEARANCE"
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }, LinearLayout.LayoutParams(-1, dp(24)))
         val orbColors = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("INDIGO", "AMBER", "VIOLET", "GREEN").forEachIndexed { mode, label ->
@@ -556,15 +556,15 @@ class MainActivity : Activity() {
             setOnClickListener { setVoiceRepliesEnabled(!voiceRepliesEnabled) }
         }
         settingsContent.addView(voiceRepliesButton, LinearLayout.LayoutParams(-1, dp(44)))
-        settingsContent.addView(TextView(this).apply { text = "ELEVENLABS VOICE (OPTIONAL)"; textSize = 11f; setTextColor(Color.LTGRAY) })
+        settingsContent.addView(TextView(this).apply { text = "ELEVENLABS VOICE (OPTIONAL)"; textSize = 11f; setTextColor(VyomTheme.TEXT_SECONDARY) })
         elevenLabsKeyInput = EditText(this).apply {
             hint = "ElevenLabs API key"; setSingleLine(true)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY); textSize = 13f
             setText(secureVoicePrefs().getString("elevenlabs_api_key", "") ?: "")
         }
         elevenLabsVoiceIdInput = EditText(this).apply {
-            hint = "ElevenLabs Voice ID"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            hint = "ElevenLabs Voice ID"; setSingleLine(true); setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY); textSize = 13f
             setText(secureVoicePrefs().getString("elevenlabs_voice_id", "") ?: "")
         }
         settingsContent.addView(elevenLabsKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
@@ -572,13 +572,13 @@ class MainActivity : Activity() {
         nvidiaApiKeyInput = EditText(this).apply {
             hint = "NVIDIA API key (encrypted on device; LIVE lane)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setSingleLine(true); setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY); textSize = 13f
             setText(secureVoicePrefs().getString("nvidia_api_key", "") ?: "")
         }
         settingsContent.addView(nvidiaApiKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         liveModelInput = EditText(this).apply {
             hint = "LIVE model ID (load and choose below)"
-            setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setSingleLine(true); setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY); textSize = 13f
             setText(LiveModelPolicy.selectedOrDefault(secureVoicePrefs().getString("nvidia_live_model_id", "")))
         }
         settingsContent.addView(liveModelInput, LinearLayout.LayoutParams(-1, dp(44)))
@@ -588,13 +588,13 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(42)))
         liveModelNotice = TextView(this).apply {
             text = "Load models using your NVIDIA API key, then tap a model ID to select it."
-            textSize = 11f; setTextColor(Color.LTGRAY)
+            textSize = 11f; setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(liveModelNotice, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(TextView(this).apply {
             text = "FACTORY WORKER MODEL PROVIDERS · LIVE CALLS OFF UNTIL OWNER ENABLES"
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(12), 0, dp(4))
         })
         val workerModelPrefs = getSharedPreferences(
@@ -619,8 +619,8 @@ class MainActivity : Activity() {
         val workerModelIdInput = EditText(this).apply {
             hint = "Worker model ID"
             setSingleLine(true)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 13f
             setText(workerModelPrefs.getString(
                 selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
@@ -661,8 +661,8 @@ class MainActivity : Activity() {
             setSingleLine(true)
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 13f
         }
         settingsContent.addView(workerNvidiaKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
@@ -672,8 +672,8 @@ class MainActivity : Activity() {
             setSingleLine(true)
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 13f
         }
         settingsContent.addView(workerGoogleKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
@@ -752,7 +752,7 @@ class MainActivity : Activity() {
         val workerProposalStatus = TextView(this).apply {
             text = "Default: owner review. Autonomous mode requires one-time consent and is limited to safe draft PRs plus exact-SHA CI."
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(Button(this).apply {
             text = "REVIEW NEXT WORKER PROPOSAL"
@@ -765,11 +765,11 @@ class MainActivity : Activity() {
         settingsContent.addView(workerProposalStatus, LinearLayout.LayoutParams(-1, -2))
         sttLanguageInput = EditText(this).apply {
             hint = "STT language code (blank = Auto, e.g. en)"
-            setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); textSize = 13f
+            setSingleLine(true); setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY); textSize = 13f
             setText(secureVoicePrefs().getString("stt_language_code", "") ?: "")
         }
         settingsContent.addView(sttLanguageInput, LinearLayout.LayoutParams(-1, dp(44)))
-        settingsContent.addView(TextView(this).apply { text = "MIC INPUT LEVEL"; textSize = 11f; setTextColor(Color.LTGRAY) })
+        settingsContent.addView(TextView(this).apply { text = "MIC INPUT LEVEL"; textSize = 11f; setTextColor(VyomTheme.TEXT_SECONDARY) })
         micLevelMeter = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100; progress = 0; contentDescription = "Microphone input level"
             progressTintList = android.content.res.ColorStateList.valueOf(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))
@@ -790,7 +790,7 @@ class MainActivity : Activity() {
         ttsConfigStatus = TextView(this).apply {
             text = if ((secureVoicePrefs().getString("elevenlabs_api_key", "") ?: "").isBlank() ||
                 (secureVoicePrefs().getString("elevenlabs_voice_id", "") ?: "").isBlank()) "ElevenLabs not configured — using Android TTS" else "ElevenLabs voice configured"
-            textSize = 11f; setTextColor(Color.LTGRAY)
+            textSize = 11f; setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(ttsConfigStatus, LinearLayout.LayoutParams(-1, -2))
         personaButton = Button(this).apply {
@@ -805,7 +805,7 @@ class MainActivity : Activity() {
         settingsContent.addView(TextView(this).apply {
             text = "Settings are saved on this device. Orb choices change appearance only; they do not enable microphone or background listening."
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }, LinearLayout.LayoutParams(-1, -2))
         updateButton = Button(this).apply {
             text = "CHECK FOR UPDATES"
@@ -815,18 +815,18 @@ class MainActivity : Activity() {
         updateNotice = TextView(this).apply {
             text = "Updates are downloaded only after you ask. SHA-256 and app signature are checked before the Android installer opens."
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(updateNotice, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(TextView(this).apply {
             text = "UPDATE SYSTEM DIAGNOSTICS"
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }, LinearLayout.LayoutParams(-1, dp(24)))
         val updateDiagnosticsNotice = TextView(this).apply {
             text = "Run checks for installed signing identity, signed update discovery and self-change guardrails."
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(Button(this).apply {
             text = "RUN ALL CHECKS"
@@ -837,12 +837,12 @@ class MainActivity : Activity() {
         val contentUpdateResult = TextView(this).apply {
             text = "No-APK content channel: signed GitHub packages, staged probes and rollback"
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         val contentUpdateHistory = TextView(this).apply {
             text = "Content update history will appear here."
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(Button(this).apply {
             text = "CHECK NO-APK CONTENT UPDATES"
@@ -888,14 +888,14 @@ class MainActivity : Activity() {
         settingsContent.addView(TextView(this).apply {
             text = "CONTROLLED SELF-MODIFICATION"
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }, LinearLayout.LayoutParams(-1, dp(24)))
         val githubProposalTokenInput = EditText(this).apply {
             hint = "GitHub token: Contents + Pull requests + Issues read/write (encrypted on device)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 13f
             setText(secureVoicePrefs().getString("github_proposal_token", "").orEmpty())
         }
@@ -904,8 +904,8 @@ class MainActivity : Activity() {
             hint = "Fine-grained GitHub token · test repo only · Contents: read only"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 13f
         }
         settingsContent.addView(githubWorkerReadmeTokenInput, LinearLayout.LayoutParams(-1, dp(44)))
@@ -927,7 +927,7 @@ class MainActivity : Activity() {
         val selfChangeNotice = TextView(this).apply {
             text = "AI-assisted self-update: inspect one allowed Kotlin file → generate a proposal → separate branch → PR. CI/review required; no auto-merge or auto-install. Factory also needs Issues read/write. Policy and STOP files stay protected."
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }
         settingsContent.addView(Button(this).apply {
             text = "SAVE GITHUB TOKEN"
@@ -1057,7 +1057,7 @@ class MainActivity : Activity() {
                                 runOnUiThread {
                                     val preview = TextView(this@MainActivity).apply {
                                         text = "File: ${draft.path}\nBase: ${draft.baseSha}\n\nMINIMAL PATCH PREVIEW\n\n${draft.preview}"
-                                        setTextColor(Color.WHITE)
+                                        setTextColor(VyomTheme.TEXT_PRIMARY)
                                         textSize = 12f
                                         setPadding(dp(14), dp(12), dp(14), dp(12))
                                         typeface = Typeface.MONOSPACE
@@ -1229,7 +1229,7 @@ class MainActivity : Activity() {
         filesNotice = TextView(this).apply {
             text = "Files, artifact links and screenshots from completed task results appear here."
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(4), 0, dp(6))
         }
         filesList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -1247,7 +1247,7 @@ class MainActivity : Activity() {
         controlNotice = TextView(this).apply {
             text = "Device actions always ask first. Only allowlisted Android Settings screens can be opened."
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(4), 0, dp(6))
         }
         val controlButtons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -1262,7 +1262,7 @@ class MainActivity : Activity() {
         controlPanel.addView(Button(this).apply {
             text = "STOP CONTROL"
             contentDescription = "Emergency stop for all Vyom device actions"
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             setBackgroundColor(Color.rgb(170, 25, 35))
             setOnClickListener { activateControlKillSwitch() }
         }, LinearLayout.LayoutParams(-1, dp(44)))
@@ -1300,12 +1300,12 @@ class MainActivity : Activity() {
         controlPanel.addView(TextView(this).apply {
             text = "Accessibility is optional and must be enabled by you in Android Settings. When enabled, Vyom can inspect visible non-sensitive UI labels and perform bounded taps/gestures only in apps you allow. Secure screens and protected system actions remain blocked."
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
         }, LinearLayout.LayoutParams(-1, -2))
         controlPanel.addView(TextView(this).apply {
             text = "LOCAL AUDIT LOG"
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(5), 0, dp(3))
         }, LinearLayout.LayoutParams(-1, dp(22)))
         controlAuditList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -1414,12 +1414,12 @@ class MainActivity : Activity() {
             text = "Good to see you"
             textSize = 21f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
         }, LinearLayout.LayoutParams(-1, -2))
         content.addView(TextView(this).apply {
             text = "What should we work on?"
             textSize = 12f
-            setTextColor(Color.rgb(160, 181, 207))
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(2), 0, dp(8))
         }, LinearLayout.LayoutParams(-1, -2))
 
@@ -1436,8 +1436,8 @@ class MainActivity : Activity() {
         }
         val askInput = EditText(this).apply {
             hint = "Ask Vyom anything…"
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.rgb(130, 150, 176))
+            setTextColor(VyomTheme.TEXT_PRIMARY)
+            setHintTextColor(VyomTheme.TEXT_SECONDARY)
             textSize = 13f
             maxLines = 2
             minLines = 1
@@ -1477,7 +1477,7 @@ class MainActivity : Activity() {
                 text = label
                 textSize = 10f
                 gravity = Gravity.CENTER
-                setTextColor(Color.rgb(194, 218, 243))
+                setTextColor(VyomTheme.TEXT_PRIMARY)
                 setPadding(dp(9), dp(8), dp(9), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
@@ -1507,7 +1507,7 @@ class MainActivity : Activity() {
             text = "QUICK ACCESS"
             textSize = 9f
             letterSpacing = 0.14f
-            setTextColor(Color.rgb(122, 148, 180))
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(3), 0, dp(5))
         }, LinearLayout.LayoutParams(-1, -2))
         val quickRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -1516,7 +1516,7 @@ class MainActivity : Activity() {
                 text = "$title\n$subtitle"
                 textSize = 11f
                 gravity = Gravity.CENTER_VERTICAL
-                setTextColor(Color.WHITE)
+                setTextColor(VyomTheme.TEXT_PRIMARY)
                 setPadding(dp(10), dp(8), dp(8), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
@@ -2027,14 +2027,14 @@ class MainActivity : Activity() {
         val visionToggle = CheckBox(this).apply {
             text = "Enable visual AI — send current screenshots to NVIDIA for Canvas/timeline understanding"
             textSize = 12f
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             isChecked = false
         }
         content.addView(visionToggle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         content.addView(TextView(this).apply {
             text = "CONFIRMATION MODE"
             textSize = 10f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(12), 0, dp(4))
         }, LinearLayout.LayoutParams(-1, -2))
         val modeGroup = android.widget.RadioGroup(this).apply {
@@ -2928,7 +2928,7 @@ class MainActivity : Activity() {
             content.addView(TextView(this).apply {
                 text = value
                 textSize = size
-                setTextColor(Color.WHITE)
+                setTextColor(VyomTheme.TEXT_PRIMARY)
                 setPadding(0, 0, 0, dp(9))
             }, LinearLayout.LayoutParams(-1, -2))
         }
@@ -2951,12 +2951,12 @@ class MainActivity : Activity() {
         val pairEndpoint = EditText(this).apply {
             hint = "Pairing IP:port (example 192.168.1.12:37123)"
             setSingleLine(true)
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
         }
         val debugEndpoint = EditText(this).apply {
             hint = "Wireless debugging IP:port (example 192.168.1.12:41231)"
             setSingleLine(true)
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
         }
         content.addView(pairEndpoint, LinearLayout.LayoutParams(-1, dp(52)))
         content.addView(debugEndpoint, LinearLayout.LayoutParams(-1, dp(52)))
@@ -2968,7 +2968,7 @@ class MainActivity : Activity() {
             if (commands == null) {
                 commandList.addView(TextView(this).apply {
                     text = "Enter valid IP:port values above to reveal the owner-run commands."
-                    setTextColor(Color.LTGRAY)
+                    setTextColor(VyomTheme.TEXT_SECONDARY)
                     textSize = 11f
                 })
                 return
@@ -2986,7 +2986,7 @@ class MainActivity : Activity() {
                     text = value
                     setTextIsSelectable(true)
                     textSize = 10f
-                    setTextColor(Color.LTGRAY)
+                    setTextColor(VyomTheme.TEXT_SECONDARY)
                     setPadding(dp(6), dp(2), dp(6), dp(6))
                 }, LinearLayout.LayoutParams(-1, -2))
             }
@@ -3013,7 +3013,7 @@ class MainActivity : Activity() {
         val shizukuStatus = TextView(this).apply {
             text = "Shizuku status has not been checked."
             textSize = 11f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(4), 0, dp(8))
         }
         content.addView(shizukuStatus, LinearLayout.LayoutParams(-1, -2))
@@ -3152,7 +3152,7 @@ class MainActivity : Activity() {
         readBackButton("READ BACK ACCESSIBILITY SERVICES", "verify_accessibility_services")
         content.addView(Button(this).apply {
             text = "STOP SHIZUKU COMMANDS"
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             setBackgroundColor(Color.rgb(170, 25, 35))
             setOnClickListener { shizukuShellClient?.cancelAll() }
         }, LinearLayout.LayoutParams(-1, dp(42)))
@@ -3300,7 +3300,7 @@ class MainActivity : Activity() {
         val master = android.widget.Switch(this).apply {
             text = "MASTER APP CONTROL"
             textSize = 14f
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             isChecked = snapshot.masterEnabled
             setOnCheckedChangeListener { _, checked ->
                 AppAccessPolicy.setMasterEnabled(this@MainActivity, checked)
@@ -3311,7 +3311,7 @@ class MainActivity : Activity() {
         content.addView(TextView(this).apply {
             text = "Owner-authorized full control: ENABLE ALL SAFE APPS turns on the master switch and allowlists every visible non-financial launcher app. Payment/financial apps stay blocked. Android System UI is separate opt-in and limited to safe Quick Settings. Accessibility must be enabled manually. Visible UI labels may be sent to the configured planner; screenshots upload only when Visual AI is enabled."
             textSize = 12f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, 0, 0, dp(8))
         }, LinearLayout.LayoutParams(-1, -2))
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -3326,7 +3326,7 @@ class MainActivity : Activity() {
                     else -> "$label  ·  $pkg"
                 }
                 textSize = 12f
-                setTextColor(if (blocked) Color.GRAY else Color.WHITE)
+                setTextColor(if (blocked) VyomTheme.TEXT_SECONDARY else VyomTheme.TEXT_PRIMARY)
                 isEnabled = !blocked && !controllerApp
                 isChecked = !blocked && (controllerApp || pkg in snapshot.enabledPackages)
                 setOnCheckedChangeListener { _, checked ->
@@ -3926,13 +3926,13 @@ class MainActivity : Activity() {
             progressCard.addView(TextView(this).apply {
                 text = activeTask.optString("prompt", "Working on your task").lineSequence().firstOrNull().orEmpty()
                 textSize = 14f
-                setTextColor(Color.WHITE)
+                setTextColor(VyomTheme.TEXT_PRIMARY)
                 setPadding(0, dp(4), 0, dp(2))
             })
             progressCard.addView(TextView(this).apply {
                 text = "Status: " + activeTask.optString("status", "running")
                 textSize = 11f
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomTheme.TEXT_SECONDARY)
             })
             chatMessageList.addView(progressCard, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         }
@@ -3943,13 +3943,13 @@ class MainActivity : Activity() {
             val userLabel = TextView(this).apply {
                 text = "YOU  ·  $time"
                 textSize = 10f
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomTheme.TEXT_SECONDARY)
                 setPadding(dp(5), dp(4), dp(5), dp(3))
             }
             val userBubble = TextView(this).apply {
                 text = android.text.Html.fromHtml(markdownToHtml(item.text), android.text.Html.FROM_HTML_MODE_COMPACT)
                 textSize = 15f
-                setTextColor(Color.WHITE)
+                setTextColor(VyomTheme.TEXT_PRIMARY)
                 setTextIsSelectable(true)
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
@@ -3988,7 +3988,7 @@ class MainActivity : Activity() {
                 val replyBubble = TextView(this).apply {
                     text = android.text.Html.fromHtml(markdownToHtml(item.reply), android.text.Html.FROM_HTML_MODE_COMPACT)
                     textSize = 15f
-                    setTextColor(Color.rgb(230, 237, 247))
+                    setTextColor(VyomTheme.TEXT_PRIMARY)
                     setTextIsSelectable(true)
                     setPadding(dp(12), dp(10), dp(12), dp(10))
                     background = GradientDrawable().apply {
@@ -4314,7 +4314,7 @@ class MainActivity : Activity() {
             text = ""
             textSize = 16f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             setPadding(dp(10), dp(6), dp(10), dp(6))
             visibility = if (liveCaptionsEnabled) View.VISIBLE else View.GONE
         }
@@ -5533,7 +5533,7 @@ class MainActivity : Activity() {
             setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.rgb(17, 34, 51))
+                setColor(VyomTheme.SURFACE_ASSISTANT_BUBBLE)
                 cornerRadius = dp(14).toFloat()
                 setStroke(dp(1), Color.argb(130, 0, 190, 255))
             }
@@ -5542,23 +5542,23 @@ class MainActivity : Activity() {
             text = "TASKS / AGENTS"
             textSize = 10f
             letterSpacing = 0.12f
-            setTextColor(Color.rgb(0, 210, 255))
+            setTextColor(VyomTheme.ACCENT_INDIGO)
         })
         dashboard.addView(TextView(this).apply {
             text = "Active tasks: ${active.size}  •  Queue limit: $maxTasks"
             textSize = 15f
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             setPadding(0, dp(5), 0, dp(3))
         })
         dashboard.addView(Button(this).apply {
             text = "QUEUE LIMIT: $maxTasks (CHANGE)"
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(Color.rgb(48, 58, 73))
+                setColor(VyomTheme.SURFACE_TASK_CARD)
                 cornerRadius = dp(21).toFloat()
-                setStroke(dp(1), Color.rgb(105, 119, 139))
+                setStroke(dp(1), VyomTheme.BORDER_SUBTLE)
             }
-            setTextColor(Color.WHITE)
+            setTextColor(VyomTheme.TEXT_PRIMARY)
             isAllCaps = false
             contentDescription = "Change local active task submission limit"
             setOnClickListener {
@@ -5581,14 +5581,14 @@ class MainActivity : Activity() {
             text = if (current == null) "No task currently marked running" else
                 "CURRENT TASK  •  ${current.optString("prompt", "Working").lineSequence().firstOrNull().orEmpty()}\nStatus: ${current.optString("status", "running")}"
             textSize = 12f
-            setTextColor(Color.LTGRAY)
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(7), 0, dp(5))
         })
         val agentArray = current?.optJSONArray("agents")
         dashboard.addView(TextView(this).apply {
             text = "AGENTS"
             textSize = 10f
-            setTextColor(Color.rgb(150, 190, 220))
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(4), 0, dp(3))
         })
         if (agentArray != null && agentArray.length() > 0) {
@@ -5597,7 +5597,7 @@ class MainActivity : Activity() {
                 dashboard.addView(TextView(this).apply {
                     text = "• ${agent?.optString("name", "Agent ${i + 1}") ?: "Agent ${i + 1}"} — ${agent?.optString("status", "status unavailable") ?: "status unavailable"}"
                     textSize = 12f
-                    setTextColor(Color.WHITE)
+                    setTextColor(VyomTheme.TEXT_PRIMARY)
                     setPadding(dp(4), dp(2), 0, dp(2))
                 })
             }
@@ -5605,14 +5605,14 @@ class MainActivity : Activity() {
             dashboard.addView(TextView(this).apply {
                 text = "Agent-level details are not present in the current task API response."
                 textSize = 11f
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomTheme.TEXT_SECONDARY)
             })
         }
         taskList.addView(dashboard, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         if (allTasks.isEmpty()) {
             taskList.addView(TextView(this).apply {
                 text = "No tasks yet. Create one above."
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomTheme.TEXT_SECONDARY)
                 setPadding(0, dp(12), 0, dp(12))
             })
             return
@@ -5621,7 +5621,7 @@ class MainActivity : Activity() {
             text = "OTHER TASKS"
             textSize = 10f
             letterSpacing = 0.12f
-            setTextColor(Color.rgb(150, 190, 220))
+            setTextColor(VyomTheme.TEXT_SECONDARY)
             setPadding(0, dp(2), 0, dp(6))
         })
         allTasks.forEach { task ->
@@ -5706,7 +5706,7 @@ class MainActivity : Activity() {
                     addView(TextView(this@MainActivity).apply {
                         text = resultText
                         textSize = 12f
-                        setTextColor(Color.LTGRAY)
+                        setTextColor(VyomTheme.TEXT_SECONDARY)
                         setTextIsSelectable(true)
                         setPadding(0, dp(6), 0, dp(6))
                     }, FrameLayout.LayoutParams(-1, -2))
@@ -5730,7 +5730,7 @@ class MainActivity : Activity() {
             if (errorCode.isNotBlank() && errorCode != "null") {
                 card.addView(TextView(this).apply {
                     text = "Error: $errorCode"
-                    setTextColor(Color.rgb(255, 150, 150))
+                    setTextColor(VyomTheme.ACCENT_DANGER)
                     textSize = 12f
                 })
             }
@@ -5762,7 +5762,7 @@ class MainActivity : Activity() {
                 setPadding(dp(8), dp(5), dp(8), dp(5))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(Color.rgb(16, 22, 32))
+                    setColor(VyomTheme.SURFACE_GLASS)
                     cornerRadius = dp(10).toFloat()
                     setStroke(dp(1), Color.argb(80, 0, 190, 255))
                 }
@@ -5770,12 +5770,12 @@ class MainActivity : Activity() {
             card.addView(TextView(this).apply {
                 text = if (screenshot) "SCREENSHOT • $prompt" else "FILE / LINK • $prompt"
                 textSize = 11f
-                setTextColor(if (screenshot) Color.rgb(100, 220, 255) else Color.WHITE)
+                setTextColor(if (screenshot) VyomTheme.ACCENT_INDIGO else VyomTheme.TEXT_PRIMARY)
             })
             card.addView(TextView(this).apply {
                 text = "Task $taskId\n$link"
                 textSize = 10f
-                setTextColor(Color.LTGRAY)
+                setTextColor(VyomTheme.TEXT_SECONDARY)
                 setTextIsSelectable(true)
             })
             card.addView(Button(this).apply {

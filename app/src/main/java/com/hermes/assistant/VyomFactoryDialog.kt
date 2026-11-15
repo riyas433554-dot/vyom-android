@@ -150,7 +150,7 @@ internal class VyomFactoryDialog(
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(16), dp(18), dp(14))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), 0xF8070B14.toInt())).apply {
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomTheme.BACKGROUND)).apply {
                 cornerRadius = dp(24).toFloat()
                 setStroke(dp(1), Color.argb(160, Color.red(accent), Color.green(accent), Color.blue(accent)))
             }
@@ -191,7 +191,7 @@ internal class VyomFactoryDialog(
         val workerPanel = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = GradientDrawable().apply { setColor(0x22213A54); cornerRadius = dp(12).toFloat() }
+            background = GradientDrawable().apply { setColor(Color.argb(34, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS))); cornerRadius = dp(12).toFloat() }
         }
         claimStatus = TextView(activity).apply {
             text = "WORKER IDLE · foreground claim only"
@@ -317,7 +317,7 @@ internal class VyomFactoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(0x33213A54)
+                    setColor(Color.argb(51, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS)))
                     cornerRadius = dp(14).toFloat()
                 }
             }
@@ -368,7 +368,7 @@ internal class VyomFactoryDialog(
         val composer = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = GradientDrawable().apply { setColor(0x33213A54); cornerRadius = dp(16).toFloat() }
+            background = GradientDrawable().apply { setColor(Color.argb(51, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS))); cornerRadius = dp(16).toFloat() }
         }
         composer.addView(TextView(activity).apply {
             text = "REGISTER A COMPLAINT / TASK"; textSize = 10f
@@ -376,14 +376,14 @@ internal class VyomFactoryDialog(
         })
         titleInput = EditText(activity).apply {
             hint = "Short problem title"; setSingleLine(true); textSize = 14f
-            setTextColor(Color.WHITE); setHintTextColor(0xFF8B9BB0.toInt())
+            setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         }
         composer.addView(titleInput, LinearLayout.LayoutParams(-1, dp(46)))
         descriptionInput = EditText(activity).apply {
             hint = "What is broken, expected result, steps and evidence…"
             minLines = 2; maxLines = 4; textSize = 13f
-            setTextColor(Color.WHITE); setHintTextColor(0xFF8B9BB0.toInt())
+            setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         }
         composer.addView(descriptionInput, LinearLayout.LayoutParams(-1, dp(88)))
@@ -1440,8 +1440,8 @@ internal class VyomFactoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(0x3316263B); cornerRadius = dp(14).toFloat()
-                    setStroke(dp(1), 0x333A7891)
+                    setColor(Color.argb(51, Color.red(VyomTheme.GLASS), Color.green(VyomTheme.GLASS), Color.blue(VyomTheme.GLASS))); cornerRadius = dp(14).toFloat()
+                    setStroke(dp(1), VyomTheme.BORDER_GLASS)
                 }
             }
             card.addView(TextView(activity).apply {
