@@ -208,6 +208,26 @@ class VyomFactoryStructuredWorkerModelTest {
         assertEquals("STOPPED", journal.entries.single().result)
     }
 
+    @Test fun workerContextFailureFallsBackToBaseTaskData() {
+        val provider = FakeProvider {
+            VyomFactoryWorkerModelProvider.Response(validJson(), 10, 5)
+        }
+        val worker = adapter(provider, contextProvider = {
+            throw IllegalStateException("memory store unavailable")
+        })
+
+        val candidate = worker.propose(
+            task(), registry(), object : VyomFactoryExecutionControl {
+                override fun shouldStop() = false
+            }
+        )
+
+        assertFalse(candidate.plan.ownerApproved)
+        assertEquals(1, provider.calls)
+        assertTrue(provider.lastRequest!!.taskDescriptionData.contains("TITLE (UNTRUSTED DATA):"))
+        assertFalse(provider.lastRequest!!.taskDescriptionData.contains("LOCAL MEMORY AND PINNED SKILL CONTEXT"))
+    }
+
     @Test fun malformedModelOutputIsRejectedAndJournaled() {
         val provider = FakeProvider {
             VyomFactoryWorkerModelProvider.Response("not-json", 10, 10)
