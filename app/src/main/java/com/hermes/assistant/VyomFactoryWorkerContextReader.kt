@@ -11,7 +11,7 @@ internal class VyomFactoryWorkerContextReader(
     private val memoryFactsProvider: () -> List<String>,
     private val skillsRoot: File,
     private val skillsEnabled: Boolean = false,
-    private val installedSkillsProvider: () -> List<VyomFactoryWorkerSkillContext>? = null
+    private val installedSkillsProvider: (() -> List<VyomFactoryWorkerSkillContext>)? = null
 ) {
     constructor(
         memory: VyomMemoryStore,
