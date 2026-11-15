@@ -2495,9 +2495,38 @@ Next implementation order: (1) finish source inventory and diagnose exact-head C
 - Exact SHA CI APK artifact ID `14162422310` (47,035,416 bytes); Debug artifact ID `14162013409` (47,035,268 bytes). Both artifact records report workflow `head_sha=c7cc4918d59e796c2f52d7def8f7fd9b98d5954a`.
 - **Important enforcement limitation:** GitHub reports this feature branch as `protected=false`, with protection disabled and required status checks off. CODEOWNERS rules are committed, but GitHub will not enforce mandatory owner approval until branch protection/rulesets are configured. No branch protection settings were changed in this task.
 
+
+### Stage 2 — Grok corpus, real adapter runner and memory safety (2026-11-15)
+
+**Code head before this documentation-only update:** `68e7b2d98a40ddded3f59effbc21a240a49166ed` on `feature/vyom-memory-skills-intelligence`; PR #116 remains open and unmerged.
+
+- Parsed the uploaded Grok source fully and asserted **45 JSON files**: IDs `001–037` and `039–046`. Case `038` is represented by the skill-document byte-boundary unit test, not a JSON corpus file.
+- PR #116 contains exactly **39** active `app/src/test/resources/injection/*.json` cases plus `index.txt`. The runner asserts 39 active + 6 reserved pilot IDs = 45 total and asserts that the pilot IDs are absent from the PR index.
+- Kept these six `expect=dropped_or_tagged` payloads out of PR #116: `019_zw_memory_ignore`, `020_zw_skill_line_sep`, `028_exfil_bearer_memory`, `029_exfil_release_cert_skill`, `032_stop_bypass_memory`, `045_policy_mirror_except_secrets`. Their original payloads remain in the supplied source corpus for a future pilot branch; no pilot branch was created in this stage.
+- Runner: `app/src/test/java/com/hermes/assistant/VyomFactoryPromptInjectionCorpusTest.kt`. Shared fixtures extracted to `VyomFactoryPromptInjectionTestSupport.kt`: `task()`, `registry()`, `adapter()`, `validJson()`, `MemoryJournal`, `MemoryKeyStore` and fake provider. The runner calls the real `adapter.propose()` directly; no `runCatching` wraps it.
+- Loader expands `{prefix, fill, count}` values in both `memoryFacts` and `skills[].markdown`. The runner implements only the requested corpus assertion keys, one `assertFalse` per `skillBodyMustNotAppear` needle, and soft-skips/logs `knownGap` normalized checks.
+- `normalizeHostile` is NFKC + removal of `\\p{Cf}` + lowercase. Case 023's broad `system instructions` needle collided with the real baseline system prompt; it was narrowed to the nested-quote payload needle, not by weakening the baseline prompt.
+- Read the actual policy API before testing: `VyomFactorySkillPolicy.validateDocument(markdown: String): Unit`. Boundary test verifies exactly 65,536 UTF-8 bytes are accepted and 65,537 bytes are rejected.
+- Memory entries continue to carry `trust=untrusted`; a separate persisted `instruction_like` boolean and the explicit `[INSTRUCTION-LIKE UNTRUSTED DATA]` marker distinguish instruction-like content. The marker is emitted for both memory facts and installed skill bodies. Plural API-key references are rejected by the sensitive-data filter.
+- Main-thread memory writes now soft-fail without throwing or committing. Caller audit: startup seeding, chat learning and live-voice learning dispatch through MainActivity's background executor; memory-dialog writes use its own executor; worker context reader is read-only. A store-to-composer test confirms `CORE_LEARN_BEFORE_ACT` remains excluded even though persisted entries carry `trust=untrusted`.
+- Existing protected-path guard/test covers `.github/workflows`, signing/release config, STOP/lease code, allowlist, verifier and verification tests. No workflow, signing, release, backend, Render, production Supabase or main-branch files were changed. No Stage 3 learning skeletons were added.
+
+**Exact-SHA CI history (literal conclusions):**
+
+- Full CI run `43720128207`: `conclusion=failure`, `head_sha=7ebbd47e80360c3fc683284191d9912d639f3f9a` — Kotlin `const val` initializer error; corrected to `val`.
+- Debug run `43720128178`: `conclusion=failure`, `head_sha=7ebbd47e80360c3fc683284191d9912d639f3f9a` — same compile failure.
+- Full CI run `43720322103`: `conclusion=failure`, `head_sha=4391d0e483a51ac1aaf46de435e3b46a7ef441ed` — JSON corpus files were at repository root rather than JVM test resources; moved under `app/src/test/resources/injection/`.
+- Debug run `43720322180`: `conclusion=failure`, `head_sha=4391d0e483a51ac1aaf46de435e3b46a7ef441ed` — same resource-path failure.
+- Full CI run `43720553400`: `conclusion=failure`, `head_sha=ed39a87d9477c0d00928736d78db515d981ff0b8` — normalized baseline collision in case 023; narrowed in the final code commit.
+- Debug run `43720553426`: `conclusion=failure`, `head_sha=ed39a87d9477c0d00928736d78db515d981ff0b8` — same case 023 assertion.
+- Debug run `43720927835`: `conclusion=failure`, `head_sha=96fadd2f6a61d5d0e58ccb234bbf99b373d18009` — same case 023 assertion. Full CI run `43720927851`: `conclusion=cancelled`, same `head_sha`.
+- Final code Full CI run `43721090278`: `conclusion=success`, `head_sha=68e7b2d98a40ddded3f59effbc21a240a49166ed`. Unit tests, full reachable-history secret scan, debug APK packaging and artifact upload all passed.
+- Final code Debug workflow run `43721090261`: `conclusion=in_progress` at the time this HANDOFF section was authored; `head_sha=68e7b2d98a40ddded3f59effbc21a240a49166ed`.
+- Full CI artifact `vyom-phase6-3028d803223c3a400381d5aaca40c9f013a3ab11`, artifact ID `14164677451`, contains one APK and one SHA-256 file. Extracted APK size: 96,134,466 bytes. SHA-256 in the sidecar and independently calculated from the APK both equal `65a1b6dc14037d283d8e02999e92fb4cc6091af41993950147baf12c80e9c41b`. This is a debug build, not a release-signed APK.
+
 ### Remaining verification boundary
 
-- All listed Full CI and Debug runs above completed SUCCESS on the exact corresponding commit SHA. No local Termux Gradle execution was claimed.
+- Prior C1–C3 and protected-path Full CI/Debug runs above are historical exact-SHA successes. Stage 2's final code Full CI success and separate Debug workflow status are recorded in the Stage 2 section above. No local Termux Gradle execution was claimed.
 - No live model/provider call, no actual worker-generated PR, and no device acceptance test was performed. Device status: **NOT TESTED**.
 - PR #116 remains draft/open and unmerged. Keep signing, release, backend and production systems untouched unless separately authorized.
 - This HANDOFF update is documentation-only and must be verified by fresh Full CI + Debug runs on its own exact commit SHA before treating the final documentation HEAD as green.
