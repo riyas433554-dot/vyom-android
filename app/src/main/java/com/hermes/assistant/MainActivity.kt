@@ -270,6 +270,7 @@ class MainActivity : Activity() {
         api = VyomApiClient(applicationContext)
         memoryStore = VyomMemoryStore(applicationContext)
         memoryStore.ensureCorePrinciples()
+        memoryStore.ensureCapabilityProfile()
         try {
             contentUpdateManager.ensureSeeded()
             contentUpdateManager.installCrashRollbackHandler()
