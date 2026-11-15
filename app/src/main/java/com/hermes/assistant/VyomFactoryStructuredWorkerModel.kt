@@ -2,6 +2,7 @@ package com.hermes.assistant
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -243,9 +244,9 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
         }
         val workerContext = try {
             contextProvider(baseTaskData)
-        } catch (_: Exception) {
-            record(task.number, 0, 0, "BLOCKED")
-            throw IllegalStateException("Worker memory and installed-skill context could not be read safely")
+        } catch (error: Exception) {
+            Log.w("VyomFactoryWorker", "Optional memory and skill context unavailable; continuing with task data", error)
+            ""
         }
         val request = buildRequest(task, binding, workerContext)
         if (control.shouldStop()) {
