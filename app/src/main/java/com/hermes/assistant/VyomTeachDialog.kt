@@ -148,12 +148,12 @@ internal class VyomTeachDialog(
         }
         val cancel = Button(activity).apply {
             text = "CANCEL"
-            VyomTheme.stylePill(this, activity, "cyan", "secondary")
+            VyomTheme.stylePill(this, activity, "indigo", "secondary")
             setOnClickListener { dialog.dismiss(); onCancel() }
         }
         val save = Button(activity).apply {
             text = "SAVE PHRASE"
-            VyomTheme.stylePill(this, activity, "cyan", "primary")
+            VyomTheme.stylePill(this, activity, "indigo", "primary")
             setOnClickListener {
                 val spokenPhrase = phrase.text.toString().trim()
                 val command = answer.text.toString().trim()
