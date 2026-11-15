@@ -211,8 +211,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
-            VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(applicationContext)
-            VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
+            // The direct Vyom GitHub-MCP coding agent replaces the legacy Factory worker dispatcher.
+            // Cancel any previously scheduled background worker chain to prevent duplicate execution.
+            VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
         } catch (error: Exception) {
             android.util.Log.e(
                 "VyomFactoryQueueRefresh",
