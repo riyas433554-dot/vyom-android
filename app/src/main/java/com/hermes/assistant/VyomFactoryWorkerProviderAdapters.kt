@@ -81,6 +81,28 @@ internal class VyomFactoryUrlConnectionWorkerTransport : VyomFactoryWorkerModelH
     }
 }
 
+/** Extracts only a short structured provider diagnostic; credentials are redacted and raw bodies are never logged. */
+private object WorkerProviderHttpError {
+    fun describe(provider: String, statusCode: Int, body: String): String {
+        val detail = runCatching {
+            val root = JSONObject(body)
+            val error = root.optJSONObject("error") ?: root
+            sequenceOf("message", "detail", "title", "status")
+                .map { error.optString(it).trim() }
+                .firstOrNull { it.isNotBlank() && it != "null" }
+                .orEmpty()
+        }.getOrDefault("")
+        val safe = detail
+            .replace(Regex("(?i)Bearer\\s+[^\\s,;]+"), "Bearer [redacted]")
+            .replace(Regex("\\b(?:nvapi-|AIza)[A-Za-z0-9_-]+\\b"), "[redacted]")
+            .replace(Regex("[\\r\\n\\t]+"), " ")
+            .replace(Regex("\\s{2,}"), " ")
+            .take(240)
+        return "$provider worker request failed with HTTP $statusCode" +
+            if (safe.isBlank()) "" else ": $safe"
+    }
+}
+
 /** NVIDIA NIM chat-completions adapter for Nemotron. */
 internal class NvidiaNemotronWorkerModelProvider(
     private val modelId: String = DEFAULT_MODEL_ID,
@@ -116,7 +138,7 @@ internal class NvidiaNemotronWorkerModelProvider(
             REQUEST_TIMEOUT_MILLIS
         )
         if (result.statusCode !in 200..299) {
-            throw IllegalStateException("NVIDIA Nemotron worker request failed with HTTP ${result.statusCode}")
+            throw IllegalStateException(WorkerProviderHttpError.describe("NVIDIA Nemotron", result.statusCode, result.body))
         }
         val root = JSONObject(result.body)
         val choice = root.optJSONArray("choices")?.optJSONObject(0)
@@ -164,9 +186,10 @@ internal class GoogleGemmaWorkerModelProvider(
             .put("contents", JSONArray().put(JSONObject()
                 .put("role", "user")
                 .put("parts", JSONArray().put(JSONObject().put("text", userPrompt)))))
+            // Gemma 4 supports system instructions, but the hosted Gemma API contract
+            // does not require constrained responseMimeType mode. JSON is enforced by the agent prompt.
             .put("generationConfig", JSONObject()
-                .put("temperature", 0.1)
-                .put("responseMimeType", "application/json"))
+                .put("temperature", 0.1))
         val result = transport.post(
             "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent",
             mapOf(
@@ -178,7 +201,7 @@ internal class GoogleGemmaWorkerModelProvider(
             REQUEST_TIMEOUT_MILLIS
         )
         if (result.statusCode !in 200..299) {
-            throw IllegalStateException("Google Gemma worker request failed with HTTP ${result.statusCode}")
+            throw IllegalStateException(WorkerProviderHttpError.describe("Google Gemma", result.statusCode, result.body))
         }
         val root = JSONObject(result.body)
         val candidates = root.optJSONArray("candidates")
