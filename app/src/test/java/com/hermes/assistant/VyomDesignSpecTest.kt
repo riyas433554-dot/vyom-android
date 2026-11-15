@@ -93,20 +93,27 @@ class VyomDesignSpecTest {
     }
 
     @Test fun legacyCyanThemePreferenceMigratesToIndigoWithoutChangingOtherAccents() {
-        assertEquals("indigo", VyomTheme.canonicalAccentTheme("cyan"))
-        assertEquals("indigo", VyomTheme.canonicalAccentTheme("INDIGO"))
-        assertEquals("amber", VyomTheme.canonicalAccentTheme("amber"))
-        assertEquals("violet", VyomTheme.canonicalAccentTheme("violet"))
-        assertEquals("green", VyomTheme.canonicalAccentTheme("green"))
-        assertEquals("danger", VyomTheme.canonicalAccentTheme("red"))
-        assertEquals("indigo", VyomTheme.canonicalAccentTheme(null))
-        assertEquals("indigo", VyomTheme.canonicalAccentTheme("unknown"))
+        val normalizer = VyomTheme::class.java.methods.firstOrNull {
+            it.name == "canonicalAccentTheme" &&
+                it.parameterTypes.contentEquals(arrayOf(String::class.java))
+        }
+        assertTrue("Theme preference normalizer must be exposed for migration", normalizer != null)
+        assertEquals("indigo", normalizer!!.invoke(VyomTheme, "cyan"))
+        assertEquals("indigo", normalizer.invoke(VyomTheme, "INDIGO"))
+        assertEquals("amber", normalizer.invoke(VyomTheme, "amber"))
+        assertEquals("violet", normalizer.invoke(VyomTheme, "violet"))
+        assertEquals("green", normalizer.invoke(VyomTheme, "green"))
+        assertEquals("danger", normalizer.invoke(VyomTheme, "red"))
+        assertEquals("indigo", normalizer.invoke(VyomTheme, null))
+        assertEquals("indigo", normalizer.invoke(VyomTheme, "unknown"))
     }
 
     @Test fun readyOrbitUsesElectricIndigoToken() {
-        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.INDIGO)
-        assertEquals(VyomDesignSpec.INDIGO, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
-        assertEquals(VyomDesignSpec.INDIGO, VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
+        val indigo = VyomDesignSpec::class.java.declaredFields.firstOrNull { it.name == "INDIGO" }
+        assertTrue("Design spec must expose the semantically named INDIGO token", indigo != null)
+        assertEquals(0xFF7775E8.toInt(), indigo!!.getInt(null))
+        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY))
+        assertEquals(0xFF7775E8.toInt(), VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.LISTENING))
     }
 
 }
