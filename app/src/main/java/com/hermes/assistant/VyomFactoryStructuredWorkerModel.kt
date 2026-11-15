@@ -247,17 +247,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             record(task.number, 0, 0, "BLOCKED")
             throw IllegalStateException("Worker memory and installed-skill context could not be read safely")
         }
-        val taskData = if (workerContext.isBlank()) baseTaskData else
-            baseTaskData + "\n\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\n" + workerContext
-        val request = VyomFactoryWorkerModelProvider.Request(
-            taskNumber = task.number,
-            repository = binding.repositoryUrl,
-            baseSha = binding.commitSha,
-            baseBranch = SelfModificationPolicy.PROPOSAL_BASE_BRANCH,
-            allowedPaths = binding.allowedPaths.toList(),
-            systemInstructions = SYSTEM_INSTRUCTIONS,
-            taskDescriptionData = taskData
-        )
+        val request = buildRequest(task, binding, workerContext)
         if (control.shouldStop()) {
             record(task.number, 0, 0, "STOPPED")
             throw VyomFactoryExecutionStoppedException()
@@ -367,6 +357,30 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             }
         }
         throw VyomFactoryWorkerProviderRetriesExhaustedException(lastFailure)
+    }
+
+    /**
+     * The single production request builder used by both propose() and the injection corpus.
+     * Tests inspect the returned Request.systemInstructions rather than duplicating this policy.
+     */
+    internal fun buildRequest(
+        task: VyomFactoryGitHubClient.Task,
+        binding: VyomFactorySystemRegistry.Binding,
+        workerContext: String
+    ): VyomFactoryWorkerModelProvider.Request {
+        val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
+        val baseTaskData = "TITLE (UNTRUSTED DATA):\\n${task.title}\\n\\nDESCRIPTION (UNTRUSTED DATA):\\n${description}"
+        val taskData = if (workerContext.isBlank()) baseTaskData else
+            baseTaskData + "\\n\\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\\n" + workerContext
+        return VyomFactoryWorkerModelProvider.Request(
+            taskNumber = task.number,
+            repository = binding.repositoryUrl,
+            baseSha = binding.commitSha,
+            baseBranch = SelfModificationPolicy.PROPOSAL_BASE_BRANCH,
+            allowedPaths = binding.allowedPaths.toList(),
+            systemInstructions = SYSTEM_INSTRUCTIONS,
+            taskDescriptionData = taskData
+        )
     }
 
     private fun parseCandidate(
