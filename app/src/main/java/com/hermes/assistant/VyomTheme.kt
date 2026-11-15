@@ -10,6 +10,7 @@ import android.widget.Button
  */
 internal object VyomTheme {
     const val BACKGROUND: Int = 0xFF090B10.toInt()
+    /** Translucent Graphite for floating panels; opacity variants provide depth, not new accent colors. */
     const val SURFACE_GLASS: Int = 0xF2171A22.toInt()
     const val SURFACE_GLASS_SOFT: Int = 0xD91B1E27.toInt()
     const val SURFACE_USER_BUBBLE: Int = 0xFF25283A.toInt()
@@ -110,7 +111,7 @@ internal object VyomTheme {
                 }
             }
         }
-        button.setTextColor(if (variant.lowercase() == "secondary") color else Color.WHITE)
+        button.setTextColor(if (variant.lowercase() == "secondary") color else TEXT_PRIMARY)
         button.isAllCaps = false
         button.textSize = 14f
         button.minHeight = (44f * density).toInt()
