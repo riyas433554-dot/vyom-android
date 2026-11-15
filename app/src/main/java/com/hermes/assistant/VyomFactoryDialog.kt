@@ -162,19 +162,22 @@ internal class VyomFactoryDialog(
             typeface = Typeface.create("sans-serif", Typeface.BOLD); setTextColor(VyomDesignSpec.TEXT_PRIMARY)
         })
         heading.addView(TextView(activity).apply {
-            text = "LIVE TASK REGISTRY · GITHUB ISSUES"; textSize = 9f
+            text = "LIVE TASK REGISTRY · GITHUB ISSUES"; textSize = 11f
             typeface = Typeface.MONOSPACE; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
         })
         header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(TextView(activity).apply {
-            text = "↻"; textSize = 23f; gravity = Gravity.CENTER; setTextColor(accent)
+        header.addView(Button(activity).apply {
+            text = "↻"
             contentDescription = "Refresh Factory tasks"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { refresh() }
-        }, LinearLayout.LayoutParams(dp(42), dp(42)))
-        header.addView(TextView(activity).apply {
-            text = "✕"; textSize = 20f; gravity = Gravity.CENTER; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(Button(activity).apply {
+            text = "✕"
+            contentDescription = "Close Factory"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { dialog.dismiss() }
-        }, LinearLayout.LayoutParams(dp(38), dp(42)))
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
         root.addView(header)
 
         status = TextView(activity).apply {
@@ -349,13 +352,13 @@ internal class VyomFactoryDialog(
             if (receiptState.isFailure) {
                 evidencePanel.addView(TextView(activity).apply {
                     text = "UPLOAD STATE UNKNOWN · ATTACH DISABLED TO PREVENT DUPLICATE"
-                    textSize = 9f
+                    textSize = 11f
                     setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 })
             } else if (priorUpload != null) {
                 evidencePanel.addView(TextView(activity).apply {
                     text = "UPLOAD ALREADY COMPLETED · issue comment needs manual repair · ${priorUpload.url}"
-                    textSize = 9f
+                    textSize = 11f
                     setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 })
             } else {
@@ -407,23 +410,24 @@ internal class VyomFactoryDialog(
                     }.setNegativeButton("CANCEL", null).show()
             }
         }
-        actions.addView(priorityButton, LinearLayout.LayoutParams(0, dp(42), 1f))
+        actions.addView(priorityButton, LinearLayout.LayoutParams(0, dp(48), 1f))
         createButton = Button(activity).apply {
-            text = "REGISTER TASK"; textSize = 10f
+            text = "REGISTER TASK"
+            VyomTheme.stylePill(this, activity, variant = "primary")
             setOnClickListener { createTask() }
         }
-        actions.addView(createButton, LinearLayout.LayoutParams(0, dp(42), 1f).apply { leftMargin = dp(8) })
+        actions.addView(createButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { leftMargin = dp(8) })
         composer.addView(actions)
         val composerToggle = Button(activity).apply {
             text = "NEW TASK / COMPLAINT · SHOW"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 val expanded = composer.visibility != android.view.View.VISIBLE
                 composer.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
                 text = if (expanded) "NEW TASK / COMPLAINT · HIDE" else "NEW TASK / COMPLAINT · SHOW"
             }
         }
-        root.addView(composerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        root.addView(composerToggle, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(4) })
         composer.visibility = android.view.View.GONE
         root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
@@ -439,7 +443,7 @@ internal class VyomFactoryDialog(
 
         val footer = TextView(activity).apply {
             text = "GitHub Issues is shared. Background workers only propose changes; repository writes require your local approval, then RUN NEXT executes the approved draft-PR + exact-SHA CI path while Vyom stays foregrounded."
-            textSize = 9f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(2), dp(8), dp(2), 0)
         }
         root.addView(footer)
