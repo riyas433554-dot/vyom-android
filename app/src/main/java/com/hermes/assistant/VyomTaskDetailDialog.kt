@@ -166,7 +166,7 @@ internal class VyomTaskDetailDialog(
         if (status in setOf("queued", "pending", "running", "in_progress", "processing", "working")) {
             val cancel = Button(activity).apply {
                 text = "CANCEL TASK"
-                VyomTheme.stylePill(this, activity, "cyan", "danger")
+                VyomTheme.stylePill(this, activity, "indigo", "danger")
                 setOnClickListener {
                     AlertDialog.Builder(activity)
                         .setTitle("Cancel task #$id?")
