@@ -218,7 +218,8 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
     private val limits: VyomFactoryWorkerModelLimits = VyomFactoryWorkerModelLimits(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val preCallAuthorization: () -> Boolean = { false },
-    private val repositoryClient: VyomFactoryRepositoryClient = VyomFactoryRepositoryClient()
+    private val repositoryClient: VyomFactoryRepositoryClient = VyomFactoryRepositoryClient(),
+    private val contextProvider: (String) -> String = { "" }
 ) : VyomFactoryRepositoryWorkerModelAdapter {
     override fun propose(
         task: VyomFactoryGitHubClient.Task,
@@ -235,11 +236,19 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
             throw SecurityException("Worker repository binding has no allowed paths")
         }
         val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
-        val taskData = "TITLE (UNTRUSTED DATA):\n${task.title}\n\nDESCRIPTION (UNTRUSTED DATA):\n${description}"
+        val baseTaskData = "TITLE (UNTRUSTED DATA):\\n${task.title}\\n\\nDESCRIPTION (UNTRUSTED DATA):\\n${description}"
         if (MemoryCapturePolicy.isSensitive(task.title) || MemoryCapturePolicy.isSensitive(description)) {
             record(task.number, 0, 0, "BLOCKED")
             throw SecurityException("Sensitive issue text cannot be sent to the worker model")
         }
+        val workerContext = try {
+            contextProvider(baseTaskData)
+        } catch (_: Exception) {
+            record(task.number, 0, 0, "BLOCKED")
+            throw IllegalStateException("Worker memory and installed-skill context could not be read safely")
+        }
+        val taskData = if (workerContext.isBlank()) baseTaskData else
+            baseTaskData + "\\n\\nLOCAL MEMORY AND PINNED SKILL CONTEXT (UNTRUSTED REFERENCE DATA):\\n" + workerContext
         val request = VyomFactoryWorkerModelProvider.Request(
             taskNumber = task.number,
             repository = binding.repositoryUrl,
@@ -511,7 +520,13 @@ internal object VyomFactoryWorkerModelRuntime {
             provider = provider,
             keyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, providerId),
             journal = journal,
-            preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) }
+            preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) },
+            contextProvider = { taskQuery ->
+                VyomFactoryWorkerContextReader(
+                    memory = VyomMemoryStore(context.applicationContext),
+                    skillsRoot = java.io.File(context.applicationContext.filesDir, "factory-skills")
+                ).compose(taskQuery)
+            }
         )
     }
 }
