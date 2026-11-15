@@ -15,6 +15,8 @@ internal object VyomTheme {
     const val SURFACE_USER_BUBBLE: Int = 0xFF25283A.toInt()
     const val SURFACE_ASSISTANT_BUBBLE: Int = 0xFF171A22.toInt()
     const val SURFACE_TASK_CARD: Int = 0xFF1C202A.toInt()
+    /** Deep red fill preserves readable emergency STOP controls; Rose remains the text/accent danger color. */
+    const val SURFACE_DANGER: Int = 0xFFAA1923.toInt()
     const val TEXT_PRIMARY: Int = 0xFFE8E8ED.toInt()
     const val TEXT_SECONDARY: Int = 0xFF9296A3.toInt()
     const val ACCENT_INDIGO: Int = 0xFF7775E8.toInt()

@@ -92,7 +92,7 @@ class VyomDesignSpecTest {
         assertTrue(VyomDesignSpec.visibleDrawerItems("memory").any { it.id == "memory" })
     }
 
-    @Test fun legacyCyanThemePreferenceMigratesToIndigoWithoutChangingOtherAccents() {
+    @Test fun legacyCyanThemePreferenceIsCanonicalizedToIndigoWithoutChangingOtherAccents() {
         val normalizer = VyomTheme::class.java.methods.firstOrNull {
             it.name == "canonicalAccentTheme" &&
                 it.parameterTypes.contentEquals(arrayOf(String::class.java))
@@ -106,6 +106,11 @@ class VyomDesignSpecTest {
         assertEquals("danger", normalizer.invoke(VyomTheme, "red"))
         assertEquals("indigo", normalizer.invoke(VyomTheme, null))
         assertEquals("indigo", normalizer.invoke(VyomTheme, "unknown"))
+    }
+
+    @Test fun emergencyStopSurfaceRemainsDistinctFromRoseTextAccent() {
+        assertEquals(0xFFAA1923.toInt(), VyomTheme.SURFACE_DANGER)
+        assertEquals(0xFFD96C7A.toInt(), VyomTheme.ACCENT_DANGER)
     }
 
     @Test fun readyOrbitUsesElectricIndigoToken() {

@@ -330,7 +330,7 @@ class MainActivity : Activity() {
             setPadding(dp(14), dp(8), dp(14), dp(12))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(0xE6101A2E.toInt())
+                setColor(VyomTheme.SURFACE_GLASS)
                 cornerRadius = dp(VyomTheme.RADIUS_LARGE_DP).toFloat()
                 setStroke(dp(1), Color.argb(125, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
             }
@@ -341,7 +341,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(0xD90F1A2E.toInt())
+                setColor(VyomTheme.SURFACE_GLASS_SOFT)
                 cornerRadius = dp(34).toFloat()
                 setStroke(dp(1), Color.argb(115, Color.red(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")), Color.green(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo")), Color.blue(VyomTheme.accent(this@MainActivity, settingsPrefs.getString("theme_accent", "indigo") ?: "indigo"))))
             }
@@ -1263,7 +1263,7 @@ class MainActivity : Activity() {
             text = "STOP CONTROL"
             contentDescription = "Emergency stop for all Vyom device actions"
             setTextColor(VyomTheme.TEXT_PRIMARY)
-            setBackgroundColor(Color.rgb(170, 25, 35))
+            setBackgroundColor(VyomTheme.SURFACE_DANGER)
             setOnClickListener { activateControlKillSwitch() }
         }, LinearLayout.LayoutParams(-1, dp(44)))
         controlPanel.addView(controlNotice, LinearLayout.LayoutParams(-1, -2))
@@ -1428,7 +1428,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                setColor(0xC7101A2E.toInt())
+                setColor(VyomTheme.SURFACE_GLASS_SOFT)
                 cornerRadius = dp(VyomTheme.RADIUS_CHAT_DP).toFloat()
                 setStroke(dp(1), Color.argb(140, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
             }
@@ -1481,7 +1481,7 @@ class MainActivity : Activity() {
                 setPadding(dp(9), dp(8), dp(9), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(0xB80F1A2E.toInt())
+                    setColor(VyomTheme.SURFACE_GLASS_SOFT)
                     cornerRadius = dp(999).toFloat()
                     setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
                 }
@@ -1520,7 +1520,7 @@ class MainActivity : Activity() {
                 setPadding(dp(10), dp(8), dp(8), dp(8))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
-                    setColor(0xC7182846.toInt())
+                    setColor(VyomTheme.SURFACE_TASK_CARD)
                     cornerRadius = dp(VyomTheme.RADIUS_SMALL_DP).toFloat()
                     setStroke(dp(1), Color.argb(65, VyomTheme.ACCENT_INDIGO shr 16 and 0xFF, VyomTheme.ACCENT_INDIGO shr 8 and 0xFF, VyomTheme.ACCENT_INDIGO and 0xFF))
                 }
@@ -3153,7 +3153,7 @@ class MainActivity : Activity() {
         content.addView(Button(this).apply {
             text = "STOP SHIZUKU COMMANDS"
             setTextColor(VyomTheme.TEXT_PRIMARY)
-            setBackgroundColor(Color.rgb(170, 25, 35))
+            setBackgroundColor(VyomTheme.SURFACE_DANGER)
             setOnClickListener { shizukuShellClient?.cancelAll() }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         paragraph("Capability levels: LEVEL 0 = ordinary app APIs; LEVEL 1 = owner-enabled Accessibility/special app access; LEVEL 2 = owner-authorized ADB/Shizuku allowlisted operations. LEVEL 2 is NOT root and never bypasses secure windows, biometrics, OTPs, payments, Play Protect or system confirmation dialogs.")
