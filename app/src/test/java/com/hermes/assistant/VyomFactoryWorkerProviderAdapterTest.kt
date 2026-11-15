@@ -163,6 +163,24 @@ class VyomFactoryWorkerProviderAdapterTest {
         assertFalse(error.message!!.contains("google-test-key"))
     }
 
+    @Test fun nvidia404ExposesAccountScopedModelDiagnostic() {
+        val transport = FakeTransport(
+            VyomFactoryWorkerModelHttpTransport.Response(
+                404,
+                """{"title":"Not Found","detail":"Function not found for account; model endpoint is not enabled"}"""
+            )
+        )
+        val provider = NvidiaNemotronWorkerModelProvider(transport = transport)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            provider.generate(request(), "nvidia-test-key".toCharArray())
+        }
+
+        assertTrue(error.message!!.contains("HTTP 404"))
+        assertTrue(error.message!!.contains("Function not found for account"))
+        assertFalse(error.message!!.contains("nvidia-test-key"))
+    }
+
     @Test fun providerRejectsMissingUsageOrMalformedResponse() {
         val transport = FakeTransport(
             VyomFactoryWorkerModelHttpTransport.Response(200, """{"candidates":[]}""")
