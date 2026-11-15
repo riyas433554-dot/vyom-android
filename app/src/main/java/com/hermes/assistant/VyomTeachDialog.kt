@@ -26,13 +26,13 @@ internal class VyomTeachDialog(
 
     fun show() {
         val dialog = Dialog(activity)
-        val accent = VyomDesignSpec.CYAN
+        val accent = VyomDesignSpec.INDIGO
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(16))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), VyomDesignSpec.BACKGROUND)
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
                 setStroke(dp(1), 0x7722D3EE)
@@ -126,9 +126,9 @@ internal class VyomTeachDialog(
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(dp(9), dp(8), dp(9), dp(8))
                 background = GradientDrawable().apply {
-                    setColor(0x33152235)
+                    setColor(VyomTheme.SURFACE_GLASS_SOFT)
                     cornerRadius = dp(12).toFloat()
-                    setStroke(dp(1), 0x506482AA)
+                    setStroke(dp(1), VyomTheme.BORDER_GLASS)
                 }
                 setOnClickListener { answer.setText(example); answer.setSelection(answer.text.length) }
             }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { marginEnd = dp(5) })

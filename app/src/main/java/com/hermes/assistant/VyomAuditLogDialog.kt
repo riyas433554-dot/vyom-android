@@ -45,7 +45,7 @@ internal class VyomAuditLogDialog(
             setPadding(dp(18), dp(16), dp(18), dp(12))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), VyomDesignSpec.BACKGROUND)
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
                 setStroke(dp(1), Color.argb(110, Color.red(VyomDesignSpec.ROSE), Color.green(VyomDesignSpec.ROSE), Color.blue(VyomDesignSpec.ROSE)))
@@ -110,7 +110,7 @@ internal class VyomAuditLogDialog(
                 setPadding(dp(8), dp(8), dp(8), dp(8))
                 setTextColor(if (filter == key) VyomDesignSpec.BACKGROUND else VyomDesignSpec.TEXT_SECONDARY)
                 background = GradientDrawable().apply {
-                    setColor(if (filter == key) VyomDesignSpec.ROSE else 0x441B2B42)
+                    setColor(if (filter == key) VyomDesignSpec.ROSE else VyomTheme.SURFACE_GLASS_SOFT)
                     cornerRadius = dp(999).toFloat()
                 }
                 setOnClickListener {
@@ -119,7 +119,7 @@ internal class VyomAuditLogDialog(
                         if (child is TextView) {
                             val active = child.text.toString().equals(key, true)
                             child.setTextColor(if (active) VyomDesignSpec.BACKGROUND else VyomDesignSpec.TEXT_SECONDARY)
-                            (child.background as? GradientDrawable)?.setColor(if (active) VyomDesignSpec.ROSE else 0x441B2B42)
+                            (child.background as? GradientDrawable)?.setColor(if (active) VyomDesignSpec.ROSE else VyomTheme.SURFACE_GLASS_SOFT)
                         }
                     }
                     render()
@@ -228,7 +228,7 @@ internal class VyomAuditLogDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(13), dp(11), dp(13), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(0xAA1B2A40.toInt())
+                    setColor(VyomTheme.SURFACE_TASK_CARD)
                     cornerRadius = dp(15).toFloat()
                     setStroke(dp(1), Color.argb(70, Color.red(color), Color.green(color), Color.blue(color)))
                 }

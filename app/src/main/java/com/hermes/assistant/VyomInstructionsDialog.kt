@@ -42,10 +42,10 @@ internal class VyomInstructionsDialog(
             setPadding(dp(18), dp(16), dp(18), dp(12))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), VyomDesignSpec.BACKGROUND)
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
-                setStroke(dp(1), 0x5522D3EE)
+                setStroke(dp(1), VyomTheme.BORDER_GLASS)
             }
         }
 
@@ -98,20 +98,20 @@ internal class VyomInstructionsDialog(
         }
         fun optionBackground(accent: Int, selected: Boolean): GradientDrawable =
             GradientDrawable().apply {
-                setColor(if (selected) Color.argb(42, Color.red(accent), Color.green(accent), Color.blue(accent)) else 0x33152235)
+                setColor(if (selected) Color.argb(42, Color.red(accent), Color.green(accent), Color.blue(accent)) else VyomTheme.SURFACE_GLASS_SOFT)
                 cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), if (selected) accent else 0x506482AA)
+                setStroke(dp(1), if (selected) accent else VyomTheme.BORDER_GLASS)
             }
         fun refreshPersona() {
             personaChips.forEach { (name, chip) ->
                 val selected = name == selectedPersona
-                chip.background = optionBackground(VyomDesignSpec.CYAN, selected)
-                chip.setTextColor(if (selected) VyomDesignSpec.CYAN else VyomDesignSpec.TEXT_SECONDARY)
+                chip.background = optionBackground(VyomDesignSpec.INDIGO, selected)
+                chip.setTextColor(if (selected) VyomDesignSpec.INDIGO else VyomDesignSpec.TEXT_SECONDARY)
             }
         }
         fun refreshRole() {
             roleCards.forEach { (name, card) ->
-                val accent = if (name == "Ultron") VyomDesignSpec.AMBER else VyomDesignSpec.CYAN
+                val accent = if (name == "Ultron") VyomDesignSpec.AMBER else VyomDesignSpec.INDIGO
                 val selected = name == selectedRole
                 card.background = optionBackground(accent, selected)
                 card.setTextColor(if (selected) accent else VyomDesignSpec.TEXT_SECONDARY)
@@ -178,7 +178,7 @@ internal class VyomInstructionsDialog(
             setTextColor(VyomDesignSpec.TEXT_PRIMARY)
             setHintTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = VyomTheme.glass(activity, 16, VyomDesignSpec.CYAN)
+            background = VyomTheme.glass(activity, 16, VyomDesignSpec.INDIGO)
         }
         content.addView(rules, LinearLayout.LayoutParams(-1, dp(132)))
         content.addView(TextView(activity).apply {
@@ -217,7 +217,7 @@ internal class VyomInstructionsDialog(
                 text = label
                 textSize = 11f
                 gravity = Gravity.CENTER
-                setTextColor(if (route == "profile") VyomDesignSpec.CYAN else VyomDesignSpec.TEXT_SECONDARY)
+                setTextColor(if (route == "profile") VyomDesignSpec.INDIGO else VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(dp(8), dp(9), dp(8), dp(8))
                 setOnClickListener {
                     dialog.dismiss()

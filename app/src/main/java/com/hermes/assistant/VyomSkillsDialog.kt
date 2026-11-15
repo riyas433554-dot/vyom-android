@@ -38,10 +38,10 @@ internal class VyomSkillsDialog(
             setPadding(dp(18), dp(16), dp(18), dp(12))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), VyomDesignSpec.BACKGROUND)
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
-                setStroke(dp(1), Color.argb(110, Color.red(VyomDesignSpec.CYAN), Color.green(VyomDesignSpec.CYAN), Color.blue(VyomDesignSpec.CYAN)))
+                setStroke(dp(1), Color.argb(110, Color.red(VyomDesignSpec.INDIGO), Color.green(VyomDesignSpec.INDIGO), Color.blue(VyomDesignSpec.INDIGO)))
             }
         }
 
@@ -88,7 +88,7 @@ internal class VyomSkillsDialog(
             setTextColor(VyomDesignSpec.TEXT_PRIMARY)
             setHintTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(14), dp(8), dp(14), dp(8))
-            background = VyomTheme.glass(activity, 14, VyomDesignSpec.CYAN)
+            background = VyomTheme.glass(activity, 14, VyomDesignSpec.INDIGO)
         }
         root.addView(search, LinearLayout.LayoutParams(-1, dp(46)).apply {
             bottomMargin = dp(10)
@@ -119,7 +119,7 @@ internal class VyomSkillsDialog(
                 text = label
                 textSize = 11f
                 gravity = Gravity.CENTER
-                setTextColor(if (route == "profile") VyomDesignSpec.CYAN else VyomDesignSpec.TEXT_SECONDARY)
+                setTextColor(if (route == "profile") VyomDesignSpec.INDIGO else VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(dp(8), dp(10), dp(8), dp(8))
                 setOnClickListener {
                     dialog.dismiss()
@@ -170,9 +170,9 @@ internal class VyomSkillsDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(14), dp(12), dp(14), dp(12))
                 background = GradientDrawable().apply {
-                    setColor(0xAA1B2A40.toInt())
+                    setColor(VyomTheme.SURFACE_TASK_CARD)
                     cornerRadius = dp(16).toFloat()
-                    setStroke(dp(1), Color.argb(65, Color.red(VyomDesignSpec.CYAN), Color.green(VyomDesignSpec.CYAN), Color.blue(VyomDesignSpec.CYAN)))
+                    setStroke(dp(1), Color.argb(65, Color.red(VyomDesignSpec.INDIGO), Color.green(VyomDesignSpec.INDIGO), Color.blue(VyomDesignSpec.INDIGO)))
                 }
             }
             val row = LinearLayout(activity).apply {
@@ -192,9 +192,9 @@ internal class VyomSkillsDialog(
                 setTextColor(VyomDesignSpec.GREEN)
                 setPadding(dp(8), dp(5), dp(8), dp(5))
                 background = GradientDrawable().apply {
-                    setColor(0x2234D399)
+                    setColor(android.graphics.Color.argb(34, android.graphics.Color.red(VyomTheme.ACCENT_GREEN), android.graphics.Color.green(VyomTheme.ACCENT_GREEN), android.graphics.Color.blue(VyomTheme.ACCENT_GREEN)))
                     cornerRadius = dp(999).toFloat()
-                    setStroke(dp(1), 0x5534D399)
+                    setStroke(dp(1), android.graphics.Color.argb(85, android.graphics.Color.red(VyomTheme.ACCENT_GREEN), android.graphics.Color.green(VyomTheme.ACCENT_GREEN), android.graphics.Color.blue(VyomTheme.ACCENT_GREEN)))
                 }
             })
             card.addView(row)

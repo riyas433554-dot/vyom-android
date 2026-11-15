@@ -31,14 +31,14 @@ internal class VyomDrawer(
         val accent = VyomTheme.accent(
             activity,
             activity.getSharedPreferences("vyom_settings", Activity.MODE_PRIVATE)
-                .getString("theme_accent", "cyan") ?: "cyan"
+                .getString("theme_accent", "indigo") ?: "indigo"
         )
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(18), dp(18), dp(14))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), 0xF8070B14.toInt())
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomTheme.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
                 setStroke(dp(1), Color.argb(170, Color.red(accent), Color.green(accent), Color.blue(accent)))
@@ -122,7 +122,7 @@ internal class VyomDrawer(
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(12), dp(10), dp(12), dp(10))
                     background = GradientDrawable().apply {
-                        setColor(if (item.enabled) 0x331B3550 else 0x180F1A2E)
+                        setColor(if (item.enabled) VyomTheme.SURFACE_GLASS else VyomTheme.BACKGROUND)
                         cornerRadius = dp(13).toFloat()
                         if (item.id == "home") setStroke(dp(1), Color.argb(90, Color.red(accent), Color.green(accent), Color.blue(accent)))
                     }

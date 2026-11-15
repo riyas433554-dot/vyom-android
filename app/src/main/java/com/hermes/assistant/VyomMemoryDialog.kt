@@ -41,7 +41,7 @@ internal class VyomMemoryDialog(
             setPadding(dp(18), dp(16), dp(18), dp(12))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), VyomDesignSpec.BACKGROUND)
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
                 setStroke(dp(1), Color.argb(110, Color.red(accent), Color.green(accent), Color.blue(accent)))
@@ -225,7 +225,7 @@ internal class VyomMemoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(13), dp(11), dp(13), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(0xAA1B2A40.toInt())
+                    setColor(VyomTheme.SURFACE_TASK_CARD)
                     cornerRadius = dp(15).toFloat()
                     setStroke(dp(1), Color.argb(70, Color.red(VyomDesignSpec.AMBER), Color.green(VyomDesignSpec.AMBER), Color.blue(VyomDesignSpec.AMBER)))
                 }
@@ -245,7 +245,7 @@ internal class VyomMemoryDialog(
                 text = "EDIT"
                 textSize = 9f
                 typeface = Typeface.MONOSPACE
-                setTextColor(VyomDesignSpec.CYAN)
+                setTextColor(VyomDesignSpec.INDIGO)
                 setPadding(dp(12), dp(7), dp(12), dp(7))
                 setOnClickListener { editFact(index to fact) }
             }
