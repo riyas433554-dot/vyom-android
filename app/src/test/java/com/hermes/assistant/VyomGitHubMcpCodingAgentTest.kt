@@ -139,7 +139,7 @@ internal class VyomGitHubMcpCodingAgentTest {
         val control = object : VyomFactoryExecutionControl {
             override fun shouldStop(): Boolean {
                 stopChecks += 1
-                return stopChecks >= 2
+                return stopChecks >= 3
             }
         }
         val provider = FakeProvider(mutableListOf(
