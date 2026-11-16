@@ -214,7 +214,7 @@ internal object VyomFactorySkillPolicy {
             .onUnmappableCharacter(CodingErrorAction.REPORT)
         val text = decoder.decode(ByteBuffer.wrap(bytes)).toString()
         require(text.isNotBlank() && text.none {
-            it == '\\u0000' || (it.isISOControl() && it != '\\n' && it != '\\r' && it != '\\t')
+            it == '\u0000' || (it.isISOControl() && it != '\n' && it != '\r' && it != '\t')
         }) { "Referenced skill document contains binary or control characters" }
         return text
     }
