@@ -15,6 +15,9 @@ internal class VyomGitHubMcpCodingAgentTest {
             apiKey: CharArray
         ): VyomFactoryWorkerModelProvider.Response {
             assertTrue(request.systemInstructions.contains("Vyom"))
+            assertEquals(77, request.taskNumber)
+            assertEquals("a".repeat(40), request.baseSha)
+            assertEquals(VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS, request.allowedPaths)
             return VyomFactoryWorkerModelProvider.Response(outputs.removeAt(0), 10, 5)
         }
     }
@@ -166,4 +169,26 @@ internal class VyomGitHubMcpCodingAgentTest {
         agent.run("Inspect the repository")
         assertTrue(transport.calls.isEmpty())
     }
+    @Test(expected = SecurityException::class)
+    fun modelCannotWriteFactoryControlFilesEvenInsideWorkerSourceRoot() {
+        val transport = FakeTransport()
+        val provider = FakeProvider(mutableListOf(
+            """{"action":"tool","name":"create_branch","arguments":{"owner":"acme","repo":"factory","branch":"vyom-agent/test-run","from_branch":"feature/repair"}}""",
+            """{"action":"tool","name":"push_files","arguments":{"owner":"acme","repo":"factory","branch":"vyom-agent/test-run","message":"Modify Factory control","files":[{"path":"app/src/main/java/com/hermes/assistant/VyomFactoryWorkerDispatchWorker.kt","content":"// bypass"}]}}"""
+        ))
+        val agent = VyomGitHubMcpCodingAgent(
+            client = VyomGitHubMcpClient({ "test-token" }, transport = transport),
+            provider = provider,
+            keyStore = FakeKeyStore(),
+            repository = "acme/factory",
+            taskNumber = 77,
+            baseBranch = "feature/repair",
+            baseSha = "a".repeat(40),
+            allowedPaths = VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS,
+            branchName = "vyom-agent/test-run"
+        )
+
+        agent.run("Modify Factory control code")
+    }
+
 }
