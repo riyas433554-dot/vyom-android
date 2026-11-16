@@ -211,9 +211,15 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
-            // The direct Vyom GitHub-MCP coding agent replaces the legacy Factory worker dispatcher.
-            // Cancel any previously scheduled background worker chain to prevent duplicate execution.
-            VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
+            val codingModeEnabled = getSharedPreferences(
+                VyomGitHubMcpCodingAgentRuntime.PREFS, MODE_PRIVATE
+            ).getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+            if (codingModeEnabled) {
+                // One bounded issue-inbox dispatch; automatic continuation waits for Task 9 recovery guards.
+                VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
+            } else {
+                VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
+            }
         } catch (error: Exception) {
             android.util.Log.e(
                 "VyomFactoryQueueRefresh",
@@ -1006,8 +1012,13 @@ class MainActivity : Activity() {
                         enabled
                     )
                     text = if (enabled) "DISABLE VYOM GITHUB CODING MODE" else "ENABLE VYOM GITHUB CODING MODE"
+                    if (enabled) {
+                        VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
+                    } else {
+                        VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
+                    }
                     selfChangeNotice.text = if (enabled) {
-                        "Coding mode ON · chat messages go directly to Vyom's GitHub coding agent. Each task gets its own vyom-agent branch; no merge or delete."
+                        "Coding mode ON · chat tasks and one eligible Factory issue per dispatch go to Vyom's GitHub MCP runtime. Draft PR only; no merge or issue close."
                     } else {
                         "GitHub coding mode is OFF."
                     }
@@ -1018,7 +1029,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(codingModeButton, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(TextView(this).apply {
-            text = "Parallel coding tasks: up to 3. When coding mode is ON, each chat message is a repository task. Writes stay on a new vyom-agent/* branch; main/master, deletes, merges, signing and production paths are blocked."
+            text = "Factory issue repair currently runs one task at a time. Three-way parallel branches are not enabled until isolation and recovery tests pass. Writes stay on vyom-agent/*; main/master, deletes, merges, signing and production paths are blocked."
             textSize = 10f
             setTextColor(Color.LTGRAY)
         }, LinearLayout.LayoutParams(-1, -2))
