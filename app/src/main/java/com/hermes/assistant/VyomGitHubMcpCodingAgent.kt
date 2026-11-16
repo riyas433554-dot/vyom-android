@@ -214,6 +214,12 @@ internal class VyomGitHubMcpCodingAgent(
                 require(args.optString("head") == branchName && args.optString("base") == baseBranch) {
                     "PR target must be the isolated Vyom branch into the selected base."
                 }
+                require(args.optBoolean("draft", false)) {
+                    "Vyom may only create a draft pull request."
+                }
+                require(args.optString("body").contains("#$taskNumber")) {
+                    "Draft PR body must reference the original Factory issue."
+                }
             }
             else -> throw SecurityException("GitHub tool '" + name + "' is not permitted by Vyom.")
         }
@@ -269,7 +275,7 @@ or
 Never invent tool results. Never write to main/master or any branch other than the required work branch.
 Create the required branch from the selected base before any write. Commit changes only to that branch.
 Do not delete files, merge pull requests, create releases, modify signing/keystore/secrets, or touch production backend configuration.
-Use push_files for a coherent multi-file commit when available. Open a pull request into the selected base after the fix is committed.
+Use push_files for a coherent multi-file commit when available. Open a DRAFT pull request into the selected base after the fix is committed. The PR body must reference the original issue number.
 Do not claim tests passed unless a GitHub Actions result or tool output proves it. If Actions tools are unavailable, state that CI verification remains pending.
 """
     }
