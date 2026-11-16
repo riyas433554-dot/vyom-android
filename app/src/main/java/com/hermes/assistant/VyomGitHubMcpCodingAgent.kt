@@ -308,10 +308,7 @@ internal object VyomGitHubMcpCodingAgentRuntime {
             taskNumber, task.take(500), task, "open", "", "chat", metadata, "chat"
         )
         val control = object : VyomFactoryExecutionControl {
-            override fun shouldStop(): Boolean =
-                VyomFactoryWorkerStopStore(app).isStopped() ||
-                    !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
-                    !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)
+            override fun shouldStop(): Boolean = VyomFactoryWorkerStopStore(app).isStopped()
         }
         return run(context, remoteTask, registry, control, requireIssueReference = false)
     }
@@ -325,11 +322,13 @@ internal object VyomGitHubMcpCodingAgentRuntime {
     ): String {
         val app = context.applicationContext
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
-        check(VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) {
-            "Owner autonomous execution authorization is disabled or stale."
-        }
-        check(VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) {
-            "Owner live-call authorization is disabled."
+        if (requireIssueReference) {
+            check(VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) {
+                "Owner autonomous execution authorization is disabled or stale."
+            }
+            check(VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) {
+                "Owner live-call authorization is disabled."
+            }
         }
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         check(prefs.getBoolean(KEY_ENABLED, false)) { "Enable Vyom GitHub MCP coding mode in Settings first." }
