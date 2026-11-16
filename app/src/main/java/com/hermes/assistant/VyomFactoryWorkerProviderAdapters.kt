@@ -218,6 +218,8 @@ internal class VyomFactoryWorkerProviderEmptyResponseException(
     val providerId: String
 ) : IllegalStateException("$providerId returned an empty response")
 
+internal class VyomFactoryWorkerProviderRejectedException(message: String) : IllegalStateException(message)
+
 internal data class VyomFactoryWorkerProviderRoute(
     val provider: VyomFactoryWorkerModelProvider,
     val keyStore: VyomFactoryWorkerApiKeyStore
@@ -282,7 +284,7 @@ internal class VyomFactoryFallbackWorkerModelProvider(
                             moveToNextProvider = true
                             break
                         }
-                        throw IllegalStateException(
+                        throw VyomFactoryWorkerProviderRejectedException(
                             classification.userMessage ?: "Worker provider request failed (${classification.kind})"
                         )
                     }
