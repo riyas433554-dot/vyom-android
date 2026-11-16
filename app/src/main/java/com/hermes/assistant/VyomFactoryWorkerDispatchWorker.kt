@@ -86,13 +86,23 @@ internal class VyomFactoryWorkerDispatchWorker(
                     setProgressAsync(androidx.work.workDataOf(
                         "runtime_issue_number" to task.number,
                         "runtime_state" to "MCP_CODING_AGENT_STARTED"
-                    ))
-                    val result = VyomGitHubMcpCodingAgentRuntime.run(context, task, registry, control)
-                    setProgressAsync(androidx.work.workDataOf(
-                        "runtime_issue_number" to task.number,
-                        "runtime_state" to "MCP_CODING_AGENT_RETURNED"
-                    ))
-                    result
+                    )).get(10L, TimeUnit.SECONDS)
+                    try {
+                        val result = VyomGitHubMcpCodingAgentRuntime.run(context, task, registry, control)
+                        setProgressAsync(androidx.work.workDataOf(
+                            "runtime_issue_number" to task.number,
+                            "runtime_state" to "MCP_CODING_AGENT_RETURNED",
+                            "runtime_result" to result.take(8_000)
+                        )).get(10L, TimeUnit.SECONDS)
+                        result
+                    } catch (error: Exception) {
+                        setProgressAsync(androidx.work.workDataOf(
+                            "runtime_issue_number" to task.number,
+                            "runtime_state" to "MCP_CODING_AGENT_FAILED",
+                            "runtime_error_type" to error.javaClass.simpleName
+                        )).get(10L, TimeUnit.SECONDS)
+                        throw error
+                    }
                 },
                 onProposal = { _, _, _, _ ->
                     throw IllegalStateException("MCP coding mode must not create legacy worker proposals.")
