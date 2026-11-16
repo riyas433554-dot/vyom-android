@@ -37,10 +37,10 @@ internal class VyomAutomationsDialog(
             setPadding(dp(18), dp(16), dp(18), dp(12))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5101A2E.toInt(), VyomDesignSpec.BACKGROUND)
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomDesignSpec.BACKGROUND)
             ).apply {
                 cornerRadius = dp(26).toFloat()
-                setStroke(dp(1), Color.argb(110, Color.red(VyomDesignSpec.CYAN), Color.green(VyomDesignSpec.CYAN), Color.blue(VyomDesignSpec.CYAN)))
+                setStroke(dp(1), Color.argb(110, Color.red(VyomDesignSpec.INDIGO), Color.green(VyomDesignSpec.INDIGO), Color.blue(VyomDesignSpec.INDIGO)))
             }
         }
 
@@ -88,14 +88,14 @@ internal class VyomAutomationsDialog(
             setTextColor(color)
             setPadding(dp(8), dp(10), dp(8), dp(10))
             background = GradientDrawable().apply {
-                setColor(0x991B2B42.toInt())
+                setColor(VyomTheme.SURFACE_GLASS_SOFT)
                 cornerRadius = dp(14).toFloat()
                 setStroke(dp(1), Color.argb(80, Color.red(color), Color.green(color), Color.blue(color)))
             }
         }
         listOf(
             stat("PENDING", pending, VyomDesignSpec.AMBER),
-            stat("WORKING", working, VyomDesignSpec.CYAN),
+            stat("WORKING", working, VyomDesignSpec.INDIGO),
             stat("DONE", done, VyomDesignSpec.GREEN)
         ).forEachIndexed { index, view ->
             stats.addView(view, LinearLayout.LayoutParams(0, dp(66), 1f).apply {
@@ -133,7 +133,7 @@ internal class VyomAutomationsDialog(
                 setPadding(dp(9), dp(8), dp(9), dp(8))
                 setTextColor(if (selectedFilter == key) VyomDesignSpec.BACKGROUND else VyomDesignSpec.TEXT_SECONDARY)
                 background = GradientDrawable().apply {
-                    setColor(if (selectedFilter == key) VyomDesignSpec.CYAN else 0x441B2B42)
+                    setColor(if (selectedFilter == key) VyomDesignSpec.INDIGO else VyomTheme.SURFACE_GLASS_SOFT)
                     cornerRadius = dp(999).toFloat()
                 }
                 setOnClickListener {
@@ -142,7 +142,7 @@ internal class VyomAutomationsDialog(
                         if (child is TextView) {
                             val active = child.text.toString().equals(key, true)
                             child.setTextColor(if (active) VyomDesignSpec.BACKGROUND else VyomDesignSpec.TEXT_SECONDARY)
-                            (child.background as? GradientDrawable)?.setColor(if (active) VyomDesignSpec.CYAN else 0x441B2B42)
+                            (child.background as? GradientDrawable)?.setColor(if (active) VyomDesignSpec.INDIGO else VyomTheme.SURFACE_GLASS_SOFT)
                         }
                     }
                     renderTasks()
@@ -170,7 +170,7 @@ internal class VyomAutomationsDialog(
                 text = label
                 textSize = 11f
                 gravity = Gravity.CENTER
-                setTextColor(if (route == "tasks") VyomDesignSpec.CYAN else VyomDesignSpec.TEXT_SECONDARY)
+                setTextColor(if (route == "tasks") VyomDesignSpec.INDIGO else VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(dp(8), dp(10), dp(8), dp(8))
                 setOnClickListener {
                     dialog.dismiss()
@@ -220,14 +220,14 @@ internal class VyomAutomationsDialog(
             val accent = when {
                 state in setOf("failed", "error") -> VyomDesignSpec.ROSE
                 state in setOf("done", "success", "completed") -> VyomDesignSpec.GREEN
-                state in activeStates && state !in setOf("queued", "pending") -> VyomDesignSpec.CYAN
+                state in activeStates && state !in setOf("queued", "pending") -> VyomDesignSpec.INDIGO
                 else -> VyomDesignSpec.AMBER
             }
             val card = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(14), dp(12), dp(14), dp(12))
                 background = GradientDrawable().apply {
-                    setColor(0xAA17263C.toInt())
+                    setColor(VyomTheme.SURFACE_TASK_CARD)
                     cornerRadius = dp(16).toFloat()
                     setStroke(dp(1), Color.argb(75, Color.red(accent), Color.green(accent), Color.blue(accent)))
                 }

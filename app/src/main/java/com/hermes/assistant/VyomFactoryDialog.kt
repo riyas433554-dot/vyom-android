@@ -106,6 +106,16 @@ internal class VyomFactoryDialog(
     }
     private val workerStopStore by lazy { VyomFactoryWorkerStopStore(activity.applicationContext) }
 
+    private fun setStopButtonEnabled(enabled: Boolean, reason: String = "") {
+        stopButton.isEnabled = enabled
+        stopButton.contentDescription = if (enabled) "Stop all workers" else "Stop all workers unavailable. " + reason.ifBlank { "Worker control is currently unavailable." }
+    }
+
+    private fun setReleaseClaimEnabled(enabled: Boolean) {
+        releaseClaimButton.isEnabled = enabled
+        releaseClaimButton.contentDescription = if (enabled) "Release active worker claim" else "Release claim unavailable until a task is claimed"
+    }
+
     private fun sessionFor(claim: VyomFactoryWorkerClaimCoordinator.Claim): VyomFactoryWorkerSession =
         workerSessions.firstOrNull { it.workerIdentity.workerId == claim.lease.workerId &&
             it.workerIdentity.lane == claim.lease.lane &&
@@ -145,12 +155,12 @@ internal class VyomFactoryDialog(
     fun show() {
         dialog = Dialog(activity)
         val accent = VyomTheme.accent(activity, activity.getSharedPreferences("vyom_settings", Activity.MODE_PRIVATE)
-            .getString("theme_accent", "cyan") ?: "cyan")
+            .getString("theme_accent", "indigo") ?: "indigo")
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(16), dp(18), dp(14))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xF5121F35.toInt(), 0xF8070B14.toInt())).apply {
+                intArrayOf(VyomTheme.SURFACE_GLASS, VyomTheme.BACKGROUND)).apply {
                 cornerRadius = dp(24).toFloat()
                 setStroke(dp(1), Color.argb(160, Color.red(accent), Color.green(accent), Color.blue(accent)))
             }
@@ -162,19 +172,22 @@ internal class VyomFactoryDialog(
             typeface = Typeface.create("sans-serif", Typeface.BOLD); setTextColor(VyomDesignSpec.TEXT_PRIMARY)
         })
         heading.addView(TextView(activity).apply {
-            text = "LIVE TASK REGISTRY · GITHUB ISSUES"; textSize = 9f
+            text = "LIVE TASK REGISTRY · GITHUB ISSUES"; textSize = 11f
             typeface = Typeface.MONOSPACE; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
         })
         header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(TextView(activity).apply {
-            text = "↻"; textSize = 23f; gravity = Gravity.CENTER; setTextColor(accent)
+        header.addView(Button(activity).apply {
+            text = "↻"
             contentDescription = "Refresh Factory tasks"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { refresh() }
-        }, LinearLayout.LayoutParams(dp(42), dp(42)))
-        header.addView(TextView(activity).apply {
-            text = "✕"; textSize = 20f; gravity = Gravity.CENTER; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(Button(activity).apply {
+            text = "✕"
+            contentDescription = "Close Factory"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { dialog.dismiss() }
-        }, LinearLayout.LayoutParams(dp(38), dp(42)))
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
         root.addView(header)
 
         status = TextView(activity).apply {
@@ -184,18 +197,18 @@ internal class VyomFactoryDialog(
         root.addView(status)
         root.addView(Button(activity).apply {
             text = "CHECK SIGNED APK UPDATE"
-            textSize = 10f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { onUpdateApk() }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { bottomMargin = dp(8) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(8) })
 
         val workerPanel = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = GradientDrawable().apply { setColor(0x22213A54); cornerRadius = dp(12).toFloat() }
+            background = GradientDrawable().apply { setColor(Color.argb(34, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE))); cornerRadius = dp(12).toFloat() }
         }
         claimStatus = TextView(activity).apply {
             text = "WORKER IDLE · foreground claim only"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             maxLines = 100
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
         }
@@ -205,23 +218,26 @@ internal class VyomFactoryDialog(
             gravity = Gravity.CENTER_VERTICAL
         }
         claimButton = Button(activity).apply {
-            text = "CLAIM NEXT"; textSize = 9f
+            text = "CLAIM NEXT"
+            VyomTheme.stylePill(this, activity, variant = "primary")
             setOnClickListener { claimNextTask() }
         }
-        workerActions.addView(claimButton, LinearLayout.LayoutParams(0, dp(40), 1f))
+        workerActions.addView(claimButton, LinearLayout.LayoutParams(0, dp(48), 1f))
         releaseClaimButton = Button(activity).apply {
-            text = "RELEASE CLAIM"; textSize = 9f
+            text = "RELEASE CLAIM"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             isEnabled = false
+            contentDescription = "Release claim unavailable until a task is claimed"
             setOnClickListener { releaseActiveClaim() }
         }
-        workerActions.addView(releaseClaimButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+        workerActions.addView(releaseClaimButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
             leftMargin = dp(8)
         })
         workerPanel.addView(workerActions)
 
         workerPanel.addView(Button(activity).apply {
             text = "BIND TEST WORKER REPOSITORY"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 VyomFactoryWorkerBindingDialog(
                     activity,
@@ -230,35 +246,40 @@ internal class VyomFactoryDialog(
                     }
                 ).show()
             }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         runButton = Button(activity).apply {
-            text = "RUN NEXT VERIFIED ACTION"; textSize = 9f
+            text = "RUN NEXT VERIFIED ACTION"
+            VyomTheme.stylePill(this, activity, variant = "primary")
             setOnClickListener { runNextTask() }
         }
-        workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
+        workerPanel.addView(runButton, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         stopButton = Button(activity).apply {
-            text = "STOP ALL WORKERS"; textSize = 9f; isEnabled = true
+            text = "STOP ALL WORKERS"
+            VyomTheme.stylePill(this, activity, variant = "danger")
+            isEnabled = true
             setOnClickListener {
                 workerStopStore.stopAll()
                 stopRunRequested.set(true)
                 cancelPendingConfirmation?.invoke()
                 status.text = "GLOBAL STOP is active. Foreground and background workers will not claim or start another task."
-                isEnabled = false
+                setStopButtonEnabled(false, "Global STOP is active.")
             }
         }
-        workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+        stopButton.contentDescription = "Stop all workers"
+        workerPanel.addView(stopButton, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
         workerPanel.addView(Button(activity).apply {
-            text = "RESUME WORKERS"; textSize = 9f
+            text = "RESUME WORKERS"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 workerStopStore.resumeAll()
                 stopRunRequested.set(false)
-                stopButton.isEnabled = true
+                setStopButtonEnabled(true)
                 status.text = "Global STOP cleared. Worker dispatch may resume under the existing owner approvals."
             }
-        }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
         retryStatus = TextView(activity).apply {
             text = "RETRIES · LOADING"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(6), 0, 0)
             contentDescription = "Foreground retry schedule status"
@@ -266,7 +287,7 @@ internal class VyomFactoryDialog(
         workerPanel.addView(retryStatus)
         historyStatus = TextView(activity).apply {
             text = "RUNS · LOADING"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(6), 0, 0)
             contentDescription = "Recent persisted Factory execution attempts"
@@ -275,7 +296,7 @@ internal class VyomFactoryDialog(
         workerPanel.addView(historyStatus)
         laneMetricsStatus = TextView(activity).apply {
             text = "LANES · LOADING"
-            textSize = 9f; typeface = Typeface.MONOSPACE
+            textSize = 11f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(0, dp(6), 0, 0)
             contentDescription = "Lane-wise active workers, execution runs and failures"
@@ -284,12 +305,12 @@ internal class VyomFactoryDialog(
         workerPanel.addView(laneMetricsStatus)
         workerPanel.addView(Button(activity).apply {
             text = "DISCOVER / INSTALL SKILL REPOSITORY"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener { discoverSkillRepositories() }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         workerPanel.addView(Button(activity).apply {
             text = "INSPECT / REGISTER ANY GITHUB REPOSITORY"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 VyomFactoryRepositoryReviewDialog(
                     activity,
@@ -298,17 +319,17 @@ internal class VyomFactoryDialog(
                     }
                 ).show()
             }
-        }, LinearLayout.LayoutParams(-1, dp(40)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(6) })
         val workerToggle = Button(activity).apply {
             text = "WORKER CONTROLS · SHOW"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 val expanded = workerPanel.visibility != android.view.View.VISIBLE
                 workerPanel.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
                 text = if (expanded) "WORKER CONTROLS · HIDE" else "WORKER CONTROLS · SHOW"
             }
         }
-        root.addView(workerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        root.addView(workerToggle, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(4) })
         workerPanel.visibility = android.view.View.GONE
         root.addView(workerPanel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
 
@@ -317,13 +338,13 @@ internal class VyomFactoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(0x33213A54)
+                    setColor(Color.argb(51, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE)))
                     cornerRadius = dp(14).toFloat()
                 }
             }
             evidencePanel.addView(TextView(activity).apply {
                 text = "SCREENSHOT STORED PRIVATELY · ${screenshot.name} · ${screenshot.length()} bytes"
-                textSize = 9f
+                textSize = 11f
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             })
@@ -343,22 +364,22 @@ internal class VyomFactoryDialog(
             if (receiptState.isFailure) {
                 evidencePanel.addView(TextView(activity).apply {
                     text = "UPLOAD STATE UNKNOWN · ATTACH DISABLED TO PREVENT DUPLICATE"
-                    textSize = 9f
+                    textSize = 11f
                     setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 })
             } else if (priorUpload != null) {
                 evidencePanel.addView(TextView(activity).apply {
                     text = "UPLOAD ALREADY COMPLETED · issue comment needs manual repair · ${priorUpload.url}"
-                    textSize = 9f
+                    textSize = 11f
                     setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 })
             } else {
                 screenshotAttachButton = Button(activity).apply {
                     text = "ATTACH TO FACTORY ISSUE"
-                    textSize = 9f
+                    VyomTheme.stylePill(this, activity, variant = "secondary")
                     setOnClickListener { chooseScreenshotIssue(screenshot) }
                 }
-                evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(40)).apply {
+                evidencePanel.addView(screenshotAttachButton, LinearLayout.LayoutParams(-1, dp(48)).apply {
                     topMargin = dp(6)
                 })
             }
@@ -368,7 +389,7 @@ internal class VyomFactoryDialog(
         val composer = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = GradientDrawable().apply { setColor(0x33213A54); cornerRadius = dp(16).toFloat() }
+            background = GradientDrawable().apply { setColor(Color.argb(51, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE))); cornerRadius = dp(16).toFloat() }
         }
         composer.addView(TextView(activity).apply {
             text = "REGISTER A COMPLAINT / TASK"; textSize = 10f
@@ -376,20 +397,21 @@ internal class VyomFactoryDialog(
         })
         titleInput = EditText(activity).apply {
             hint = "Short problem title"; setSingleLine(true); textSize = 14f
-            setTextColor(Color.WHITE); setHintTextColor(0xFF8B9BB0.toInt())
+            setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         }
         composer.addView(titleInput, LinearLayout.LayoutParams(-1, dp(46)))
         descriptionInput = EditText(activity).apply {
             hint = "What is broken, expected result, steps and evidence…"
             minLines = 2; maxLines = 4; textSize = 13f
-            setTextColor(Color.WHITE); setHintTextColor(0xFF8B9BB0.toInt())
+            setTextColor(VyomTheme.TEXT_PRIMARY); setHintTextColor(VyomTheme.TEXT_SECONDARY)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         }
         composer.addView(descriptionInput, LinearLayout.LayoutParams(-1, dp(88)))
         val actions = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val priorityButton = Button(activity).apply {
-            text = "PRIORITY · $selectedPriority"; textSize = 10f
+            text = "PRIORITY · $selectedPriority"
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 val options = arrayOf("P0 · Critical", "P1 · High", "P2 · Normal", "P3 · Low")
                 AlertDialog.Builder(activity).setTitle("Complaint priority")
@@ -401,28 +423,29 @@ internal class VyomFactoryDialog(
                     }.setNegativeButton("CANCEL", null).show()
             }
         }
-        actions.addView(priorityButton, LinearLayout.LayoutParams(0, dp(42), 1f))
+        actions.addView(priorityButton, LinearLayout.LayoutParams(0, dp(48), 1f))
         createButton = Button(activity).apply {
-            text = "REGISTER TASK"; textSize = 10f
+            text = "REGISTER TASK"
+            VyomTheme.stylePill(this, activity, variant = "primary")
             setOnClickListener { createTask() }
         }
-        actions.addView(createButton, LinearLayout.LayoutParams(0, dp(42), 1f).apply { leftMargin = dp(8) })
+        actions.addView(createButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { leftMargin = dp(8) })
         composer.addView(actions)
         val composerToggle = Button(activity).apply {
             text = "NEW TASK / COMPLAINT · SHOW"
-            textSize = 9f
+            VyomTheme.stylePill(this, activity, variant = "secondary")
             setOnClickListener {
                 val expanded = composer.visibility != android.view.View.VISIBLE
                 composer.visibility = if (expanded) android.view.View.VISIBLE else android.view.View.GONE
                 text = if (expanded) "NEW TASK / COMPLAINT · HIDE" else "NEW TASK / COMPLAINT · SHOW"
             }
         }
-        root.addView(composerToggle, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(4) })
+        root.addView(composerToggle, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(4) })
         composer.visibility = android.view.View.GONE
         root.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
         root.addView(TextView(activity).apply {
-            text = "TASKS · LIVE FROM REPOSITORY"; textSize = 10f
+            text = "TASKS · LIVE FROM REPOSITORY"; textSize = 11f
             letterSpacing = 0.1f; typeface = Typeface.MONOSPACE
             setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(8), 0, dp(6))
         })
@@ -433,7 +456,7 @@ internal class VyomFactoryDialog(
 
         val footer = TextView(activity).apply {
             text = "GitHub Issues is shared. Background workers only propose changes; repository writes require your local approval, then RUN NEXT executes the approved draft-PR + exact-SHA CI path while Vyom stays foregrounded."
-            textSize = 9f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            textSize = 11f; setTextColor(VyomDesignSpec.TEXT_SECONDARY)
             setPadding(dp(2), dp(8), dp(2), 0)
         }
         root.addView(footer)
@@ -537,14 +560,14 @@ internal class VyomFactoryDialog(
         busy = true
         stopRunRequested.set(false)
         runButton.isEnabled = false
-        stopButton.isEnabled = true
+        setStopButtonEnabled(true)
         claimButton.isEnabled = false
-        releaseClaimButton.isEnabled = false
+        setReleaseClaimEnabled(false)
         val hostActivity = activity as? MainActivity
         if (hostActivity == null || !hostActivity.factoryForegroundGate.isForeground()) {
             busy = false
             runButton.isEnabled = true
-            stopButton.isEnabled = false
+            setStopButtonEnabled(false, "No worker run is currently stoppable.")
             claimButton.isEnabled = true
             status.text = "RUN NEXT requires the active Vyom screen."
             return
@@ -613,9 +636,9 @@ internal class VyomFactoryDialog(
                         claimStatus.text = "OWNER REVIEW REQUIRED · #${ownerReview.task.number}"
                         status.text = "Review the exact repository, immutable base, paths and proposed content. No repository write occurs before local approval."
                         runButton.isEnabled = false
-                        stopButton.isEnabled = true
+                        setStopButtonEnabled(true)
                         claimButton.isEnabled = false
-                        releaseClaimButton.isEnabled = false
+                        setReleaseClaimEnabled(false)
                         busy = true
                         val registry = VyomFactorySystemRegistry(File(activity.filesDir, "factory-system-registry"))
                         val approvalStore = VyomFactoryRepositoryApprovalStore(activity.applicationContext)
@@ -652,14 +675,14 @@ internal class VyomFactoryDialog(
                                     if (modelControl.shouldStop()) {
                                         busy = false
                                         runButton.isEnabled = true
-                                        stopButton.isEnabled = false
+                                        setStopButtonEnabled(false, "No worker run is currently stoppable.")
                                         claimButton.isEnabled = true
                                         status.text = "Worker stopped before owner review; no plan was shown."
                                         return@post
                                     }
                                     busy = false
                                     runButton.isEnabled = true
-                                    stopButton.isEnabled = false
+                                    setStopButtonEnabled(false, "No worker run is currently stoppable.")
                                     claimButton.isEnabled = true
                                     review.show()
                                 }
@@ -668,7 +691,7 @@ internal class VyomFactoryDialog(
                                     if (!dialog.isShowing) return@post
                                     busy = false
                                     runButton.isEnabled = true
-                                    stopButton.isEnabled = false
+                                    setStopButtonEnabled(false, "No worker run is currently stoppable.")
                                     claimButton.isEnabled = true
                                     status.text = "Worker plan unavailable: ${error.javaClass.simpleName}"
                                 }
@@ -834,9 +857,9 @@ internal class VyomFactoryDialog(
                     }
                 }
                 runButton.isEnabled = true
-                stopButton.isEnabled = false
+                setStopButtonEnabled(false, "No worker run is currently stoppable.")
                 claimButton.isEnabled = true
-                releaseClaimButton.isEnabled = false
+                setReleaseClaimEnabled(false)
                 refreshRetryOverview()
                 busy = false
                 refresh()
@@ -1200,7 +1223,7 @@ internal class VyomFactoryDialog(
         if (busy || token.isBlank()) return
         busy = true
         claimButton.isEnabled = false
-        releaseClaimButton.isEnabled = false
+        setReleaseClaimEnabled(false)
         runButton.isEnabled = false
         claimStatus.text = "REFRESHING REGISTRY · CLAIMING NEXT OPEN TASK…"
         worker.execute {
@@ -1241,7 +1264,7 @@ internal class VyomFactoryDialog(
         val claim = activeClaim ?: return
         busy = true
         claimButton.isEnabled = false
-        releaseClaimButton.isEnabled = false
+        setReleaseClaimEnabled(false)
         runButton.isEnabled = false
         worker.execute {
             try {
@@ -1440,8 +1463,8 @@ internal class VyomFactoryDialog(
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = GradientDrawable().apply {
-                    setColor(0x3316263B); cornerRadius = dp(14).toFloat()
-                    setStroke(dp(1), 0x333A7891)
+                    setColor(Color.argb(51, Color.red(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.green(VyomTheme.SURFACE_ASSISTANT_BUBBLE), Color.blue(VyomTheme.SURFACE_ASSISTANT_BUBBLE))); cornerRadius = dp(14).toFloat()
+                    setStroke(dp(1), VyomTheme.BORDER_GLASS)
                 }
             }
             card.addView(TextView(activity).apply {
@@ -1451,7 +1474,7 @@ internal class VyomFactoryDialog(
             })
             card.addView(TextView(activity).apply {
                 text = "${task.metadata.lane.name} · ${task.metadata.priority} · ${task.metadata.status.uppercase()} · UPDATED ${task.updatedAt}"
-                textSize = 9f; typeface = Typeface.MONOSPACE
+                textSize = 11f; typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY); setPadding(0, dp(4), 0, dp(4))
             })
             val description = task.body.substringBefore("<!-- VYOM_FACTORY_META:").trim()
@@ -1467,15 +1490,14 @@ internal class VyomFactoryDialog(
                 if (description.lineSequence().count() > 4 || description.length > 260) {
                     card.addView(Button(activity).apply {
                         text = "SHOW FULL TASK"
-                        textSize = 8f
-                        minHeight = dp(30)
-                        setPadding(dp(6), 0, dp(6), 0)
+                        VyomTheme.stylePill(this, activity, variant = "secondary")
+                        contentDescription = "Show full task description"
                         setOnClickListener {
                             val expanded = descriptionView.maxLines == 4
                             descriptionView.maxLines = if (expanded) Int.MAX_VALUE else 4
                             text = if (expanded) "COLLAPSE TASK" else "SHOW FULL TASK"
                         }
-                    }, LinearLayout.LayoutParams(-2, dp(30)))
+                    }, LinearLayout.LayoutParams(-1, dp(48)))
                 }
             }
 
@@ -1491,7 +1513,7 @@ internal class VyomFactoryDialog(
             val progressLabel = TextView(activity).apply {
                 text = verifiedProgress?.let(::progressText)
                     ?: "PROGRESS UNAVAILABLE · EXECUTION JOURNAL UNREADABLE"
-                textSize = 9f
+                textSize = 11f
                 typeface = Typeface.MONOSPACE
                 setTextColor(VyomDesignSpec.TEXT_SECONDARY)
                 setPadding(0, dp(3), 0, dp(3))
@@ -1512,19 +1534,17 @@ internal class VyomFactoryDialog(
                     bottomMargin = dp(7)
                 })
             }
-            val controls = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            val controls = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+            val stateControls = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             fun action(label: String, next: String) {
-                controls.addView(Button(activity).apply {
-                    text = label; textSize = 8f; isAllCaps = true
+                stateControls.addView(Button(activity).apply {
+                    text = label
+                    VyomTheme.stylePill(this, activity, variant = "secondary")
+                    contentDescription = label + " task #" + task.number
                     setOnClickListener {
-                        update(
-                            task,
-                            next,
-                            task.metadata.priority,
-                            ownerApprovedStart = next == "in_progress"
-                        )
+                        update(task, next, task.metadata.priority, ownerApprovedStart = next == "in_progress")
                     }
-                }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { rightMargin = dp(3) })
+                }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { rightMargin = dp(4) })
             }
             when (task.metadata.status) {
                 "open" -> { action("START", "in_progress"); action("PAUSE", "paused"); action("BLOCK", "blocked") }
@@ -1536,25 +1556,33 @@ internal class VyomFactoryDialog(
                         )) {
                         action("DONE", "completed")
                     } else {
-                        controls.addView(Button(activity).apply {
-                            text = "VERIFY"; textSize = 8f
+                        stateControls.addView(Button(activity).apply {
+                            text = "VERIFY"
+                            VyomTheme.stylePill(this, activity, variant = "secondary")
+                            contentDescription = "Verify task #" + task.number
                             setOnClickListener { showVerificationDialog(task) }
-                        }, LinearLayout.LayoutParams(dp(72), dp(36)))
+                        }, LinearLayout.LayoutParams(0, dp(48), 1f))
                     }
                 }
                 "paused" -> { action("RESUME", "in_progress"); action("CANCEL", "cancelled") }
                 "blocked" -> { action("REOPEN", "open"); action("CANCEL", "cancelled") }
                 else -> Unit
             }
-            val priority = Button(activity).apply {
-                text = "PRIORITY"; textSize = 8f
+            if (stateControls.childCount > 0) controls.addView(stateControls, LinearLayout.LayoutParams(-1, dp(48)))
+            val editControls = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            editControls.addView(Button(activity).apply {
+                text = "PRIORITY"
+                VyomTheme.stylePill(this, activity, variant = "secondary")
+                contentDescription = "Change priority for task #" + task.number
                 setOnClickListener { choosePriority(task) }
-            }
-            controls.addView(priority, LinearLayout.LayoutParams(dp(78), dp(36)))
-            controls.addView(Button(activity).apply {
-                text = "EDIT"; textSize = 8f
+            }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { rightMargin = dp(4) })
+            editControls.addView(Button(activity).apply {
+                text = "EDIT"
+                VyomTheme.stylePill(this, activity, variant = "secondary")
+                contentDescription = "Edit task #" + task.number
                 setOnClickListener { editTask(task) }
-            }, LinearLayout.LayoutParams(dp(64), dp(36)).apply { leftMargin = dp(3) })
+            }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            controls.addView(editControls, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = if (stateControls.childCount > 0) dp(4) else 0 })
             card.addView(controls)
             if (workerProposal != null) {
                 card.addView(Button(activity).apply {
@@ -1563,19 +1591,22 @@ internal class VyomFactoryDialog(
                     } else {
                         "REVIEW WORKER PROPOSAL"
                     }
-                    textSize = 9f
+                    VyomTheme.stylePill(this, activity, variant = "secondary")
+                    textSize = 11f
+                    maxLines = 2
                     setOnClickListener { showWorkerProposalPreview(task, workerProposal) }
-                }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+                }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
             }
             if (task.state == "open" && task.metadata.status in setOf("open", "in_progress")) {
                 card.addView(Button(activity).apply {
                     text = "PROPOSE REVIEWED CODE FIX"
-                    textSize = 9f
+                    VyomTheme.stylePill(this, activity, variant = "secondary")
+                    textSize = 11f
                     setOnClickListener {
                         dialog.dismiss()
                         onProposeFix(task)
                     }
-                }, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(4) })
+                }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(4) })
             }
             card.setOnClickListener { showTaskHistory(task) }
             taskList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })

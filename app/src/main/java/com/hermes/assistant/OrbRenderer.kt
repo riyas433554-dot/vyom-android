@@ -76,6 +76,10 @@ class OrbRenderer : GLSurfaceView.Renderer {
         colorBuffer = ByteBuffer.allocateDirect(colors.size * 4)
             .order(ByteOrder.nativeOrder()).asFloatBuffer()
 
+        val initialColor = VyomDesignSpec.INDIGO
+        val initialRed = ((initialColor shr 16) and 0xFF) / 255f
+        val initialGreen = ((initialColor shr 8) and 0xFF) / 255f
+        val initialBlue = (initialColor and 0xFF) / 255f
         for (i in 0 until particleCount) {
             val index = i * 3
             val z = random.nextFloat() * 2f - 1f
@@ -86,9 +90,9 @@ class OrbRenderer : GLSurfaceView.Renderer {
             positions[index + 2] = z
 
             val ci = i * 4
-            colors[ci] = 0.13f
-            colors[ci + 1] = 0.83f
-            colors[ci + 2] = 0.93f
+            colors[ci] = initialRed
+            colors[ci + 1] = initialGreen
+            colors[ci + 2] = initialBlue
             colors[ci + 3] = 0.85f
         }
     }
@@ -108,19 +112,22 @@ class OrbRenderer : GLSurfaceView.Renderer {
         Matrix.rotateM(view, 0, angle * 57.2958f, 0f, 1f, 0f)
         Matrix.multiplyMM(vp, 0, projection, 0, view, 0)
 
-        val rgb = when (visualMode) {
-            1 -> floatArrayOf(0.984f, 0.749f, 0.141f) // task/control: #FBBF24
-            2 -> floatArrayOf(0.545f, 0.361f, 0.965f) // reasoning/speaking: #8B5CF6
-            3 -> floatArrayOf(0.204f, 0.827f, 0.6f) // completed: #34D399
-            4 -> floatArrayOf(0.56f, 0.64f, 0.75f) // muted/offline: #8FA3BF
-            5 -> floatArrayOf(0.957f, 0.247f, 0.369f) // error: #F43F5E
-            else -> floatArrayOf(0.133f, 0.827f, 0.933f) // ready/listening: #22D3EE
+        val orbColor = when (visualMode) {
+            1 -> VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.TASK_RUNNING)
+            2 -> VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.THINKING)
+            3 -> VyomDesignSpec.GREEN
+            4 -> VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.OFFLINE)
+            5 -> VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.ERROR)
+            else -> VyomDesignSpec.orbAccent(VyomDesignSpec.OrbState.READY)
         }
+        val red = ((orbColor shr 16) and 0xFF) / 255f
+        val green = ((orbColor shr 8) and 0xFF) / 255f
+        val blue = (orbColor and 0xFF) / 255f
         for (i in 0 until particleCount) {
             val ci = i * 4
-            colors[ci] = rgb[0]
-            colors[ci + 1] = rgb[1]
-            colors[ci + 2] = rgb[2]
+            colors[ci] = red
+            colors[ci + 1] = green
+            colors[ci + 2] = blue
             colors[ci + 3] = if (visualMode == 4) 0.34f else if (visualMode == 5) 0.96f else 0.85f
         }
 
