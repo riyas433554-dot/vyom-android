@@ -28,8 +28,14 @@ internal fun classifyProviderFailure(
     exception: Throwable?,
     contentBlank: Boolean
 ): ProviderFailureClassification {
+    if (exception is VyomFactoryWorkerProviderHttpException) {
+        return classifyProviderFailure(exception.statusCode, null, null, false)
+    }
+    if (exception is VyomFactoryWorkerProviderEmptyResponseException) {
+        return classifyProviderFailure(200, null, null, true)
+    }
     if (exception != null) {
-        return if (exception is IOException || exception is TimeoutException) {
+        return if (exception is IOException || exception is TimeoutException || exception is IllegalStateException) {
             ProviderFailureClassification(
                 kind = ProviderFailureKind.TRANSIENT,
                 retryable = true,
