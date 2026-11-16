@@ -320,7 +320,14 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 } catch (failure: ExecutionException) {
                     val cause = failure.cause
                     if (cause is SecurityException) throw SecurityException("Worker live-call authorization is OFF or stale")
-                    if (cause is Exception) throw cause
+                    if (cause is VyomFactoryWorkerProviderRetriesExhaustedException ||
+                        cause is VyomFactoryWorkerProviderHttpException ||
+                        cause is VyomFactoryWorkerProviderEmptyResponseException ||
+                        cause is VyomFactoryWorkerProviderRejectedException ||
+                        cause is java.io.IOException ||
+                        cause is TimeoutException) {
+                        throw cause
+                    }
                     throw IllegalStateException("Worker model provider failed (${cause?.javaClass?.simpleName ?: "unknown"})")
                 }
                 inputTokens = response.inputTokens
