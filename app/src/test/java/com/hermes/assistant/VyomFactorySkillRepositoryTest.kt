@@ -18,6 +18,24 @@ class VyomFactorySkillRepositoryTest {
         assertFalse(VyomFactorySkillPolicy.isAllowedLicense("NOASSERTION"))
     }
 
+    @Test fun nestedSkillSelectionRequiresAnExactPathWhenAmbiguous() {
+        val paths = listOf("agents/android/SKILL.md", "agents/kotlin/SKILL.md")
+        assertEquals(null, VyomFactorySkillPolicy.selectSkillDocumentPath(paths))
+        assertEquals("agents/kotlin/SKILL.md",
+            VyomFactorySkillPolicy.selectSkillDocumentPath(paths, "agents/kotlin/SKILL.md"))
+        assertEquals("SKILL.md",
+            VyomFactorySkillPolicy.selectSkillDocumentPath(paths + "SKILL.md"))
+        assertEquals(null,
+            VyomFactorySkillPolicy.selectSkillDocumentPath(paths, "../outside/SKILL.md"))
+    }
+
+    @Test fun referencedSkillPathsRejectTraversalAndNonMarkdownFiles() {
+        assertTrue(VyomFactorySkillPolicy.isValidReferencePath("references/testing.md"))
+        assertFalse(VyomFactorySkillPolicy.isValidReferencePath("../secrets.md"))
+        assertFalse(VyomFactorySkillPolicy.isValidReferencePath("/etc/passwd.md"))
+        assertFalse(VyomFactorySkillPolicy.isValidReferencePath("references/secret.txt"))
+    }
+
     @Test fun skillDocumentMustBeBoundedTextWithAHeading() {
         VyomFactorySkillPolicy.validateDocument("# Example Skill\n\nSafe inert instructions.\n")
         assertRejected { VyomFactorySkillPolicy.validateDocument("No heading here") }
@@ -86,6 +104,23 @@ class VyomFactorySkillRepositoryTest {
         }
     }
 
+    @Test fun auditDetectsTamperedPinnedReferenceFiles() {
+        val root = createTempDir(prefix = "vyom-skill-reference-audit-")
+        try {
+            val store = VyomFactorySkillStore(root)
+            val installed = store.install(preview(), ownerConfirmed = true)
+            val reference = File(installed.skillFile.parentFile, "references/references/testing.md")
+            assertTrue(reference.isFile)
+            assertEquals(1, store.auditInstalled().valid)
+            reference.writeText("tampered reference")
+            val audit = store.auditInstalled()
+            assertEquals(0, audit.valid)
+            assertEquals(1, audit.invalid)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun installWritesInertSkillAndVerifiesExactSourceRevisionAndHash() {
         val root = createTempDir(prefix = "vyom-skill-test-")
         try {
@@ -99,6 +134,13 @@ class VyomFactorySkillRepositoryTest {
             assertEquals(installed.sha256, metadata.getString("sha256"))
             assertEquals("inert-markdown", metadata.getString("content_type"))
             assertEquals("MIT", installed.license)
+            val reference = File(installed.skillFile.parentFile, "references/references/testing.md")
+            assertTrue(reference.isFile)
+            val referenceHashes = metadata.getJSONObject("reference_hashes")
+            assertEquals(
+                VyomFactorySkillPolicy.sha256(reference.readBytes()),
+                referenceHashes.getString("references/testing.md")
+            )
         } finally {
             root.deleteRecursively()
         }
@@ -110,7 +152,8 @@ class VyomFactorySkillRepositoryTest {
         commitSha = "a".repeat(40),
         license = "MIT",
         skillMarkdown = "# Example Skill\n\nDo not execute this content.\n",
-        sourceUrl = "https://github.com/owner/example/blob/main/SKILL.md"
+        sourceUrl = "https://github.com/owner/example/blob/main/SKILL.md",
+        referenceFiles = mapOf("references/testing.md" to "Use focused unit tests and verify the failure first.")
     )
 
     private fun assertRejected(block: () -> Unit) {
