@@ -25,6 +25,14 @@ class ProviderFailurePolicyBoundaryTest {
         assertEquals("Provider rejected the request (HTTP 501).", result.userMessage)
     }
 
+    @Test fun httpFailureRetainsStatusWithoutRetainingResponseBody() {
+        val error = VyomFactoryWorkerProviderHttpException(
+            "nvidia-nemotron", 401, "sensitive provider response"
+        )
+        assertEquals(401, error.statusCode)
+        assertFalse(error.message.orEmpty().contains("sensitive provider response"))
+    }
+
     @Test fun successfulTwoHundredResponseWithBlankContentGetsOneRetryThenFallback() {
         val result = classifyProviderFailure(201, "  ", null, true)
         assertEquals(ProviderFailureKind.PROVIDER_EMPTY_RESPONSE, result.kind)
