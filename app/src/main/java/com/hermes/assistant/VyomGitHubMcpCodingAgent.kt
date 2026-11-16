@@ -21,6 +21,7 @@ internal class VyomGitHubMcpCodingAgent(
     private val baseSha: String,
     private val allowedPaths: List<String>,
     private val branchName: String,
+    private val issueReference: String? = null,
     private val maxSteps: Int = MAX_STEPS,
     private val control: VyomFactoryExecutionControl = object : VyomFactoryExecutionControl {
         override fun shouldStop(): Boolean = false
@@ -217,8 +218,10 @@ internal class VyomGitHubMcpCodingAgent(
                 require(args.optBoolean("draft", false)) {
                     "Vyom may only create a draft pull request."
                 }
-                require(args.optString("body").contains("#$taskNumber")) {
-                    "Draft PR body must reference the original Factory issue."
+                issueReference?.let { reference ->
+                    require(args.optString("body").contains(reference)) {
+                        "Draft PR body must reference the original Factory issue."
+                    }
                 }
             }
             else -> throw SecurityException("GitHub tool '" + name + "' is not permitted by Vyom.")
@@ -288,6 +291,36 @@ internal object VyomGitHubMcpCodingAgentRuntime {
         task: VyomFactoryGitHubClient.Task,
         registry: VyomFactorySystemRegistry,
         control: VyomFactoryExecutionControl
+    ): String = run(context, task, registry, control, requireIssueReference = true)
+
+    fun run(context: Context, task: String): String {
+        val app = context.applicationContext
+        val registry = VyomFactorySystemRegistry(File(app.filesDir, "factory-system-registry"))
+        val taskNumber = kotlin.math.abs(task.hashCode()).coerceAtLeast(1)
+        val sourceId = "chat-$taskNumber"
+        val metadata = VyomFactoryStatus.Metadata(
+            "P1", "in_progress", "chatgpt", sourceId,
+            VyomFactoryStatus.idempotencyKey("chatgpt", sourceId)!!,
+            emptyList(), VyomFactoryLaneRouter.Lane.CUSTOM, true
+        )
+        val remoteTask = VyomFactoryGitHubClient.Task(
+            taskNumber, task.take(500), task, "open", "", "chat", metadata, "chat"
+        )
+        val control = object : VyomFactoryExecutionControl {
+            override fun shouldStop(): Boolean =
+                VyomFactoryWorkerStopStore(app).isStopped() ||
+                    !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+                    !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)
+        }
+        return run(context, remoteTask, registry, control, requireIssueReference = false)
+    }
+
+    private fun run(
+        context: Context,
+        task: VyomFactoryGitHubClient.Task,
+        registry: VyomFactorySystemRegistry,
+        control: VyomFactoryExecutionControl,
+        requireIssueReference: Boolean
     ): String {
         val app = context.applicationContext
         if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
@@ -319,7 +352,7 @@ internal object VyomGitHubMcpCodingAgentRuntime {
             .replace(Regex("<!--\\s*VYOM_FACTORY_EXECUTION:.*?\\s*-->", RegexOption.DOT_MATCHES_ALL), " ")
             .trim()
         require(task.number > 0 && task.title.isNotBlank() && task.title.length <= 500 &&
-            description.length <= 6_000) { "Factory issue content is outside the coding runtime limits." }
+            description.length <= 8_000) { "Coding task content is outside the runtime limits." }
         require(!MemoryCapturePolicy.isSensitive(task.title) && !MemoryCapturePolicy.isSensitive(description)) {
             "Sensitive issue content cannot be sent to the coding model."
         }
@@ -350,7 +383,7 @@ internal object VyomGitHubMcpCodingAgentRuntime {
             .ifBlank { "issue-${task.number}" }
         val branchName = "vyom-agent/" + branchSlug + "-" + UUID.randomUUID().toString().take(8)
         val taskData = buildString {
-            append("Factory GitHub issue #")
+            append(if (requireIssueReference) "Factory GitHub issue #" else "Owner chat task #")
             append(task.number)
             append("\nTITLE (UNTRUSTED DATA):\n")
             append(task.title)
@@ -370,6 +403,7 @@ internal object VyomGitHubMcpCodingAgentRuntime {
             baseSha = binding.commitSha,
             allowedPaths = binding.allowedPaths,
             branchName = branchName,
+            issueReference = if (requireIssueReference) "#${task.number}" else null,
             control = control
         ).run(taskData)
     }
