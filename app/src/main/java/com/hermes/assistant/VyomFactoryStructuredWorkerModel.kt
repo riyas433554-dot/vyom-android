@@ -542,7 +542,7 @@ internal object VyomFactoryWorkerModelRuntime {
         val fallbackKeyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, fallbackProviderId)
         val fallbackKeyAvailable = runCatching { fallbackKeyStore.readKey() }.getOrNull()?.let { key ->
             val available = key.isNotEmpty()
-            key.fill('\\u0000')
+            key.fill('\u0000')
             available
         } == true
         val fallbackModelId = prefs.getString(fallbackProviderId + MODEL_ID_SUFFIX, null)
