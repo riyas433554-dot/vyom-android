@@ -82,6 +82,40 @@ class VyomFactoryProviderFallbackTest {
         assertEquals("SUCCESS", journal.entries.single().result)
     }
 
+    @Test fun unauthorizedProviderFallsBackWithoutRetryingTheSameKey() {
+        val first = Provider("nvidia-nemotron") {
+            throw VyomFactoryWorkerProviderHttpException("nvidia-nemotron", 401, "secret response body")
+        }
+        val second = Provider("google-gemma") {
+            VyomFactoryWorkerModelProvider.Response(
+                VyomFactoryPromptInjectionTestSupport.validJson(), 12, 8
+            )
+        }
+
+        worker(first, listOf(VyomFactoryWorkerProviderRoute(second, KeyStore("second-key"))))
+            .propose(VyomFactoryPromptInjectionTestSupport.task(), VyomFactoryPromptInjectionTestSupport.registry(), control())
+
+        assertEquals(1, first.calls)
+        assertEquals(1, second.calls)
+    }
+
+    @Test fun emptyResponseGetsOneRetryThenFallsBack() {
+        val first = Provider("nvidia-nemotron") {
+            VyomFactoryWorkerModelProvider.Response("   ", 12, 0)
+        }
+        val second = Provider("google-gemma") {
+            VyomFactoryWorkerModelProvider.Response(
+                VyomFactoryPromptInjectionTestSupport.validJson(), 12, 8
+            )
+        }
+
+        worker(first, listOf(VyomFactoryWorkerProviderRoute(second, KeyStore("second-key"))))
+            .propose(VyomFactoryPromptInjectionTestSupport.task(), VyomFactoryPromptInjectionTestSupport.registry(), control())
+
+        assertEquals(2, first.calls)
+        assertEquals(1, second.calls)
+    }
+
     @Test fun transientFailureUsesBoundedRetriesBeforeFallback() {
         val first = Provider("nvidia-nemotron") {
             throw VyomFactoryWorkerProviderHttpException("nvidia-nemotron", 503, "busy")
