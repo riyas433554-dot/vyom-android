@@ -18,7 +18,10 @@ internal class VyomGitHubMcpCodingAgent(
     private val repository: String,
     private val baseBranch: String,
     private val branchName: String,
-    private val maxSteps: Int = MAX_STEPS
+    private val maxSteps: Int = MAX_STEPS,
+    private val control: VyomFactoryExecutionControl = object : VyomFactoryExecutionControl {
+        override fun shouldStop(): Boolean = false
+    }
 ) {
     private val owner = repository.substringBefore('/')
     private val repo = repository.substringAfter('/')
@@ -35,6 +38,7 @@ internal class VyomGitHubMcpCodingAgent(
     fun run(task: String): String {
         require(task.isNotBlank() && task.length <= MAX_TASK_CHARS) { "Coding task is empty or too long." }
         val advertised = client.connect()
+        if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
         val tools = advertised.filter { it.name in ALLOWED_TOOLS }
         check(tools.any { it.name == "get_file_contents" }) {
             "GitHub MCP did not expose get_file_contents; enable the repos toolset."
@@ -58,6 +62,7 @@ internal class VyomGitHubMcpCodingAgent(
         var filesWritten = false
 
         repeat(maxSteps) {
+            if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
             val requestData = JSONObject()
                 .put("task", task)
                 .put("target_repository", repository)
@@ -82,6 +87,7 @@ internal class VyomGitHubMcpCodingAgent(
             } finally {
                 apiKey.fill('\u0000')
             }
+            if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
             val decision = parseDecision(raw)
             when (decision.optString("action")) {
                 "final" -> {
@@ -112,6 +118,7 @@ internal class VyomGitHubMcpCodingAgent(
                     val args = decision.optJSONObject("arguments")
                         ?: throw IllegalArgumentException("Model tool call omitted arguments.")
                     validateToolCall(name, args, branchCreated, filesWritten)
+                    if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
                     val result = client.callTool(name, args)
                     when (name) {
                         "create_branch" -> branchCreated = true
