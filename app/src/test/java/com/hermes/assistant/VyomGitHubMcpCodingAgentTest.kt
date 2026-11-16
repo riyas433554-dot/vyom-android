@@ -102,7 +102,8 @@ internal class VyomGitHubMcpCodingAgentTest {
             baseBranch = "feature/repair",
             baseSha = "a".repeat(40),
             allowedPaths = VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS,
-            branchName = "vyom-agent/test-run"
+            branchName = "vyom-agent/test-run",
+            issueReference = "#77"
         )
 
         val result = agent.run("Fix the failing Factory source tests")
