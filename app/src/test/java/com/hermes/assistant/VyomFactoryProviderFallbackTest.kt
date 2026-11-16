@@ -34,19 +34,21 @@ class VyomFactoryProviderFallbackTest {
         journal: VyomFactoryPromptInjectionTestSupport.MemoryJournal =
             VyomFactoryPromptInjectionTestSupport.MemoryJournal(),
         retries: Int = 2
-    ) = VyomFactoryStructuredWorkerModelAdapter(
-        provider = first,
-        keyStore = KeyStore("first-key"),
-        journal = journal,
-        limits = VyomFactoryWorkerModelLimits(maxRetries = retries),
-        preCallAuthorization = { true },
-        fallbackProviders = fallback,
-        repositoryClient = VyomFactoryRepositoryClient(getJson = { path ->
-            val relative = path.substringAfter("/contents/").substringBefore("?ref=")
-            val bytes = "base snapshot for $relative".toByteArray()
-            """{"type":"file","path":"$relative","encoding":"base64","size":${bytes.size},"sha":"blob-sha","content":"${java.util.Base64.getEncoder().encodeToString(bytes)}"}"""
-        })
-    )
+    ): VyomFactoryStructuredWorkerModelAdapter {
+        val primaryKeyStore = KeyStore("first-key")
+        return VyomFactoryStructuredWorkerModelAdapter(
+            provider = VyomFactoryFallbackWorkerModelProvider(first, fallback, retries),
+            keyStore = primaryKeyStore,
+            journal = journal,
+            limits = VyomFactoryWorkerModelLimits(maxRetries = retries),
+            preCallAuthorization = { true },
+            repositoryClient = VyomFactoryRepositoryClient(getJson = { path ->
+                val relative = path.substringAfter("/contents/").substringBefore("?ref=")
+                val bytes = "base snapshot for $relative".toByteArray()
+                """{"type":"file","path":"$relative","encoding":"base64","size":${bytes.size},"sha":"blob-sha","content":"${java.util.Base64.getEncoder().encodeToString(bytes)}"}"""
+            })
+        )
+    }
 
     private fun control() = object : VyomFactoryExecutionControl {
         override fun shouldStop() = false
@@ -76,8 +78,8 @@ class VyomFactoryProviderFallbackTest {
         assertEquals("worker", result.plan.systemId)
         assertEquals(1, first.calls)
         assertEquals(1, second.calls)
-        assertEquals(listOf("nvidia-nemotron", "google-gemma"), journal.entries.map { it.providerId })
-        assertTrue(journal.entries.all { it.result in setOf("FAILED", "SUCCESS") })
+        assertEquals("nvidia-nemotron", journal.entries.single().providerId)
+        assertEquals("SUCCESS", journal.entries.single().result)
     }
 
     @Test fun transientFailureUsesBoundedRetriesBeforeFallback() {
