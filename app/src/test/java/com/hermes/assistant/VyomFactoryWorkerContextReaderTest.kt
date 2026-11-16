@@ -53,7 +53,7 @@ class VyomFactoryWorkerContextReaderTest {
                 branch = "main",
                 commitSha = "a".repeat(40),
                 license = "MIT",
-                skillMarkdown = "# Android Engineering\\n\\nUse the reference below.\\n",
+                skillMarkdown = "# Android Engineering\n\nUse the reference below.\n",
                 sourceUrl = "https://github.com/owner/repo/blob/main/SKILL.md",
                 referenceFiles = mapOf(
                     "references/testing.md" to "Write a failing test before changing behavior."
