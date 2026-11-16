@@ -45,6 +45,37 @@ class VyomFactoryWorkerContextReaderTest {
         assertTrue(diskReads == 1)
     }
 
+    @Test fun enabledReaderLoadsOnlyHashVerifiedPinnedReferenceFiles() {
+        val root = createTempDir(prefix = "vyom-worker-skill-bundle-")
+        try {
+            val preview = VyomFactorySkillRepositoryClient.Preview(
+                repository = "owner/repo",
+                branch = "main",
+                commitSha = "a".repeat(40),
+                license = "MIT",
+                skillMarkdown = "# Android Engineering\\n\\nUse the reference below.\\n",
+                sourceUrl = "https://github.com/owner/repo/blob/main/SKILL.md",
+                referenceFiles = mapOf(
+                    "references/testing.md" to "Write a failing test before changing behavior."
+                )
+            )
+            VyomFactorySkillStore(root).install(preview, ownerConfirmed = true)
+            val reader = VyomFactoryWorkerContextReader(
+                memoryFactsProvider = { emptyList() },
+                skillsRoot = root,
+                skillsEnabled = true
+            )
+
+            val result = reader.compose("Kotlin Android debugging")
+
+            assertTrue(result.contains("Android Engineering"))
+            assertTrue(result.contains("REFERENCE FILE: references/testing.md"))
+            assertTrue(result.contains("Write a failing test before changing behavior"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun memoryStillComposesWhenSkillsAreDisabled() {
         val reader = VyomFactoryWorkerContextReader(
             memoryFactsProvider = { listOf("User prefers evidence-backed reports.") },
