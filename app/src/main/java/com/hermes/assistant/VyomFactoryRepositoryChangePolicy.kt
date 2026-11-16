@@ -171,9 +171,17 @@ internal object VyomFactoryRepositoryChangePolicy {
         val fileName = path.substringAfterLast('/')
         if (fileName in protectedFileNames) return true
         val segments = normalized.split("/")
-        if (segments.any { it in setOf(".github", ".git", "gradle", "buildsrc", "build-logic", "scripts") }) {
+        if (segments.any {
+                it in setOf(".github", ".git", "gradle", "buildsrc", "build-logic", "scripts", "config")
+            }) {
             return true
         }
+        // STOP/lease coordination, allowlists, and verification policy are owner-only.
+        val protectedTokens = listOf(
+            "stop", "lease", "allowlist", "allow-list", "verifier", "verification",
+            "verify", "policy", "audit", "kill", "control", "signing", "release", "certificate"
+        )
+        if (protectedTokens.any { token -> fileName.lowercase().contains(token) }) return true
         if (normalized == ".env" || normalized.startsWith(".env.") ||
             segments.any { it in setOf("secrets", "credentials", "signing", "keystore") }
         ) return true
