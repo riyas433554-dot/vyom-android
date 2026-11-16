@@ -65,8 +65,26 @@ internal class VyomFactoryWorkerContextReader(
                     require(VyomFactorySkillPolicy.isAllowedLicense(license))
                     require(metadata.getString("content_type") == "inert-markdown")
                     require(expectedHash.matches(Regex("^[a-f0-9]{64}$")))
-                    require(VyomFactorySkillPolicy.sha256(skillFile.readBytes()) == expectedHash)
-                    VyomFactoryWorkerSkillContext(repository, commit, markdown)
+                    val skillBytes = skillFile.readBytes()
+                    require(VyomFactorySkillPolicy.sha256(skillBytes) == expectedHash)
+                    var bundleBytes = skillBytes.size
+                    val references = metadata.optJSONObject("reference_hashes") ?: JSONObject()
+                    val referencesRoot = File(directory, "references").canonicalFile
+                    val combined = StringBuilder(markdown)
+                    references.keys().asSequence().sorted().forEach { referencePath ->
+                        require(VyomFactorySkillPolicy.isValidReferencePath(referencePath))
+                        val referenceFile = File(referencesRoot, referencePath).canonicalFile
+                        require(referenceFile.path.startsWith(referencesRoot.path + File.separator) && referenceFile.isFile)
+                        val referenceBytes = referenceFile.readBytes()
+                        bundleBytes += referenceBytes.size
+                        require(bundleBytes <= VyomFactorySkillPolicy.MAX_BUNDLE_BYTES)
+                        require(VyomFactorySkillPolicy.sha256(referenceBytes) == references.getString(referencePath))
+                        val referenceText = VyomFactorySkillPolicy.decodeReference(referenceBytes)
+                        combined.append("\\n\\nREFERENCE FILE: ").append(referencePath).append('\\n')
+                            .append(referenceText)
+                    }
+                    require(combined.toString().toByteArray(Charsets.UTF_8).size <= VyomFactorySkillPolicy.MAX_BUNDLE_BYTES)
+                    VyomFactoryWorkerSkillContext(repository, commit, combined.toString())
                 }.getOrNull()
             }
             .take(4)
