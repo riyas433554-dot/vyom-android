@@ -29,6 +29,7 @@ internal class VyomFactoryWorkerDispatchWorker(
                     "#${it.issueNumber} · ${it.reason}"
                 },
                 "proposed_count" to (result?.proposedCount ?: 0),
+                "repaired_count" to (result?.repairedCount ?: 0),
                 "failed_count" to (result?.failedCount ?: 0),
                 "retryable_failure_count" to (result?.retryableFailureCount ?: 0)
             )
@@ -56,6 +57,17 @@ internal class VyomFactoryWorkerDispatchWorker(
                 androidx.work.workDataOf("reason" to "WORKER_REPOSITORY_NOT_BOUND")
             )
 
+            val codingPrefs = context.getSharedPreferences(
+                VyomGitHubMcpCodingAgentRuntime.PREFS, Context.MODE_PRIVATE
+            )
+            if (!codingPrefs.getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)) {
+                return Result.success(dispatchData("VYOM_MCP_CODING_MODE_DISABLED"))
+            }
+            val proposalStore = VyomFactoryWorkerProposalStore(File(context.filesDir, PROPOSAL_DIRECTORY))
+            if (proposalStore.pending().isNotEmpty()) {
+                return Result.success(dispatchData("LEGACY_PROPOSALS_REQUIRE_OWNER_REVIEW"))
+            }
+
             val client = VyomFactoryGitHubClient(token, registry)
             val taskStore = VyomFactoryTaskStore(context)
             val leaseStore = VyomFactoryWorkerLeaseStore(context)
@@ -65,14 +77,25 @@ internal class VyomFactoryWorkerDispatchWorker(
                 coordinator = VyomFactoryWorkerClaimCoordinator(taskStore, leaseStore),
                 fetchRemoteTasks = client::listTasks
             )
-            val proposalStore = VyomFactoryWorkerProposalStore(File(context.filesDir, PROPOSAL_DIRECTORY))
             val dispatcher = VyomFactoryWorkerPoolDispatcher(
                 pool = pool,
                 registry = registry,
                 fetchRemoteTasks = client::listTasks,
-                modelAdapterFactory = { VyomFactoryWorkerModelRuntime.adapter(context) },
-                onProposal = { task, workerId, leaseId, candidate ->
-                    proposalStore.save(task, workerId, leaseId, candidate)
+                modelAdapterFactory = { error("Legacy worker planner is disabled in Vyom MCP coding mode.") },
+                codingAgentRunner = { task, control ->
+                    setProgressAsync(androidx.work.workDataOf(
+                        "runtime_issue_number" to task.number,
+                        "runtime_state" to "MCP_CODING_AGENT_STARTED"
+                    ))
+                    val result = VyomGitHubMcpCodingAgentRuntime.run(context, task, registry, control)
+                    setProgressAsync(androidx.work.workDataOf(
+                        "runtime_issue_number" to task.number,
+                        "runtime_state" to "MCP_CODING_AGENT_RETURNED"
+                    ))
+                    result
+                },
+                onProposal = { _, _, _, _ ->
+                    throw IllegalStateException("MCP coding mode must not create legacy worker proposals.")
                 },
                 isStopped = stopStore::isStopped,
                 isAuthorized = {
@@ -93,7 +116,7 @@ internal class VyomFactoryWorkerDispatchWorker(
 
             // A saved proposal is executed serially in this background run. One task per
             // WorkManager run keeps the bounded exact-SHA CI wait inside the worker budget.
-            val pending = proposalStore.pending().firstOrNull()
+            val pending: VyomFactoryWorkerProposalStore.StoredProposal? = null
             if (pending != null) {
                 val authorization = VyomFactoryAutonomousExecutionAuthorizationStore(context).read()
                     ?: return Result.success(dispatchData("AUTONOMOUS_AUTHORIZATION_MISSING", dispatched))
@@ -146,6 +169,7 @@ internal class VyomFactoryWorkerDispatchWorker(
                     }
                     val reason = when {
                         stopStore.isStopped() || dispatched.stopped -> "GLOBAL_STOP_ACTIVE"
+                        dispatched.repairedCount > 0 -> "REPAIR_EXECUTED"
                         pending != null -> "PROPOSAL_EXECUTED"
                         dispatched.reason == "ZERO_ELIGIBLE_TASKS" -> "ZERO_ELIGIBLE_TASKS"
                         dispatched.proposedCount > 0 -> "PROPOSAL_CREATED"
