@@ -122,6 +122,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
                     reason = when {
                         stopped -> "GLOBAL_STOP_ACTIVE"
                         outcomes.isEmpty() -> "NO_FREE_WORKER_SESSION"
+                        outcomes.any { it.state == State.REPAIRED } -> "REPAIR_EXECUTED"
                         else -> "DISPATCH_COMPLETED"
                     }
                 )
