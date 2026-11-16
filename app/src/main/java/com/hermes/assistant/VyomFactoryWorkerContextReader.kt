@@ -80,7 +80,7 @@ internal class VyomFactoryWorkerContextReader(
                         require(bundleBytes <= VyomFactorySkillPolicy.MAX_BUNDLE_BYTES)
                         require(VyomFactorySkillPolicy.sha256(referenceBytes) == references.getString(referencePath))
                         val referenceText = VyomFactorySkillPolicy.decodeReference(referenceBytes)
-                        combined.append("\\n\\nREFERENCE FILE: ").append(referencePath).append('\\n')
+                        combined.append("\\n\\nREFERENCE FILE: ").append(referencePath).append('\n')
                             .append(referenceText)
                     }
                     require(combined.toString().toByteArray(Charsets.UTF_8).size <= VyomFactorySkillPolicy.MAX_BUNDLE_BYTES)
