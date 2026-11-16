@@ -131,3 +131,31 @@ internal class VyomGitHubMcpCodingAgentTest {
         agent.run("Delete a file")
     }
 }
+
+    @Test(expected = VyomFactoryExecutionStoppedException::class)
+    fun stopAfterModelDecisionPreventsGitHubWrite() {
+        val transport = FakeTransport()
+        var stopChecks = 0
+        val control = object : VyomFactoryExecutionControl {
+            override fun shouldStop(): Boolean {
+                stopChecks += 1
+                return stopChecks >= 2
+            }
+        }
+        val provider = FakeProvider(mutableListOf(
+            """{"action":"tool","name":"get_file_contents","arguments":{"owner":"acme","repo":"factory","path":"src","ref":"feature/repair"}}"""
+        ))
+        val agent = VyomGitHubMcpCodingAgent(
+            client = VyomGitHubMcpClient({ "test-token" }, transport = transport),
+            provider = provider,
+            keyStore = FakeKeyStore(),
+            repository = "acme/factory",
+            baseBranch = "feature/repair",
+            branchName = "vyom-agent/test-run",
+            control = control
+        )
+
+        agent.run("Inspect the repository")
+        assertTrue(transport.calls.isEmpty())
+    }
+
