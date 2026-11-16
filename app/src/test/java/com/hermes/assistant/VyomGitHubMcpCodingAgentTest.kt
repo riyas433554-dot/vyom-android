@@ -130,7 +130,6 @@ internal class VyomGitHubMcpCodingAgentTest {
 
         agent.run("Delete a file")
     }
-}
 
     @Test(expected = VyomFactoryExecutionStoppedException::class)
     fun stopAfterModelDecisionPreventsGitHubWrite() {
@@ -158,4 +157,4 @@ internal class VyomGitHubMcpCodingAgentTest {
         agent.run("Inspect the repository")
         assertTrue(transport.calls.isEmpty())
     }
-
+}
