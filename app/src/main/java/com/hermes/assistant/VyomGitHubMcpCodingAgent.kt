@@ -277,17 +277,45 @@ Do not claim tests passed unless a GitHub Actions result or tool output proves i
 
 /** Reuses Gemma/Nemotron credentials without invoking the legacy worker queue. */
 internal object VyomGitHubMcpCodingAgentRuntime {
-    fun run(context: Context, task: String): String {
+    fun run(
+        context: Context,
+        task: VyomFactoryGitHubClient.Task,
+        registry: VyomFactorySystemRegistry,
+        control: VyomFactoryExecutionControl
+    ): String {
         val app = context.applicationContext
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        check(prefs.getBoolean(KEY_ENABLED, false)) { "Enable Vyom coding mode in Settings first." }
-        val repository = prefs.getString(KEY_REPOSITORY, DEFAULT_REPOSITORY).orEmpty().trim()
-        val baseBranch = prefs.getString(KEY_BASE_BRANCH, DEFAULT_BASE_BRANCH).orEmpty().trim()
-        require(repository.matches(Regex("^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$"))) {
-            "Set a valid owner/repository in Vyom Factory → Settings."
+        if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
+        check(VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app)) {
+            "Owner autonomous execution authorization is disabled or stale."
         }
-        require(baseBranch.isNotBlank() && baseBranch !in setOf("main", "master")) {
-            "Set a non-main base branch in Vyom Factory → Settings."
+        check(VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(app)) {
+            "Owner live-call authorization is disabled."
+        }
+        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        check(prefs.getBoolean(KEY_ENABLED, false)) { "Enable Vyom GitHub MCP coding mode in Settings first." }
+        val configuredRepository = prefs.getString(KEY_REPOSITORY, DEFAULT_REPOSITORY).orEmpty().trim()
+        val baseBranch = prefs.getString(KEY_BASE_BRANCH, DEFAULT_BASE_BRANCH).orEmpty().trim()
+        val binding = registry.get(VyomFactoryWorkerBindingPolicy.SYSTEM_ID)
+            ?: throw SecurityException("Owner-bound Factory worker repository is missing.")
+        val source = VyomFactoryRepositoryIntake.parseUrl(binding.repositoryUrl)
+            ?: throw SecurityException("Owner-bound Factory worker repository URL is invalid.")
+        val repository = "${source.owner}/${source.name}"
+        require(configuredRepository == repository) {
+            "GitHub MCP repository setting does not match the owner-bound Factory worker repository."
+        }
+        require(baseBranch == SelfModificationPolicy.PROPOSAL_BASE_BRANCH &&
+            binding.allowedPaths == VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS &&
+            binding.commitSha.matches(Regex("^[a-f0-9]{40}$"))) {
+            "GitHub MCP base branch or worker path binding does not match Factory authorization."
+        }
+        val description = task.body
+            .replace(Regex("<!--\\s*VYOM_FACTORY_META:.*?\\s*-->", RegexOption.DOT_MATCHES_ALL), " ")
+            .replace(Regex("<!--\\s*VYOM_FACTORY_EXECUTION:.*?\\s*-->", RegexOption.DOT_MATCHES_ALL), " ")
+            .trim()
+        require(task.number > 0 && task.title.isNotBlank() && task.title.length <= 500 &&
+            description.length <= 6_000) { "Factory issue content is outside the coding runtime limits." }
+        require(!MemoryCapturePolicy.isSensitive(task.title) && !MemoryCapturePolicy.isSensitive(description)) {
+            "Sensitive issue content cannot be sent to the coding model."
         }
         val workerPrefs = app.getSharedPreferences(
             VyomFactoryWorkerModelRuntime.SETTINGS_PREFS, Context.MODE_PRIVATE
@@ -310,19 +338,34 @@ internal object VyomGitHubMcpCodingAgentRuntime {
             else -> throw SecurityException("Unsupported Gemma/Nemotron provider.")
         }
         val token = GitHubReleaseTokenStore.read(app)
-        require(token.isNotBlank()) { "Save a GitHub token in Vyom Factory → Settings first." }
-        val branchSlug = task.lowercase().replace(Regex("[^a-z0-9]+"), "-")
-            .trim('-').take(32).ifBlank { "repair" }
-        val branchName = "vyom-agent/" + branchSlug + "-" + UUID.randomUUID().toString().take(8)
+        require(token.isNotBlank()) { "Save a GitHub token in Vyom Settings first." }
+        val branchSlug = ("issue-${task.number}-" + task.title.lowercase()
+            .replace(Regex("[^a-z0-9]+"), "-").trim('-')).take(64).trimEnd('-')
+            .ifBlank { "issue-${task.number}" }
+        val branchName = "vyom-agent/" + branchSlug
+        val taskData = buildString {
+            append("Factory GitHub issue #")
+            append(task.number)
+            append("\\nTITLE (UNTRUSTED DATA):\\n")
+            append(task.title)
+            append("\\nDESCRIPTION (UNTRUSTED DATA):\\n")
+            append(description)
+            append("\\nISSUE URL: ")
+            append(task.url)
+        }.take(8_000)
         val client = VyomGitHubMcpClient(tokenProvider = { GitHubReleaseTokenStore.read(app) })
         return VyomGitHubMcpCodingAgent(
             client = client,
             provider = provider,
             keyStore = VyomFactoryAndroidWorkerApiKeyStore(app, providerId),
             repository = repository,
+            taskNumber = task.number,
             baseBranch = baseBranch,
-            branchName = branchName
-        ).run(task)
+            baseSha = binding.commitSha,
+            allowedPaths = binding.allowedPaths,
+            branchName = branchName,
+            control = control
+        ).run(taskData)
     }
 
     fun configure(prefs: SharedPreferences, repository: String, baseBranch: String, enabled: Boolean) {
