@@ -16,7 +16,10 @@ internal class VyomGitHubMcpCodingAgent(
     private val provider: VyomFactoryWorkerModelProvider,
     private val keyStore: VyomFactoryWorkerApiKeyStore,
     private val repository: String,
+    private val taskNumber: Int,
     private val baseBranch: String,
+    private val baseSha: String,
+    private val allowedPaths: List<String>,
     private val branchName: String,
     private val maxSteps: Int = MAX_STEPS,
     private val control: VyomFactoryExecutionControl = object : VyomFactoryExecutionControl {
@@ -28,6 +31,12 @@ internal class VyomGitHubMcpCodingAgent(
 
     init {
         require(repository.matches(REPOSITORY_PATTERN)) { "Repository must be owner/repo." }
+        require(taskNumber > 0 && baseSha.matches(Regex("^[a-f0-9]{40}$"))) {
+            "Coding task requires an issue number and exact registered base SHA."
+        }
+        require(allowedPaths == VyomFactoryWorkerBindingPolicy.ALLOWED_PATHS) {
+            "Coding agent requires the fixed owner-approved worker path allowlist."
+        }
         require(baseBranch.isNotBlank() && baseBranch !in PROTECTED_BASE_BRANCHES) {
             "Choose a non-protected base branch. main/master are blocked."
         }
@@ -60,6 +69,7 @@ internal class VyomGitHubMcpCodingAgent(
         transcript.put(JSONObject().put("role", "user").put("content", task))
         var branchCreated = false
         var filesWritten = false
+        var pullRequestCreated = false
 
         repeat(maxSteps) {
             if (control.shouldStop()) throw VyomFactoryExecutionStoppedException()
@@ -67,16 +77,19 @@ internal class VyomGitHubMcpCodingAgent(
                 .put("task", task)
                 .put("target_repository", repository)
                 .put("base_branch", baseBranch)
+                .put("base_commit_sha", baseSha)
+                .put("allowed_paths", JSONArray(allowedPaths))
+                .put("issue_number", taskNumber)
                 .put("required_work_branch", branchName)
                 .put("available_tools", catalog)
                 .put("tool_history", transcript)
                 .toString()
             val request = VyomFactoryWorkerModelProvider.Request(
-                taskNumber = kotlin.math.abs(task.hashCode()).coerceAtLeast(1),
+                taskNumber = taskNumber,
                 repository = repository,
-                baseSha = "resolve-from-" + baseBranch,
+                baseSha = baseSha,
                 baseBranch = baseBranch,
-                allowedPaths = emptyList(),
+                allowedPaths = allowedPaths,
                 systemInstructions = SYSTEM_INSTRUCTIONS,
                 taskDescriptionData = requestData
             )
@@ -93,6 +106,9 @@ internal class VyomGitHubMcpCodingAgent(
                 "final" -> {
                     val message = decision.optString("message").trim()
                     require(message.isNotBlank()) { "Coding model returned an empty final response." }
+                    check(branchCreated && filesWritten && pullRequestCreated) {
+                        "Coding runtime cannot finish before branch, code commit, and draft PR are created."
+                    }
                     return buildString {
                         append(message.take(MAX_FINAL_CHARS))
                         append("\n\nRepository: ")
@@ -105,6 +121,8 @@ internal class VyomGitHubMcpCodingAgent(
                         append(branchCreated)
                         append("\nFiles written: ")
                         append(filesWritten)
+                        append("\nPull request created: ")
+                        append(pullRequestCreated)
                     }
                 }
                 "tool" -> {
@@ -123,6 +141,7 @@ internal class VyomGitHubMcpCodingAgent(
                     when (name) {
                         "create_branch" -> branchCreated = true
                         "push_files", "create_or_update_file" -> filesWritten = true
+                        "create_pull_request" -> pullRequestCreated = true
                     }
                     transcript.put(JSONObject()
                         .put("role", "assistant_tool_call")
@@ -202,14 +221,8 @@ internal class VyomGitHubMcpCodingAgent(
 
     private fun isAllowedPath(path: String): Boolean {
         if (path.isBlank() || path.startsWith('/') || path.contains("..") || '\\' in path) return false
-        val normalized = path.lowercase()
-        if (BLOCKED_PATH_PARTS.any { normalized.contains(it) }) return false
-        return normalized.startsWith("app/src/") ||
-            normalized.startsWith("gradle/") ||
-            normalized == "app/build.gradle.kts" ||
-            normalized == "build.gradle.kts" ||
-            normalized == "settings.gradle.kts" ||
-            normalized.startsWith("docs/")
+        if (allowedPaths.none { path.startsWith("$it/") }) return false
+        return VyomFactoryWorkerBindingPolicy.allowsPath(path)
     }
 
     private fun parseDecision(raw: String): JSONObject {
@@ -240,10 +253,6 @@ internal class VyomGitHubMcpCodingAgent(
         private val REPOSITORY_PATTERN = Regex("^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$")
         private val BRANCH_PATTERN = Regex("^vyom-agent/[a-z0-9-]{3,64}$")
         private val PROTECTED_BASE_BRANCHES = setOf("main", "master")
-        private val BLOCKED_PATH_PARTS = listOf(
-            ".jks", ".keystore", ".p12", ".pfx", ".pem", "secrets", "signing",
-            "release.yml", "release.yaml", "android-release", "production"
-        )
         private val ALLOWED_TOOLS = setOf(
             "get_me", "get_file_contents", "search_code", "list_branches", "list_commits",
             "get_commit", "create_branch", "push_files", "create_or_update_file",
