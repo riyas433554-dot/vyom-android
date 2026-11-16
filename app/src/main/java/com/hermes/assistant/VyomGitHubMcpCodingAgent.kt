@@ -346,9 +346,9 @@ internal object VyomGitHubMcpCodingAgentRuntime {
         val token = GitHubReleaseTokenStore.read(app)
         require(token.isNotBlank()) { "Save a GitHub token in Vyom Settings first." }
         val branchSlug = ("issue-${task.number}-" + task.title.lowercase()
-            .replace(Regex("[^a-z0-9]+"), "-").trim('-')).take(64).trimEnd('-')
+            .replace(Regex("[^a-z0-9]+"), "-").trim('-')).take(54).trimEnd('-')
             .ifBlank { "issue-${task.number}" }
-        val branchName = "vyom-agent/" + branchSlug
+        val branchName = "vyom-agent/" + branchSlug + "-" + UUID.randomUUID().toString().take(8)
         val taskData = buildString {
             append("Factory GitHub issue #")
             append(task.number)
