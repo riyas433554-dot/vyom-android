@@ -29,6 +29,15 @@ internal class VyomMemoryStore(context: Context) {
         }
     }
 
+    /** Stores the verified-vs-planned capability profile in encrypted on-device memory. */
+    fun ensureCapabilityProfile() {
+        if (!isEnabled()) return
+        val merged = (facts() + VyomCapabilityCatalog.memoryFacts())
+            .distinctBy { it.lowercase() }
+            .takeLast(MAX_FACTS)
+        write(merged)
+    }
+
     fun facts(): List<String> {
         if (!isEnabled()) return emptyList()
         return try {

@@ -12,6 +12,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
     private val registry: VyomFactorySystemRegistry,
     private val fetchRemoteTasks: () -> List<VyomFactoryGitHubClient.Task>,
     private val modelAdapterFactory: () -> VyomFactoryRepositoryWorkerModelAdapter,
+    private val codingAgentRunner: ((VyomFactoryGitHubClient.Task, VyomFactoryExecutionControl) -> String)? = null,
     private val onProposal: (
         VyomFactoryGitHubClient.Task,
         String,
@@ -25,7 +26,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
     private val maxConcurrentSessions: Int = pool.sessions.size,
     private val dispatchSkipReason: (VyomFactoryGitHubClient.Task) -> String? = { null }
 ) {
-    enum class State { PROPOSED, NO_WORK, FAILED, STOPPED, FENCED }
+    enum class State { PROPOSED, REPAIRED, NO_WORK, FAILED, STOPPED, FENCED }
 
     data class WorkerOutcome(
         val workerId: String,
@@ -45,6 +46,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
         val reason: String = "DISPATCH_COMPLETED"
     ) {
         val proposedCount: Int get() = outcomes.count { it.state == State.PROPOSED }
+        val repairedCount: Int get() = outcomes.count { it.state == State.REPAIRED }
         val failedCount: Int get() = outcomes.count { it.state == State.FAILED }
         val retryableFailureCount: Int get() = outcomes.count { it.state == State.FAILED && it.retryable }
     }
@@ -120,6 +122,7 @@ internal class VyomFactoryWorkerPoolDispatcher(
                     reason = when {
                         stopped -> "GLOBAL_STOP_ACTIVE"
                         outcomes.isEmpty() -> "NO_FREE_WORKER_SESSION"
+                        outcomes.any { it.state == State.REPAIRED } -> "REPAIR_EXECUTED"
                         else -> "DISPATCH_COMPLETED"
                     }
                 )
@@ -237,6 +240,20 @@ internal class VyomFactoryWorkerPoolDispatcher(
         }
         try {
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
+            val codingAgent = codingAgentRunner
+            if (codingAgent != null) {
+                val latestSnapshot = fetchRemoteTasks()
+                val latestTask = latestSnapshot.firstOrNull { it.number == claim.task.issueNumber }
+                if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.STOPPED)
+                if (latestTask == null || !isEligibleTask(latestTask, latestSnapshot) ||
+                    latestTask.metadata.sourceId != claim.remoteTask.metadata.sourceId ||
+                    latestTask.metadata.idempotencyKey != claim.remoteTask.metadata.idempotencyKey ||
+                    latestTask.updatedAt != claim.remoteTask.updatedAt
+                ) return WorkerOutcome(workerId, claim.task.issueNumber, State.FENCED)
+                codingAgent(claim.remoteTask, control)
+                if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.FENCED)
+                return WorkerOutcome(workerId, claim.task.issueNumber, State.REPAIRED)
+            }
             val candidate = modelAdapterFactory().propose(claim.remoteTask, registry, control)
             if (control.shouldStop()) return WorkerOutcome(workerId, claim.task.issueNumber, State.FENCED)
             // A task may be paused, closed, or edited while the provider is working.

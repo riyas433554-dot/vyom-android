@@ -12,6 +12,34 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class VyomFactoryWorkerPoolDispatchTest {
+    @Test fun routesClaimedIssueToVyomCodingAgentInsteadOfLegacyPlanner() {
+        val task = remote(771, VyomFactoryLaneRouter.Lane.CUSTOM, true)
+        val registry = createRegistry()
+        val invoked = mutableListOf<Int>()
+        val dispatcher = VyomFactoryWorkerPoolDispatcher(
+            pool = createPool(listOf(task)),
+            registry = registry,
+            fetchRemoteTasks = { listOf(task) },
+            modelAdapterFactory = { error("Legacy planner must not run in MCP coding mode") },
+            onProposal = { _, _, _, _ -> error("MCP coding mode must not create a legacy proposal") },
+            codingAgentRunner = { claimedTask, control ->
+                assertFalse(control.shouldStop())
+                invoked += claimedTask.number
+                "Vyom coding runtime invoked for #${claimedTask.number}"
+            },
+            isStopped = { false },
+            heartbeatIntervalMillis = 25L,
+            maxConcurrentSessions = 1
+        )
+
+        val result = dispatcher.dispatchAvailable()
+
+        assertEquals(listOf(771), invoked)
+        assertEquals(1, result.repairedCount)
+        assertEquals(0, result.failedCount)
+        assertEquals("REPAIR_EXECUTED", result.reason)
+    }
+
     @Test fun dispatchesEligibleTasksAcrossTheTwentyStableWorkerSessionsInParallel() {
         val tasks = (1..20).map { remote(it, VyomFactoryLaneRouter.Lane.values()[(it - 1) / 5], true) }
         val pool = createPool(tasks)

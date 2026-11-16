@@ -116,6 +116,7 @@ class MainActivity : Activity() {
     private var pendingSelfChangeTask = ""
     private var pendingSelfChangeTitle = ""
     private var pendingSelfChangeIssueNumber: Int? = null
+    @Volatile private var githubMcpClient: VyomGitHubMcpClient? = null
     private lateinit var updateNotice: TextView
     private lateinit var rollbackButton: Button
     private lateinit var personaButton: Button
@@ -179,6 +180,7 @@ class MainActivity : Activity() {
     private lateinit var ttsConfigStatus: TextView
     private lateinit var api: VyomApiClient
     private val io = Executors.newSingleThreadExecutor()
+    private val codingAgentExecutor = Executors.newFixedThreadPool(3)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val settingsPrefs by lazy { getSharedPreferences("vyom_settings", MODE_PRIVATE) }
     private val controlPrefs by lazy { getSharedPreferences("vyom_control_audit", MODE_PRIVATE) }
@@ -209,8 +211,15 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         try {
             VyomFactoryQueueRefreshScheduler.ensureScheduled(applicationContext)
-            VyomFactoryWorkerDispatchScheduler.ensurePeriodicScheduled(applicationContext)
-            VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
+            val codingModeEnabled = getSharedPreferences(
+                VyomGitHubMcpCodingAgentRuntime.PREFS, MODE_PRIVATE
+            ).getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+            if (codingModeEnabled) {
+                // One bounded issue-inbox dispatch; automatic continuation waits for Task 9 recovery guards.
+                VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
+            } else {
+                VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
+            }
         } catch (error: Exception) {
             android.util.Log.e(
                 "VyomFactoryQueueRefresh",
@@ -267,6 +276,7 @@ class MainActivity : Activity() {
         api = VyomApiClient(applicationContext)
         memoryStore = VyomMemoryStore(applicationContext)
         memoryStore.ensureCorePrinciples()
+        memoryStore.ensureCapabilityProfile()
         try {
             contentUpdateManager.ensureSeeded()
             contentUpdateManager.installCrashRollbackHandler()
@@ -583,7 +593,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(liveModelNotice, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(TextView(this).apply {
-            text = "FACTORY WORKER MODEL PROVIDERS · LIVE CALLS OFF UNTIL OWNER ENABLES"
+            text = "VYOM CODING AGENT MODELS · GEMMA / NEMOTRON"
             textSize = 11f
             setTextColor(Color.LTGRAY)
             setPadding(0, dp(12), 0, dp(4))
@@ -619,10 +629,10 @@ class MainActivity : Activity() {
             ))
         }
         val workerProviderButton = Button(this)
-        workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+        workerProviderButton.text = "CODING AGENT MODEL: ${workerProviderLabel(selectedWorkerProviderId)}"
         workerProviderButton.setOnClickListener {
             AlertDialog.Builder(this@MainActivity)
-                .setTitle("Select Factory worker provider")
+                .setTitle("Select Vyom coding-agent model")
                 .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma")) { _, which ->
                     selectedWorkerProviderId = if (which == 0) {
                         NvidiaNemotronWorkerModelProvider.PROVIDER_ID
@@ -633,7 +643,7 @@ class MainActivity : Activity() {
                         .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
                         .apply()
                     VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
-                    workerProviderButton.text = "WORKER PROVIDER: ${workerProviderLabel(selectedWorkerProviderId)}"
+                    workerProviderButton.text = "CODING AGENT MODEL: ${workerProviderLabel(selectedWorkerProviderId)}"
                     workerModelIdInput.setText(
                         workerModelPrefs.getString(
                             selectedWorkerProviderId + VyomFactoryWorkerModelRuntime.MODEL_ID_SUFFIX,
@@ -647,7 +657,7 @@ class MainActivity : Activity() {
         settingsContent.addView(workerProviderButton, LinearLayout.LayoutParams(-1, dp(42)))
         settingsContent.addView(workerModelIdInput, LinearLayout.LayoutParams(-1, dp(44)))
         val workerNvidiaKeyInput = EditText(this).apply {
-            hint = "NVIDIA Nemotron worker key (blank = keep saved)"
+            hint = "NVIDIA Nemotron coding-agent key (blank = keep saved)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
             isSaveEnabled = false
@@ -658,7 +668,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(workerNvidiaKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         val workerGoogleKeyInput = EditText(this).apply {
-            hint = "Google Gemma worker key (blank = keep saved)"
+            hint = "Google Gemma coding-agent key (blank = keep saved)"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
             isSaveEnabled = false
@@ -669,7 +679,7 @@ class MainActivity : Activity() {
         }
         settingsContent.addView(workerGoogleKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
         settingsContent.addView(Button(this).apply {
-            text = "SAVE WORKER PROVIDER SETTINGS"
+            text = "SAVE CODING AGENT MODEL SETTINGS"
             setOnClickListener {
                 VyomFactoryWorkerLiveCallAuthorizationStore(applicationContext).revoke()
                 VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
@@ -694,7 +704,7 @@ class MainActivity : Activity() {
                         .apply()
                     storeWorkerKey(NvidiaNemotronWorkerModelProvider.PROVIDER_ID, workerNvidiaKeyInput)
                     storeWorkerKey(GoogleGemmaWorkerModelProvider.PROVIDER_ID, workerGoogleKeyInput)
-                    status.text = "Worker provider settings saved. Previous live-call authorization was revoked."
+                    status.text = "Coding-agent model settings saved."
                 } catch (_: Exception) {
                     status.text = "Worker settings could not be saved. Check model ID and retry."
                 }
@@ -930,6 +940,126 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, dp(42)))
         settingsContent.addView(selfChangeNotice, LinearLayout.LayoutParams(-1, -2))
+        val githubMcpStatus = TextView(this).apply {
+            text = "GITHUB MCP · NOT CONNECTED"
+            textSize = 11f
+            setTextColor(Color.LTGRAY)
+        }
+        settingsContent.addView(githubMcpStatus, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "CONNECT GITHUB MCP"
+            setOnClickListener {
+                isEnabled = false
+                text = "CONNECTING TO GITHUB MCP…"
+                io.execute {
+                    val client = VyomGitHubMcpClient(tokenProvider = {
+                        secureVoicePrefs().getString("github_proposal_token", "").orEmpty()
+                    })
+                    val result = runCatching { client.connect() }
+                    runOnUiThread {
+                        isEnabled = true
+                        text = "CONNECT GITHUB MCP"
+                        result.onSuccess { tools ->
+                            githubMcpClient = client
+                            githubMcpStatus.text = "CONNECTED · ${tools.size} GitHub tools discovered"
+                            selfChangeNotice.text = "GitHub MCP connected in this Vyom session. Repository tools are ready for the coding-agent runtime."
+                        }.onFailure { error ->
+                            githubMcpClient = null
+                            githubMcpStatus.text = "CONNECTION FAILED · ${error.message ?: error.javaClass.simpleName}"
+                        }
+                    }
+                }
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        val codingAgentPrefs = getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, MODE_PRIVATE)
+        val codingRepositoryInput = EditText(this).apply {
+            hint = "GitHub repository · owner/repo"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(codingAgentPrefs.getString(
+                VyomGitHubMcpCodingAgentRuntime.KEY_REPOSITORY,
+                VyomGitHubMcpCodingAgentRuntime.DEFAULT_REPOSITORY
+            ))
+        }
+        settingsContent.addView(codingRepositoryInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val codingBaseBranchInput = EditText(this).apply {
+            hint = "Non-main base branch"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+            setText(codingAgentPrefs.getString(
+                VyomGitHubMcpCodingAgentRuntime.KEY_BASE_BRANCH,
+                VyomGitHubMcpCodingAgentRuntime.DEFAULT_BASE_BRANCH
+            ))
+        }
+        settingsContent.addView(codingBaseBranchInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val codingModeButton = Button(this).apply {
+            text = if (codingAgentPrefs.getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)) {
+                "DISABLE VYOM GITHUB CODING MODE"
+            } else {
+                "ENABLE VYOM GITHUB CODING MODE"
+            }
+            setOnClickListener {
+                val enabled = !codingAgentPrefs.getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+                try {
+                    VyomGitHubMcpCodingAgentRuntime.configure(
+                        codingAgentPrefs,
+                        codingRepositoryInput.text.toString().trim(),
+                        codingBaseBranchInput.text.toString().trim(),
+                        enabled
+                    )
+                    text = if (enabled) "DISABLE VYOM GITHUB CODING MODE" else "ENABLE VYOM GITHUB CODING MODE"
+                    if (enabled) {
+                        VyomFactoryWorkerDispatchScheduler.enqueue(applicationContext)
+                    } else {
+                        VyomFactoryWorkerDispatchScheduler.cancel(applicationContext)
+                    }
+                    selfChangeNotice.text = if (enabled) {
+                        "Coding mode ON · chat tasks and one eligible Factory issue per dispatch go to Vyom's GitHub MCP runtime. Draft PR only; no merge or issue close."
+                    } else {
+                        "GitHub coding mode is OFF."
+                    }
+                } catch (error: Exception) {
+                    selfChangeNotice.text = error.message ?: "Coding mode settings are invalid."
+                }
+            }
+        }
+        settingsContent.addView(codingModeButton, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(TextView(this).apply {
+            text = "Factory issue repair currently runs one task at a time. Three-way parallel branches are not enabled until isolation and recovery tests pass. Writes stay on vyom-agent/*; main/master, deletes, merges, signing and production paths are blocked."
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, -2))
+        settingsContent.addView(Button(this).apply {
+            text = "VIEW VYOM CAPABILITIES · ${VyomCapabilityCatalog.entries.size}"
+            setOnClickListener {
+                val inventory = VyomCapabilityCatalog.entries.joinToString("\n\n") { entry ->
+                    val status = when (entry.status) {
+                        VyomCapabilityCatalog.Status.INTEGRATED -> "INTEGRATED (device verification pending)"
+                        VyomCapabilityCatalog.Status.PLANNED -> "NOT INSTALLED"
+                        VyomCapabilityCatalog.Status.REFERENCE_ONLY -> "REFERENCE ONLY"
+                        VyomCapabilityCatalog.Status.REVIEW_REQUIRED -> "SOURCE NEEDS CONFIRMATION"
+                    }
+                    "${entry.name} · $status\n${entry.summary}\n${entry.source}"
+                }
+                val body = TextView(this@MainActivity).apply {
+                    text = inventory
+                    textSize = 12f
+                    setTextColor(Color.WHITE)
+                    setPadding(dp(18), dp(12), dp(18), dp(12))
+                    setTextIsSelectable(true)
+                }
+                val scroll = ScrollView(this@MainActivity).apply { addView(body) }
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Vyom capability inventory")
+                    .setView(scroll)
+                    .setPositiveButton("CLOSE", null)
+                    .show()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(44)))
         selfChangeButton = Button(this).apply {
             text = "PROPOSE SELF-CHANGE"
             setOnClickListener {
@@ -3592,6 +3722,24 @@ class MainActivity : Activity() {
             return
         }
         if (!chatReady) return
+        val explicitCodingCommand = lowerMessage.startsWith("/code ")
+        val codingModeEnabled = getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, MODE_PRIVATE)
+            .getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+        if (codingModeEnabled || explicitCodingCommand) {
+            val codingTask = if (explicitCodingCommand) message.substringAfter(' ').trim() else message.trim()
+            if (codingTask.isBlank()) {
+                showChatNotice("Enter a repository coding task.")
+                return
+            }
+            memoryStore.learnFrom(message)
+            chatInput.setText("")
+            val codingItem = ChatMessage(UUID.randomUUID().toString(), message, "queued")
+            chatMessages.add(codingItem)
+            persistChatMessages()
+            renderChatMessages()
+            scheduleGitHubCodingAgentMessage(codingItem, codingTask)
+            return
+        }
         memoryStore.learnFrom(message)
         chatInput.setText("")
         val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
@@ -3803,6 +3951,41 @@ class MainActivity : Activity() {
                     } else {
                         status.text = "VYOM  •  OFFLINE"
                     }
+                    renderChatMessages()
+                }
+            }
+        }
+    }
+
+    private fun scheduleGitHubCodingAgentMessage(item: ChatMessage, task: String) {
+        codingAgentExecutor.execute {
+            runOnUiThread {
+                item.state = "running"
+                item.reply = "Vyom is inspecting the selected GitHub repository…"
+                persistChatMessages()
+                status.text = "VYOM  •  CODING"
+                renderChatMessages()
+            }
+            try {
+                val reply = VyomGitHubMcpCodingAgentRuntime.run(applicationContext, task)
+                runOnUiThread {
+                    item.state = "done"
+                    item.reply = reply
+                    persistChatMessages()
+                    status.text = if (chatMessages.any { it.state == "queued" || it.state == "running" }) {
+                        "VYOM  •  CODING"
+                    } else {
+                        "VYOM  •  READY"
+                    }
+                    renderChatMessages()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    item.state = "error"
+                    item.reply = error.message?.takeIf { it.isNotBlank() }
+                        ?: "GitHub coding task failed. Please inspect the repository connection and retry."
+                    persistChatMessages()
+                    status.text = "VYOM  •  CODING ERROR"
                     renderChatMessages()
                 }
             }

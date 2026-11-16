@@ -29,6 +29,7 @@ internal class VyomFactoryWorkerDispatchWorker(
                     "#${it.issueNumber} · ${it.reason}"
                 },
                 "proposed_count" to (result?.proposedCount ?: 0),
+                "repaired_count" to (result?.repairedCount ?: 0),
                 "failed_count" to (result?.failedCount ?: 0),
                 "retryable_failure_count" to (result?.retryableFailureCount ?: 0)
             )
@@ -56,6 +57,17 @@ internal class VyomFactoryWorkerDispatchWorker(
                 androidx.work.workDataOf("reason" to "WORKER_REPOSITORY_NOT_BOUND")
             )
 
+            val codingPrefs = context.getSharedPreferences(
+                VyomGitHubMcpCodingAgentRuntime.PREFS, Context.MODE_PRIVATE
+            )
+            if (!codingPrefs.getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)) {
+                return Result.success(dispatchData("VYOM_MCP_CODING_MODE_DISABLED"))
+            }
+            val proposalStore = VyomFactoryWorkerProposalStore(File(context.filesDir, PROPOSAL_DIRECTORY))
+            if (proposalStore.pending().isNotEmpty()) {
+                return Result.success(dispatchData("LEGACY_PROPOSALS_REQUIRE_OWNER_REVIEW"))
+            }
+
             val client = VyomFactoryGitHubClient(token, registry)
             val taskStore = VyomFactoryTaskStore(context)
             val leaseStore = VyomFactoryWorkerLeaseStore(context)
@@ -65,14 +77,35 @@ internal class VyomFactoryWorkerDispatchWorker(
                 coordinator = VyomFactoryWorkerClaimCoordinator(taskStore, leaseStore),
                 fetchRemoteTasks = client::listTasks
             )
-            val proposalStore = VyomFactoryWorkerProposalStore(File(context.filesDir, PROPOSAL_DIRECTORY))
             val dispatcher = VyomFactoryWorkerPoolDispatcher(
                 pool = pool,
                 registry = registry,
                 fetchRemoteTasks = client::listTasks,
-                modelAdapterFactory = { VyomFactoryWorkerModelRuntime.adapter(context) },
-                onProposal = { task, workerId, leaseId, candidate ->
-                    proposalStore.save(task, workerId, leaseId, candidate)
+                modelAdapterFactory = { error("Legacy worker planner is disabled in Vyom MCP coding mode.") },
+                codingAgentRunner = { task, control ->
+                    setProgressAsync(androidx.work.workDataOf(
+                        "runtime_issue_number" to task.number,
+                        "runtime_state" to "MCP_CODING_AGENT_STARTED"
+                    )).get(10L, TimeUnit.SECONDS)
+                    try {
+                        val result = VyomGitHubMcpCodingAgentRuntime.run(context, task, registry, control)
+                        setProgressAsync(androidx.work.workDataOf(
+                            "runtime_issue_number" to task.number,
+                            "runtime_state" to "MCP_CODING_AGENT_RETURNED",
+                            "runtime_result" to result.take(8_000)
+                        )).get(10L, TimeUnit.SECONDS)
+                        result
+                    } catch (error: Exception) {
+                        setProgressAsync(androidx.work.workDataOf(
+                            "runtime_issue_number" to task.number,
+                            "runtime_state" to "MCP_CODING_AGENT_FAILED",
+                            "runtime_error_type" to error.javaClass.simpleName
+                        )).get(10L, TimeUnit.SECONDS)
+                        throw error
+                    }
+                },
+                onProposal = { _, _, _, _ ->
+                    throw IllegalStateException("MCP coding mode must not create legacy worker proposals.")
                 },
                 isStopped = stopStore::isStopped,
                 // Provider planning is read-only and requires live model-call authorization.
@@ -92,62 +125,11 @@ internal class VyomFactoryWorkerDispatchWorker(
             )
             val dispatched = dispatcher.dispatchAvailable()
 
-            // A saved proposal is executed serially in this background run. One task per
-            // WorkManager run keeps the bounded exact-SHA CI wait inside the worker budget.
-            val pending = proposalStore.pending().firstOrNull()
-            if (pending != null) {
-                val authorization = VyomFactoryAutonomousExecutionAuthorizationStore(context).read()
-                    ?: return Result.success(dispatchData("AUTONOMOUS_AUTHORIZATION_MISSING", dispatched))
-                val config = VyomFactoryAutonomousExecutionAuthorizationRuntime.currentConfig(context)
-                val executionCoordinator = VyomFactoryRepositoryProposalExecutionCoordinator(
-                    registry = registry,
-                    proposals = object : VyomFactoryRepositoryProposalExecutionCoordinator.ProposalAccess {
-                        override fun get(issueNumber: Int) = proposalStore.get(issueNumber)
-                        override fun markApproved(issueNumber: Int) = proposalStore.markApproved(issueNumber)
-                        override fun markSubmitted(issueNumber: Int) = proposalStore.markSubmitted(issueNumber)
-                        override fun markAutonomousExecuting(issueNumber: Int) = proposalStore.markAutonomousExecuting(issueNumber)
-                        override fun markAutonomousFailed(issueNumber: Int) = proposalStore.markAutonomousFailed(issueNumber)
-                    },
-                    fetchFreshTask = { issueNumber ->
-                        client.listTasks().firstOrNull { it.number == issueNumber }
-                    },
-                    verifyApproval = { _, _, _ ->
-                        throw SecurityException("Per-task approval is not used by the autonomous execution path")
-                    },
-                    executePlan = { plan, writeToken, control ->
-                        VyomFactoryRepositoryChangeExecutor(registry).execute(
-                            plan, writeToken, control, timeoutMillis = 7L * 60L * 1_000L
-                        )
-                    }
-                )
-                val control = object : VyomFactoryExecutionControl {
-                    override fun shouldStop(): Boolean =
-                        stopStore.isStopped() ||
-                            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
-                            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)
-                }
-                try {
-                    executionCoordinator.executeAutonomously(
-                        pending.issueNumber, authorization, config,
-                        System.currentTimeMillis(), token, control
-                    )
-                } catch (error: Exception) {
-                    // Stale or failed proposals are terminal; never replay a possibly partial GitHub write.
-                    proposalStore.markAutonomousFailed(pending.issueNumber)
-                    proposalStore.markRejected(pending.issueNumber)
-                    throw error
-                }
-            }
-
             when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
                 VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> {
-                    if ((dispatched.proposedCount > 0 || pending != null) && !stopStore.isStopped() &&
-                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) {
-                        VyomFactoryWorkerDispatchScheduler.enqueueContinuation(context)
-                    }
                     val reason = when {
                         stopStore.isStopped() || dispatched.stopped -> "GLOBAL_STOP_ACTIVE"
-                        pending != null -> "PROPOSAL_EXECUTED"
+                        dispatched.repairedCount > 0 -> "REPAIR_EXECUTED"
                         dispatched.reason == "ZERO_ELIGIBLE_TASKS" -> "ZERO_ELIGIBLE_TASKS"
                         dispatched.proposedCount > 0 -> "PROPOSAL_CREATED"
                         else -> dispatched.reason
@@ -189,6 +171,9 @@ internal class VyomFactoryWorkerPeriodicTrigger(
     override fun doWork(): Result {
         val context = applicationContext
         if (VyomFactoryWorkerStopStore(context).isStopped()) return Result.success()
+        if (context.getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, Context.MODE_PRIVATE)
+                .getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+        ) return Result.success() // Continuous MCP issue scheduling is enabled only after the Task 9 recovery/duplicate guards.
         if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
             VyomFactoryWorkerLiveCallAuthorizationStore(context).read() == null
         ) return Result.success()
@@ -204,7 +189,9 @@ internal object VyomFactoryWorkerDispatchScheduler {
 
     fun ensurePeriodicScheduled(context: Context) {
         val app = context.applicationContext
-        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+        if (app.getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, Context.MODE_PRIVATE)
+                .getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false) ||
+            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
             VyomFactoryWorkerLiveCallAuthorizationStore(app).read() == null) {
             WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
             return

@@ -115,6 +115,7 @@ class VyomFactoryWorkerProviderAdapterTest {
         assertTrue(payload.getJSONArray("contents").getJSONObject(0).toString()
             .contains("UNTRUSTED TASK DESCRIPTION DATA"))
         assertFalse(payload.getJSONObject("generationConfig").has("maxOutputTokens"))
+        assertFalse(payload.getJSONObject("generationConfig").has("responseMimeType"))
         assertEquals(52, result.inputTokens)
         assertEquals(23, result.outputTokens)
     }
@@ -141,6 +142,43 @@ class VyomFactoryWorkerProviderAdapterTest {
         assertTrue(error.message!!.contains("HTTP 401"))
         assertFalse(error.message!!.contains("do-not-echo"))
         assertFalse(error.message!!.contains("google-test-key"))
+    }
+
+    @Test fun providerErrorIncludesSafeProviderDiagnosticWithoutCredentialLeak() {
+        val transport = FakeTransport(
+            VyomFactoryWorkerModelHttpTransport.Response(
+                500,
+                """{"error":{"code":500,"status":"INTERNAL","message":"responseMimeType is not supported for this model; key=AIzaSyExampleSecret"}}"""
+            )
+        )
+        val provider = GoogleGemmaWorkerModelProvider(transport = transport)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            provider.generate(request(), "google-test-key".toCharArray())
+        }
+
+        assertTrue(error.message!!.contains("HTTP 500"))
+        assertTrue(error.message!!.contains("responseMimeType is not supported"))
+        assertFalse(error.message!!.contains("AIzaSyExampleSecret"))
+        assertFalse(error.message!!.contains("google-test-key"))
+    }
+
+    @Test fun nvidia404ExposesAccountScopedModelDiagnostic() {
+        val transport = FakeTransport(
+            VyomFactoryWorkerModelHttpTransport.Response(
+                404,
+                """{"title":"Not Found","detail":"Function not found for account; model endpoint is not enabled"}"""
+            )
+        )
+        val provider = NvidiaNemotronWorkerModelProvider(transport = transport)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            provider.generate(request(), "nvidia-test-key".toCharArray())
+        }
+
+        assertTrue(error.message!!.contains("HTTP 404"))
+        assertTrue(error.message!!.contains("Function not found for account"))
+        assertFalse(error.message!!.contains("nvidia-test-key"))
     }
 
     @Test fun providerRejectsMissingUsageOrMalformedResponse() {

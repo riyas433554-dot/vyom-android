@@ -20,7 +20,8 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/vyom-v') ||
       (github.event_name == 'workflow_dispatch' &&
-       github.ref == 'refs/heads/feature/real-worker-model')
+       (github.ref == 'refs/heads/feature/real-worker-model' ||
+        github.ref == 'refs/heads/feature/vyom-github-mcp-coding-agent'))
     environment:
       name: vyom-release-signing
     permissions:

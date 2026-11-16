@@ -9,6 +9,7 @@ on:
       - vyom-worker-*
       - fix/item7-progress-gates
       - feature/real-worker-model
+      - feature/vyom-github-mcp-coding-agent
       - feature/factory-item5-task-intelligence
       - fix/factory-five-issues
   pull_request:
@@ -17,6 +18,7 @@ on:
       - feature/memory-intelligence
       - feature/factory-item5-task-intelligence
       - feature/real-worker-model
+      - feature/vyom-github-mcp-coding-agent
 
 permissions:
   contents: read
