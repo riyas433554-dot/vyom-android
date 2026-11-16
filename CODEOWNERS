@@ -8,3 +8,19 @@
 /app/src/main/java/com/hermes/assistant/VyomAccessibilityService.kt @riyas433554-dot
 /app/src/main/java/com/hermes/assistant/SelfModificationPolicy.kt @riyas433554-dot
 /.github/workflows/** @riyas433554-dot
+
+# Explicit high-risk paths (the global owner rule above also covers these).
+/.github/workflows/** @riyas433554-dot
+/config/** @riyas433554-dot
+/app/build.gradle.kts @riyas433554-dot
+/gradle/** @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/*Stop* @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/*Lease* @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/*Allowlist* @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/*Verifier* @riyas433554-dot
+/app/src/main/java/com/hermes/assistant/*Signing* @riyas433554-dot
+/app/src/test/java/com/hermes/assistant/*Stop* @riyas433554-dot
+/app/src/test/java/com/hermes/assistant/*Lease* @riyas433554-dot
+/app/src/test/java/com/hermes/assistant/*Allowlist* @riyas433554-dot
+/app/src/test/java/com/hermes/assistant/*Verifier* @riyas433554-dot
+/app/src/test/java/com/hermes/assistant/*Policy* @riyas433554-dot

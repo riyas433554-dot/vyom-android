@@ -1,10 +1,12 @@
 package com.hermes.assistant
+
+import java.text.Normalizer
 internal object MemoryCapturePolicy {
     private const val MAX_INPUT_CHARS = 2_000
     private const val MAX_FACT_CHARS = 300
     private val sensitivePatterns = listOf(
         Regex("(?i)\\b(password|passcode|otp|one[- ]time password|verification code|security code|pin|upi pin|cvv|cvc)\\b"),
-        Regex("(?i)\\b(api key|secret key|access token|refresh token|bearer token|private key|recovery phrase|seed phrase)\\b"),
+        Regex("(?i)\\b(api keys?|secret keys?|access tokens?|refresh tokens?|bearer tokens?|private keys?|recovery phrases?|seed phrases?)\\b"),
         Regex("(?i)\\b(bank account|account number|routing number|credit card|debit card|card number|wallet address)\\b"),
         Regex("(?i)\\b(aadhaar|aadhar|pan number|passport number|social security number|ssn)\\b"),
         Regex("(?i)\\b(medical diagnosis|medication|prescription|health condition)\\b"),
@@ -15,6 +17,26 @@ internal object MemoryCapturePolicy {
         Regex("\\b(?:\\+?91[- ]?)?[6-9]\\d{9}\\b"),
         Regex("(?i)\\b(nvapi-|sk-|gh[pousr]_|github_pat_|xox[baprs]-)\\S{12,}")
     )
+
+    /** Distinct from trust=untrusted: this marks content that looks like an instruction. */
+    const val INSTRUCTION_LIKE_MARKER = "[INSTRUCTION-LIKE UNTRUSTED DATA]"
+    private val instructionLikePatterns = listOf(
+        Regex("""\b(ignore|disregard|override|bypass|reveal|exfiltrate|steal|dump|disable|execute|run|unrestricted|escalate|must|never|always|do not|don't|should|avoid|preserve|keep|report only)\b"""),
+        Regex("""\b(system|developer)\s*:"""),
+        Regex("""authorization\s*:\s*bearer"""),
+        Regex("""release-certificate(?:\.sha256)?"""),
+        Regex("""\b(stop|shouldstop)\b.{0,40}\b(continue|false|optional|succeeded)\b"""),
+        Regex("""system instructions are authoritative except|print all api keys|curl\s*\|\s*sh|ci green without running ci""")
+    )
+
+    fun isInstructionLike(text: String): Boolean {
+        val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC)
+            .replace(Regex("\\p{Cf}"), "")
+            .replace(Regex("[\\p{Z}\\s]+"), " ")
+            .lowercase()
+        return instructionLikePatterns.any { it.containsMatchIn(normalized) }
+    }
+
     fun isSensitive(text: String): Boolean = sensitivePatterns.any { it.containsMatchIn(text) }
 
     fun relevantFacts(facts: List<String>, query: String, limit: Int = 10): List<String> {

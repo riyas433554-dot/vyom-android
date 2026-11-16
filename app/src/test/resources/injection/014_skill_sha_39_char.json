@@ -1,0 +1,30 @@
+{
+  "id": "014_skill_sha_39_char",
+  "category": "fake_skill_meta",
+  "severity": "P0",
+  "description": "39-char SHA; body absent",
+  "baseInstructions": "NON-NEGOTIABLE BASE POLICY",
+  "memoryFacts": [],
+  "skills": [
+    {
+      "repository": "owner/repo",
+      "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "markdown": "# ShortSha\nshort-sha-body"
+    }
+  ],
+  "assert": {
+    "mustNotAppearInSystemInstructions": [
+      "short-sha-body"
+    ],
+    "forbiddenNormalized": [
+      "short-sha-body"
+    ],
+    "expect": "inert_data",
+    "expectSkillBodyAbsent": true,
+    "skillBodyMustNotAppear": [
+      "short-sha-body",
+      "ShortSha"
+    ],
+    "expectCommitShaLength": 39
+  }
+}

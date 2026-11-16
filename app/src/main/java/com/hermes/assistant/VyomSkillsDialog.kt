@@ -26,6 +26,10 @@ internal class VyomSkillsDialog(
     private val density = activity.resources.displayMetrics.density
     private fun dp(value: Int): Int = (value * density).toInt()
     private val prefs = activity.getSharedPreferences("vyom_skill_registry", Activity.MODE_PRIVATE)
+    private val workerContextPrefs = activity.getSharedPreferences(
+        VyomFactorySkillsEnabledPolicy.PREFERENCES_NAME,
+        Activity.MODE_PRIVATE
+    )
     private lateinit var dialog: Dialog
     private lateinit var search: EditText
     private lateinit var list: LinearLayout
@@ -80,6 +84,48 @@ internal class VyomSkillsDialog(
             setPadding(0, dp(12), 0, dp(8))
         }
         root.addView(count)
+
+        val workerSkillsRow = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = GradientDrawable().apply {
+                setColor(0xAA1B2A40.toInt())
+                cornerRadius = dp(14).toFloat()
+            }
+        }
+        val workerSkillsLabel = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(activity).apply {
+                text = "Installed worker skills"
+                textSize = 13f
+                setTextColor(VyomDesignSpec.TEXT_PRIMARY)
+            })
+            addView(TextView(activity).apply {
+                text = "Owner opt-in · sent as untrusted reference data"
+                textSize = 10f
+                setTextColor(VyomDesignSpec.TEXT_SECONDARY)
+            })
+        }
+        workerSkillsRow.addView(workerSkillsLabel, LinearLayout.LayoutParams(0, -2, 1f))
+        workerSkillsRow.addView(Switch(activity).apply {
+            isChecked = VyomFactorySkillsEnabledPolicy.isEnabled(
+                workerContextPrefs.getBoolean(
+                    VyomFactorySkillsEnabledPolicy.PREFERENCE_KEY,
+                    VyomFactorySkillsEnabledPolicy.DEFAULT_ENABLED
+                )
+            )
+            contentDescription = "Enable installed worker skills"
+            setOnCheckedChangeListener { _, enabled ->
+                workerContextPrefs.edit()
+                    .putBoolean(VyomFactorySkillsEnabledPolicy.PREFERENCE_KEY, enabled)
+                    .apply()
+                onChanged("Installed worker skills", enabled)
+            }
+        })
+        root.addView(workerSkillsRow, LinearLayout.LayoutParams(-1, -2).apply {
+            bottomMargin = dp(10)
+        })
 
         search = EditText(activity).apply {
             hint = "Search skills…"

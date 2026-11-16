@@ -116,13 +116,13 @@ internal class NvidiaNemotronWorkerModelProvider(
             REQUEST_TIMEOUT_MILLIS
         )
         if (result.statusCode !in 200..299) {
-            throw IllegalStateException("NVIDIA Nemotron worker request failed with HTTP ${result.statusCode}")
+            throw VyomFactoryWorkerProviderHttpException(providerId, result.statusCode)
         }
         val root = JSONObject(result.body)
         val choice = root.optJSONArray("choices")?.optJSONObject(0)
             ?: throw IllegalArgumentException("NVIDIA Nemotron returned no completion")
         val output = choice.optJSONObject("message")?.optString("content").orEmpty()
-        require(output.isNotBlank()) { "NVIDIA Nemotron returned empty structured output" }
+        if (output.isBlank()) throw VyomFactoryWorkerProviderEmptyResponseException(providerId)
         val usage = root.optJSONObject("usage")
             ?: throw IllegalArgumentException("NVIDIA Nemotron response omitted token usage")
         val inputTokens = usage.getInt("prompt_tokens")
@@ -178,7 +178,7 @@ internal class GoogleGemmaWorkerModelProvider(
             REQUEST_TIMEOUT_MILLIS
         )
         if (result.statusCode !in 200..299) {
-            throw IllegalStateException("Google Gemma worker request failed with HTTP ${result.statusCode}")
+            throw VyomFactoryWorkerProviderHttpException(providerId, result.statusCode)
         }
         val root = JSONObject(result.body)
         val candidates = root.optJSONArray("candidates")
@@ -188,7 +188,7 @@ internal class GoogleGemmaWorkerModelProvider(
         val output = (0 until parts.length()).mapNotNull { index ->
             parts.optJSONObject(index)?.optString("text")?.takeIf { it.isNotBlank() }
         }.joinToString("")
-        require(output.isNotBlank()) { "Google Gemma returned empty structured output" }
+        if (output.isBlank()) throw VyomFactoryWorkerProviderEmptyResponseException(providerId)
         val usage = root.optJSONObject("usageMetadata")
             ?: throw IllegalArgumentException("Google Gemma response omitted token usage")
         val inputTokens = usage.getInt("promptTokenCount")
@@ -204,6 +204,100 @@ internal class GoogleGemmaWorkerModelProvider(
         const val DEFAULT_MODEL_ID = "gemma-4-26b-a4b-it"
         private const val REQUEST_TIMEOUT_MILLIS = 60_000L
     }
+}
+
+
+/** Status-only provider error; response bodies and credentials are deliberately discarded. */
+internal class VyomFactoryWorkerProviderHttpException(
+    val providerId: String,
+    val statusCode: Int,
+    @Suppress("UNUSED_PARAMETER") responseBody: String? = null
+) : IllegalStateException("$providerId worker request failed with HTTP $statusCode")
+
+internal class VyomFactoryWorkerProviderEmptyResponseException(
+    val providerId: String
+) : IllegalStateException("$providerId returned an empty response")
+
+internal class VyomFactoryWorkerProviderRejectedException(message: String) : IllegalStateException(message)
+
+internal data class VyomFactoryWorkerProviderRoute(
+    val provider: VyomFactoryWorkerModelProvider,
+    val keyStore: VyomFactoryWorkerApiKeyStore
+)
+
+/** Bounded provider routing. The configured provider is always attempted before fallbacks. */
+internal class VyomFactoryFallbackWorkerModelProvider(
+    private val primary: VyomFactoryWorkerModelProvider,
+    private val fallbackProviders: List<VyomFactoryWorkerProviderRoute>,
+    private val maxRetries: Int = 2
+) : VyomFactoryWorkerModelProvider {
+    override val providerId: String = primary.providerId
+    @Volatile private var activeProvider: VyomFactoryWorkerModelProvider = primary
+
+    init {
+        require(maxRetries in 0..2)
+        require(fallbackProviders.none { it.provider.providerId == primary.providerId })
+        require(fallbackProviders.map { it.provider.providerId }.distinct().size == fallbackProviders.size)
+    }
+
+    override fun generate(
+        request: VyomFactoryWorkerModelProvider.Request,
+        apiKey: CharArray
+    ): VyomFactoryWorkerModelProvider.Response {
+        var lastFailure: Exception? = null
+        val routes: List<Pair<VyomFactoryWorkerModelProvider, VyomFactoryWorkerApiKeyStore?>> =
+            listOf(primary to null) + fallbackProviders.map { it.provider to it.keyStore }
+        for ((index, route) in routes.withIndex()) {
+            val (provider, store) = route
+            val routeKey = if (index == 0) apiKey else {
+                try {
+                    store?.readKey()?.takeIf { it.isNotEmpty() }
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+            }
+            var moveToNextProvider = false
+            try {
+                activeProvider = provider
+                for (attempt in 0..maxRetries) {
+                    try {
+                        val response = provider.generate(request, routeKey)
+                        if (response.structuredOutput.isBlank()) {
+                            throw VyomFactoryWorkerProviderEmptyResponseException(provider.providerId)
+                        }
+                        return response
+                    } catch (error: SecurityException) {
+                        throw error
+                    } catch (error: Exception) {
+                        lastFailure = error
+                        val classification = when (error) {
+                            is VyomFactoryWorkerProviderHttpException ->
+                                classifyProviderFailure(error.statusCode, null, null, false)
+                            is VyomFactoryWorkerProviderEmptyResponseException ->
+                                classifyProviderFailure(200, null, null, true)
+                            else -> classifyProviderFailure(null, null, error, false)
+                        }
+                        if (classification.retryable && attempt < minOf(maxRetries, classification.maxRetries)) {
+                            continue
+                        }
+                        if (classification.fallback) {
+                            moveToNextProvider = true
+                            break
+                        }
+                        throw VyomFactoryWorkerProviderRejectedException(
+                            classification.userMessage ?: "Worker provider request failed (${classification.kind})"
+                        )
+                    }
+                }
+            } finally {
+                if (index != 0) routeKey.fill('\u0000')
+            }
+            if (!moveToNextProvider) break
+        }
+        throw VyomFactoryWorkerProviderRetriesExhaustedException(lastFailure)
+    }
+
+    override fun cancelCurrentCall() = activeProvider.cancelCurrentCall()
 }
 
 /** Issue text is JSON-escaped inside a labelled data field and cannot break its fence. */

@@ -16,6 +16,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import java.util.concurrent.Executors
 
 /** Searchable, editable memory viewer. The encrypted store remains the source of truth. */
 internal class VyomMemoryDialog(
@@ -32,6 +33,7 @@ internal class VyomMemoryDialog(
     private lateinit var status: TextView
     private lateinit var toggle: Button
     private lateinit var addButton: Button
+    private val memoryIo = Executors.newSingleThreadExecutor()
 
     fun show() {
         dialog = Dialog(activity)
@@ -89,9 +91,21 @@ internal class VyomMemoryDialog(
             text = if (store.isEnabled()) "MEMORY: ON · TURN OFF" else "MEMORY: OFF · TURN ON"
             VyomTheme.stylePill(this, activity, "amber", "secondary")
             setOnClickListener {
-                store.setEnabled(!store.isEnabled())
-                refresh()
-                onChanged(if (store.isEnabled()) "enabled" else "disabled")
+                val enabled = !store.isEnabled()
+                isEnabled = false
+                memoryIo.execute {
+                    val result = runCatching { store.setEnabled(enabled) }
+                    activity.runOnUiThread {
+                        if (!dialog.isShowing) return@runOnUiThread
+                        isEnabled = true
+                        result.onSuccess {
+                            refresh()
+                            onChanged(if (enabled) "enabled" else "disabled")
+                        }.onFailure {
+                            status.text = "Could not save memory setting: ${it.message ?: "storage error"}"
+                        }
+                    }
+                }
             }
         }
         root.addView(toggle, LinearLayout.LayoutParams(-1, dp(44)))
@@ -134,9 +148,18 @@ internal class VyomMemoryDialog(
                     .setMessage("This clears the encrypted facts stored on this device. It cannot be undone.")
                     .setNegativeButton("CANCEL", null)
                     .setPositiveButton("DELETE ALL") { _, _ ->
-                        store.clearFacts()
-                        refresh()
-                        onChanged("cleared")
+                        memoryIo.execute {
+                            val result = runCatching { store.clearFacts() }
+                            activity.runOnUiThread {
+                                if (!dialog.isShowing) return@runOnUiThread
+                                result.onSuccess {
+                                    refresh()
+                                    onChanged("cleared")
+                                }.onFailure {
+                                    status.text = "Could not clear memory: ${it.message ?: "storage error"}"
+                                }
+                            }
+                        }
                     }.show()
             }
         }
@@ -171,6 +194,7 @@ internal class VyomMemoryDialog(
         })
         refresh()
 
+        dialog.setOnDismissListener { memoryIo.shutdown() }
         dialog.setContentView(root)
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -261,11 +285,22 @@ internal class VyomMemoryDialog(
                         .setMessage("This saved fact will be removed from this device.")
                         .setNegativeButton("CANCEL", null)
                         .setPositiveButton("DELETE") { _, _ ->
-                            val next = store.facts().toMutableList()
-                            if (index in next.indices) next.removeAt(index)
-                            store.replaceFacts(next.joinToString("\n"))
-                            render(search.text.toString())
-                            onChanged("deleted")
+                            memoryIo.execute {
+                                val result = runCatching {
+                                    val next = store.facts().toMutableList()
+                                    if (index in next.indices) next.removeAt(index)
+                                    store.replaceFacts(next.joinToString("\n"))
+                                }
+                                activity.runOnUiThread {
+                                    if (!dialog.isShowing) return@runOnUiThread
+                                    result.onSuccess {
+                                        render(search.text.toString())
+                                        onChanged("deleted")
+                                    }.onFailure {
+                                        status.text = "Could not delete memory: ${it.message ?: "storage error"}"
+                                    }
+                                }
+                            }
                         }.show()
                 }
             }
@@ -295,11 +330,22 @@ internal class VyomMemoryDialog(
             .setNegativeButton("CANCEL", null)
             .setPositiveButton("SAVE") { _, _ ->
                 val value = input.text.toString().trim()
-                val facts = store.facts().toMutableList()
-                if (existing == null) facts.add(value) else if (existing.first in facts.indices) facts[existing.first] = value
-                store.replaceFacts(facts.joinToString("\n"))
-                render(search.text.toString())
-                onChanged(if (existing == null) "added" else "edited")
+                memoryIo.execute {
+                    val result = runCatching {
+                        val facts = store.facts().toMutableList()
+                        if (existing == null) facts.add(value) else if (existing.first in facts.indices) facts[existing.first] = value
+                        store.replaceFacts(facts.joinToString("\n"))
+                    }
+                    activity.runOnUiThread {
+                        if (!dialog.isShowing) return@runOnUiThread
+                        result.onSuccess {
+                            render(search.text.toString())
+                            onChanged(if (existing == null) "added" else "edited")
+                        }.onFailure {
+                            status.text = "Could not save memory: ${it.message ?: "storage error"}"
+                        }
+                    }
+                }
             }.show()
     }
 }

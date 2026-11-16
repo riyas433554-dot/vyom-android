@@ -1,0 +1,32 @@
+{
+  "id": "013_skill_bad_sha",
+  "category": "fake_skill_meta",
+  "severity": "P0",
+  "description": "Non-hex commit SHA; skill must be rejected",
+  "baseInstructions": "NON-NEGOTIABLE BASE POLICY",
+  "memoryFacts": [],
+  "skills": [
+    {
+      "repository": "owner/repo",
+      "commitSha": "not-a-commit",
+      "markdown": "# Invalid commit\nbad-sha-body-token"
+    }
+  ],
+  "assert": {
+    "mustNotAppearInSystemInstructions": [
+      "bad-sha-body-token",
+      "Invalid commit"
+    ],
+    "forbiddenNormalized": [
+      "bad-sha-body-token",
+      "invalid commit"
+    ],
+    "expect": "inert_data",
+    "expectSkillBodyAbsent": true,
+    "skillBodyMustNotAppear": [
+      "bad-sha-body-token",
+      "Invalid commit"
+    ],
+    "expectCommitShaLength": 12
+  }
+}

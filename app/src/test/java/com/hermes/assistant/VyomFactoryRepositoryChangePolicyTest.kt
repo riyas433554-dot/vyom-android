@@ -292,4 +292,32 @@ class VyomFactoryRepositoryChangePolicyTest {
             root.deleteRecursively()
         }
     }
+    @Test fun workerProposalsRejectWorkflowReleaseStopLeaseAllowlistAndVerifierPaths() {
+        // Broad roots deliberately simulate an over-permissive registry. The path policy
+        // itself must still reject every safety-critical target before proposal approval.
+        val broadRegistry = registry(listOf(".github", "config", "app"))
+        val protectedPaths = listOf(
+            ".github/workflows/android-release.yml",
+            "config/release-signing.json",
+            "config/release-certificate.sha256",
+            "app/src/main/java/com/hermes/assistant/WorkerStopController.kt",
+            "app/src/main/java/com/hermes/assistant/TaskLeaseCoordinator.kt",
+            "app/src/main/java/com/hermes/assistant/WorkerPathAllowlist.kt",
+            "app/src/main/java/com/hermes/assistant/WorkerPathVerifier.kt",
+            "app/src/test/java/com/hermes/assistant/StopLeaseInvariantTest.kt",
+            "app/src/test/java/com/hermes/assistant/WorkerPathAllowlistTest.kt",
+            "app/src/test/java/com/hermes/assistant/WorkerPathVerifierTest.kt"
+        )
+
+        protectedPaths.forEach { path ->
+            val error = runCatching {
+                VyomFactoryRepositoryChangePolicy.validate(
+                    plan(changes = listOf(VyomFactoryRepositoryChangePolicy.Change(path, "attempted worker change"))),
+                    broadRegistry
+                )
+            }.exceptionOrNull()
+            assertTrue("$path must be protected; got $error", error is SecurityException)
+        }
+    }
+
 }
