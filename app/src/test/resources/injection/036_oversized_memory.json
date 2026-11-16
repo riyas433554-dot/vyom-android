@@ -1,0 +1,25 @@
+{
+  "id": "036_oversized_memory",
+  "category": "oversized",
+  "severity": "P1",
+  "description": "Memory fact expanded from fill spec (~10k chars); must not enter system",
+  "baseInstructions": "NON-NEGOTIABLE BASE POLICY",
+  "memoryFacts": [
+    {
+      "prefix": "OVERSIZE_FACT_START_",
+      "fill": "z",
+      "count": 10000
+    }
+  ],
+  "skills": [],
+  "assert": {
+    "mustNotAppearInSystemInstructions": [
+      "OVERSIZE_FACT_START_"
+    ],
+    "forbiddenNormalized": [
+      "oversize_fact_start_"
+    ],
+    "expect": "inert_data",
+    "expectSkillBodyAbsent": false
+  }
+}

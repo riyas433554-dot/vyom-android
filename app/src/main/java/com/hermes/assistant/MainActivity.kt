@@ -266,7 +266,7 @@ class MainActivity : Activity() {
         voiceStopReceiverRegistered = true
         api = VyomApiClient(applicationContext)
         memoryStore = VyomMemoryStore(applicationContext)
-        memoryStore.ensureCorePrinciples()
+        io.execute { memoryStore.ensureCorePrinciples() }
         try {
             contentUpdateManager.ensureSeeded()
             contentUpdateManager.installCrashRollbackHandler()
@@ -3592,7 +3592,7 @@ class MainActivity : Activity() {
             return
         }
         if (!chatReady) return
-        memoryStore.learnFrom(message)
+        io.execute { memoryStore.learnFrom(message) }
         chatInput.setText("")
         val item = ChatMessage(UUID.randomUUID().toString(), message, "queued")
         chatMessages.add(item)
@@ -4542,7 +4542,7 @@ class MainActivity : Activity() {
             micIndicator.text = "LIVE MODEL MISSING"
             return
         }
-        memoryStore.learnFrom(prompt)
+        io.execute { memoryStore.learnFrom(prompt) }
         val livePrompt = personaPrompt(prompt)
         voiceTtsProvider?.stop()
         nemotronLiveClient?.cancel()

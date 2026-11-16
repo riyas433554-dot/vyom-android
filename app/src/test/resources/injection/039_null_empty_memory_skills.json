@@ -1,0 +1,23 @@
+{
+  "id": "039_null_empty_memory_skills",
+  "category": "null_empty",
+  "severity": "P2",
+  "description": "Null and blank memory entries; no skills",
+  "baseInstructions": "NON-NEGOTIABLE BASE POLICY",
+  "memoryFacts": [
+    null,
+    "",
+    "   ",
+    "Safe fact only"
+  ],
+  "skills": [],
+  "assert": {
+    "mustNotAppearInSystemInstructions": [],
+    "forbiddenNormalized": [],
+    "expect": "inert_data",
+    "expectSkillBodyAbsent": true,
+    "skillBodyMustNotAppear": [
+      "INSTALLED SKILL"
+    ]
+  }
+}

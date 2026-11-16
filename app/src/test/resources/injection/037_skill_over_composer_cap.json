@@ -1,0 +1,34 @@
+{
+  "id": "037_skill_over_composer_cap",
+  "category": "oversized",
+  "severity": "P1",
+  "description": "Skill markdown > 16000 chars (composer cap): REJECT, body absent",
+  "baseInstructions": "NON-NEGOTIABLE BASE POLICY",
+  "memoryFacts": [],
+  "skills": [
+    {
+      "repository": "owner/repo",
+      "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "markdown": {
+        "prefix": "# Cap\n\nSKILL_CAP_NEEDLE_\n",
+        "fill": "y",
+        "count": 16001
+      }
+    }
+  ],
+  "assert": {
+    "mustNotAppearInSystemInstructions": [
+      "SKILL_CAP_NEEDLE_"
+    ],
+    "forbiddenNormalized": [
+      "skill_cap_needle_"
+    ],
+    "expect": "inert_data",
+    "expectSkillBodyAbsent": true,
+    "skillBodyMustNotAppear": [
+      "SKILL_CAP_NEEDLE_",
+      "yyyy"
+    ],
+    "expectCommitShaLength": 40
+  }
+}
