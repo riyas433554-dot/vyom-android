@@ -118,7 +118,7 @@ internal class VyomFactorySkillRepositoryClient(
 
     private fun referencedMarkdownPaths(skillPath: String, markdown: String): List<String> {
         val base = skillPath.substringBeforeLast('/', "")
-        return Regex("""\\]\\(([^)]+\\.md)(?:#[^)]*)?\\)""")
+        return Regex("""\]\(([^)]+\.md)(?:#[^)]*)?\)""")
             .findAll(markdown)
             .mapNotNull { match ->
                 val raw = match.groupValues[1].substringBefore('?').trim()
@@ -276,7 +276,21 @@ internal class VyomFactorySkillStore(private val root: File) {
                 check(VyomFactorySkillPolicy.isAllowedLicense(license))
                 check(metadata.optString("content_type") == "inert-markdown")
                 check(hash.matches(Regex("^[a-f0-9]{64}$")))
-                check(VyomFactorySkillPolicy.sha256(skill.readBytes()) == hash)
+                val skillBytes = skill.readBytes()
+                check(VyomFactorySkillPolicy.sha256(skillBytes) == hash)
+                var bundleBytes = skillBytes.size
+                val references = metadata.optJSONObject("reference_hashes") ?: JSONObject()
+                val referencesRoot = File(directory, "references").canonicalFile
+                references.keys().asSequence().forEach { referencePath ->
+                    check(VyomFactorySkillPolicy.isValidReferencePath(referencePath))
+                    val reference = File(referencesRoot, referencePath).canonicalFile
+                    check(reference.path.startsWith(referencesRoot.path + File.separator) && reference.isFile)
+                    val referenceBytes = reference.readBytes()
+                    bundleBytes += referenceBytes.size
+                    check(bundleBytes <= VyomFactorySkillPolicy.MAX_BUNDLE_BYTES)
+                    check(VyomFactorySkillPolicy.sha256(referenceBytes) == references.getString(referencePath))
+                    VyomFactorySkillPolicy.decodeReference(referenceBytes)
+                }
                 valid++
             } catch (_: Exception) {
                 invalid++
@@ -305,6 +319,30 @@ internal class VyomFactorySkillStore(private val root: File) {
         val metadataTemp = File(directory, "source.json.tmp")
         val bytes = preview.skillMarkdown.toByteArray(Charsets.UTF_8)
         val hash = VyomFactorySkillPolicy.sha256(bytes)
+        require(preview.referenceFiles.size <= 8)
+        var bundleBytes = bytes.size
+        val referenceHashes = JSONObject()
+        val referencesTemp = File(directory, "references.tmp")
+        val referencesRoot = File(directory, "references")
+        check(!referencesTemp.exists() && !referencesRoot.exists()) { "Skill references already exist" }
+        if (preview.referenceFiles.isNotEmpty()) {
+            check(referencesTemp.mkdirs()) { "Could not create temporary skill references" }
+            preview.referenceFiles.toSortedMap().forEach { (referencePath, markdown) ->
+                require(VyomFactorySkillPolicy.isValidReferencePath(referencePath))
+                val referenceBytes = markdown.toByteArray(Charsets.UTF_8)
+                VyomFactorySkillPolicy.decodeReference(referenceBytes)
+                bundleBytes += referenceBytes.size
+                require(bundleBytes <= VyomFactorySkillPolicy.MAX_BUNDLE_BYTES) {
+                    "Skill bundle exceeds the 64 KiB import limit"
+                }
+                val referenceFile = File(referencesTemp, referencePath).canonicalFile
+                check(referenceFile.path.startsWith(referencesTemp.canonicalPath + File.separator))
+                check(referenceFile.parentFile?.exists() == true || referenceFile.parentFile?.mkdirs() == true)
+                writeSynced(referenceFile, referenceBytes)
+                referenceHashes.put(referencePath, VyomFactorySkillPolicy.sha256(referenceBytes))
+            }
+            check(referencesTemp.renameTo(referencesRoot)) { "Could not publish reviewed skill references" }
+        }
         val metadataJson = JSONObject()
             .put("repository", preview.repository)
             .put("branch", preview.branch)
@@ -312,6 +350,7 @@ internal class VyomFactorySkillStore(private val root: File) {
             .put("license", preview.license)
             .put("source_url", preview.sourceUrl)
             .put("sha256", hash)
+            .put("reference_hashes", referenceHashes)
             .put("content_type", "inert-markdown")
         writeSynced(skillTemp, bytes)
         writeSynced(metadataTemp, metadataJson.toString(2).toByteArray(Charsets.UTF_8))
@@ -325,9 +364,11 @@ internal class VyomFactorySkillStore(private val root: File) {
         val storedMetadata = JSONObject(metadata.readText(Charsets.UTF_8))
         check(storedMetadata.optString("commit_sha") == preview.commitSha &&
             storedMetadata.optString("sha256") == hash &&
-            storedMetadata.optString("content_type") == "inert-markdown") {
+            storedMetadata.optString("content_type") == "inert-markdown" &&
+            storedMetadata.optJSONObject("reference_hashes")?.length() == referenceHashes.length()) {
             "Installed skill source metadata verification failed"
         }
+        check(auditInstalled().valid == 1) { "Installed skill bundle verification failed" }
         return Installed(preview.repository, preview.commitSha, preview.license, hash, skill)
     }
 
