@@ -71,7 +71,9 @@ internal class VyomFactorySkillRepositoryClient(
         }
         val selectedSkillPath = VyomFactorySkillPolicy.selectSkillDocumentPath(paths, skillPath)
             ?: throw IllegalStateException(
-                if (skillPath == null) {
+                if (skillPath == null && paths.isEmpty()) {
+                    "No SKILL.md was found in the repository tree"
+                } else if (skillPath == null) {
                     "Multiple nested SKILL.md files exist; inspect with an exact skill path"
                 } else {
                     "The requested SKILL.md path was not found in this repository"
@@ -179,7 +181,10 @@ internal object VyomFactorySkillPolicy {
     fun selectSkillDocumentPath(paths: List<String>, requestedPath: String? = null): String? {
         val safePaths = paths.filter {
             (it == "SKILL.md" || it.endsWith("/SKILL.md")) &&
-                it.split("/").all { part -> part.isNotBlank() && part != "." && part != ".." }
+                it.split("/").all { part ->
+                    part.isNotBlank() && part != "." && part != ".." &&
+                        part.matches(Regex("^[A-Za-z0-9_. -]{1,100}$"))
+                }
         }.distinct()
         if (requestedPath != null) return requestedPath.takeIf { it in safePaths }
         return when {
