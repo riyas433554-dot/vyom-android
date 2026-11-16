@@ -170,6 +170,9 @@ internal class VyomFactoryWorkerPeriodicTrigger(
     override fun doWork(): Result {
         val context = applicationContext
         if (VyomFactoryWorkerStopStore(context).isStopped()) return Result.success()
+        if (context.getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, Context.MODE_PRIVATE)
+                .getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false)
+        ) return Result.success() // Continuous MCP issue scheduling is enabled only after the Task 9 recovery/duplicate guards.
         if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
             VyomFactoryWorkerLiveCallAuthorizationStore(context).read() == null
         ) return Result.success()
@@ -185,7 +188,9 @@ internal object VyomFactoryWorkerDispatchScheduler {
 
     fun ensurePeriodicScheduled(context: Context) {
         val app = context.applicationContext
-        if (!VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
+        if (app.getSharedPreferences(VyomGitHubMcpCodingAgentRuntime.PREFS, Context.MODE_PRIVATE)
+                .getBoolean(VyomGitHubMcpCodingAgentRuntime.KEY_ENABLED, false) ||
+            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(app) ||
             VyomFactoryWorkerLiveCallAuthorizationStore(app).read() == null) {
             WorkManager.getInstance(app).cancelUniqueWork(PERIODIC_WORK_NAME)
             return
