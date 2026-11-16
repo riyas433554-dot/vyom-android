@@ -320,6 +320,7 @@ internal class VyomFactoryStructuredWorkerModelAdapter(
                 } catch (failure: ExecutionException) {
                     val cause = failure.cause
                     if (cause is SecurityException) throw SecurityException("Worker live-call authorization is OFF or stale")
+                    if (cause is Exception) throw cause
                     throw IllegalStateException("Worker model provider failed (${cause?.javaClass?.simpleName ?: "unknown"})")
                 }
                 inputTokens = response.inputTokens
@@ -532,9 +533,36 @@ internal object VyomFactoryWorkerModelRuntime {
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider(modelId)
             else -> throw SecurityException("Unsupported worker model provider")
         }
+        val primaryKeyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, providerId)
+        val fallbackProviderId = if (providerId == NvidiaNemotronWorkerModelProvider.PROVIDER_ID) {
+            GoogleGemmaWorkerModelProvider.PROVIDER_ID
+        } else {
+            NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+        }
+        val fallbackKeyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, fallbackProviderId)
+        val fallbackKeyAvailable = runCatching { fallbackKeyStore.readKey() }.getOrNull()?.let { key ->
+            val available = key.isNotEmpty()
+            key.fill('\\u0000')
+            available
+        } == true
+        val fallbackModelId = prefs.getString(fallbackProviderId + MODEL_ID_SUFFIX, null)
+        val fallbackProvider = if (!fallbackKeyAvailable) emptyList() else listOf(
+            VyomFactoryWorkerProviderRoute(
+                provider = when (fallbackProviderId) {
+                    NvidiaNemotronWorkerModelProvider.PROVIDER_ID ->
+                        NvidiaNemotronWorkerModelProvider(fallbackModelId ?: NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID)
+                    else -> GoogleGemmaWorkerModelProvider(fallbackModelId ?: GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID)
+                },
+                keyStore = fallbackKeyStore
+            )
+        )
+        val routedProvider = VyomFactoryFallbackWorkerModelProvider(
+            primary = provider,
+            fallbackProviders = fallbackProvider
+        )
         return VyomFactoryStructuredWorkerModelAdapter(
-            provider = provider,
-            keyStore = VyomFactoryAndroidWorkerApiKeyStore(context.applicationContext, providerId),
+            provider = routedProvider,
+            keyStore = primaryKeyStore,
             journal = journal,
             preCallAuthorization = { VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context) },
             contextProvider = { taskQuery ->
