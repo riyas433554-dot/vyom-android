@@ -243,7 +243,8 @@ internal class VyomFactoryFallbackWorkerModelProvider(
         apiKey: CharArray
     ): VyomFactoryWorkerModelProvider.Response {
         var lastFailure: Exception? = null
-        val routes = listOf(primary to null) + fallbackProviders.map { it.provider to it.keyStore }
+        val routes: List<Pair<VyomFactoryWorkerModelProvider, VyomFactoryWorkerApiKeyStore?>> =
+            listOf(primary to null) + fallbackProviders.map { it.provider to it.keyStore }
         for ((index, route) in routes.withIndex()) {
             val (provider, store) = route
             val routeKey = if (index == 0) apiKey else {
