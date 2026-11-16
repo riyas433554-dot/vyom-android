@@ -114,63 +114,11 @@ internal class VyomFactoryWorkerDispatchWorker(
             )
             val dispatched = dispatcher.dispatchAvailable()
 
-            // A saved proposal is executed serially in this background run. One task per
-            // WorkManager run keeps the bounded exact-SHA CI wait inside the worker budget.
-            val pending: VyomFactoryWorkerProposalStore.StoredProposal? = null
-            if (pending != null) {
-                val authorization = VyomFactoryAutonomousExecutionAuthorizationStore(context).read()
-                    ?: return Result.success(dispatchData("AUTONOMOUS_AUTHORIZATION_MISSING", dispatched))
-                val config = VyomFactoryAutonomousExecutionAuthorizationRuntime.currentConfig(context)
-                val executionCoordinator = VyomFactoryRepositoryProposalExecutionCoordinator(
-                    registry = registry,
-                    proposals = object : VyomFactoryRepositoryProposalExecutionCoordinator.ProposalAccess {
-                        override fun get(issueNumber: Int) = proposalStore.get(issueNumber)
-                        override fun markApproved(issueNumber: Int) = proposalStore.markApproved(issueNumber)
-                        override fun markSubmitted(issueNumber: Int) = proposalStore.markSubmitted(issueNumber)
-                        override fun markAutonomousExecuting(issueNumber: Int) = proposalStore.markAutonomousExecuting(issueNumber)
-                        override fun markAutonomousFailed(issueNumber: Int) = proposalStore.markAutonomousFailed(issueNumber)
-                    },
-                    fetchFreshTask = { issueNumber ->
-                        client.listTasks().firstOrNull { it.number == issueNumber }
-                    },
-                    verifyApproval = { _, _, _ ->
-                        throw SecurityException("Per-task approval is not used by the autonomous execution path")
-                    },
-                    executePlan = { plan, writeToken, control ->
-                        VyomFactoryRepositoryChangeExecutor(registry).execute(
-                            plan, writeToken, control, timeoutMillis = 7L * 60L * 1_000L
-                        )
-                    }
-                )
-                val control = object : VyomFactoryExecutionControl {
-                    override fun shouldStop(): Boolean =
-                        stopStore.isStopped() ||
-                            !VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context) ||
-                            !VyomFactoryWorkerLiveCallAuthorizationRuntime.isEnabled(context)
-                }
-                try {
-                    executionCoordinator.executeAutonomously(
-                        pending.issueNumber, authorization, config,
-                        System.currentTimeMillis(), token, control
-                    )
-                } catch (error: Exception) {
-                    // Stale or failed proposals are terminal; never replay a possibly partial GitHub write.
-                    proposalStore.markAutonomousFailed(pending.issueNumber)
-                    proposalStore.markRejected(pending.issueNumber)
-                    throw error
-                }
-            }
-
             when (VyomFactoryWorkerDispatchResultPolicy.decide(dispatched)) {
                 VyomFactoryWorkerDispatchResultPolicy.Decision.SUCCESS -> {
-                    if ((dispatched.proposedCount > 0 || pending != null) && !stopStore.isStopped() &&
-                        VyomFactoryAutonomousExecutionAuthorizationRuntime.isEnabled(context)) {
-                        VyomFactoryWorkerDispatchScheduler.enqueueContinuation(context)
-                    }
                     val reason = when {
                         stopStore.isStopped() || dispatched.stopped -> "GLOBAL_STOP_ACTIVE"
                         dispatched.repairedCount > 0 -> "REPAIR_EXECUTED"
-                        pending != null -> "PROPOSAL_EXECUTED"
                         dispatched.reason == "ZERO_ELIGIBLE_TASKS" -> "ZERO_ELIGIBLE_TASKS"
                         dispatched.proposedCount > 0 -> "PROPOSAL_CREATED"
                         else -> dispatched.reason
