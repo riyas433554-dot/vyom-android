@@ -35,6 +35,7 @@
         android:required="false" />
 
     <application
+        android:networkSecurityConfig="@xml/network_security_config"
         android:allowBackup="false"
         android:label="Vyom"
         android:theme="@style/AppTheme"
