@@ -117,7 +117,8 @@ internal class VyomFactoryAndroidWorkerApiKeyStore(
         private const val KEY_ALIAS_PREFIX = "vyom_factory_worker_provider_aes"
         private val SUPPORTED_PROVIDER_IDS = setOf(
             NvidiaNemotronWorkerModelProvider.PROVIDER_ID,
-            GoogleGemmaWorkerModelProvider.PROVIDER_ID
+            GoogleGemmaWorkerModelProvider.PROVIDER_ID,
+            FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID
         )
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
