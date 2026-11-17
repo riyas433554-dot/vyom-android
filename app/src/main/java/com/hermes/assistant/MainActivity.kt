@@ -611,10 +611,12 @@ class MainActivity : Activity() {
         ) ?: NvidiaNemotronWorkerModelProvider.PROVIDER_ID
         fun workerProviderLabel(providerId: String) = when (providerId) {
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> "GOOGLE GEMMA"
+            FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID -> "FREELLMAPI · ANTHROPIC"
             else -> "NVIDIA NEMOTRON"
         }
         fun defaultWorkerModel(providerId: String) = when (providerId) {
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
+            FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID -> FreeLlmApiAnthropicWorkerModelProvider.DEFAULT_MODEL_ID
             else -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
         }
         val workerModelIdInput = EditText(this).apply {
@@ -633,11 +635,11 @@ class MainActivity : Activity() {
         workerProviderButton.setOnClickListener {
             AlertDialog.Builder(this@MainActivity)
                 .setTitle("Select Vyom coding-agent model")
-                .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma")) { _, which ->
-                    selectedWorkerProviderId = if (which == 0) {
-                        NvidiaNemotronWorkerModelProvider.PROVIDER_ID
-                    } else {
-                        GoogleGemmaWorkerModelProvider.PROVIDER_ID
+                .setItems(arrayOf("NVIDIA Nemotron", "Google Gemma", "FreeLLMAPI (Anthropic)")) { _, which ->
+                    selectedWorkerProviderId = when (which) {
+                        0 -> NvidiaNemotronWorkerModelProvider.PROVIDER_ID
+                        1 -> GoogleGemmaWorkerModelProvider.PROVIDER_ID
+                        else -> FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID
                     }
                     workerModelPrefs.edit()
                         .putString(VyomFactoryWorkerModelRuntime.SELECTED_PROVIDER, selectedWorkerProviderId)
@@ -678,6 +680,22 @@ class MainActivity : Activity() {
             textSize = 13f
         }
         settingsContent.addView(workerGoogleKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        val workerFreeLlmApiKeyInput = EditText(this).apply {
+            hint = "FreeLLMAPI unified key (blank = keep saved)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            textSize = 13f
+        }
+        settingsContent.addView(workerFreeLlmApiKeyInput, LinearLayout.LayoutParams(-1, dp(44)))
+        settingsContent.addView(TextView(this).apply {
+            text = "FreeLLMAPI endpoint: http://127.0.0.1:3001 (start FreeLLMAPI on this device)"
+            textSize = 10f
+            setTextColor(Color.LTGRAY)
+        }, LinearLayout.LayoutParams(-1, -2))
         settingsContent.addView(Button(this).apply {
             text = "SAVE CODING AGENT MODEL SETTINGS"
             setOnClickListener {
@@ -704,6 +722,7 @@ class MainActivity : Activity() {
                         .apply()
                     storeWorkerKey(NvidiaNemotronWorkerModelProvider.PROVIDER_ID, workerNvidiaKeyInput)
                     storeWorkerKey(GoogleGemmaWorkerModelProvider.PROVIDER_ID, workerGoogleKeyInput)
+                    storeWorkerKey(FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID, workerFreeLlmApiKeyInput)
                     status.text = "Coding-agent model settings saved."
                 } catch (_: Exception) {
                     status.text = "Worker settings could not be saved. Check model ID and retry."
