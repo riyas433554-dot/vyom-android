@@ -96,7 +96,7 @@ internal class VyomGitHubMcpCodingAgent(
                 taskDescriptionData = requestData
             )
             val apiKey = keyStore.readKey()?.takeIf { it.isNotEmpty() }
-                ?: throw IllegalStateException("Gemma/Nemotron provider key is not configured in Vyom Settings.")
+                ?: throw IllegalStateException("Selected coding-agent provider key is not configured in Vyom Settings.")
             val raw = try {
                 provider.generate(request, apiKey).structuredOutput
             } finally {
@@ -365,6 +365,7 @@ internal object VyomGitHubMcpCodingAgentRuntime {
         ) ?: NvidiaNemotronWorkerModelProvider.PROVIDER_ID
         val defaultModel = when (providerId) {
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider.DEFAULT_MODEL_ID
+            FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID -> FreeLlmApiAnthropicWorkerModelProvider.DEFAULT_MODEL_ID
             else -> NvidiaNemotronWorkerModelProvider.DEFAULT_MODEL_ID
         }
         val modelId = workerPrefs.getString(
@@ -374,7 +375,8 @@ internal object VyomGitHubMcpCodingAgentRuntime {
         val provider: VyomFactoryWorkerModelProvider = when (providerId) {
             NvidiaNemotronWorkerModelProvider.PROVIDER_ID -> NvidiaNemotronWorkerModelProvider(modelId)
             GoogleGemmaWorkerModelProvider.PROVIDER_ID -> GoogleGemmaWorkerModelProvider(modelId)
-            else -> throw SecurityException("Unsupported Gemma/Nemotron provider.")
+            FreeLlmApiAnthropicWorkerModelProvider.PROVIDER_ID -> FreeLlmApiAnthropicWorkerModelProvider(modelId)
+            else -> throw SecurityException("Unsupported coding-agent provider.")
         }
         val token = GitHubReleaseTokenStore.read(app)
         require(token.isNotBlank()) { "Save a GitHub token in Vyom Settings first." }
